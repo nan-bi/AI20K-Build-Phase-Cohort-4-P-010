@@ -1,18 +1,16 @@
-# Worklog — Team [Tên Team]
+# Worklog — Team P-010
 
 > Ghi lại tất cả công việc đã làm theo ngày. Ai làm gì, kết quả gì.
 
 ---
 
-## [YYYY-MM-DD]
+## 2026-09-19
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| [Tên] | [mô tả task] | ✅ Done | [link/kết quả] | 2h |
-| [Tên] | [mô tả task] | 🔄 WIP | [mô tả tiến độ] | 1.5h |
-| [Tên] | [mô tả task] | ❌ Blocked | [lý do block] | - |
+| Nam (namnp) | Cấu hình biến môi trường `.env` và cài đặt Git pre-push hook cho AI Logging | ✅ Done | Branch `namnp/set_up_ai_log`, hook `.git/hooks/pre-push` sẵn sàng | 1h |
 
-**Tổng kết ngày:** [1-2 câu về tiến độ chung]
+**Tổng kết ngày:** Hoàn thành thiết lập ban đầu và kích hoạt hệ thống AI Usage Logging cho repo.
 
 ---
 
@@ -20,9 +18,9 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| | | | | |
+| [Tên] | [mô tả task] | 🔄 WIP | [kết quả/tiến độ] | 1h |
 
-**Tổng kết ngày:**
+**Tổng kết ngày:** [1-2 câu về tiến độ chung]
 
 ---
 
