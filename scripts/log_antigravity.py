@@ -48,6 +48,8 @@ Env overrides:
   ANTIGRAVITY_BRAIN_DIR  point at a different brain/ directory
   AI_LOG_DIR             where session.jsonl is written (default: .ai-log)
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -150,7 +152,7 @@ def _unquote_arg(val):
 
 
 def _conv_cwds(transcript: Path) -> set[str]:
-    """All Cwd values that appear in tool calls inside this transcript."""
+    """All Cwd and file path values that appear in tool calls inside this transcript."""
     cwds: set[str] = set()
     try:
         with open(transcript, encoding="utf-8") as f:
@@ -164,12 +166,21 @@ def _conv_cwds(transcript: Path) -> set[str]:
                     continue
                 for tc in (entry.get("tool_calls") or []):
                     args = tc.get("args") or {}
-                    cwd = args.get("Cwd") or args.get("cwd")
-                    cwd = _unquote_arg(cwd)
-                    if isinstance(cwd, str):
-                        n = _normalize(cwd)
-                        if n:
-                            cwds.add(n)
+                    raw_paths = [
+                        args.get("Cwd") or args.get("cwd"),
+                        args.get("AbsolutePath"),
+                        args.get("TargetFile"),
+                        args.get("DirectoryPath"),
+                        args.get("SearchPath"),
+                    ]
+                    for p in raw_paths:
+                        if not p:
+                            continue
+                        p = _unquote_arg(p)
+                        if isinstance(p, str):
+                            n = _normalize(p)
+                            if n:
+                                cwds.add(n)
     except OSError:
         pass
     return cwds
