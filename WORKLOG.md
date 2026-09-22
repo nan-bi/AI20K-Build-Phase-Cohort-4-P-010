@@ -28,4 +28,16 @@
 
 ---
 
+## 2026-09-22
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| phuong | Rà soát các tài liệu trong thư mục `docs/` để lọc thông tin về luồng khách thuê và luồng hệ thống | ✅ Done | Tổng hợp chuỗi end-to-end: ký gửi căn → xác minh listing → tìm và khớp căn theo All-in Cost → đặt lịch OTP → điều phối Field Host → xem phòng → cọc VietQR → khóa căn 24 giờ → OCR CCCD và ký số → bàn giao | 1h |
+| phuong | Phân tích luồng chủ nhà trong `UI_FLOW_SPEC.md`, `PRD.md`, `SAD.md` và `PROTOTYPE_GUIDE.md` | ✅ Done | Đặc tả luồng đăng ký căn, ký gửi độc quyền, cấu hình mã cửa/chìa cơ, theo dõi từ xa, nhận thông báo mở cửa/cọc, Digital Handover Passport và thoát ủy quyền sau 15 ngày | 0.5h |
+| phuong | Đối chiếu các trạng thái và trách nhiệm giữa người dùng và hệ thống | ✅ Done | Ghi nhận các trạng thái chính `available`, `holding`, `rented`, `unlisted`; cùng các nhánh no-show, double booking, OCR không đạt và webhook thanh toán chậm | 0.5h |
+
+**Tổng kết ngày:** Hoàn thành việc đọc và hệ thống hóa tài liệu nghiệp vụ. Làm rõ luồng chủ nhà theo mục tiêu vận hành từ xa 100%, đồng thời phân tách được thao tác của khách thuê, Field Host, Admin và các xử lý tự động của hệ thống.
+
+---
+
 <!-- Format: copy block trên cho mỗi ngày làm việc -->
