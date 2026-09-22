@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Antigravity IDE log scanner — extracts the exact user-typed prompts from
 local Antigravity conversation transcripts.
@@ -48,7 +49,6 @@ Env overrides:
   ANTIGRAVITY_BRAIN_DIR  point at a different brain/ directory
   AI_LOG_DIR             where session.jsonl is written (default: .ai-log)
 """
-from __future__ import annotations
 
 import argparse
 import json
