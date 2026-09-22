@@ -1,0 +1,5 @@
+2026/09/22-10:03:27.133 3b7c Creating DB d:\AI VIN\P-010\tech data\data\chrome_debug_profile\Default\Local Storage\leveldb since it was missing.
+2026/09/22-10:03:27.235 3b7c Reusing MANIFEST d:\AI VIN\P-010\tech data\data\chrome_debug_profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/09/22-10:19:32.566 3b7c Level-0 table #5: started
+2026/09/22-10:19:32.579 3b7c Level-0 table #5: 19754 bytes OK
+2026/09/22-10:19:32.586 3b7c Delete type=0 #3
