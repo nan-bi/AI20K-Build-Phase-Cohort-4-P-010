@@ -30,7 +30,7 @@
 ### 1. Nội dung hiển thị trên Slide:
 * **Tên sản phẩm:** **VinStay AI**
 * **Định vị sản phẩm:** Hệ điều hành Cho thuê & Vận hành Căn hộ Tinh gọn (Asset-Light) tại Đại đô thị Vinhomes Ocean Park.
-* **Thông điệp cốt lõi (Tagline):** *"Lấp đầy phòng trống trong 7 ngày — Chủ nhà ở nhà 100%"*
+* **Thông điệp cốt lõi (Tagline):** *"Minh bạch Giá & Thông tin — Khớp Căn 30 Giây — Chủ Nhà Vận Hành 0 Công Sức"*
 * **Đội thi:** Team T-010 | AI20K Build Phase (Cohort 4) — VinUni x Vingroup
 * **Địa bàn thử nghiệm:** Phân khu The Sapphire 1 & Sapphire 2 (Vinhomes Ocean Park, Gia Lâm, Hà Nội).
 
@@ -39,7 +39,7 @@
 * Hình ảnh phối cảnh thực tế đại đô thị Vinhomes Ocean Park và Tòa TechnoPark Tower.
 
 ### 3. Kịch bản thuyết trình (Speaker Notes — 30 giây):
-> *"Kính thưa Ban giám khảo và các chuyên gia, em xin đại diện Team T-010 giới thiệu **VinStay AI** — Hệ điều hành Cho thuê và Vận hành Căn hộ Tinh gọn tại Vinhomes Ocean Park. Với định vị giải quyết triệt để sự đứt gãy giữa Chủ nhà và Khách thuê, VinStay AI cam kết: **Rút ngắn chu kỳ tìm khách từ 30 ngày xuống dưới 7 ngày, trong khi Chủ nhà ở nhà 100% không tốn một giọt xăng hay một phút di chuyển**."*
+> *"Kính thưa Ban giám khảo và các chuyên gia, em xin đại diện Team T-010 giới thiệu **VinStay AI** — Hệ điều hành Cho thuê và Vận hành Căn hộ Tinh gọn tại Vinhomes Ocean Park. Giải quyết tận gốc sự mập mờ và ma sát thị trường, VinStay AI tập trung vào 3 giá trị cốt lõi: **Minh bạch 100% giá All-in và hình ảnh thực tế, Khớp căn tối ưu trong 30 giây bằng AI**, và cam kết **Chủ nhà hoàn toàn không phải mất công sức vận hành, ở nhà 100% quản lý giỏ hàng từ xa**."*
 
 ---
 
@@ -137,25 +137,25 @@
 
 ---
 
-## SLIDE 7: CHỈ SỐ THÀNH CÔNG & ĐO LƯỜNG OKRs (METRICS SCORECARD)
+## SLIDE 7: CHỈ SỐ THÀNH CÔNG & ĐO LƯỜNG THỰC CHẤT (METRICS SCORECARD)
 
 ### 1. Nội dung hiển thị trên Slide:
 
-| Chỉ số đo lường cốt lõi (KPI) | Thị trường truyền thống | Mục tiêu VinStay AI (Pilot MVP) | Tác động thực tế |
+| Trụ cột đo lường cốt lõi (KPI) | Thị trường truyền thống | Mục tiêu VinStay AI (Pilot MVP) | Giá trị thực chất mang lại |
 | :--- | :--- | :--- | :--- |
-| **Thời gian lấp đầy phòng trống** | 15 – 30 ngày (mất 6–12 triệu) | **$\le 7$ ngày** | Giảm $\ge 70\%$ thiệt hại tài chính cho Chủ nhà |
-| **Quãng đường & Thời gian Chủ nhà** | 20 – 30 km / 1–2h mở cửa | **0 km / 0 phút** | Chủ nhà "ở nhà 100%", theo dõi từ xa |
-| **Tỷ lệ tin ảo / tráo căn** | 60% – 70% tin đăng mạng | **0% tin ảo** | 100% Listing Verified [Tòa-Tầng-Căn] |
-| **Tỷ lệ khách bỏ bom (No-show)** | 25% – 35% ca hẹn | **$\le 5\%$** | Xác thực OTP + Nhắc hẹn kép T-10m |
-| **Tỷ lệ tranh chấp trừ cọc nội thất** | 40% – 50% khi trả phòng | **0% tranh chấp** | Đối soát 10 hạng mục Digital Passport |
-| **SLA Host tiếp nhận ticket** | Chậm 15 – 30 phút | **$\le 3$ phút** | Auto-Dispatch 3 tầng tự động |
-| **Chi phí phần cứng bổ sung (CapEx)** | 500k – 2 triệu/căn | **0 VNĐ** | Tận dụng thẻ thang máy & khóa sẵn có |
+| **Công sức vận hành của Chủ nhà** | 20 – 30 km đi lại, mở cửa, xử lý sự cố | **0 công sức / 0 km** | Chủ nhà "ở nhà 100%", vận hành rảnh tay hoàn toàn |
+| **Thời gian tìm & khớp căn** | 7 – 14 ngày chat hỏi nhiều môi giới | **$\le 30$ giây** | AI Matchmaker lọc đúng Top 3 căn tối ưu |
+| **Minh bạch chi phí (All-in Cost)** | Đội 20% – 30% chi phí ẩn | **100% minh bạch (0% phí ẩn)** | Công khai trọn gói tiền thuê, phí QL, xe, điện nước |
+| **Minh bạch thông tin & hình ảnh** | 60% – 70% tin ảo, ảnh 3D trên MXH | **100% Listing Verified** | Định danh [Tòa-Tầng-Căn] kèm ảnh timestamp thực tế |
+| **Tỷ lệ khách bỏ bom (No-show)** | 25% – 35% ca hẹn xem phòng | **$\le 5\%$** | Xác thực OTP + Nhắc hẹn kép T-10m Zalo 1-chạm |
+| **Tỷ lệ tranh chấp trừ cọc nội thất** | 40% – 50% khi trả phòng | **0% tranh chấp** | Đối soát 10 hạng mục Digital Passport lúc thanh lý |
+| **Chi phí phần cứng bổ sung (CapEx)** | 500k – 2 triệu/căn (Lockbox, IoT) | **0 VNĐ** | Tận dụng thẻ thang máy Host & khóa số/chìa cơ sẵn có |
 
 ### 2. Gợi ý Visual / Bố cục:
-* Bảng số liệu nổi bật với các chỉ số mục tiêu: **$\le 7$ ngày**, **0 km**, **0% tin ảo**, **0 VNĐ CapEx**.
+* Bảng số liệu nổi bật với các chỉ số mục tiêu: **0 công sức**, **$\le 30$ giây**, **100% minh bạch**, **0 VNĐ CapEx**.
 
 ### 3. Kịch bản thuyết trình (Speaker Notes — 35 giây):
-> *"Mọi giải pháp của VinStay AI đều được đo lường bằng những con số định lượng rõ ràng: Chúng em cam kết giảm thời gian tìm khách từ 30 ngày xuống dưới 7 ngày; giảm quãng đường đi lại của chủ nhà từ 25km về con số 0; kéo giảm tỷ lệ khách bỏ bom xuống dưới 5% và triệt tiêu 100% tranh chấp tiền cọc nhờ Hộ chiếu bàn giao số. Đặc biệt, chi phí đầu tư phần cứng CapEx hoàn toàn bằng 0 VNĐ nhờ tận dụng tối đa hạ tầng sẵn có."*
+> *"Mọi giải pháp của VinStay AI đều hướng tới sự minh bạch và tinh gọn thực chất: Rút ngắn thời gian tìm căn từ cả tuần xuống dưới 30 giây; minh bạch 100% giá All-in và hình ảnh thực tế; và quan trọng nhất đối với Chủ nhà là giải phóng toàn bộ công sức vận hành về con số 0 — không phải chạy xe 25km, không phải trực mở cửa và không lo tranh chấp cọc. Chi phí đầu tư phần cứng CapEx hoàn toàn bằng 0 VNĐ nhờ tận dụng tối đa hạ tầng sẵn có."*
 
 ---
 
@@ -208,7 +208,7 @@
   * 🟡 **Tuần 2 (Gate 2 — Core Build):** Xây dựng Web Catalog All-in Cost, Tích hợp AI Matchmaker, Mobile Host Dashboard, VietQR Sandbox & OCR CCCD.
   * ⚪ **Tuần 3 (Gate 3 — Pilot & Demo Day):** Nạp dữ liệu thực nghiệm 30 căn Sapphire 1 & 2, kiểm chứng quy trình thực địa với Field Host, đo lường OKRs và bảo vệ chung cuộc.
 * **Thông điệp kết thúc:**  
-  *"VinStay AI — Chuẩn hóa trải nghiệm thuê nhà tại Đại đô thị Vinhomes bằng AI và Vận hành Tinh gọn."*
+  *"VinStay AI — Minh bạch Giá & Thông tin, Khớp Căn Tức thì, Giải phóng Chủ nhà khỏi Gánh nặng Vận hành."*
 * **Lời cảm ơn & Mời Hội đồng đặt câu hỏi (Q&A).**
 
 ### 2. Gợi ý Visual / Bố cục:
@@ -222,4 +222,5 @@
 
 > **LƯU Ý DÀNH CHO DIỄN GIẢ (SPEAKER TIPS):**  
 > 1. Tổng thời lượng bài nói ước tính: **4 phút 30 giây** (hoàn hảo cho khung thời gian 5 phút).  
-> 2. Giữ phong thái tự tin, nhấn mạnh vào các từ khóa: **Chủ nhà ở nhà 100%**, **All-in Cost**, **Asset-Light**, **Không Lockbox**, **Ký gửi Độc quyền 15 ngày**.
+> 2. Giữ phong thái tự tin, nhấn mạnh vào các từ khóa: **Chủ nhà vận hành 0 công sức**, **Minh bạch All-in Cost & Ảnh thật**, **Khớp căn 30s**, **Asset-Light**, **Ký gửi Độc quyền 15 ngày**.
+
