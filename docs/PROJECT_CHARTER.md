@@ -15,8 +15,8 @@
 │                                                                                         │
 │ Xây dựng và triển khai thành công MVP "VinStay AI" — Hệ điều hành Cho thuê & Vận hành   │
 │ Căn hộ Tinh gọn (Asset-Light) tại Vinhomes Ocean Park trong vòng 03 tuần (Gate 1–3),   │
-│ số hóa 100% chặng đầu vòng đời thuê, giải quyết dứt điểm 4 nỗi đau sinh tử của Chủ nhà   │
-│ và 5 rào cản của Khách thuê, đạt chu kỳ lấp đầy phòng trống dưới 7 ngày và 0 km di chuyển.│
+│ số hóa 100% chặng đầu vòng đời thuê: Minh bạch 100% giá All-in Cost & hình ảnh thực tế, │
+│ khớp căn tối ưu trong 30 giây bằng AI và cam kết Chủ nhà hoàn toàn không mất công vận hành.│
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -24,17 +24,18 @@
 
 1. **S — Specific (Tính Cụ Thể):**
    * **Giải quyết bài toán gì?**  
-     * **Đối với Chủ nhà:** Xóa bỏ thiệt hại tài chính kép do phòng trống kéo dài 15–30 ngày; triệt tiêu cảnh cực hình chạy xe 20–30km từ nội thành sang mở cửa phòng; loại bỏ 100% tranh chấp tiền cọc do hư hao nội thất; giải phóng hoàn toàn khỏi các cuộc gọi đòi sửa chữa vặt lúc nửa đêm và rủi ro bị BQL phạt.
-     * **Đối với Khách thuê:** Xóa bỏ 100% ma trận tin ảo/tráo căn; công khai trọn gói chi phí hàng tháng qua bảng tính All-in Cost; xóa bỏ trở ngại lạc đường, chờ đợi vạ vật tại sảnh khi đi xem phòng; bảo vệ 100% tiền cọc và thông tin cá nhân CCCD gắn chip.
+     * **Đối với Chủ nhà:** Cam kết **Chủ nhà không phải mất công sức vận hành gì hết** (ở nhà 100%, không phải chạy xe 20–30km mở cửa, không bị môi giới làm phiền, không lo tranh chấp hư hao cọc vì có Hộ chiếu bàn giao số, không bị réo gọi lúc nửa đêm nhờ Danh bạ thợ ngoài uy tín).
+     * **Đối với Khách thuê:** Xóa bỏ 100% ma trận tin ảo/tráo căn; minh bạch 100% chi phí hàng tháng qua bảng tính All-in Cost; tìm căn nhanh trong 30 giây bằng AI Matchmaker; xóa bỏ trở ngại lạc đường, chờ đợi vạ vật tại sảnh khi đi xem phòng; bảo vệ 100% tiền cọc và thông tin cá nhân CCCD gắn chip.
    * **Dành cho ai?**
      * **Chủ nhà (Landlord):** Các chủ sở hữu căn hộ tại Vinhomes Ocean Park (đa phần cư trú tại các quận nội thành Hà Nội: Cầu Giấy, Đống Đa, Ba Đình, Thanh Xuân...).
      * **Khách thuê mục tiêu (Tenant):** Sinh viên Đại học VinUni, nhân sự khối văn phòng tòa nhà công nghệ TechnoPark Tower, chuyên gia nước ngoài và các gia đình trẻ văn minh.
      * **Lực lượng thực thi:** Đội ngũ Field Host nội khu (Sale/CTV thường trú tại phân khu có sẵn thẻ cư dân thang máy).
 
 2. **M — Measurable (Tính Đo Lường Được):**
-   * Rút ngắn thời gian lấp đầy phòng trống từ **30 ngày xuống $\le 7$ ngày** (giảm $\ge 75\%$).
-   * Tỷ lệ Chủ nhà không cần có mặt tại hiện trường: **100%** (0 km di chuyển, 0 phút tiếp khách).
-   * Tỷ lệ tin đăng xác thực (Listing Verified 100%): **0% tin ảo, 0% ảnh 3D**.
+   * Tỷ lệ Chủ nhà không mất công vận hành: **100% Chủ nhà ở nhà** (0 km di chuyển, 0 phút tiếp khách/mở cửa).
+   * Thời gian tìm và khớp căn tối ưu bằng AI: **$\le 30$ giây** (Top 3 căn All-in Cost chuẩn).
+   * Tỷ lệ minh bạch thông tin & hình ảnh (Listing Verified 100%): **0% tin ảo, 0% ảnh 3D**.
+   * Tỷ lệ minh bạch chi phí: **0% chi phí ẩn** (công khai trọn gói 4 khoản phí).
    * Tỷ lệ khách bỏ bom (No-show): giảm từ $30\% \rightarrow \le 5\%$.
    * Tỷ lệ tranh chấp trừ cọc nội thất khi thanh lý: **0%** (nhờ Hộ chiếu bàn giao số 10 hạng mục).
    * Chi phí đầu tư phần cứng mới (Hardware CapEx): **0 VNĐ**.
@@ -88,12 +89,12 @@ Các chỉ số thành công được định lượng hóa chi tiết, gắn v�
 
 | Trụ cột đo lường | Chỉ số thành công cốt lõi (KPI) | Hiện trạng truyền thống | Mục tiêu VinStay AI (Pilot MVP) | Phương thức đo lường / Nguồn dữ liệu |
 | :--- | :--- | :--- | :--- | :--- |
-| **Hiệu Quả Chủ Nhà** | **Thời gian phòng trống (Vacancy)** | 15 – 30 ngày (thiệt hại 6–12tr) | **$\le 7$ ngày** (giảm $\ge 75\%$) | Timestamp từ lúc Listing `available` đến khi nhận VietQR cọc `holding` |
-| | **Thời gian & Quãng đường di chuyển** | 20 – 30 km / 1–2 giờ mở cửa | **0 km / 0 phút** (Chủ nhà ở nhà 100%) | Log kích hoạt mã cửa điện tử trên Mobile Host |
-| | **Tỷ lệ tranh chấp cọc & hư hao** | 40% – 50% số hợp đồng | **0%** | Biên bản đối soát Hộ chiếu bàn giao số (Digital Passport) lúc thanh lý |
+| **Hiệu Quả Chủ Nhà** | **Công sức vận hành của Chủ nhà** | 20 – 30 km đi lại, trực mở cửa, xử lý sự cố | **0 công sức / 0 km** (Chủ nhà ở nhà 100%) | Log kích hoạt mã cửa điện tử trên Mobile Host |
+| | **Tỷ lệ tranh chấp cọc & hư hao** | 40% – 50% số hợp đồng | **0% tranh chấp** | Biên bản đối soát Hộ chiếu bàn giao số (Digital Passport) lúc thanh lý |
 | | **Tỷ lệ nợ đọng điện nước EVN** | Thường xuyên tồn đọng 1–2 kỳ | **0% nợ đọng** | Chốt ảnh công tơ điện nước có timestamp trước khi hoàn cọc bảo đảm |
-| **Trải Nghiệm Khách Thuê** | **Tỷ lệ tin ảo / sai lệch hiện trạng** | 60% – 70% trên MXH | **0% tin ảo** (100% căn thật, ảnh thật) | Đối soát Listing định danh [Tòa-Tầng-Căn] |
-| | **Độ lệch chi phí All-in Cost** | Đội 20% – 30% chi phí ẩn | **0% sai lệch** | Đối soát hóa đơn thực tế tháng đầu vs Bảng tính All-in Cost công khai |
+| **Trải Nghiệm Khách Thuê** | **Thời gian tìm & khớp căn tối ưu** | 7 – 14 ngày chat hỏi nhiều môi giới | **$\le 30$ giây** | Log thời gian phản hồi AI Matchmaker Top 3 căn |
+| | **Tỷ lệ tin ảo / sai lệch hiện trạng** | 60% – 70% trên MXH | **0% tin ảo** (100% căn thật, ảnh thật) | Đối soát Listing định danh [Tòa-Tầng-Căn] |
+| | **Độ lệch chi phí All-in Cost** | Đội 20% – 30% chi phí ẩn | **100% minh bạch (0% sai lệch)** | Đối soát hóa đơn thực tế tháng đầu vs Bảng tính All-in Cost công khai |
 | | **Tỷ lệ bỏ bom hẹn xem (No-show)** | 25% – 35% ca hẹn | **$\le 5\%$** | Tỷ lệ khách bấm xác nhận có mặt qua Zalo T-10m |
 | | **Thời gian đưa khách lên phòng** | Chờ đợi 15 – 30 phút ở sảnh | **$\le 60$ giây** | Host quẹt thẻ cư dân thang máy đưa lên phòng |
 | **Vận Hành Nền Tảng** | **Tỷ lệ cắt cầu (Platform Leakage)** | 30% – 40% số giao dịch | **0%** | Ràng buộc HĐ Độc quyền & Cọc giữ chỗ 24h tự động gạch nợ qua VietQR |

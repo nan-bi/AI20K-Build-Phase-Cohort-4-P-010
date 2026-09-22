@@ -347,9 +347,9 @@ Hệ thống chỉ số thành công của VinStay AI được xây dựng theo 
 
 ### 9.1 Bảng Mục Tiêu OKR Đo Lường Thành Công
 
-#### Objective 1 (Chủ nhà): Triệt tiêu rủi ro trống phòng kép, tự động hóa 100% khâu tiếp đón từ xa và xóa bỏ tranh chấp tài sản.
-* **KR 1.1 (Pre-leasing Vacancy):** Rút ngắn chu kỳ tìm khách thuê mới giữa 2 hợp đồng từ trung bình **15–30 ngày xuống dưới 7 ngày** (giảm $\ge 75\%$ thời gian phòng trống nhờ AI Matchmaker và thuật toán Dynamic Deal gắn huy hiệu "Căn hời phân khu").
-* **KR 1.2 (Distance & Remote Landlord):** Đạt **100% Chủ nhà "ở nhà hoàn toàn"** (0 km di chuyển, 0 phút tiếp khách/mở cửa) nhờ mạng lưới Field Host nội khu quẹt thẻ thang máy và cấp mã cửa điện tử qua app khi xác nhận xem phòng.
+#### Objective 1 (Chủ nhà): Giải phóng hoàn toàn công sức vận hành, tự động hóa 100% khâu tiếp đón từ xa và xóa bỏ tranh chấp tài sản.
+* **KR 1.1 (Zero-Effort Landlord):** Đạt **100% Chủ nhà không phải mất công vận hành gì hết** (ở nhà 100%, 0 km di chuyển, 0 phút tiếp khách/mở cửa) nhờ mạng lưới Field Host nội khu quẹt thẻ thang máy và cấp mã cửa điện tử qua app khi xác nhận xem phòng.
+* **KR 1.2 (Optimized Matching & Vacancy):** Rút ngắn thời gian tìm và khớp căn xuống **$\le 30$ giây** nhờ AI Matchmaker lọc chuẩn theo ngân sách trần All-in Cost và thuật toán Dynamic Deal gắn huy hiệu "Căn hời phân khu", tối ưu hóa tỷ lệ lấp đầy mà chủ nhà không bị môi giới ép giá.
 * **KR 1.3 (Zero Deposit Dispute):** **100% căn hộ cho thuê được thiết lập Hộ chiếu bàn giao số (Digital Handover Passport)** 10 hạng mục nội thất có timestamp, kéo giảm tỷ lệ tranh chấp trừ tiền cọc khi trả phòng về **0%**.
 * **KR 1.4 (Zero Bad Debt):** Đạt **100% đối soát sạch hóa đơn tiền điện EVN, nước sinh hoạt và phí gửi xe** trước khi thanh lý cọc, không để phát sinh nợ đọng dịch vụ cho chủ hộ.
 
@@ -371,11 +371,11 @@ Hệ thống chỉ số thành công của VinStay AI được xây dựng theo 
 
 | Chỉ số đo lường (KPI) | Hiện trạng truyền thống | Mục tiêu VinStay AI (MVP Pilot) | Nguồn dữ liệu kiểm chứng |
 | :--- | :--- | :--- | :--- |
-| **Thời gian lấp đầy phòng trống** | 15 – 30 ngày (mất 6–12 triệu/tháng) | **$\le 7$ ngày** (tiết kiệm $\ge 70\%$ chi phí trống) | Hệ thống Booking & Webhook VietQR `holding` |
-| **Thời gian chủ nhà bỏ ra mở cửa** | 20 – 30km đi lại (1–2h/lượt hẹn) | **0 phút / 0 km** (Chủ nhà ở nhà 100%) | Log kích hoạt mã cửa trên Mobile Host |
-| **Tỷ lệ tin ảo / lệch hiện trạng** | 60% – 70% trên mạng xã hội | **0%** (100% ảnh thật, mã căn chuẩn) | Báo cáo thẩm định Listing tiếp nhận |
+| **Công sức vận hành của Chủ nhà** | 20 – 30 km đi lại, trực mở cửa, xử lý sự cố | **0 công sức / 0 km** (Chủ nhà ở nhà 100%) | Log kích hoạt mã cửa trên Mobile Host |
+| **Thời gian tìm & khớp căn tối ưu** | 7 – 14 ngày chat hỏi nhiều môi giới | **$\le 30$ giây** (Top 3 căn All-in Cost chuẩn) | Log truy vấn AI Matchmaker API |
+| **Minh bạch chi phí (All-in Cost)** | Đội 20% – 30% chi phí ẩn | **100% minh bạch (0% phí ẩn)** | Bảng tính All-in Cost trọn gói 4 khoản phí |
+| **Tỷ lệ tin ảo / lệch hiện trạng** | 60% – 70% trên mạng xã hội | **0% tin ảo** (100% ảnh thật, mã căn chuẩn) | Báo cáo thẩm định Listing tiếp nhận |
 | **Tỷ lệ khách bỏ bom (No-show)** | 25% – 35% tổng số ca hẹn | **$\le 5\%$** | Lịch sử Check-in sảnh T-10m trên Dashboard Host |
-| **Thời gian khớp căn tối ưu** | 7 – 14 ngày chat hỏi nhiều môi giới | **$\le 30$ giây** (Top 3 căn All-in Cost chuẩn) | Log truy vấn AI Matchmaker API |
 | **Tỷ lệ tranh chấp cọc & nội thất** | 40% – 50% khi trả phòng | **0%** (Đối soát 10 hạng mục Digital Passport) | Hồ sơ Hộ chiếu bàn giao số lúc thanh lý |
 | **SLA tiếp nhận dẫn khách của Host** | Không xác định / Chậm 15–30 phút | **$\le 3$ phút** (Auto-dispatch 3 tầng) | Hệ thống quản trị Ticket Host Dispatch |
 | **Chi phí phần cứng lắp đặt thêm** | 500k – 2 triệu/căn (Lockbox, IoT) | **0 VNĐ** (Thẻ cư dân & mã số/chìa cơ có sẵn) | Báo cáo tài chính & Bảng cân đối CapEx |
