@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VinStay AI — Workflow & Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6FC;--surface:#FFFFFF;--surface2:#EAF0FA;--text:#0F1B33;--muted:#5A6885;--line:#D8E0EF;--line2:#B9C6E0;
+  --brand:#0B2A5B;--blue:#2559E8;--blue-soft:#E3ECFF;--green:#12894A;--green-soft:#DCF3E6;
+  --amber:#C9770A;--amber-soft:#FFF0D6;--red:#D03A3A;--red-soft:#FCE3E3;--purple:#6B45E8;--purple-soft:#ECE6FF;--edge:#6F7FA3;--frame:#0B1A36;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1220;--surface:#111C31;--surface2:#17243F;--text:#E8EEFB;--muted:#9AA8C6;--line:#25365A;--line2:#3A4E7A;
+    --brand:#23479A;--blue:#6C93FF;--blue-soft:#182B57;--green:#3DD68C;--green-soft:#123522;--amber:#F5A93B;--amber-soft:#3A2B10;
+    --red:#FF7070;--red-soft:#3C1B20;--purple:#A98CFF;--purple-soft:#2A2152;--edge:#7484A8;--frame:#050B16;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1220;--surface:#111C31;--surface2:#17243F;--text:#E8EEFB;--muted:#9AA8C6;--line:#25365A;--line2:#3A4E7A;
+  --brand:#23479A;--blue:#6C93FF;--blue-soft:#182B57;--green:#3DD68C;--green-soft:#123522;--amber:#F5A93B;--amber-soft:#3A2B10;
+  --red:#FF7070;--red-soft:#3C1B20;--purple:#A98CFF;--purple-soft:#2A2152;--edge:#7484A8;--frame:#050B16;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px 48px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{padding-bottom:0}
+.title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 4px}
+.title h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.title p{margin:0;color:var(--muted);font-size:12.5px}
+.themebtn{border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:12.5px}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:6px 0 0;scrollbar-width:none}
+.tabs button{border:0;background:transparent;padding:9px 14px;border-radius:9px 9px 0 0;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap;border-bottom:3px solid transparent}
+.tabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--blue)}
+.tab{display:none;padding-top:20px}.tab.on{display:block}
+h2{font-size:17px;margin:28px 0 4px;font-weight:700}
+h3{font-size:14.5px;margin:0 0 4px;font-weight:600}
+.lead{color:var(--muted);margin:0 0 12px;max-width:80ch}
+.muted{color:var(--muted)}.sm{font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px;font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--line2);display:inline-block}
+.legend i.ai{background:var(--blue-soft);border-color:var(--blue)}.legend i.ext{background:var(--purple-soft);border-color:var(--purple)}
+.legend i.warn{background:var(--amber-soft);border-color:var(--amber);border-style:dashed}.legend i.ok{background:var(--green-soft);border-color:var(--green)}
+/* swimlane */
+.swscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.sw{position:relative}
+.lane{position:absolute;left:0;right:0;border-bottom:1px solid var(--line)}
+.lane:last-of-type{border-bottom:0}
+.lane-h{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px;font-weight:600;font-size:12px;color:var(--muted);border-right:1px solid var(--line);background:var(--surface2)}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.5}.edge.d{stroke-dasharray:5 4}
+.elabel{font-size:10px;fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:4px;text-anchor:middle}
+.node{position:absolute;border:1.5px solid var(--line2);background:var(--surface);border-radius:10px;padding:6px 8px;font-size:11.5px;line-height:1.32;overflow:hidden}
+.node b{display:inline-block;background:var(--brand);color:#fff;border-radius:5px;padding:0 5px;margin-right:4px;font-size:10px;line-height:1.5}
+.node.ai{background:var(--blue-soft);border-color:var(--blue)}.node.ext{background:var(--purple-soft);border-color:var(--purple)}
+.node.warn{background:var(--amber-soft);border-color:var(--amber);border-style:dashed}.node.ok{background:var(--green-soft);border-color:var(--green)}
+/* tables/cards */
+table.t{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table.t th,table.t td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{background:var(--surface2);font-weight:600;font-size:12.5px}
+table.t tr:last-child td{border-bottom:0}
+.tscroll{overflow-x:auto}
+.tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.tag.hi{background:var(--red-soft);color:var(--red)}.tag.mid{background:var(--amber-soft);color:var(--amber)}.tag.lo{background:var(--blue-soft);color:var(--blue)}
+.tag.new{background:var(--purple-soft);color:var(--purple)}.tag.rule{background:var(--surface2);color:var(--muted)}.tag.ai{background:var(--blue-soft);color:var(--blue)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 4px}
+.st{padding:3px 11px;border-radius:999px;border:1.5px solid var(--line2);font-weight:600;font-size:12px;background:var(--surface)}
+.st.g{border-color:var(--green);background:var(--green-soft)}.st.a{border-color:var(--amber);background:var(--amber-soft)}.st.r{border-color:var(--red);background:var(--red-soft)}.st.b{border-color:var(--blue);background:var(--blue-soft)}
+.arr{color:var(--muted);font-size:11px}
+ul.gap{margin:6px 0 0;padding-left:18px}ul.gap li{margin:3px 0}
+/* prototype */
+.hint{background:var(--blue-soft);border:1px solid var(--blue);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.seg{display:none;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.seg button{flex:1;min-width:88px;border:1px solid var(--line2);background:var(--surface);border-radius:8px;padding:8px;cursor:pointer;font-weight:500}
+.seg button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.panes{display:flex;gap:16px;align-items:start;overflow-x:auto;padding-bottom:8px}
+.pane{min-width:0;flex:none;width:372px}
+.plabel{font-weight:600;font-size:12.5px;margin:0 0 6px;color:var(--muted)}
+.phone{width:min(372px,100%);height:700px;border:7px solid var(--frame);border-radius:32px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;margin:0 auto}
+.app-h{background:var(--brand);color:#fff;padding:11px 14px;display:flex;flex-direction:column;gap:1px;flex:none}
+.app-h b{font-size:14px}.app-h small{opacity:.8;font-size:11.5px}
+.app-b{flex:1;overflow-y:auto;padding:14px;font-size:13px}
+.app-b .h1{font-size:16px;font-weight:700;margin-bottom:2px}
+.fl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:12px 0 4px}
+.fl b{color:var(--text)}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.inp,select.inp{width:100%;border:1.5px solid var(--line2);background:var(--surface);border-radius:9px;padding:8px 10px;font-size:13px}
+.inp.flag{border-color:var(--red);background:var(--red-soft)}
+.inp.otp{letter-spacing:.6em;font-size:20px;text-align:center;font-weight:700}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{border:0;border-radius:10px;padding:10px 12px;font-weight:600;cursor:pointer;background:var(--surface2);color:var(--text);font-size:13px}
+.btn.pri{background:var(--blue);color:#fff}.btn.grn{background:var(--green);color:#fff}.btn.red{background:var(--red);color:#fff}
+[data-theme="dark"] .btn.grn,[data-theme="dark"] .btn.red,[data-theme="dark"] .btn.pri{color:#06101F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.grn,:root:not([data-theme="light"]) .btn.red,:root:not([data-theme="light"]) .btn.pri{color:#06101F}}
+.btn.blk{width:100%;margin-top:12px}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.link{background:none;border:0;color:var(--blue);cursor:pointer;padding:0;font-size:12.5px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.chip{border:1.5px solid var(--line2);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:12.5px}
+.chip.on{border-color:var(--blue);background:var(--blue-soft);font-weight:600}
+.chip:disabled{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:12px;overflow:hidden}
+.card .img{height:84px;position:relative;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;font-size:11px;color:#fff}
+.card .img span{background:rgba(6,16,31,.62);border-radius:6px;padding:2px 7px}
+.card .in{padding:10px 12px}
+.badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.b{border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600}
+.b.deal{background:var(--green-soft);color:var(--green)}.b.hot{background:var(--amber-soft);color:var(--amber)}
+.tot{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 4px;font-size:12.5px}
+.tot b{font-size:17px}
+.bd{border-top:1px dashed var(--line2);padding-top:6px;font-size:12px;color:var(--muted)}
+.bd div{display:flex;justify-content:space-between}
+.bubble{border-radius:12px;padding:9px 11px;font-size:12.5px;margin:10px 0;border:1px solid var(--line)}
+.bubble.z{background:var(--purple-soft);border-color:var(--purple)}.bubble.w{background:var(--amber-soft);border-color:var(--amber)}
+.bubble .who{font-weight:700;font-size:11.5px;margin-bottom:2px}
+.qrbox{display:flex;flex-direction:column;align-items:center;gap:6px;margin:10px 0}
+.qrbox svg{background:#fff;color:#000;padding:8px;border-radius:10px;border:1px solid var(--line2)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.stepper{display:grid;gap:6px;margin:10px 0}
+.stepper div{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.stepper i{width:18px;height:18px;border-radius:50%;border:2px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;flex:none}
+.stepper .done i{background:var(--green);border-color:var(--green);color:#fff}.stepper .cur i{border-color:var(--blue);background:var(--blue-soft)}
+.pin{font:700 30px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em;text-align:center;padding:14px;border-radius:12px;background:var(--surface2);margin:8px 0}
+.tk{border:1.5px solid var(--line2);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--surface)}
+.tk.in{border-color:var(--amber);background:var(--amber-soft)}
+.tier{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:var(--blue-soft);color:var(--blue)}
+.okline{background:var(--green-soft);color:var(--green);border-radius:9px;padding:6px 10px;font-weight:600;font-size:12px;margin-bottom:10px}
+.cccd-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.cccd{height:64px;border:1.5px dashed var(--line2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.conf{border-radius:8px;padding:5px 10px;font-weight:600;font-size:12px;margin:8px 0}
+.conf.good{background:var(--green-soft);color:var(--green)}.conf.bad{background:var(--red-soft);color:var(--red)}
+.row2{margin:6px 0}.row2 label{font-size:11.5px;color:var(--muted);display:block}.row2 div.v{font-weight:600}
+.chk{display:flex;gap:8px;font-size:12.5px;align-items:flex-start;margin:8px 0}
+.err{color:var(--red);font-size:12px;margin-top:4px}
+.sys{display:flex;flex-direction:column;gap:12px}
+.sys .box{padding:12px}
+.sys label.opt{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:5px 0;cursor:pointer}
+.dbt{width:100%;border-collapse:collapse;font-size:11.5px}
+.dbt th,.dbt td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left}
+.dbt th{color:var(--muted);font-weight:600}
+.pill{border-radius:6px;padding:0 6px;font-weight:600;font-size:11px}
+.pill.available,.pill.completed,.pill.paid{background:var(--green-soft);color:var(--green)}
+.pill.holding,.pill.confirmed,.pill.pending{background:var(--amber-soft);color:var(--amber)}
+.pill.cancelled,.pill.no_show,.pill.rented{background:var(--red-soft);color:var(--red)}
+.log{max-height:300px;overflow-y:auto;font-size:11.5px;display:flex;flex-direction:column;gap:4px}
+.log div{display:grid;grid-template-columns:54px 8px 1fr;gap:6px;align-items:start}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums}
+.log i{width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--muted)}
+.log i.ai{background:var(--blue)}.log i.zalo{background:var(--purple)}.log i.bank{background:var(--green)}.log i.host{background:var(--amber)}.log i.landlord{background:var(--brand)}
+pre.js{margin:0;font-size:11px;background:var(--surface2);border-radius:8px;padding:8px;overflow-x:auto}
+.ppl{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px}
+.ppl .st2{flex:none;min-width:118px;border:1.5px solid var(--line2);border-radius:10px;padding:8px;font-size:11.5px;text-align:center;background:var(--surface)}
+.ppl .st2.done{border-color:var(--green);background:var(--green-soft)}
+.ppl .st2.cur{border-color:var(--blue);background:var(--blue-soft);font-weight:700}
+.ppl .ar{flex:none;align-self:center;color:var(--muted)}
+@media (max-width:1139px){
+  .seg{display:flex}
+  .pane{display:none;width:100%}
+  body[data-pane="t"] .pane.t,body[data-pane="h"] .pane.h,body[data-pane="s"] .pane.s,body[data-pane="l"] .pane.l,body[data-pane="o"] .pane.o{display:block}
+  .phone{height:min(700px,calc(100vh - 210px));min-height:520px}
+}
+@media (prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s,transform .1s}.btn:active{transform:scale(.98)}}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+</style>
+</head>
+<body data-pane="t">
+<header class="top"><div class="wrap">
+  <div class="title">
+    <div><h1>VinStay AI — Workflow &amp; Prototype</h1><p>Vinhomes Ocean Park · từ tìm căn đến cọc giữ chỗ 7 ngày và ký thỏa thuận điện tử</p></div>
+    <button class="themebtn" onclick="toggleTheme()">Sáng / Tối</button>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="on" data-tab="wf">Workflow</button>
+    <button data-tab="proto">Prototype tương tác</button>
+    <button data-tab="state">Trạng thái &amp; ngoại lệ</button>
+    <button data-tab="gap">Gap &amp; đề xuất</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+
+<!-- ============ TAB 1: WORKFLOW ============ -->
+<section class="tab on" id="tab-wf">
+  <p class="lead">Năm sơ đồ swimlane nối tiếp nhau: (A) tìm căn và gửi yêu cầu đặt lịch, (B) điều phối Field Host và xác nhận lịch qua Zalo (không còn quét QR tại sảnh), (C) cọc giữ chỗ 7 ngày và ký thỏa thuận điện tử, (D) luồng chủ nhà ký gửi và theo dõi từ xa, (E) vận hành toàn hệ thống sau khi ghép A–D. Mũi tên nét đứt là nhánh quá SLA hoặc ngoại lệ.</p>
+  <div class="legend">
+    <span><i></i>Bước thủ công / người dùng</span><span><i class="ai"></i>AI Engine / hệ thống</span><span><i class="ext"></i>Dịch vụ ngoài (Zalo, SMS, ngân hàng)</span><span><i class="warn"></i>Quá SLA / ngoại lệ</span><span><i class="ok"></i>Điểm bàn giao sang sơ đồ khác</span>
+  </div>
+  <h2>A. Tìm căn theo All-in Cost và gửi yêu cầu đặt lịch xem</h2>
+  <p class="lead">Sau khi khách xác thực OTP số điện thoại, hệ thống <b>không tạo mã QR</b> nữa. Yêu cầu được ghi nhận ở trạng thái chờ xác nhận, Zalo Bot báo đã nhận yêu cầu và sẽ xác nhận lại lịch cụ thể sau khi có Field Host nhận ca (sang sơ đồ B).</p>
+  <div class="swscroll"><div class="sw" id="swA"></div></div>
+  <h2>B. Điều phối Field Host 3 tầng và xác nhận lịch qua Zalo</h2>
+  <p class="lead">Bỏ toàn bộ bước quét mã QR tại sảnh. Ngay khi Field Host bấm Nhận dẫn, hệ thống gửi Zalo xác nhận lịch xem kèm tên và số điện thoại Sale cho khách. Host gặp khách theo đúng giờ hẹn và mở cửa trực tiếp.</p>
+  <div class="swscroll"><div class="sw" id="swB"></div></div>
+  <h2>C. Cọc giữ chỗ 7 ngày, ký thỏa thuận và xử lý căn HOT</h2>
+  <div class="swscroll"><div class="sw" id="swC"></div></div>
+  <h2>D. Luồng chủ nhà: ký gửi độc quyền và theo dõi từ xa</h2>
+  <p class="lead">Chủ nhà đăng ký căn, ký ủy quyền quản lý độc quyền (Exclusive Rental Mandate) bằng OTP, cấu hình quyền mở cửa, rồi để VinStay AI thay mặt vận hành toàn bộ: duyệt listing, điều phối Host, nhận cọc, khóa căn, bàn giao số. Chủ nhà chỉ theo dõi qua dashboard và nhận thông báo.</p>
+  <div class="swscroll"><div class="sw" id="swD"></div></div>
+  <h2>E. Vận hành hệ thống sau khi ghép luồng A–D</h2>
+  <p class="lead">Toàn bộ vòng đời một căn hộ, từ lúc chủ nhà ký gửi đến khi bàn giao số cho khách thuê, chạy như một pipeline duy nhất bên dưới.</p>
+  <div class="swscroll"><div class="sw" id="swE"></div></div>
+
+  <h2>Các module xử lý chính</h2>
+  <div class="tscroll"><table class="t">
+    <tr><th>Module</th><th>Xử lý</th></tr>
+    <tr><td><b>Matchmaker</b></td><td>Lọc căn <span class="mono">available</span>, tính All-in Cost, loại căn vượt ngân sách, xếp hạng Top 3.</td></tr>
+    <tr><td><b>Booking/OTP</b></td><td>Gửi OTP, kiểm tra mã, tạo lịch (trạng thái chờ xác nhận) và mã tham chiếu — không sinh mã QR.</td></tr>
+    <tr><td><b>Dispatcher</b></td><td>Phân Host theo 3 tầng: cùng block, bán kính 500m, Area Lead (broadcast).</td></tr>
+    <tr><td><b>Notification</b></td><td>Gửi OTP, xác nhận lịch kèm thông tin Sale, nhắc T-10m, no-show, thông báo cọc.</td></tr>
+    <tr><td><b>Payment/Webhook</b></td><td>Tạo VietQR, xác thực webhook, chống xử lý giao dịch trùng (idempotency key).</td></tr>
+    <tr><td><b>Holding Lock</b></td><td>Chuyển căn sang <span class="mono">holding</span>, khóa trong 7 ngày.</td></tr>
+    <tr><td><b>Conflict Resolver</b></td><td>Hủy lịch xem sau, gửi lời xin lỗi và đề xuất căn thay thế.</td></tr>
+    <tr><td><b>OCR/Ký số</b></td><td>Đọc CCCD, kiểm tra độ tin cậy, sinh PDF và ghi audit.</td></tr>
+    <tr><td><b>Admin/BI</b></td><td>Theo dõi funnel, SLA Host, tỷ lệ no-show, tồn kho và payout.</td></tr>
+  </table></div>
+
+  <div class="grid2">
+    <div class="box"><h3>Luồng Matchmaker</h3><p class="sm muted" style="margin:0 0 6px">Nhận ngân sách, layout, số người và phương tiện.</p>
+      <ul class="gap"><li>Truy vấn căn <span class="mono">available</span>.</li><li>Tính All-in Cost.</li><li>Loại căn vượt ngân sách.</li><li>Xếp hạng theo mức tiết kiệm, layout, rating và độ mới ảnh.</li><li>Gắn badge nếu tiết kiệm từ 10%.</li><li>Trả tối đa 3 căn.</li></ul></div>
+    <div class="box"><h3>Luồng điều phối Host</h3>
+      <ul class="gap"><li>Booking được tạo ở trạng thái chờ xác nhận sau khi OTP hợp lệ.</li><li>Host cùng block được ưu tiên, thời gian nhận việc tối đa 3–5 phút.</li><li>Không nhận: chuyển Open Pool trong bán kính 500m.</li><li>Vẫn không có người nhận: chuyển Area Lead (broadcast).</li><li>Ngay khi có Host nhận, Zalo gửi xác nhận lịch + tên, SĐT Sale cho khách; tự lập lịch nhắc T-10m, kiểm tra no-show T+15m.</li></ul></div>
+    <div class="box"><h3>Luồng thanh toán và khóa căn</h3>
+      <ul class="gap"><li>Host khởi tạo deposit sau khi khách đồng ý chốt.</li><li>Backend sinh VietQR 2.000.000 VNĐ.</li><li>Ngân hàng gửi webhook, hệ thống kiểm tra chữ ký và idempotency.</li><li>Transaction cập nhật: deposit → <span class="mono">paid</span>, unit → <span class="mono">holding</span>, giữ căn thêm <b>7 ngày</b>, hủy các lịch xem khác, thông báo chủ nhà và khách bị hủy lịch.</li></ul></div>
+    <div class="box"><h3>Luồng ngoại lệ</h3>
+      <ul class="gap"><li>Khách no-show: gia hạn 15 phút, sau đó giải phóng lịch.</li><li>Webhook chậm: chuyển tạm sang <span class="mono">temporary_holding</span> sau khi Host tải bằng chứng thanh toán.</li><li>OCR không rõ: chuyển sang nhập tay và review.</li><li>Lỗi khóa cửa: masked call tới chủ nhà hoặc Area Lead mang chìa dự phòng.</li><li>Căn đã có khách cọc: tự động hủy lịch sau và đề xuất căn tương đương.</li><li>Chủ nhà muốn thoát ủy quyền: chỉ thực hiện khi căn trống, báo trước 15 ngày.</li></ul></div>
+  </div>
+
+  <h2>Đâu là AI thật, đâu là rule?</h2>
+  <p class="lead">Phần lớn mục tiêu “tự động hóa 70%” đến từ rule engine và workflow. AI/LLM nên đặt vào chỗ có dữ liệu phi cấu trúc hoặc cần học từ hành vi, và mỗi chỗ cần một chỉ số đo được.</p>
+  <div class="tscroll"><table class="t">
+    <tr><th>Thành phần</th><th>Bản chất</th><th>Cách triển khai gợi ý</th><th>Chỉ số cần đo</th></tr>
+    <tr><td>All-in Cost engine</td><td><span class="tag rule">Rule</span></td><td>Công thức tất định, tham số phí theo tòa nằm trong bảng cấu hình, có unit test cho từng công thức.</td><td>Sai lệch với hóa đơn thực tế, số ca khiếu nại phí ẩn</td></tr>
+    <tr><td>Matchmaker Top 3</td><td><span class="tag rule">Rule</span> + <span class="tag ai">Ranking</span></td><td>Lọc cứng All-in ≤ trần, sau đó chấm điểm (mức rẻ hơn thị trường, độ khớp layout, ngày dọn vào). Khi đủ dữ liệu chuyển sang learning-to-rank.</td><td>Tỷ lệ xem thẻ → đặt lịch, thời gian tới lần xem đầu</td></tr>
+    <tr><td>Dispatcher + SPS</td><td><span class="tag rule">Rule</span> + scoring</td><td>Hàng đợi có timer SLA. SPS cần chuẩn hóa CSAT (1–5) và Speed về cùng thang 0–100 trước khi cộng trọng số.</td><td>Thời gian nhận ticket, tỷ lệ Tầng 1 nhận, tỷ lệ ticket rơi Tầng 3</td></tr>
+    <tr><td>OCR CCCD</td><td><span class="tag ai">AI thật</span></td><td>Vision/OCR chuyên dụng, kiểm tra chữ số và ngày bằng regex, cổng độ tin cậy 85%, form tay có ô nghi ngờ tô đỏ. Khách luôn rà soát trước khi ký.</td><td>Độ chính xác từng trường, % ca rơi sang nhập tay, thời gian xử lý</td></tr>
+    <tr><td>Conflict Resolver</td><td>Trigger + <span class="tag ai">Recommender</span></td><td>Khóa căn trong một transaction, hủy lịch theo sự kiện. Đề xuất căn tương đương theo layout, phân khu và ngân sách.</td><td>% khách bị hủy chấp nhận đổi lịch, số ca khóa căn trùng (mục tiêu 0)</td></tr>
+    <tr><td>Học nhu cầu từ lý do “chưa ưng”</td><td><span class="tag ai">Nhẹ</span></td><td>Chuyển lý do (chê hướng, giá cao, đổi layout) thành ràng buộc mềm trong hồ sơ nhu cầu để chấm lại Top 3.</td><td>Tỷ lệ lần xem thứ hai → cọc</td></tr>
+  </table></div>
+</section>
+
+<!-- ============ TAB 2: PROTOTYPE ============ -->
+<section class="tab" id="tab-proto">
+  <div class="hint"><b>Cách chơi:</b> chọn 5 góc nhìn: Khách thuê, Field Host, Chủ nhà, Vận hành (Ops/BI) và AI Engine + database sống. Bấm “AI gợi ý” → chọn căn đầu tiên → gửi yêu cầu đặt lịch (OTP demo 4829, không còn mã QR) → chuyển sang Host: Nhận dẫn (Zalo tự xác nhận lịch cho khách) → Đón khách &amp; mở cửa trực tiếp → Khách đồng ý chốt → khách chuyển khoản → chụp CCCD → ký OTP. Theo dõi cột Chủ nhà và Vận hành để thấy luồng D và E chạy song song. Đổi kịch bản ở cột phải để thử Tầng 2/3, webhook trễ, ảnh CCCD mờ, khách trễ hẹn.</div>
+  <div class="seg" id="seg">
+    <button class="on" data-p="t">Khách thuê</button><button data-p="h">Field Host</button><button data-p="l">Chủ nhà</button><button data-p="o">Vận hành</button><button data-p="s">Hệ thống</button>
+  </div>
+  <div class="panes">
+    <div class="pane t"><p class="plabel">Khách thuê · Mobile Web</p><div class="phone" id="tScreen"></div></div>
+    <div class="pane h"><p class="plabel">Field Host · Mobile Dashboard</p><div class="phone" id="hScreen"></div></div>
+    <div class="pane l"><p class="plabel">Chủ nhà · Landlord Portal (Luồng D)</p><div class="phone" id="lScreen"></div></div>
+    <div class="pane o"><p class="plabel">Vận hành · Ops/BI (Luồng E)</p><div class="phone" id="oScreen"></div></div>
+    <div class="pane s"><p class="plabel">AI Engine · Database · Kịch bản</p><div class="sys" id="sScreen"></div></div>
+  </div>
+</section>
+
+<!-- ============ TAB 3: STATE ============ -->
+<section class="tab" id="tab-state">
+  <p class="lead">Ba máy trạng thái lấy từ schema trong PRD, bổ sung các chuyển trạng thái còn thiếu để backend không phải tự đoán.</p>
+  <div class="grid2">
+    <div class="box"><h3>units.status</h3>
+      <div class="chain"><span class="st g">available</span><span class="arr">→ cọc về (hoặc Host xác nhận UNC, tạm 30 phút) →</span><span class="st a">holding</span><span class="arr">→ ký xong + chủ nhà chốt →</span><span class="st r">rented</span></div>
+      <div class="chain"><span class="st a">holding</span><span class="arr">→ hết 7 ngày, khách không ký hoặc hoàn cọc →</span><span class="st g">available</span></div>
+      <p class="sm muted">Khóa bằng transaction (row lock) để hai khách chuyển cọc cùng lúc chỉ có một người thắng.</p></div>
+    <div class="box"><h3>viewings.status</h3>
+      <div class="chain"><span class="st a">pending_confirmation</span><span class="arr">→ Host nhận dẫn →</span><span class="st b">confirmed</span><span class="arr">→ Host đón khách và mở cửa xong →</span><span class="st g">completed</span></div>
+      <div class="chain"><span class="st b">confirmed</span><span class="arr">→ trễ 15 phút + 5 phút không phản hồi →</span><span class="st r">no_show</span></div>
+      <div class="chain"><span class="st a">pending_confirmation</span><span class="arr">/</span><span class="st b">confirmed</span><span class="arr">→ căn được cọc hoặc khách hủy →</span><span class="st r">cancelled</span></div></div>
+    <div class="box"><h3>holding_deposits.payment_status</h3>
+      <div class="chain"><span class="st a">pending</span><span class="arr">→ webhook báo có →</span><span class="st g">paid</span><span class="arr">→ hoàn cọc →</span><span class="st r">refunded</span></div>
+      <div class="chain"><span class="st a">pending</span><span class="arr">→ VietQR hết hạn (đề xuất 15 phút) →</span><span class="st r">expired</span></div>
+      <p class="sm muted">expires_at = paid_at + 7 ngày, chỉ có giá trị sau khi paid.</p></div>
+    <div class="box"><h3>SLA và ngưỡng đã thống nhất trong tài liệu</h3>
+      <ul class="gap"><li>Tầng 1 chờ 5 phút, Tầng 2 chờ 3 phút, Tầng 3 broadcast</li><li>Khách trễ 15 phút → Zalo hỏi, 5 phút không trả lời thì tự hủy</li><li>Căn HOT khi có từ 3 lịch xem trong 24h</li><li>Cổng OCR: độ tin cậy dưới 85% chuyển sang nhập tay</li><li>Căn hời khi giá thuê thấp hơn giá trung bình tòa từ 10%</li><li>Giữ chỗ (holding) kéo dài 7 ngày kể từ lúc nhận cọc, không phải 24 giờ</li><li>Chủ nhà chỉ được thoát ủy quyền khi căn <span class="mono">available</span>, báo trước tối thiểu 15 ngày</li></ul></div>
+  </div>
+
+  <h2>Kịch bản ngoại lệ</h2>
+  <div class="tscroll"><table class="t">
+    <tr><th>Kịch bản</th><th>Cách xử lý tự động</th><th>Nguồn</th></tr>
+    <tr><td>Khách trễ hẹn quá 15 phút</td><td>Zalo hỏi [Gia hạn 15p] hoặc [Hủy lịch]. Sau 5 phút im lặng, slot tự hủy và mở lại.</td><td><span class="tag lo">PRD</span></td></tr>
+    <tr><td>Double booking khi có cọc</td><td>Trigger hủy lịch còn lại, Zalo Bot xin lỗi và gửi 2 căn tương đương kèm link đổi lịch 1 chạm.</td><td><span class="tag lo">PRD</span></td></tr>
+    <tr><td>Lockbox không mở được</td><td>Host bấm [Hỗ trợ khẩn cấp]: hiện hotline chủ nhà hoặc chuyển Quản lý khu vực cấp thẻ Master / chìa dự phòng.</td><td><span class="tag lo">PRD</span></td></tr>
+    <tr><td>Ảnh CCCD mờ hoặc lóa</td><td>Độ tin cậy dưới 85% thì mở form nhập tay, trường nghi ngờ viền đỏ, khách sửa rồi mới ký.</td><td><span class="tag lo">PRD</span></td></tr>
+    <tr><td>Webhook ngân hàng trễ</td><td>Host tải biên lai bấm [Xác nhận đã thấy UNC], tạm khóa 30 phút chờ đối soát.</td><td><span class="tag lo">PRD</span></td></tr>
+    <tr><td>Host nhận ticket nhưng không có mặt</td><td>Khách chờ quá 5 phút mà Host chưa xác nhận đến nơi: chuyển ticket sang Host gần nhất, ghi điểm SPS âm, thông báo Ops.</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Hai khách chuyển cọc gần như cùng lúc</td><td>Người có giao dịch về trước thắng (khóa trong transaction). Người sau được hoàn tự động và nhận gợi ý căn tương đương. Webhook cần idempotency key.</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Chuyển thiếu, thừa hoặc sai nội dung</td><td>Ghép giao dịch theo số tiền và SĐT. Không khớp thì đưa vào hàng đối soát thủ công của Ops trong 30 phút.</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Khách cọc nhưng không ký trong thời hạn</td><td>Nhắc qua Zalo vào ngày thứ 2 và ngày thứ 5. Đến hết 7 ngày căn về available, cọc xử lý theo chính sách hoàn cọc (cần chốt).</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Zalo không gửi được OTP hoặc tin xác nhận</td><td>Tự động chuyển SMS sau 15 giây, giới hạn số lần gửi theo SĐT để chống lạm dụng.</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Cả 3 tầng không ai nhận</td><td>Cảnh báo Ops, gọi khách đổi slot gần nhất còn Host trực. Tính vào chỉ số vận hành tuần.</td><td><span class="tag new">Đề xuất</span></td></tr>
+    <tr><td>Chủ nhà muốn thoát ủy quyền khi căn đang holding</td><td>Không cho hủy ngay; chờ hết 7 ngày giữ chỗ hoặc hợp đồng thuê được ký chính thức rồi mới xử lý countdown 15 ngày.</td><td><span class="tag lo">PRD</span></td></tr>
+  </table></div>
+</section>
+
+<!-- ============ TAB 4: GAP ============ -->
+<section class="tab" id="tab-gap">
+  <p class="lead">Kết quả rà chéo PRD, wireframe và phần điều phối. Các mục mức cao cần chốt trước khi dev bắt đầu, vì chúng đổi cách dựng luồng hoặc schema.</p>
+
+  <h2>Mâu thuẫn giữa các tài liệu</h2>
+  <div class="tscroll"><table class="t">
+    <tr><th>Vấn đề</th><th>Mức</th><th>Đề xuất</th></tr>
+    <tr><td>PRD nhắm Vinhomes Ocean Park (mã VHOP), wireframe ghi Vinhomes Grand Park (mã VHGP).</td><td><span class="tag hi">Cao</span></td><td>Chốt một địa bàn thử nghiệm. Prototype này dùng Ocean Park.</td></tr>
+    <tr><td>Tác nhân đón khách gọi là Field Host / Sale / CTV trong PRD nhưng là “Lễ tân sảnh / BQL” trong wireframe. Hai nhóm này có động lực khác hẳn: lễ tân BQL không có tỷ lệ chốt, nên SPS vô nghĩa.</td><td><span class="tag hi">Cao</span></td><td>Chốt là Field Host của VinStay (Sale/CTV). Đổi lại nhãn trong wireframe.</td></tr>
+    <tr><td>Điều phối: PRD ghi 3 phút rồi Open Pool 500m. Tài liệu 3 tầng ghi 5 phút, 3 phút, rồi broadcast.</td><td><span class="tag mid">Trung bình</span></td><td>Dùng bản 3 tầng (5 → 3 → broadcast). Prototype làm theo bản này.</td></tr>
+    <tr><td>Thời gian Matchmaker: “30 giây” (user story) và “≤3 giây” (NFR). Webhook: “≤10 giây” (AC) và “≤5 giây” (NFR).</td><td><span class="tag mid">Trung bình</span></td><td>30 giây là trải nghiệm từ lúc nhập đến lúc nhận kết quả, 3 giây là tính toán. Webhook lấy mốc ≤5 giây.</td></tr>
+    <tr><td>AC “OCR chính xác 100%” không kiểm chứng được, lại mâu thuẫn với cổng độ tin cậy 85%.</td><td><span class="tag mid">Trung bình</span></td><td>Đổi thành độ chính xác từng trường trên bộ kiểm thử, kèm bắt buộc khách rà soát trước khi ký.</td></tr>
+    <tr><td>Ví dụ All-in Cost ghi “phí gửi 2 xe máy 150.000đ” nhưng định mức là 150.000đ/xe (phải 300.000đ). Phí quản lý 47m² × 9.500 = 446.500đ, không phải 450.000đ.</td><td><span class="tag lo">Thấp</span></td><td>Sửa số liệu ví dụ, quy định làm tròn hay không. Prototype tính đúng công thức.</td></tr>
+    <tr><td>Thời hạn giữ chỗ: bản cũ ghi 24 giờ, bản nghiệp vụ mới chốt 7 ngày để khách và chủ nhà đủ thời gian hoàn tất hợp đồng.</td><td><span class="tag hi">Cao</span></td><td>Thống nhất 7 ngày trong toàn bộ schema, nội dung Zalo và logic khóa căn. Prototype đã cập nhật.</td></tr>
+    <tr><td>PRD từng mô tả mã QR check-in tại sảnh, nhưng vận hành thực tế Field Host đã biết mặt/đúng giờ hẹn nên bước quét QR chỉ làm chậm trải nghiệm và không chống được giả mạo tốt hơn xác nhận qua Zalo.</td><td><span class="tag mid">Trung bình</span></td><td>Bỏ hẳn bước quét QR tại sảnh. Xác thực bằng: OTP số điện thoại lúc đặt lịch + xác nhận Zalo hai chiều (Host ⇄ khách) trước giờ hẹn.</td></tr>
+    <tr><td>Zalo xác nhận lịch “kèm thông tin Field Host” nhưng Host chỉ được biết sau khi có người nhận ticket.</td><td><span class="tag mid">Trung bình</span></td><td>Giữ nguyên: gửi tin “đã ghi nhận yêu cầu” ngay khi đặt lịch, gửi tên và SĐT Host trong tin thứ hai ngay khi có người nhận ticket.</td></tr>
+    <tr><td>Schema: gõ nhầm TIMESMAP ở expires_at, không có bảng người dùng, chủ nhà, ticket điều phối (tầng, SLA), điểm SPS, thông báo, nhật ký kiểm toán. lockbox_code và landlord_phone chưa được mã hóa hay phân quyền.</td><td><span class="tag hi">Cao</span></td><td>Bổ sung tối thiểu: tenants, landlords, mandates (ủy quyền), dispatch_tickets, host_performance, notifications, audit_log. Phân quyền theo vai trò từng cột.</td></tr>
+    <tr><td>Mục số 4 bị nhảy (RACI không có số). Chủ nhà chỉ có chữ I trong RACI dù có 4 nỗi đau và không có màn hình nào.</td><td><span class="tag lo">Thấp</span></td><td>Đánh lại số mục. Luồng D ở trên đã bổ sung màn hình và RACI cho chủ nhà (R cho đăng ký/ký ủy quyền, I cho phần còn lại do AI vận hành thay).</td></tr>
+  </table></div>
+
+  <h2>Lỗ hổng nghiệp vụ và rủi ro</h2>
+  <div class="grid2">
+    <div class="box"><h3><span class="tag" style="background:var(--green-soft);color:var(--green)">Đã bổ sung</span> Chủ nhà chưa có mặt trong luồng cọc</h3><p class="sm muted" style="margin:0">Luồng D thêm bước ký Exclusive Rental Mandate trước khi listing được duyệt, nên chủ nhà đã ủy quyền khung giá và điều kiện cho VinStay AI xử lý cọc thay. Vẫn cần rà pháp lý điều khoản mandate.</p></div>
+    <div class="box"><h3><span class="tag hi">Cao</span> Chính sách hoàn cọc</h3><p class="sm muted" style="margin:0">PRD chưa nói khi nào hoàn: khách đổi ý trong 7 ngày, chủ nhà từ chối, căn hỏng phát hiện sau cọc, hay khách không ký. Đây cũng là điều khoản pháp lý của thỏa thuận cọc nên cần luật sư rà soát.</p></div>
+    <div class="box"><h3><span class="tag mid">Trung bình</span> Cờ HOT có thể tạo áp lực</h3><p class="sm muted" style="margin:0">Nỗi đau của khách gồm “bị ép cọc gấp”, trong khi badge “nhiều người đang xem” dễ tạo FOMO. Chỉ hiện khi số liệu thật, ghi rõ số lịch xem, và không dùng đồng hồ đếm ngược.</p></div>
+    <div class="box"><h3><span class="tag mid">Trung bình</span> Sức chứa slot của Host</h3><p class="sm muted" style="margin:0">Slot “khớp ca trực” cần tính năng lực từng Host (mỗi lượt khoảng 30 phút) cộng thời gian di chuyển giữa tòa. Nếu không sẽ overbook đúng những giờ cao điểm.</p></div>
+    <div class="box"><h3><span class="tag mid">Trung bình</span> Chống “cắt cầu”</h3><p class="sm muted" style="margin:0">Nỗi đau số 2 của Admin (khách và chủ nhà ký riêng) chưa có cơ chế đủ mạnh. Bỏ QR không làm tăng rủi ro này vì SĐT chủ nhà vẫn ẩn, cọc vẫn qua nền tảng. Nên thêm điều khoản phí giới thiệu và chỉ mở liên hệ trực tiếp sau khi hợp đồng thuê chính thức được ký qua hệ thống.</p></div>
+    <div class="box"><h3><span class="tag mid">Trung bình</span> Dữ liệu CCCD và Nghị định 13</h3><p class="sm muted" style="margin:0">Ngoài mã hóa AES-256 và consent, cần chính sách lưu trữ và xóa ảnh gốc sau khi trích xuất, giới hạn ai được đọc tenant_id_card_data, và nhật ký truy cập.</p></div>
+  </div>
+
+  <h2>Đề xuất lộ trình và chỉ số</h2>
+  <div class="grid2">
+    <div class="box"><h3>Ba bước ra sản phẩm</h3>
+      <ul class="gap">
+        <li><b>Bước 0 (2–3 tuần):</b> chạy thủ công có công cụ: form nhập nhu cầu, Zalo OA, bảng Host, VietQR tĩnh. Đo phễu thật trước khi đầu tư dispatcher.</li>
+        <li><b>Bước 1:</b> All-in Cost, đặt lịch có OTP (không QR), dashboard Host 1 tầng, VietQR động kèm webhook, OCR có cổng độ tin cậy.</li>
+        <li><b>Bước 2:</b> Dispatcher 3 tầng với SPS, Conflict Resolver, cổng chủ nhà (luồng D) và bảng điều khiển Admin/BI (luồng E).</li>
+      </ul></div>
+    <div class="box"><h3>Phễu và chỉ số chính</h3>
+      <ul class="gap">
+        <li>Chủ nhà ký gửi → duyệt → tìm kiếm → đặt lịch → có mặt → cọc → ký → bàn giao (mỗi bước một tỷ lệ)</li>
+        <li>Thời gian từ đặt lịch đến lần xem đầu tiên</li>
+        <li>Tỷ lệ khách đến đúng hẹn, tỷ lệ Host nhận ở Tầng 1</li>
+        <li>Độ chính xác OCR từng trường, % rơi sang nhập tay</li>
+        <li>Số ca khóa trùng (mục tiêu 0), % khách bị hủy đổi lịch thành công</li>
+        <li>Số khiếu nại chi phí ẩn trên 100 hợp đồng, tỷ lệ chủ nhà thoát ủy quyền</li>
+      </ul></div>
+  </div>
+</section>
+</main>
+
+<script>
+/* =================== helpers =================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Math.round(n).toLocaleString('vi-VN')+' đ';
+const hhmm=d=>new Date(d).toLocaleTimeString('vi-VN',{hour12:false});
+const mmss=s=>{s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const hms=s=>{s=Math.max(0,Math.floor(s));return [Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(v=>String(v).padStart(2,'0')).join(':')};
+const dhms=s=>{s=Math.max(0,Math.floor(s));const d=Math.floor(s/86400);const r=s-d*86400;return (d>0?d+' ngày ':'')+hms(r)};
+function toggleTheme(){const r=document.documentElement;const dark=r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);r.dataset.theme=dark?'light':'dark'}
+
+/* tabs */
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+b.dataset.tab));window.scrollTo(0,0)});
+document.getElementById('seg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.body.dataset.pane=b.dataset.p;document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('on',x===b))});
+
+/* =================== swimlane =================== */
+function swim(el,cfg){
+  const G=112,colW=164,nodeW=144,nodeH=84,laneH=112;
+  const W=G+cfg.cols*colW+12,H=cfg.lanes.length*laneH;
+  el.style.width=W+'px';el.style.height=H+'px';
+  let html='';
+  cfg.lanes.forEach((l,i)=>{html+=`<div class="lane" style="top:${i*laneH}px;height:${laneH}px"><div class="lane-h" style="width:${G-8}px">${l}</div></div>`});
+  const pos={};
+  cfg.nodes.forEach(n=>{pos[n.id]={x:G+n.c*colW+(colW-nodeW)/2,y:n.l*laneH+(laneH-nodeH)/2}});
+  let svg=`<svg class="edges" width="${W}" height="${H}"><defs><marker id="ah${cfg.id}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--edge)"/></marker></defs>`;
+  cfg.edges.forEach(e=>{
+    const A=pos[e[0]],B=pos[e[1]];let d,lx,ly;
+    if(B.x>A.x+1){const x1=A.x+nodeW,y1=A.y+nodeH/2,x2=B.x,y2=B.y+nodeH/2,dx=Math.max(22,(x2-x1)/2);d=`M${x1} ${y1} C${x1+dx} ${y1} ${x2-dx} ${y2} ${x2} ${y2}`;lx=(x1+x2)/2;ly=(y1+y2)/2-5}
+    else if(Math.abs(B.x-A.x)<=1){const x=A.x+nodeW/2;const down=B.y>A.y;const y1=down?A.y+nodeH:A.y,y2=down?B.y:B.y+nodeH;d=`M${x} ${y1} L${x} ${y2}`;lx=x+30;ly=(y1+y2)/2}
+    else{const x1=A.x+nodeW/2,y1=A.y,x2=B.x+nodeW/2,y2=B.y,pk=Math.min(y1,y2)-26;d=`M${x1} ${y1} C${x1} ${pk} ${x2} ${pk} ${x2} ${y2}`;lx=(x1+x2)/2;ly=pk+6}
+    svg+=`<path class="edge${e[3]==='d'?' d':''}" d="${d}" marker-end="url(#ah${cfg.id})"/>`;
+    if(e[2])svg+=`<text class="elabel" x="${lx}" y="${ly}">${e[2]}</text>`;
+  });
+  svg+='</svg>';
+  html+=svg;
+  cfg.nodes.forEach(n=>{const p=pos[n.id];html+=`<div class="node ${n.t||''}" style="left:${p.x}px;top:${p.y}px;width:${nodeW}px;height:${nodeH}px"><b>${n.id}</b>${n.s}</div>`});
+  el.innerHTML=html;
+}
+swim($('#swA'),{id:'A',cols:9,lanes:['Khách thuê','AI Engine · Web App','Zalo / SMS'],
+ nodes:[
+  {id:'A1',l:0,c:0,s:'Nhập ngân sách trần, layout, ngày dọn vào, số người'},
+  {id:'A2',l:1,c:1,t:'ai',s:'Tính All-in Cost = thuê + quản lý + xe + điện nước; loại căn vượt trần'},
+  {id:'A3',l:1,c:2,t:'ai',s:'Xếp hạng Top 3 (≤3s), gắn badge Căn hời ≥10% và 🔥HOT'},
+  {id:'A4',l:0,c:3,s:'Xem 3 thẻ căn, bấm Đặt lịch, chọn slot khớp ca Host'},
+  {id:'A5',l:0,c:4,s:'Nhập họ tên + SĐT, yêu cầu mã OTP'},
+  {id:'A6',l:2,c:5,t:'ext',s:'Gửi OTP 4 số, hiệu lực 59s (sai hoặc hết hạn thì gửi lại)'},
+  {id:'A7',l:0,c:6,s:'Nhập OTP xác nhận'},
+  {id:'A8',l:1,c:7,t:'ai',s:'OTP đúng: tạo viewing (pending_confirmation), kiểm tra cờ HOT — không sinh mã QR'},
+  {id:'A9',l:2,c:8,t:'ext',s:'Zalo báo: đã nhận yêu cầu, sẽ xác nhận lịch cụ thể sau'},
+  {id:'A10',l:1,c:8,t:'ok',s:'Bắn ticket sang AI Dispatcher (sơ đồ B)'}],
+ edges:[['A1','A2'],['A2','A3'],['A3','A4','Top 3'],['A4','A5'],['A5','A6'],['A6','A7'],['A7','A8'],['A8','A9'],['A8','A10']]});
+swim($('#swB'),{id:'B',cols:11,lanes:['AI Dispatcher','Field Host','Host khác (Open Pool)','Khách thuê'],
+ nodes:[
+  {id:'B1',l:0,c:0,t:'ai',s:'Tầng 1: ticket cho Host phụ trách tòa, chờ 5 phút'},
+  {id:'B2',l:1,c:1,s:'Host bấm [Nhận dẫn]'},
+  {id:'B3',l:0,c:1,t:'warn',s:'Quá 5 phút hoặc từ chối → Tầng 2: Top SPS trong ≤500m, chờ 3 phút'},
+  {id:'B4',l:2,c:2,s:'Host lân cận SPS cao nhất nhận, nhận bàn giao thẻ sảnh'},
+  {id:'B5',l:0,c:2,t:'warn',s:'Quá 3 phút → Tầng 3: broadcast >500m, ai bấm trước nhận'},
+  {id:'B6',l:2,c:3,s:'Host ngoài bán kính nhận lượt dẫn'},
+  {id:'B7',l:1,c:4,t:'ai',s:'App hiện vị trí căn và mã PIN Smartlock cố định của căn cho Host đã nhận'},
+  {id:'B7c',l:3,c:4,t:'ext',s:'Zalo xác nhận lịch: giờ hẹn + tên, SĐT Field Host — không kèm QR'},
+  {id:'B8',l:3,c:5,s:'Có mặt tại sảnh đúng giờ hẹn (trễ >15 phút: luồng no-show)'},
+  {id:'B9',l:1,c:6,s:'Quẹt thẻ cư dân, đón khách trực tiếp tại sảnh, dẫn lên căn, mở khóa'},
+  {id:'B10',l:3,c:7,s:'Xem căn hộ, chấm CSAT sau buổi xem'},
+  {id:'B11',l:1,c:8,s:'Kết luận: [Chưa ưng] hoặc [Khách chốt]'},
+  {id:'B12',l:1,c:9,s:'Chưa ưng: Host giới thiệu trực tiếp căn thay thế ngay tại chỗ (app gợi ý, không qua Zalo)'},
+  {id:'B12b',l:1,c:10,t:'ok',s:'Khách chốt: sang sơ đồ C'}],
+ edges:[['B1','B2','nhận'],['B1','B3','hết 5p','d'],['B3','B4','nhận'],['B3','B5','hết 3p','d'],['B5','B6','nhận'],['B2','B7'],['B4','B7'],['B6','B7'],['B7','B7c'],['B7c','B8'],['B7','B9'],['B8','B9'],['B9','B10'],['B10','B11'],['B11','B12'],['B11','B12b']]});
+swim($('#swC'),{id:'C',cols:9,lanes:['Field Host','Khách thuê','AI Engine','Ngân hàng · Zalo'],
+ nodes:[
+  {id:'C1',l:0,c:0,s:'Bấm [Khách chốt] trên Mobile App'},
+  {id:'C2',l:2,c:1,t:'ai',s:'Sinh VietQR động 2.000.000đ, nội dung COC [Mã căn] [SĐT]'},
+  {id:'C3',l:1,c:2,s:'Quét VietQR, chuyển khoản cọc'},
+  {id:'C4',l:3,c:3,t:'ext',s:'Webhook ngân hàng báo có (≤5s)'},
+  {id:'C6',l:0,c:3,t:'warn',s:'Webhook trễ: Host tải biên lai [Xác nhận đã thấy UNC], tạm khóa 30 phút'},
+  {id:'C5',l:2,c:4,t:'ai',s:'Khóa căn: status = holding, expires_at = paid_at + 7 ngày'},
+  {id:'C7',l:2,c:5,t:'ai',s:'Conflict Resolver: hủy các lịch xem còn lại của căn'},
+  {id:'C8',l:3,c:6,t:'ext',s:'Zalo Bot xin lỗi khách bị hủy, gợi ý 2 căn tương đương'},
+  {id:'C9',l:1,c:5,s:'Tick Consent (NĐ 13), chụp CCCD 2 mặt'},
+  {id:'C10',l:2,c:6,t:'ai',s:'OCR ≤5s điền thỏa thuận; tin cậy <85% thì form tay, ô nghi ngờ viền đỏ'},
+  {id:'C11',l:1,c:7,s:'Rà soát thông tin, ký bằng OTP Zalo/SMS'},
+  {id:'C12',l:2,c:8,t:'ok',s:'Sinh PDF thỏa thuận, lưu signed_at, mã hóa CCCD AES-256, báo chủ nhà'}],
+ edges:[['C1','C2'],['C2','C3','QR'],['C3','C4'],['C4','C5'],['C3','C6','trễ','d'],['C6','C5','','d'],['C5','C7'],['C7','C8'],['C5','C9'],['C9','C10'],['C10','C11'],['C11','C12']]});
+swim($('#swD'),{id:'D',cols:9,lanes:['Chủ nhà','Admin','AI Engine · Hệ thống','Zalo / Khách thuê'],
+ nodes:[
+  {id:'D1',l:0,c:0,s:'Đăng ký căn: tòa, tầng, giá thuê, ảnh hiện trạng'},
+  {id:'D2',l:0,c:1,s:'Chọn kiểm định: tự tải ảnh hoặc nhờ Field Host chụp miễn phí'},
+  {id:'D3',l:0,c:2,s:'Ký Exclusive Rental Mandate bằng OTP (ủy quyền quản lý độc quyền)'},
+  {id:'D4',l:0,c:3,s:'Cấu hình quyền mở cửa: mã khóa điện tử hoặc gửi chìa cơ tại quầy'},
+  {id:'D5',l:1,c:4,s:'Admin duyệt: mã căn, ảnh, giá, quyền mở cửa, hiệu lực hợp đồng ký gửi'},
+  {id:'D6',l:2,c:5,t:'ai',s:'status = available; hiển thị listing kèm All-in Cost cho khách'},
+  {id:'D7',l:2,c:6,t:'ok',s:'Hệ thống (rule engine) điều phối Sale/Host, xem căn, đặt cọc 7 ngày (sơ đồ A–C)'},
+  {id:'D8',l:3,c:6,t:'ext',s:'Thông báo real-time: mở cửa, check-in, nhận cọc, chuyển holding'},
+  {id:'D9',l:0,c:7,s:'Theo dõi dashboard: trạng thái căn, lịch sử, Host, khách, số tiền'},
+  {id:'D10',l:2,c:7,t:'ai',s:'Bàn giao số: 10 hạng mục nội thất + timestamp → Digital Handover Passport'},
+  {id:'D11',l:0,c:8,s:'Muốn dừng: gửi yêu cầu thoát ủy quyền (chỉ khi available, báo trước 15 ngày)'}],
+ edges:[['D1','D2'],['D2','D3'],['D3','D4'],['D4','D5'],['D5','D6'],['D6','D7'],['D7','D8'],['D8','D9'],['D7','D10'],['D9','D11']]});
+swim($('#swE'),{id:'E',cols:14,lanes:['Pipeline vận hành toàn hệ thống (A→D gộp)'],
+ nodes:[
+  {id:'E1',l:0,c:0,s:'Chủ nhà ký gửi'},{id:'E2',l:0,c:1,s:'Admin duyệt listing'},{id:'E3',l:0,c:2,t:'ai',s:'AI lọc căn (Matchmaker)'},
+  {id:'E4',l:0,c:3,s:'Khách đặt lịch OTP'},{id:'E5',l:0,c:4,t:'ai',s:'Dispatcher phân Host'},{id:'E6',l:0,c:5,t:'ext',s:'Zalo nhắc T-10m'},
+  {id:'E7',l:0,c:6,s:'Host đón khách'},{id:'E8',l:0,c:7,s:'Host mở cửa'},{id:'E9',l:0,c:8,t:'ext',s:'VietQR webhook xác nhận cọc'},
+  {id:'E10',l:0,c:9,t:'ai',s:'Khóa căn 7 ngày'},{id:'E11',l:0,c:10,t:'ai',s:'Hủy lịch xem trùng'},{id:'E12',l:0,c:11,t:'ai',s:'OCR CCCD'},
+  {id:'E13',l:0,c:12,s:'Ký OTP'},{id:'E14',l:0,c:13,t:'ok',s:'Bàn giao số'}],
+ edges:[['E1','E2'],['E2','E3'],['E3','E4'],['E4','E5'],['E5','E6'],['E6','E7'],['E7','E8'],['E8','E9'],['E9','E10'],['E10','E11'],['E11','E12'],['E12','E13'],['E13','E14']]});
+
+/* =================== prototype data =================== */
+const U=[
+ ['VHOP-S1.02-12A08','S1.02','1PN+',47,6500000,7300000,12,'Đông Nam','18/09'],
+ ['VHOP-S1.05-0904','S1.05','1PN+',42,6800000,7000000,9,'Tây Bắc','17/09'],
+ ['VHOP-S2.03-1507','S2.03','1PN+',45,7000000,8000000,15,'Đông','19/09'],
+ ['VHOP-S1.02-1602','S1.02','1PN+',46,7900000,7600000,16,'Nam','16/09'],
+ ['VHOP-S1.02-0504','S1.02','Studio',30,4800000,5400000,5,'Bắc','18/09'],
+ ['VHOP-S1.05-0311','S1.05','Studio',28,4200000,4400000,3,'Đông Bắc','15/09'],
+ ['VHOP-S2.03-0812','S2.03','Studio',32,5100000,5800000,8,'Tây','19/09'],
+ ['VHOP-S1.01-1010','S1.01','2PN_1WC',56,8200000,9100000,10,'Đông Nam','18/09'],
+ ['VHOP-S3.01-1810','S3.01','2PN_1WC',58,9500000,9800000,18,'Nam','17/09'],
+ ['VHOP-S2.01-2203','S2.01','2PN_2WC',70,11000000,12400000,22,'Đông','18/09'],
+ ['VHOP-S1.06-2501','S1.06','3PN',88,15000000,16000000,25,'Nam','16/09']
+].map((a,i)=>({code:a[0],block:a[1],layout:a[2],area:a[3],rent:a[4],mkt:a[5],floor:a[6],dir:a[7],ver:a[8],status:'available',hue:[212,196,226,204,180,240,168,222,200,250,190][i]}));
+const CAND=[{n:'Minh Tuấn',cr:42,cs:4.7,sp:90},{n:'Hà Vy',cr:38,cs:4.9,sp:80},{n:'Quang Huy',cr:45,cs:4.2,sp:70}];
+const sps=c=>0.5*c.cr+0.3*(c.cs*20)+0.2*c.sp;
+const HP={'Lan Anh':'0903 ••• 218','Minh Tuấn':'0938 ••• 552','Hà Vy':'0912 ••• 940','Quang Huy':'0966 ••• 371','Đức Hải':'0977 ••• 104'};
+const LANDLORD_NAME='Anh Dũng (chủ căn VHOP-S1.02-12A08)';
+const OTP='4829';
+/* Mã PIN Smartlock: cố định theo từng căn hộ (không random theo lượt khách, không tự hủy) */
+function unitPin(code){let h=0;for(const c of code)h=(h*31+c.charCodeAt(0))>>>0;return String(100000+(h%900000))}
+const cost=(u,f)=>{const mgmt=Math.round(u.area*9500),park=f.bikes*150000,util=f.people*300000;return{rent:u.rent,mgmt,park,util,total:u.rent+mgmt+park+util}};
+const saving=u=>Math.round((1-u.rent/u.mkt)*100);
+const isDeal=u=>u.rent<=u.mkt*0.9;
+const ACT=['pending_confirmation','confirmed'];
+const actV=code=>S.others.filter(v=>v.unit===code&&ACT.includes(v.status)).length+(S.my&&S.my.unit.code===code&&ACT.includes(S.my.status)?1:0);
+
+function qr(seed,size=132){
+  let h=0;for(const c of seed)h=(h*31+c.charCodeAt(0))>>>0;let s=h||7;const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296};
+  const n=21,cell=size/n;let p='';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const fx=x<7||x>=n-7,fy=y<7||y>=n-7;let on;
+    if(fx&&fy&&!(x<7&&y>=n-7&&false)&&((x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7))){
+      const a=x<7?x:x-(n-7),b=y<7?y:y-(n-7);on=a===0||a===6||b===0||b===6||(a>=2&&a<=4&&b>=2&&b<=4);
+    }else on=rnd()>0.52;
+    if(on)p+=`M${(x*cell).toFixed(1)} ${(y*cell).toFixed(1)}h${cell.toFixed(1)}v${cell.toFixed(1)}h-${cell.toFixed(1)}z`;
+  }
+  return `<svg width="${size+16}" height="${size+16}" viewBox="0 0 ${size} ${size}"><path d="${p}" fill="currentColor"/></svg>`;
+}
+
+/* =================== state =================== */
+let S;const LOG=[];
+function log(k,m){LOG.push({k,m,t:Date.now()});renderS()}
+function llog(m){S.landlordLog.push({m,t:Date.now()});renderL()}
+function fresh(){
+  U.forEach(u=>u.status='available');LOG.length=0;
+  S={form:{budget:8500000,layout:'1PN+',people:2,bikes:2,moveIn:'2026-09-25'},t:'search',sel:null,day:'22/09',slot:'09:30',name:'Nguyễn Văn A',phone:'0912345678',
+     otpSent:false,otp:'',otpErr:false,sc:{dispatch:'t1',webhookLate:false,ocrBlur:false},
+     others:[{id:'V-B',unit:'VHOP-S1.02-12A08',who:'Khách B',slot:'22/09 14:00',status:'confirmed'},{id:'V-C',unit:'VHOP-S1.02-12A08',who:'Khách C',slot:'22/09 15:30',status:'confirmed'}],
+     my:null,dep:null,ocr:null,ocrErr:false,consent:false,signSent:false,signOtp:'',signErr:false,noShowAsk:false,zaloC:null,rejectMenu:false,sos:false,tSearchMs:0,unc:false,
+     mandate:{signed:true,signedAt:Date.now()-86400000*9,doorAccess:'Mã khóa điện tử (mã hóa, chỉ cấp cho Host đúng giờ hẹn)'},
+     landlordLog:[],terminationReq:false};
+  log('sys','Khởi tạo demo: 11 căn đã kiểm định. Căn VHOP-S1.02-12A08 đang có 2 lịch xem (Khách B lúc 14:00, Khách C lúc 15:30 ngày 22/09).');
+  llog('Mandate ủy quyền độc quyền còn hiệu lực. Listing VHOP-S1.02-12A08 đang ở trạng thái available, sẵn sàng cho khách xem.');
+}
+function render(){renderT();renderH();renderS();renderL();renderO()}
+let lastT='',lastH='';
+function keepScroll(box,key,last){const b=box.querySelector('.app-b');return b&&key===last?b.scrollTop:0}
+
+/* =================== tenant screens =================== */
+function renderT(){
+  const box=$('#tScreen');const key=S.t;const y=keepScroll(box,key,lastT);
+  const hdr=`<div class="app-h"><b>VinStay AI</b><small>Vinhomes Ocean Park</small></div>`;
+  let body='';
+  switch(S.t){
+    case 'search':body=tSearch();break;case 'results':body=tResults();break;case 'book':body=tBook();break;case 'qr':body=tQR();break;
+    case 'deposit':body=tDeposit();break;case 'ocr':body=tOcr();break;case 'sign':body=tSign();break;case 'done':body=tDone();break;
+    case 'rejected':body=tRejected();break;case 'cancelled':body=tCancelled();break;
+  }
+  box.innerHTML=hdr+body;lastT=key;const b=box.querySelector('.app-b');if(b)b.scrollTop=y;
+}
+function tSearch(){const f=S.form;
+  return `<div class="app-b"><div class="h1">Tìm căn theo ngân sách trọn gói</div><div class="muted sm">Không phát sinh chi phí ẩn, đúng giá thực tế</div>
+  <div class="fl"><span>Ngân sách trần mỗi tháng</span><b id="bv">${fmt(f.budget)}</b></div>
+  <input type="range" min="4000000" max="16000000" step="100000" value="${f.budget}" oninput="S.form.budget=+this.value;document.getElementById('bv').textContent=fmt(+this.value)" aria-label="Ngân sách trần">
+  <div class="g2"><div><div class="fl"><span>Loại căn</span></div><select class="inp" onchange="S.form.layout=this.value">${['Studio','1PN+','2PN_1WC','2PN_2WC','3PN'].map(l=>`<option ${l===f.layout?'selected':''}>${l}</option>`).join('')}</select></div>
+  <div><div class="fl"><span>Nhân khẩu</span></div><select class="inp" onchange="S.form.people=+this.value">${[1,2,3,4].map(n=>`<option ${n===f.people?'selected':''}>${n}</option>`).join('')}</select></div></div>
+  <div class="g2"><div><div class="fl"><span>Số xe máy</span></div><select class="inp" onchange="S.form.bikes=+this.value">${[0,1,2,3].map(n=>`<option ${n===f.bikes?'selected':''}>${n}</option>`).join('')}</select></div>
+  <div><div class="fl"><span>Ngày dọn vào</span></div><input class="inp" type="date" value="${f.moveIn}" onchange="S.form.moveIn=this.value"></div></div>
+  <button class="btn pri blk" onclick="act.search()">AI gợi ý căn hộ phù hợp nhất</button></div>`}
+function rank(f){
+  const all=U.filter(u=>u.layout===f.layout&&u.status==='available');
+  const scored=all.map(u=>{const c=cost(u,f);return{u,c,fit:c.total<=f.budget,score:(isDeal(u)?saving(u):0)+(f.budget-c.total)/f.budget*100}});
+  const fit=scored.filter(x=>x.fit).sort((a,b)=>b.score-a.score);
+  return{top:fit.slice(0,3),excl:scored.length-fit.length,scored};
+}
+function tResults(){
+  const f=S.form,r=rank(f);
+  let h=`<div class="app-b"><button class="link" onclick="act.to('search')">← Đổi tiêu chí</button><div class="h1">${r.top.length?`Tìm thấy ${r.top.length} căn tối ưu cho bạn`:'Chưa có căn nào trong ngân sách'}</div>
+  <div class="muted sm" style="margin-bottom:10px">Tính trong ${S.tSearchMs} ms · loại ${r.excl} căn có All-in Cost vượt trần ${fmt(f.budget)}</div>`;
+  if(!r.top.length){
+    const near=r.scored.sort((a,b)=>a.c.total-b.c.total)[0];
+    h+=`<div class="bubble w">Không có căn ${esc(f.layout)} nào có tổng chi phí trong trần.${near?` Căn rẻ nhất hiện là ${near.u.code} với ${fmt(near.c.total)}/tháng. Tăng trần lên khoảng ${fmt(Math.ceil(near.c.total/100000)*100000)} để thấy căn này.`:' Thử đổi loại căn khác.'}</div>`;
+  }
+  r.top.forEach(({u,c})=>{
+    const n=actV(u.code),hot=n>=3;
+    h+=`<div class="card"><div class="img" style="background:linear-gradient(135deg,hsl(${u.hue} 60% 38%),hsl(${u.hue+30} 55% 55%))"><span>Ảnh thật · kiểm định ${u.ver}</span><span class="mono">${u.code}</span></div><div class="in">
+    <div class="badges">${isDeal(u)?`<span class="b deal">Căn hời phân khu · Tiết kiệm ${saving(u)}%</span>`:''}${hot?`<span class="b hot">🔥 CĂN HOT · nhiều người đang xem (${n} lịch)</span>`:''}</div>
+    <div class="sm muted">${u.layout} · ${u.area} m² · Tầng ${u.floor} · Hướng ${u.dir}</div>
+    <div class="tot"><span>Tổng chi phí thực tế</span><span><b>${fmt(c.total)}</b> / tháng</span></div>
+    <div class="bd"><div><span>Giá thuê cơ bản</span><span>${fmt(c.rent)}</span></div><div><span>Phí quản lý (${u.area} m² × 9.500)</span><span>${fmt(c.mgmt)}</span></div><div><span>Phí gửi ${f.bikes} xe máy</span><span>${fmt(c.park)}</span></div><div><span>Điện nước (${f.people} người)</span><span>${fmt(c.util)}</span></div></div>
+    <button class="btn pri blk" onclick="act.pick('${u.code}')">Gửi yêu cầu đặt lịch xem phòng</button></div></div>`;
+  });
+  return h+'</div>';
+}
+function takenSlots(code,day){return S.others.filter(v=>v.unit===code&&ACT.includes(v.status)&&v.slot.startsWith(day)).map(v=>v.slot.slice(6))}
+function tBook(){
+  const u=S.sel,slots=['08:30','09:30','10:30','14:00','15:30','17:00'],taken=takenSlots(u.code,S.day);
+  const hostBusy=['17:00'];
+  return `<div class="app-b"><button class="link" onclick="act.to('results')">← Quay lại kết quả</button><div class="h1">Gửi yêu cầu đặt lịch xem phòng</div>
+  <div class="muted sm">Căn ${u.code} · Tòa ${u.block} · Sảnh tầng 1</div>
+  <div class="fl"><span><b>1. Chọn khung giờ mong muốn</b> (khớp ca trực của Field Host)</span></div>
+  <div class="chips">${['21/09','22/09'].map(d=>`<button class="chip ${S.day===d?'on':''}" onclick="act.setDay('${d}')">${d==='21/09'?'Hôm nay 21/09':'Ngày mai 22/09'}</button>`).join('')}</div>
+  <div class="chips">${slots.map(s=>{const dis=taken.includes(s)||hostBusy.includes(s);return `<button class="chip ${S.slot===s?'on':''}" ${dis?'disabled':''} onclick="act.setSlot('${s}')">${s}</button>`}).join('')}</div>
+  <div class="muted sm">Slot gạch ngang: đã có khách khác hoặc Host chưa trực. Đây là giờ mong muốn — VinStay AI sẽ xác nhận chính thức qua Zalo.</div>
+  <div class="fl"><span><b>2. Xác thực khách hàng</b></span></div>
+  <input class="inp" placeholder="Họ và tên" value="${esc(S.name)}" oninput="S.name=this.value" aria-label="Họ và tên">
+  <input class="inp" style="margin-top:8px" inputmode="tel" placeholder="Số điện thoại" value="${esc(S.phone)}" oninput="S.phone=this.value" aria-label="Số điện thoại">
+  <button class="btn blk" onclick="act.sendOtp()">${S.otpSent?'Gửi lại mã OTP':'Gửi mã OTP'}</button>
+  ${S.otpSent?`<div class="bubble z"><div class="who">Zalo · VinStay AI</div>Mã xác thực của bạn là <b>${OTP}</b>, hiệu lực 59 giây. (Chỉ để demo)</div>
+  <input class="inp otp" inputmode="numeric" maxlength="4" placeholder="····" value="${esc(S.otp)}" oninput="S.otp=this.value;S.otpErr=false" aria-label="Mã OTP">
+  ${S.otpErr?'<div class="err">Mã OTP chưa đúng. Nhập lại hoặc gửi mã mới.</div>':''}
+  <button class="btn pri blk" onclick="act.confirmBooking()">Xác thực và gửi yêu cầu đặt lịch</button>`:''}
+  <div class="muted sm" style="margin-top:10px">Không còn bước quét mã QR tại sảnh: yêu cầu của bạn sẽ được VinStay AI xác nhận lại qua Zalo kèm tên và số điện thoại Field Host ngay khi có người nhận lịch.</div></div>`}
+function tQR(){
+  const m=S.my;if(m.status==='cancelled'||m.status==='no_show')return tCancelled();
+  const ph=m.phase;
+  const st=[['Yêu cầu đã ghi nhận',true],['Đã xác nhận lịch (Field Host nhận ca)',ph!=='dispatch'],['Đang xem phòng',ph==='checked']];
+  const curIdx=st.findIndex(x=>!x[1]);
+  return `<div class="app-b"><div class="okline">✓ Yêu cầu đặt lịch đã được ghi nhận</div><div class="h1">${m.unit.code}</div><div class="muted sm">Giờ mong muốn ${m.slot} · sẽ xác nhận qua Zalo</div>
+  ${ph==='dispatch'?`<div class="bubble z"><div class="who">Zalo · VinStay AI</div>VinStay AI đã nhận được yêu cầu đặt lịch xem căn ${m.unit.code}. Chúng tôi đang tìm Field Host phù hợp và sẽ xác nhận lại lịch cụ thể qua Zalo trong ít phút.</div>`:''}
+  <div class="stepper">${st.map((x,i)=>`<div class="${x[1]?'done':i===curIdx?'cur':''}"><i>${x[1]?'✓':''}</i>${x[0]}${i===1&&!x[1]&&m.ticket?` (đang ở Tầng ${m.ticket.tier})`:''}</div>`).join('')}</div>
+  ${m.host?`<div class="bubble z"><div class="who">Zalo · VinStay AI</div><b>Đã xác nhận lịch xem.</b> ${m.unit.code} lúc ${m.slot}, Tòa ${m.unit.block}, sảnh tầng 1. Field Host phụ trách: <b>${esc(m.host.name)}</b> · ${HP[m.host.name]}. Vui lòng có mặt đúng giờ, Host sẽ chủ động đón bạn tại sảnh, không cần mã QR.</div>`:''}
+  ${S.noShowAsk?`<div class="bubble z"><div class="who">Zalo · VinStay AI</div>Bạn đã trễ quá 15 phút. Bạn muốn gia hạn hay hủy lịch xem này?<div class="chips" style="margin-top:6px"><button class="btn sm pri" onclick="act.extend()">Gia hạn 15 phút</button><button class="btn sm" onclick="act.cancelMine()">Hủy lịch</button></div></div>`:''}</div>`}
+function tCancelled(){const m=S.my;return `<div class="app-b"><div class="h1">Lịch xem đã đóng</div><div class="muted sm">${m?m.unit.code+' · '+m.slot:''}</div><div class="bubble w">${m&&m.status==='no_show'?'Bạn không phản hồi sau 15 phút trễ hẹn nên slot đã được giải phóng cho khách khác.':'Lịch xem đã được hủy.'} Bạn có thể gửi yêu cầu đặt lịch mới bất cứ lúc nào.</div><button class="btn pri blk" onclick="act.to('results')">Xem lại danh sách căn</button></div>`}
+function tRejected(){
+  const m=S.my,sim=m.suggested||[];
+  return `<div class="app-b"><div class="h1">Cảm ơn bạn đã xem phòng</div><div class="muted sm">Lý do: ${esc(m.reason||'')}</div>
+  <div class="bubble"><div class="who">Field Host giới thiệu trực tiếp</div>Ngay tại căn, Field Host đã giới thiệu trực tiếp cho bạn ${sim.length} căn tương đương trong cùng phân khu (không qua Zalo). Bạn có thể xem lại và đặt lịch ngay bên dưới:${sim.map(u=>`<div style="margin-top:6px;border-top:1px dashed var(--line2);padding-top:6px"><b>${u.code}</b> · ${u.area} m² · ${fmt(cost(u,S.form).total)}/tháng<br><button class="btn sm pri" style="margin-top:4px" onclick="act.pick('${u.code}')">Đặt lịch căn này</button></div>`).join('')||'<div style="margin-top:6px">Hiện chưa có căn tương đương khác.</div>'}</div></div>`}
+function tDeposit(){
+  const d=S.dep,m=S.my;
+  return `<div class="app-b"><div class="h1">Cọc giữ chỗ 7 ngày</div><div class="muted sm">Host đã ghi nhận bạn chốt căn ${m.unit.code}</div>
+  <div class="qrbox">${qr(d.code)}<div><b>${fmt(d.amount)}</b></div><div class="mono">COC ${m.unit.code} ${esc(S.phone)}</div><div class="muted sm">VietQR động · tài khoản định danh của VinStay · hết hạn sau 15 phút</div></div>
+  ${d.claimed?`<div class="bubble w">Đang chờ ngân hàng xác nhận giao dịch. Nếu chậm, Host có thể xác nhận bằng ảnh biên lai để giữ phòng tạm 30 phút.</div>`:`<button class="btn pri blk" onclick="act.pay()">Mô phỏng: tôi đã chuyển khoản</button>`}</div>`}
+function tOcr(){
+  const o=S.ocr;
+  if(!o)return `<div class="app-b"><div class="okline">✓ Đã nhận cọc ${fmt(S.dep.amount)}. Căn được khóa 7 ngày.</div><div class="h1">Xác thực để ký thỏa thuận</div><div class="muted sm">Chụp hai mặt CCCD, hệ thống tự điền thỏa thuận.</div>
+  <div class="cccd-grid"><div class="cccd">Mặt trước</div><div class="cccd">Mặt sau</div></div>
+  <label class="chk"><input type="checkbox" ${S.consent?'checked':''} onchange="S.consent=this.checked;render()"><span>Tôi đồng ý để VinStay xử lý ảnh CCCD nhằm xác thực giao dịch này (Nghị định 13/2023/NĐ-CP).</span></label>
+  <button class="btn pri blk" ${S.consent?'':'disabled'} onclick="act.snap()">Chụp hoặc tải CCCD (demo)</button></div>`;
+  const bad=o.conf<85;
+  return `<div class="app-b"><div class="h1">Kiểm tra thông tin trích xuất</div><div class="conf ${bad?'bad':'good'}">Độ tin cậy OCR ${o.conf}% · ${o.ms}s ${bad?'· cần kiểm tra thủ công':'· tự động điền'}</div>
+  <div class="row2"><label>Họ tên</label><div class="v">${esc(o.f.name)}</div></div>
+  ${bad?`<div class="row2"><label>Số CCCD (nghi ngờ)</label><input class="inp flag" value="${esc(o.f.id)}" oninput="S.ocr.f.id=this.value;S.ocrErr=false"></div>
+  <div class="row2"><label>Ngày cấp (nghi ngờ)</label><input class="inp flag" value="${esc(o.f.issued)}" oninput="S.ocr.f.issued=this.value;S.ocrErr=false"></div>`
+  :`<div class="row2"><label>Số CCCD</label><div class="v">${esc(o.f.id)}</div></div><div class="row2"><label>Ngày cấp</label><div class="v">${esc(o.f.issued)}</div></div>`}
+  <div class="row2"><label>Nơi thường trú</label><div class="v">${esc(o.f.addr)}</div></div>
+  ${S.ocrErr?'<div class="err">Số CCCD cần đủ 12 chữ số và ngày cấp theo dạng dd/mm/yyyy.</div>':''}
+  ${bad?`<button class="link" onclick="S.ocr.f.id='001099000123';S.ocr.f.issued='15/03/2021';render()">Điền giá trị đúng (demo)</button>`:''}
+  <button class="btn pri blk" onclick="act.ocrOk()">${bad?'Xác nhận đã kiểm tra':'Tiếp tục xem thỏa thuận'}</button></div>`}
+function tSign(){
+  const m=S.my,o=S.ocr;
+  return `<div class="app-b"><div class="h1">Thỏa thuận đặt cọc giữ chỗ 7 ngày</div><div class="card"><div class="in"><div class="row2"><label>Bên đặt cọc</label><div class="v">${esc(o.f.name)} · CCCD ${esc(o.f.id)}</div></div>
+  <div class="row2"><label>Căn hộ</label><div class="v">${m.unit.code} (${m.unit.layout}, ${m.unit.area} m²)</div></div>
+  <div class="row2"><label>Số tiền cọc</label><div class="v">${fmt(S.dep.amount)}</div></div><div class="row2"><label>Hiệu lực</label><div class="v">7 ngày kể từ lúc nhận tiền</div></div></div></div>
+  ${S.signSent?`<div class="bubble z"><div class="who">Zalo · VinStay AI</div>Mã ký thỏa thuận: <b>${OTP}</b> (chỉ để demo)</div>
+  <input class="inp otp" inputmode="numeric" maxlength="4" placeholder="····" value="${esc(S.signOtp)}" oninput="S.signOtp=this.value;S.signErr=false" aria-label="Mã OTP ký">
+  ${S.signErr?'<div class="err">Mã OTP chưa đúng.</div>':''}<button class="btn grn blk" onclick="act.sign()">Ký thỏa thuận</button>`
+  :`<button class="btn pri blk" onclick="act.sendSign()">Gửi mã OTP để ký</button>`}</div>`}
+function tDone(){
+  const m=S.my;
+  return `<div class="app-b"><div class="okline">✓ Đã giữ chỗ thành công</div><div class="h1">${m.unit.code}</div><div class="muted sm">Thỏa thuận đã ký lúc ${hhmm(S.dep.signedAt)}</div>
+  <div class="pin" style="font-size:22px;letter-spacing:.06em"><span data-cd="hold">${dhms((S.dep.expires-Date.now())/1000)}</span></div><div class="muted sm" style="text-align:center;margin-top:-4px">Thời gian giữ chỗ còn lại (7 ngày)</div>
+  <div class="bubble z"><div class="who">Zalo · VinStay AI</div>Thỏa thuận cọc đã gửi kèm file PDF. Chủ nhà đã nhận thông báo căn được giữ chỗ.</div>
+  <div class="card"><div class="in sm"><b>Bước tiếp theo</b><br>Chủ nhà và bạn hoàn tất hợp đồng thuê trong vòng 7 ngày. Nếu không, căn được mở lại và cọc xử lý theo chính sách hoàn cọc.</div></div></div>`}
+
+function similar(u,f){
+  const base=cost(u,f).total,pool=U.filter(x=>x!==u&&x.layout===u.layout&&x.status==='available');
+  for(const th of [0.05,0.1]){
+    const r=pool.filter(x=>Math.abs(cost(x,f).total-base)/base<=th).sort((a,b)=>Math.abs(cost(a,f).total-base)-Math.abs(cost(b,f).total-base)).slice(0,2);
+    if(r.length>=2||th===0.1)return{r,th};
+  }
+}
+
+/* =================== host screens =================== */
+function renderH(){
+  const box=$('#hScreen');const m=S.my;const key=(m?m.phase+(m.ticket?m.ticket.tier:''):'idle')+(S.rejectMenu?'r':'');const y=keepScroll(box,key,lastH);
+  const name=m&&m.ticket?m.ticket.host:'Lan Anh';
+  const zone=m&&m.ticket&&m.ticket.tier>1?(m.ticket.tier===2?'Tầng 2 · Host lân cận':'Tầng 3 · Broadcast'):'Sảnh S1.02 · ca 08:30–11:30';
+  let b='';
+  if(!m)b=`<div class="bubble">Chưa có lịch dẫn khách. Ticket mới sẽ xuất hiện ở đây ngay khi khách xác thực OTP và gửi yêu cầu đặt lịch.</div>`;
+  else if(m.status==='cancelled'||m.status==='no_show')b=`<div class="tk"><b>Lịch ${m.slot}</b><div class="muted sm">${m.unit.code} · ${m.status==='no_show'?'Khách không đến, slot đã được mở lại':'Khách đã hủy'}</div></div>`;
+  else b=hostBody(m);
+  b+=`<div style="margin-top:12px"><button class="btn sm" onclick="act.sos()">Hỗ trợ khẩn cấp (khóa lỗi)</button></div>${S.sos?`<div class="bubble w">Đã gửi yêu cầu. Hiển thị hotline chủ nhà, đồng thời báo Quản lý khu vực mang thẻ Master/chìa dự phòng.</div>`:''}`;
+  box.innerHTML=`<div class="app-h"><b>VINSTAY HOST · ${esc(name)}</b><small>${zone}</small></div><div class="app-b">${b}</div>`;
+  lastH=key;box.querySelector('.app-b').scrollTop=y;
+}
+function hostBody(m){
+  const tk=m.ticket,head=`<div class="tk ${m.phase==='dispatch'?'in':''}"><div><b>[${m.slot.slice(6)}] ${esc(S.name)}</b> <span class="muted sm">(${esc(S.phone.slice(0,4))}.xxx.${esc(S.phone.slice(-3))})</span></div><div class="sm">Căn xem: ${m.unit.code} (${m.unit.layout})</div>`;
+  if(m.phase==='dispatch'){
+    return head+`<div style="margin:6px 0"><span class="tier">Tầng ${tk.tier}</span> <span class="sm">${tk.total?'còn lại <b data-cd="sla">'+mmss(slaRem(tk))+'</b> để nhận':'broadcast, ai bấm nhận trước được lượt dẫn'}</span></div>
+    <div class="sm muted" style="margin-bottom:6px">Bấm Nhận dẫn sẽ tự động gửi Zalo xác nhận lịch (kèm tên, SĐT bạn) cho khách — không cần khách quét QR.</div>
+    <div style="display:flex;gap:8px"><button class="btn grn" style="flex:1" onclick="act.hostAccept()">Nhận dẫn</button>${tk.tier<3?`<button class="btn" onclick="act.hostDecline()">Từ chối</button>`:''}</div></div>`;
+  }
+  if(m.phase==='accepted'){
+    const need=tk.tier>=2&&!m.cardOk;
+    return head+`<div class="sm" style="margin:6px 0">Vị trí Lockbox: tầng ${m.unit.floor}, cạnh cửa căn. Mã PIN Smartlock của căn (cố định) đã sẵn sàng bên dưới.</div>
+    <div class="okline" style="margin-bottom:8px">✓ Đã gửi Zalo xác nhận lịch cho khách</div>
+    ${tk.tier>=2?`<button class="btn blk" ${m.cardOk?'disabled':''} onclick="act.card()">${m.cardOk?'✓ Đã nhận bàn giao thẻ sảnh':'Xác nhận đã nhận bàn giao thẻ sảnh'}</button>`:''}
+    <button class="btn pri blk" ${need?'disabled':''} onclick="act.hostOpen()">Xác nhận đã đón khách và mở cửa</button></div>`;
+  }
+  if(m.phase==='checked'){
+    return head+`<div class="okline" style="margin-top:6px">Đã đón khách và mở cửa lúc ${hhmm(m.checkedAt)}</div><div class="sm muted">Mã PIN Smartlock cửa phòng — cố định cho căn này, dùng lại cho mọi lượt khách</div><div class="pin">${m.pin}</div>
+    <div class="sm" style="text-align:center;margin-top:-2px">Mã không tự hủy · chỉ đổi khi chủ nhà hoặc Ops cấu hình lại khóa</div>
+    ${S.rejectMenu?`<div class="sm" style="margin:10px 0 4px"><b>Lý do khách chưa ưng?</b></div><div class="chips">${['Chê hướng','Giá cao','Đổi layout'].map(r=>`<button class="chip" onclick="act.hostReject('${r}')">${r}</button>`).join('')}</div>`
+    :`<div class="g2" style="margin-top:10px"><button class="btn red" onclick="act.rejectMenu()">Khách chưa ưng</button><button class="btn grn" onclick="act.hostClose()">Khách đồng ý chốt</button></div>`}</div>`;
+  }
+  if(m.phase==='closed'){
+    const sim=m.suggested||[];
+    return head+`<div class="sm" style="margin-top:6px">Đã đóng ticket. Lý do: <b>${esc(m.reason||'')}</b>.</div>
+    <div class="bubble" style="margin-top:8px"><div class="who">Gợi ý để bạn giới thiệu trực tiếp cho khách</div>App tính sẵn ${sim.length} căn tương đương (cùng layout, ngân sách) — nói trực tiếp với khách ngay tại chỗ, không cần chờ Zalo:${sim.map(u=>`<div style="margin-top:6px;border-top:1px dashed var(--line2);padding-top:6px"><b>${u.code}</b> · ${u.area} m² · ${fmt(cost(u,S.form).total)}/tháng</div>`).join('')||'<div style="margin-top:6px">Chưa có căn tương đương khác.</div>'}</div></div>`;
+  }
+  if(m.phase==='deposit'){
+    const d=S.dep;
+    return head+`<div class="sm" style="margin-top:6px">Khách chốt. VietQR cọc ${fmt(d.amount)} đang hiển thị trên máy khách.</div>
+    ${d.status==='paid'?`<div class="okline" style="margin-top:8px">Đã nhận cọc. Căn đang holding 7 ngày.</div>`
+    :d.claimed?`<div class="bubble w">Khách báo đã chuyển khoản nhưng webhook ngân hàng chưa về.</div><button class="btn pri blk" ${S.unc?'disabled':''} onclick="act.unc()">${S.unc?'Đang tạm khóa 30 phút chờ đối soát…':'Xác nhận đã thấy UNC (tải biên lai)'}</button>`
+    :`<div class="sm muted" style="margin-top:8px">Đang chờ tiền về tài khoản định danh…</div>`}</div>`;
+  }
+  return head+'</div>';
+}
+
+/* =================== landlord screen (Flow D) =================== */
+function renderL(){
+  const box=$('#lScreen');if(!box||!S)return;
+  const u=U.find(x=>x.code==='VHOP-S1.02-12A08');
+  const mine=S.my&&S.my.unit.code===u.code?S.my:null;
+  const dep=S.dep&&mine?S.dep:null;
+  const canTerminate=u.status==='available'&&!S.others.some(v=>v.unit===u.code&&ACT.includes(v.status))&&!mine;
+  box.innerHTML=`<div class="app-h"><b>VinStay Landlord Portal</b><small>${esc(LANDLORD_NAME)}</small></div><div class="app-b">
+  <div class="okline">✓ Đã ký Exclusive Rental Mandate</div>
+  <div class="row2"><label>Căn hộ</label><div class="v">${u.code} · ${u.layout} · ${u.area} m²</div></div>
+  <div class="row2"><label>Trạng thái căn</label><div class="v"><span class="pill ${u.status}">${u.status}</span></div></div>
+  <div class="row2"><label>Ngày ký ủy quyền</label><div class="v">${new Date(S.mandate.signedAt).toLocaleDateString('vi-VN')}</div></div>
+  <div class="row2"><label>Quyền mở cửa</label><div class="v">${esc(S.mandate.doorAccess)}</div></div>
+  <div class="row2"><label>Field Host đang phụ trách</label><div class="v">${mine&&mine.host?esc(mine.host.name)+' · '+HP[mine.host.name]:'Chưa có lịch xem đang diễn ra'}</div></div>
+  <div class="row2"><label>Khách đang xem/giữ chỗ</label><div class="v">${mine?esc(S.name)+' · '+mine.slot:'Không có'}</div></div>
+  ${dep?`<div class="row2"><label>Tiền cọc</label><div class="v">${fmt(dep.amount)} · <span class="pill ${dep.status}">${dep.status}</span></div></div>`:''}
+  <div style="margin-top:12px"><b class="sm">Thông báo real-time</b>
+  <div class="log" style="margin-top:6px">${S.landlordLog.slice().reverse().map(l=>`<div style="grid-template-columns:54px 1fr"><time>${hhmm(l.t)}</time><span>${esc(l.m)}</span></div>`).join('')}</div></div>
+  <button class="btn blk" ${canTerminate?'':'disabled'} onclick="act.requestTermination()">${S.terminationReq?'✓ Đã gửi yêu cầu thoát ủy quyền (đếm ngược 15 ngày)':'Gửi yêu cầu thoát ủy quyền'}</button>
+  ${!canTerminate&&!S.terminationReq?`<div class="muted sm" style="margin-top:6px">Chỉ được gửi khi căn đang available, không có lịch xem/cọc đang xử lý.</div>`:''}
+  </div>`;
+}
+
+/* =================== ops / BI screen (Flow E) =================== */
+const PIPE=['Chủ nhà ký gửi','Admin duyệt listing','AI lọc căn','Khách đặt lịch OTP','Dispatcher phân Host','Zalo nhắc T-10m','Host đón khách','Host mở cửa','VietQR xác nhận cọc','Khóa căn 7 ngày','Hủy lịch trùng','OCR CCCD','Ký OTP','Bàn giao số'];
+function opsStep(){
+  const m=S.my;
+  if(!m)return 2;
+  if(m.phase==='dispatch')return 4;
+  if(m.phase==='accepted')return 6;
+  if(m.phase==='checked'&&!S.dep)return 7;
+  if(S.dep&&S.dep.status==='pending')return 8;
+  if(S.dep&&S.dep.status==='paid'&&!S.ocr)return 9;
+  if(S.ocr&&!S.ocr.done)return 11;
+  if(S.t==='sign')return 12;
+  if(S.t==='done')return 13;
+  return 9;
+}
+function renderO(){
+  const box=$('#oScreen');if(!box||!S)return;
+  const cur=opsStep();
+  const funnel=[['Ký gửi & duyệt',U.length],['Đang xem/giữ lịch',S.others.filter(v=>ACT.includes(v.status)).length+(S.my&&ACT.includes(S.my.status)?1:0)],['Đang holding',U.filter(u=>u.status==='holding').length],['Đã ký hợp đồng',S.t==='done'?1:0]];
+  box.innerHTML=`<div class="app-h"><b>VinStay Ops / BI</b><small>Vận hành toàn hệ thống · Luồng E</small></div><div class="app-b">
+  <b class="sm">Pipeline vận hành hiện tại</b>
+  <div class="ppl">${PIPE.map((p,i)=>`<div class="st2 ${i<cur?'done':i===cur?'cur':''}">${i+1}. ${p}</div>${i<PIPE.length-1?'<div class="ar">→</div>':''}`).join('')}</div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">${funnel.map(([l,v])=>`<div class="box" style="padding:8px 10px"><div class="muted sm">${l}</div><div style="font-size:18px;font-weight:700">${v}</div></div>`).join('')}</div>
+  <div style="margin-top:12px"><b class="sm">Chỉ số SLA đang theo dõi</b>
+  <ul class="gap sm"><li>Tầng điều phối hiện tại: ${S.my&&S.my.ticket?'Tầng '+S.my.ticket.tier:'—'}</li>
+  <li>Căn đang holding: ${U.filter(u=>u.status==='holding').map(u=>u.code).join(', ')||'không có'}</li>
+  <li>Webhook ngân hàng: ${S.sc.webhookLate?'đang mô phỏng trễ':'bình thường (≤5s)'}</li>
+  <li>OCR: ${S.sc.ocrBlur?'đang mô phỏng ảnh mờ (<85%)':'bình thường (≥85%)'}</li></ul></div>
+  <div class="muted sm" style="margin-top:10px">Module đứng sau mỗi bước: Matchmaker, Booking/OTP, Dispatcher, Notification, Payment/Webhook, Holding Lock, Conflict Resolver, OCR/Ký số, Admin/BI.</div>
+  </div>`;
+}
+
+/* =================== system screen =================== */
+function renderS(){
+  const box=$('#sScreen');if(!box||!S)return;
+  const prev=box.querySelector('.log');const ly=prev?prev.scrollTop:0,atEnd=prev?prev.scrollTop+prev.clientHeight>=prev.scrollHeight-8:true;
+  const sc=S.sc;
+  const codes=[...new Set(['VHOP-S1.02-12A08',S.my?S.my.unit.code:null].filter(Boolean))];
+  const uRows=codes.map(c=>{const u=U.find(x=>x.code===c);return `<tr><td class="mono">${c.replace('VHOP-','')}</td><td><span class="pill ${u.status}">${u.status}</span></td><td>${actV(c)>=3?'TRUE':'FALSE'}</td><td>${actV(c)}</td></tr>`}).join('');
+  const vRows=[...S.others.map(v=>({id:v.id,who:v.who,slot:v.slot,st:v.status,r:v.reason})),...(S.my?[{id:'V-A',who:'Khách A (bạn)',slot:S.my.slot,st:S.my.status,r:S.my.reason}]:[])].map(v=>`<tr><td>${v.id}</td><td>${esc(v.who)}</td><td>${v.slot}</td><td><span class="pill ${v.st}">${v.st}</span>${v.r&&v.st==='cancelled'?`<div class="muted">${v.r}</div>`:''}</td></tr>`).join('');
+  const d=S.dep;
+  box.innerHTML=`
+  <div class="box"><h3>Kịch bản thử nghiệm</h3>
+    <div class="sm muted" style="margin-bottom:4px">Điều phối Field Host</div>
+    ${[['t1','Tầng 1: Host phụ trách nhận ngay'],['t2','Tầng 1 bỏ lỡ, Tầng 2 nhận (xếp theo SPS)'],['t3','Tầng 1 và 2 bỏ lỡ, Tầng 3 broadcast']].map(([v,l])=>`<label class="opt"><input type="radio" name="dsp" ${sc.dispatch===v?'checked':''} onchange="S.sc.dispatch='${v}';log('sys','Kịch bản điều phối: ${l}')"> ${l}</label>`).join('')}
+    <label class="opt"><input type="checkbox" ${sc.webhookLate?'checked':''} onchange="S.sc.webhookLate=this.checked"> Webhook ngân hàng bị trễ</label>
+    <label class="opt"><input type="checkbox" ${sc.ocrBlur?'checked':''} onchange="S.sc.ocrBlur=this.checked"> Ảnh CCCD bị mờ (OCR tin cậy dưới 85%)</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" ${S.my&&S.my.status==='confirmed'&&['dispatch','accepted'].includes(S.my.phase)&&!S.noShowAsk?'':'disabled'} onclick="act.lateGuest()">Khách trễ hẹn 15 phút</button>
+    <button class="btn sm" ${S.noShowAsk?'':'disabled'} onclick="act.autoCancel()">Bỏ qua 5 phút (tự hủy)</button><button class="btn sm red" onclick="fresh();render()">Làm lại từ đầu</button></div></div>
+  <div class="box"><h3>Database (trực tiếp)</h3>
+    <div class="sm muted">units</div><table class="dbt"><tr><th>unit_code</th><th>status</th><th>is_hot</th><th>lịch xem</th></tr>${uRows}</table>
+    <div class="sm muted" style="margin-top:8px">viewings</div><table class="dbt"><tr><th>id</th><th>tenant</th><th>slot</th><th>status</th></tr>${vRows}</table>
+    ${d?`<div class="sm muted" style="margin-top:8px">holding_deposits</div><pre class="js">${esc(JSON.stringify({payment_status:d.status,deposit_amount:d.amount,vietqr_payment_code:d.code,expires_at:d.expires&&d.status==='paid'?new Date(d.expires).toISOString():null,signed_at:d.signedAt?new Date(d.signedAt).toISOString():null,tenant_id_card_data:S.ocr&&S.ocr.done?'AES-256 ●●●●●●●●':null},null,1))}</pre>`:''}
+    <div class="sm muted" style="margin-top:8px">mandates</div><pre class="js">${esc(JSON.stringify({landlord:LANDLORD_NAME,unit:'VHOP-S1.02-12A08',signed:S.mandate.signed,door_access:S.mandate.doorAccess,termination_requested:S.terminationReq},null,1))}</pre></div>
+  ${S.zaloC?`<div class="box"><h3>Zalo của ${esc(S.zaloC.who)} (bị hủy lịch)</h3><div class="bubble z" style="margin:6px 0 0"><div class="who">VinStay AI</div>${S.zaloC.text}</div></div>`:''}
+  <div class="box"><h3>Nhật ký sự kiện</h3><div class="log">${LOG.map(l=>`<div><time>${hhmm(l.t)}</time><i class="${l.k}"></i><span>${l.m}</span></div>`).join('')}</div></div>`;
+  const lg=box.querySelector('.log');if(lg)lg.scrollTop=atEnd?lg.scrollHeight:ly;
+}
+
+/* =================== actions =================== */
+const slaRem=tk=>tk.total-(Date.now()-tk.start)/1000*tk.factor;
+function giveTicket(tier){
+  const fin={t1:1,t2:2,t3:3}[S.sc.dispatch];let host,total,factor=tier<fin?60:1;
+  if(tier===1){host='Lan Anh';total=300;log('ai','Dispatcher Tầng 1: gửi ticket cho Host phụ trách tòa, SLA 5 phút.')}
+  if(tier===2){const r=CAND.map(c=>({...c,s:sps(c)})).sort((a,b)=>b.s-a.s);host=r[0].n;total=180;
+    log('ai','Tầng 2: Host trong ≤500m xếp theo SPS = 0,5×Chốt + 0,3×CSAT×20 + 0,2×Tốc độ → '+r.map(x=>x.n+' '+x.s.toFixed(1)).join(' > ')+'. Gửi ticket cho '+host+', SLA 3 phút.')}
+  if(tier===3){host='Đức Hải';total=null;factor=1;log('ai','Tầng 3: broadcast ticket cho Host ngoài 500m, ai bấm nhận trước được lượt dẫn.')}
+  S.my.ticket={tier,host,total,factor,start:Date.now()};
+  if(total&&tier<fin)log('sys','(Demo tăng tốc ×60: '+host+' sẽ bỏ lỡ ticket này)');
+}
+function escalate(msg){log('sys',msg);giveTicket(S.my.ticket.tier+1);render()}
+function equivalents(u){return similar(u,S.form)}
+function cancelOthers(u){
+  const list=S.others.filter(v=>v.unit===u.code&&ACT.includes(v.status));
+  if(!list.length){log('sys','Conflict Resolver: không có lịch xem nào khác cần hủy trên căn này.');return}
+  const sim=similar(u,S.form);
+  list.forEach(v=>{v.status='cancelled';v.reason='auto_cancelled_due_to_deposit';
+    log('sys','Trigger hủy lịch '+v.id+' ('+v.who+', '+v.slot+'), cancel_reason = auto_cancelled_due_to_deposit.');
+    const text=`VinStay AI xin thông báo: Căn hộ ${u.code.replace('VHOP-','')} bạn vừa gửi yêu cầu vừa được một khách thuê khác hoàn tất cọc giữ chỗ 7 ngày. Để không làm mất thời gian của bạn, VinStay AI đã tìm thấy ${sim.r.length} căn hộ tương đương về layout và ngân sách trong cùng phân khu (${sim.r.map(x=>x.code.replace('VHOP-','')+', '+fmt(cost(x,S.form).total)).join('; ')}). Bấm vào link để đổi lịch xem miễn phí ngay lập tức.`;
+    S.zaloC={who:v.who,text};
+    log('zalo','Zalo Bot gửi '+v.who+': xin lỗi và gợi ý '+sim.r.length+' căn tương đương'+(sim.th>0.05?' (không đủ căn trong ±5% nên nới ngưỡng lên ±10%)':' (chênh ≤5%)')+'.');
+  });
+}
+function confirmPaid(src){
+  const d=S.dep,u=S.my.unit;d.status='paid';d.paidAt=Date.now();d.expires=d.paidAt+7*24*3600*1000;u.status='holding';
+  log('bank',src+': tiền cọc '+fmt(d.amount)+' về tài khoản định danh, gạch nợ thành công.');
+  log('sys','units.status = holding; holding_deposits.expires_at = paid_at + 7 ngày.');
+  cancelOthers(u);log('sys','Thông báo chủ nhà: căn '+u.code+' vừa được khách giữ chỗ 7 ngày.');
+  llog('Đã nhận cọc '+fmt(d.amount)+' cho khách '+S.name+'. Căn chuyển sang holding, khóa 7 ngày.');
+  S.t='ocr';render();
+}
+const act={
+  to(t){S.t=t;render()},
+  search(){const t0=performance.now();S.t='results';const r=rank(S.form);S.tSearchMs=Math.max(3,Math.round(performance.now()-t0+18));
+    log('ai','Matchmaker: lọc cứng All-in Cost ≤ '+fmt(S.form.budget)+' cho layout '+S.form.layout+' → '+r.top.length+' căn phù hợp, loại '+r.excl+' căn vượt trần.');render()},
+  pick(code){S.sel=U.find(u=>u.code===code);S.my=null;S.dep=null;S.ocr=null;S.otpSent=false;S.otp='';S.otpErr=false;S.noShowAsk=false;S.zaloC=null;
+    const tk=takenSlots(code,S.day);if(tk.includes(S.slot)||S.slot==='17:00')S.slot=['08:30','09:30','10:30','14:00','15:30'].find(s=>!tk.includes(s));S.t='book';render()},
+  setDay(d){S.day=d;const tk=takenSlots(S.sel.code,d);if(tk.includes(S.slot))S.slot=['08:30','09:30','10:30','14:00','15:30'].find(s=>!tk.includes(s));render()},
+  setSlot(s){S.slot=s;render()},
+  sendOtp(){S.otpSent=true;S.otp='';S.otpErr=false;log('zalo','Gửi OTP 4 số tới '+S.phone.slice(0,4)+'••••'+S.phone.slice(-3)+' qua Zalo (dự phòng SMS).');render()},
+  confirmBooking(){
+    if(S.otp!==OTP){S.otpErr=true;render();return}
+    S.my={unit:S.sel,slot:S.day+' '+S.slot,status:'confirmed',phase:'dispatch',ticket:null,host:null,cardOk:false};
+    log('sys','OTP hợp lệ: viewings.status = pending_confirmation (không sinh mã QR).');
+    log('zalo','Zalo báo khách: đã nhận được yêu cầu đặt lịch, VinStay AI sẽ xác nhận lại lịch cụ thể sau.');
+    if(actV(S.sel.code)>=3)log('sys','🔥 Căn '+S.sel.code+' đạt '+actV(S.sel.code)+' lịch xem trong 24h: is_hot = TRUE, thẻ căn hiển thị badge CĂN HOT.');
+    giveTicket(1);S.t='qr';render()},
+  hostAccept(){const m=S.my,tk=m.ticket;m.phase='accepted';m.host={name:tk.host,tier:tk.tier};m.cardOk=false;m.status='confirmed';
+    log('host',tk.host+' bấm [Nhận dẫn] ở Tầng '+tk.tier+'.');
+    log('zalo','Zalo gửi khách: xác nhận lịch xem + tên, SĐT Field Host '+tk.host+' '+HP[tk.host]+' (không kèm mã QR).');
+    llog('Field Host '+tk.host+' đã nhận lịch dẫn khách xem căn.');render()},
+  hostDecline(){escalate('Host '+S.my.ticket.host+' từ chối ticket, chuyển ngay sang Tầng '+(S.my.ticket.tier+1)+'.')},
+  card(){S.my.cardOk=true;log('host',S.my.host.name+' xác nhận nhận bàn giao thẻ cư dân sảnh.');render()},
+  hostOpen(){const m=S.my;m.phase='checked';m.checkedAt=Date.now();m.pin=unitPin(m.unit.code);
+    log('host',m.host.name+' xác nhận đã đón khách tại sảnh và mở cửa trực tiếp (không quét QR). Dùng mã PIN Smartlock cố định của căn, không tự hủy.');
+    llog('Host '+m.host.name+' đã mở cửa cho khách '+S.name+' vào lúc '+hhmm(m.checkedAt)+'.');render()},
+  rejectMenu(){S.rejectMenu=true;render()},
+  hostReject(r){const m=S.my;S.rejectMenu=false;m.phase='closed';m.status='completed';m.reason=r;m.suggested=similar(m.unit,S.form).r;S.t='rejected';
+    log('host','Bấm [Khách chưa ưng], lý do: '+r+'. viewings.status = completed.');log('ai','Tính '+m.suggested.length+' căn tương đương từ lý do "'+r+'" để Host giới thiệu trực tiếp cho khách ngay tại chỗ (không qua Zalo). Lý do được lưu vào hồ sơ nhu cầu để chấm lại Top 3 lần sau.');render()},
+  hostClose(){const m=S.my;m.phase='deposit';m.status='completed';
+    S.dep={status:'pending',amount:2000000,code:'VQR'+Math.random().toString(36).slice(2,10).toUpperCase(),claimed:false,expires:null};S.t='deposit';
+    log('host','Bấm [Khách chốt].');log('sys','Sinh VietQR động '+fmt(2000000)+', nội dung: COC '+m.unit.code+' '+S.phone+'. holding_deposits.payment_status = pending.');
+    llog('Khách '+S.name+' đồng ý chốt căn, đang chờ chuyển khoản cọc '+fmt(2000000)+'.');render()},
+  pay(){const d=S.dep;
+    if(S.sc.webhookLate){d.claimed=true;log('bank','Khách chuyển khoản nhưng webhook chưa về. Host có thể dùng [Xác nhận đã thấy UNC].');render()}
+    else confirmPaid('Webhook ngân hàng (≤5s)')},
+  unc(){S.unc=true;const u=S.my.unit;u.status='holding';log('host','Host tải biên lai, bấm [Xác nhận đã thấy UNC]: tạm khóa căn 30 phút chờ đối soát.');render();
+    setTimeout(()=>{if(S.dep&&S.dep.status==='pending'){S.unc=false;confirmPaid('Webhook về muộn, đối soát khớp')}},3500)},
+  snap(){const bad=S.sc.ocrBlur;S.ocr={conf:bad?71:96,ms:(3+Math.random()*1.6).toFixed(1),done:false,f:{name:S.name.toUpperCase(),id:bad?'00109900O123':'001099000123',issued:bad?'15/03/202':'15/03/2021',addr:'Số 12 ngõ 5, Kiêu Kỵ, Gia Lâm, Hà Nội'}};S.ocrErr=false;
+    log('ai','Vision OCR 2 mặt CCCD xong sau '+S.ocr.ms+'s, độ tin cậy '+S.ocr.conf+'%'+(bad?' (<85%): mở form nhập tay, tô viền đỏ Số CCCD và Ngày cấp.':'. Tự điền vào thỏa thuận.'));render()},
+  ocrOk(){const f=S.ocr.f;if(S.ocr.conf<85&&(!/^\d{12}$/.test(f.id)||!/^\d{2}\/\d{2}\/\d{4}$/.test(f.issued))){S.ocrErr=true;render();return}
+    S.ocr.done=true;S.t='sign';log('sys','Khách xác nhận thông tin trích xuất. Sinh bản nháp thỏa thuận đặt cọc giữ chỗ 7 ngày.');render()},
+  sendSign(){S.signSent=true;log('zalo','Gửi OTP ký thỏa thuận qua Zalo.');render()},
+  sign(){if(S.signOtp!==OTP){S.signErr=true;render();return}
+    S.dep.signedAt=Date.now();S.t='done';log('sys','Ký OTP thành công: sinh PDF thỏa thuận, lưu signed_at. Dữ liệu CCCD được mã hóa AES-256 trước khi ghi database.');
+    llog('Khách đã ký thỏa thuận cọc điện tử. Hợp đồng thuê chính thức cần hoàn tất trong 7 ngày.');render()},
+  sos(){S.sos=true;log('host','Bấm [Hỗ trợ khẩn cấp]: hiển thị hotline chủ nhà, báo Quản lý khu vực cấp thẻ Master/chìa dự phòng.');render()},
+  lateGuest(){S.noShowAsk=true;log('sys','Sau 15 phút không thấy khách tại sảnh: Zalo hỏi khách [Gia hạn 15p] hoặc [Hủy lịch].');render()},
+  extend(){S.noShowAsk=false;log('zalo','Khách chọn [Gia hạn 15p]. Giữ ticket và slot thêm 15 phút.');render()},
+  cancelMine(){S.noShowAsk=false;const m=S.my;m.status='cancelled';m.reason='cancelled_by_tenant';m.phase='closed';log('zalo','Khách chọn [Hủy lịch]. Slot mở lại cho khách khác, ticket của Host được đóng.');S.t='cancelled';render()},
+  autoCancel(){S.noShowAsk=false;const m=S.my;m.status='no_show';m.reason='no_show';m.phase='closed';log('sys','Sau 5 phút không phản hồi: viewings.status = no_show, slot tự hủy và mở lại. Ghi nhận cho chỉ số tỷ lệ khách bỏ hẹn.');S.t='cancelled';render()},
+  requestTermination(){S.terminationReq=true;llog('Đã gửi yêu cầu thoát ủy quyền. Đếm ngược 15 ngày trước khi gỡ listing và thu hồi quyền mở cửa.');render()}
+};
+
+/* timers */
+setInterval(()=>{
+  const m=S&&S.my;
+  if(m&&m.phase==='dispatch'&&m.ticket&&m.ticket.total&&m.ticket.tier<3&&slaRem(m.ticket)<=0){
+    escalate('Quá SLA Tầng '+m.ticket.tier+' ('+(m.ticket.tier===1?'5':'3')+' phút) mà chưa ai nhận, chuyển Tầng '+(m.ticket.tier+1)+'.');return}
+  document.querySelectorAll('[data-cd]').forEach(el=>{const k=el.dataset.cd;let v='';
+    if(k==='sla'&&m&&m.ticket)v=mmss(slaRem(m.ticket));
+    if(k==='hold'&&S.dep&&S.dep.expires)v=dhms((S.dep.expires-Date.now())/1000);
+    if(v)el.textContent=v});
+},1000);
+
+fresh();render();
+</script>
+</body>
+</html>
