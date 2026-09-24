@@ -1,0 +1,17 @@
+# VINSTAY AI — HỆ THỐNG PHÁP LÝ HOÀN THIỆN: NHÓM 1 — KHÁCH THUÊ (TENANT LEGAL SUITE)
+
+> **MỤC TIÊU CỐT LÕI:**  
+> Hệ thống văn bản pháp lý chuyên sâu bảo vệ quyền lợi hợp pháp, tài chính và dữ liệu cá nhân của **Khách Thuê (Khách hàng)** xuyên suốt 6 giai đoạn khép kín tại Đại đô thị Vinhomes Ocean Park. Toàn bộ các văn bản được chuẩn hóa theo Bộ luật Dân sự 2015, Luật Nhà ở 2023, Luật Giao dịch Điện tử 2023, Nghị định 13/2023/NĐ-CP và Nghị định 52/2024/NĐ-CP.
+
+---
+
+## BẢNG TỔNG HỢP 6 BƯỚC PHÁP LÝ CỦA KHÁCH HÀNG
+
+| Bước | Tên Văn Bản Pháp Lý | Căn Cứ & Nguyên Tắc Cốt Lõi | Tệp Tin |
+| :---: | :--- | :--- | :--- |
+| **Bước 1** | **Quy Chế Tìm Kiếm, Minh Bạch All-in Cost & Đặt Lịch OTP** *(Terms of Search & Booking)* | • Listing Verified 100% định danh [Tòa-Tầng-Căn] kèm Timestamp.<br/>• Bóc tách 4 khoản phí All-in Cost (0 chi phí ẩn).<br/>• Xác thực OTP Zalo/SMS chống môi giới spam cuộc gọi.<br/>• Nhắc hẹn kép T-10m & đón sảnh 1-chạm (Cấm Lockbox / Cấm QR sảnh). | [`01_TERMS_OF_SEARCH_AND_BOOKING.md`](./01_TERMS_OF_SEARCH_AND_BOOKING.md) |
+| **Bước 2** | **Quy Chế Đặt Cọc Giữ Chỗ 24h & Thanh Toán VietQR Động** *(Holding Deposit & VietQR Terms)* | • Căn cứ Điều 328 BLDS 2015 về Đặt cọc.<br/>• Cọc 2.000.000 VNĐ qua VietQR động khóa căn `HOLDING` 24h.<br/>• **NGUYÊN TẮC VÀNG:** Chuyển 100% thành Tiền Cọc Bảo Đảm Tài Sản, tuyệt đối KHÔNG trừ vào tiền thuê tháng đầu.<br/>• Xử lý phạt cọc minh bạch: Khách bỏ mất 2M, Chủ nhà hủy phạt 2M (trả 4M). | [`02_HOLDING_DEPOSIT_AND_VIETQR_TERMS.md`](./02_HOLDING_DEPOSIT_AND_VIETQR_TERMS.md) |
+| **Bước 3** | **Chính Sách Bảo Vệ Dữ Liệu Cá Nhân & Đồng Thuận AI OCR CCCD** *(Data Privacy & OCR Consent)* | • Tuân thủ Nghị định 13/2023/NĐ-CP & Luật Căn cước 2023.<br/>• AI Vision OCR bóc tách 4 trường trong bộ nhớ tạm $\le 5$ giây.<br/>• Mã hóa AES-256 cơ sở dữ liệu, che số CCCD và SĐT trên app Host.<br/>• Cam kết không bán/chia sẻ data; Quyền yêu cầu xóa ảnh CCCD sau khi thanh lý. | [`03_DATA_PRIVACY_AND_OCR_CONSENT.md`](./03_DATA_PRIVACY_AND_OCR_CONSENT.md) |
+| **Bước 4** | **Hợp Đồng Thuê Căn Hộ Chung Cư Số Hóa** *(Digital Apartment Lease Agreement)* | • **Khoản 2 Điều 164 Luật Nhà ở 2023:** Hiệu lực tuyệt đối không bắt buộc công chứng.<br/>• Ký số OTP Zalo/SMS theo Luật Giao dịch Điện tử 2023.<br/>• Cố định giá thuê; Đính kèm Hộ chiếu bàn giao 10 hạng mục.<br/>• Tự động khấu trừ tiền phạt BQL; Danh bạ thợ ngoài Asset-Light. | [`04_DIGITAL_APARTMENT_LEASE_AGREEMENT.md`](./04_DIGITAL_APARTMENT_LEASE_AGREEMENT.md) |
+| **Bước 5** | **Thỏa Thuận Ký Quỹ & Giữ Hộ Tiền Cọc 3 Bên (Hợp Tác Ngân Hàng)** *(Tripartite Escrow Agreement)* | • Điều 554-558 BLDS 2015 & Nghị định 52/2024/NĐ-CP.<br/>• Tiền cọc phong tỏa tại Ngân hàng (Techcombank/MB), Sub-account riêng từng căn.<br/>• Smart Release Rules: Khóa giải tỏa khi đủ Hộ chiếu số + Chốt EVN.<br/>• **Giải tỏa từng phần** & **Passive Approval SLA 07 ngày** (Chống chủ nhà chây ì giữ cọc). | [`05_TRIPARTITE_ESCROW_AGREEMENT.md`](./05_TRIPARTITE_ESCROW_AGREEMENT.md) |
+| **Bước 6** | **Quy Trình Bàn Giao, Quản Lý Lưu Trú & Quyết Toán Hoàn Cọc** *(Handover, Stay & Settlement Protocol)* | • Hộ chiếu bàn giao số 10 hạng mục nhúng Timestamp + Geofence + SHA-256.<br/>• Phân định ranh giới: **Hao mòn tự nhiên (Chủ nhà chịu - CẤM trừ cọc)** vs **Hư hỏng bất cẩn (Khách bồi thường)**.<br/>• Đối soát công tơ điện nước EVN (0% nợ cước).<br/>• Chuyển khoản hoàn cọc tức thì trong 60 giây qua API Ngân hàng. | [`06_HANDOVER_STAY_AND_SETTLEMENT_PROTOCOL.md`](./06_HANDOVER_STAY_AND_SETTLEMENT_PROTOCOL.md) |
