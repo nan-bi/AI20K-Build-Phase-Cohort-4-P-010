@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VinStay AI — Kiến Trúc Hệ Thống (SAD Architecture Slide)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @media print {
+      body { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+      .slide-container { box-shadow: none !important; border: none !important; width: 100% !important; height: 100% !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 md:p-8 antialiased font-sans select-none">
+
+  <!-- Control Bar -->
+  <div class="no-print w-full max-w-6xl mb-4 flex items-center justify-between text-xs text-slate-400">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">Slide 5 / 10</span>
+      <span>Đề án: VinStay AI — P-010 / AI20K Build Phase Cohort 4</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="toggleSpeakerNotes()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <span>🎙️</span> <span id="notesBtnText">Hiện Kịch Bản Thuyết Trình</span>
+      </button>
+      <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-500/20">
+        <span>🖨️</span> Xuất PDF / In Slide
+      </button>
+      <button onclick="toggleFullscreen()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <span>⛶</span> Toàn màn hình
+      </button>
+    </div>
+  </div>
+
+  <!-- SLIDE CONTAINER (16:9 Standard Ratio) -->
+  <div id="slideFrame" class="slide-container w-full max-w-6xl aspect-[16/9] bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden">
+    
+    <!-- Ambient Background Glows -->
+    <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Header -->
+    <div class="flex items-start justify-between border-b border-slate-800/80 pb-4 relative z-10">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">Architecture Overview</span>
+          <span class="text-xs text-slate-400 font-mono">SAD v1.0 • C4 Model</span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+          <span>KIẾN TRÚC HỆ THỐNG TINH GỌN</span>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400 font-black text-xl md:text-2xl">(ASSET-LIGHT & AI-FIRST)</span>
+        </h1>
+        <p class="text-xs md:text-sm text-slate-400 mt-0.5">
+          <strong class="text-slate-200">Nguyên tắc cốt lõi:</strong> Không ôm phần cứng • Tận dụng hạ tầng số Việt Nam • Tự động hóa 70% bằng AI • Bảo mật Zero-Trust
+        </p>
+      </div>
+      <div class="text-right hidden sm:block">
+        <div class="text-sm font-black tracking-wider text-slate-200 flex items-center justify-end gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          VINSTAY AI
+        </div>
+        <div class="text-[11px] text-slate-400">Vinhomes Ocean Park</div>
+      </div>
+    </div>
+
+    <!-- 4 Horizontal Architecture Layers -->
+    <div class="grid grid-rows-4 gap-2.5 my-3 flex-1 relative z-10">
+      
+      <!-- TẦNG 1: ĐIỂM CHẠM NGƯỜI DÙNG -->
+      <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-2.5 flex items-center gap-3 hover:border-blue-500/40 transition">
+        <div class="w-28 md:w-36 shrink-0 flex flex-col justify-center border-r border-slate-700/60 pr-2">
+          <span class="text-[9px] uppercase tracking-wider font-bold text-blue-400">Tầng 1 • Giao diện</span>
+          <span class="text-xs md:text-sm font-bold text-white leading-tight">Điểm Chạm</span>
+          <span class="text-[10px] text-emerald-400 font-medium">Zero-App Friction</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 flex-1">
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>👤</span> Khách Thuê & Chủ Nhà
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Web App (Next.js 14) + Zalo ZNS 1-chạm <span class="text-blue-300 font-medium">(Không cài app rác)</span></div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>🏃</span> Field Host Nội Khu
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Mobile PWA nhẹ mượt + Thẻ cư dân RFID <span class="text-emerald-300 font-medium">(Bấm là dùng ngay)</span></div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>⚙️</span> Platform Admin
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Admin Portal quản trị giỏ hàng độc quyền & cấu hình hoa hồng biến phí</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TẦNG 2: MÁY CHỦ & 4 BỘ ÓC AI LÕI -->
+      <div class="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-purple-950/40 border border-indigo-500/40 rounded-xl p-2.5 flex items-center gap-3 shadow-inner">
+        <div class="w-28 md:w-36 shrink-0 flex flex-col justify-center border-r border-indigo-500/30 pr-2">
+          <span class="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Tầng 2 • Xử lý Lõi</span>
+          <span class="text-xs md:text-sm font-bold text-white leading-tight">4 Bộ Óc AI</span>
+          <span class="text-[10px] text-amber-400 font-medium font-mono">FastAPI • &le;5s</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 flex-1">
+          <div class="bg-slate-900/80 border border-indigo-500/30 rounded-lg p-2">
+            <div class="text-[11px] font-bold text-blue-300 flex items-center gap-1">
+              <span>🤖</span> AI Matchmaker
+            </div>
+            <div class="text-[10px] text-slate-300 font-semibold mt-0.5">Top 3 căn hời (&le; 3s)</div>
+            <div class="text-[9px] text-slate-400">Lọc cứng All-in &le; budget; gắn badge tiết kiệm &ge;10%</div>
+          </div>
+          <div class="bg-slate-900/80 border border-indigo-500/30 rounded-lg p-2">
+            <div class="text-[11px] font-bold text-teal-300 flex items-center gap-1">
+              <span>👁️</span> AI Vision OCR
+            </div>
+            <div class="text-[10px] text-slate-300 font-semibold mt-0.5">Đọc CCCD 2 mặt (&le; 5s)</div>
+            <div class="text-[9px] text-slate-400">Bóc tách 4 trường KYC; tự điền HĐ cọc; độ tin cậy &ge;85%</div>
+          </div>
+          <div class="bg-slate-900/80 border border-indigo-500/30 rounded-lg p-2">
+            <div class="text-[11px] font-bold text-purple-300 flex items-center gap-1">
+              <span>📍</span> AI Dispatcher
+            </div>
+            <div class="text-[10px] text-slate-300 font-semibold mt-0.5">Điều phối 3 tầng (&le; 30s)</div>
+            <div class="text-[9px] text-slate-400">Host cùng tòa &le;200m &rarr; Pool &le;500m &rarr; Lead phân khu</div>
+          </div>
+          <div class="bg-slate-900/80 border border-indigo-500/30 rounded-lg p-2">
+            <div class="text-[11px] font-bold text-rose-300 flex items-center gap-1">
+              <span>⚔️</span> Conflict Resolver
+            </div>
+            <div class="text-[10px] text-slate-300 font-semibold mt-0.5">Khóa căn tức thì 24h</div>
+            <div class="text-[9px] text-slate-400">Nhận cọc VietQR &rarr; Hủy lịch trùng + gửi Zalo 2 căn thay thế</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TẦNG 3: CƠ SỞ DỮ LIỆU & BẢO MẬT -->
+      <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-2.5 flex items-center gap-3 hover:border-emerald-500/40 transition">
+        <div class="w-28 md:w-36 shrink-0 flex flex-col justify-center border-r border-slate-700/60 pr-2">
+          <span class="text-[9px] uppercase tracking-wider font-bold text-emerald-400">Tầng 3 • Dữ Liệu</span>
+          <span class="text-xs md:text-sm font-bold text-white leading-tight">Cơ Sở Dữ Liệu</span>
+          <span class="text-[10px] text-teal-400 font-medium">Bảo mật Zero-Trust</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 flex-1">
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><span>📦</span> Supabase (PostgreSQL 15)</span>
+              <span class="text-[9px] text-emerald-400 font-mono">Realtime</span>
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Trạng thái căn Realtime; phân quyền theo dòng (RLS); pgvector cho AI search</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><span>⚡</span> Upstash Redis</span>
+              <span class="text-[9px] text-amber-400 font-mono">SETNX Lock</span>
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Lưu OTP 5 phút; khóa nguyên tử SETNX chống 2 khách chuyển cọc trùng 1 căn</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center justify-between">
+              <span class="flex items-center gap-1.5"><span>🔒</span> Cloudflare R2 / S3</span>
+              <span class="text-[9px] text-blue-400 font-mono">AES-256</span>
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Mã hóa ảnh CCCD; Pre-signed URL tự hủy sau 30m; tuân thủ NĐ 13/2023/NĐ-CP</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TẦNG 4: TÍCH HỢP HẠ TẦNG CÓ SẴN (ZERO HARDWARE CAPEX) -->
+      <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-2.5 flex items-center gap-3 hover:border-amber-500/40 transition">
+        <div class="w-28 md:w-36 shrink-0 flex flex-col justify-center border-r border-slate-700/60 pr-2">
+          <span class="text-[9px] uppercase tracking-wider font-bold text-amber-400">Tầng 4 • Tích Hợp</span>
+          <span class="text-xs md:text-sm font-bold text-white leading-tight">Hạ Tầng Sẵn Có</span>
+          <span class="text-[10px] text-amber-400 font-medium">Zero Hardware CapEx</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 flex-1">
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>📱</span> Zalo OA & ZNS API
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Xác thực OTP, nhắc hẹn kép T-10m kèm nút 1-chạm <span class="text-amber-300 font-medium">(Triệt tiêu 100% no-show)</span></div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>🏦</span> VietQR 24/7 (MB / Napas)
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Cọc 2.000.000đ gạch nợ tức thì 3s vào tài khoản ký quỹ 3 bên bảo chứng ngân hàng</div>
+          </div>
+          <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col justify-center">
+            <div class="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+              <span>🔑</span> Khóa Điện Tử & Thẻ RFID
+            </div>
+            <div class="text-[10px] text-slate-400 leading-snug mt-0.5">Cấp mã số mở cửa JIT qua App & thang máy cư dân <span class="text-rose-300 font-medium">(Tuyệt đối cấm Lockbox)</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer Stats / SLA Badges -->
+    <div class="border-t border-slate-800/80 pt-3 flex items-center justify-between text-[11px] relative z-10">
+      <div class="flex items-center gap-4 text-slate-400">
+        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Khớp căn: <strong class="text-slate-200">&le; 3.0s</strong></span>
+        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span> OCR CCCD: <strong class="text-slate-200">&le; 5.0s</strong></span>
+        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Webhook Cọc: <strong class="text-slate-200">&le; 3.0s</strong></span>
+        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Điều phối Host: <strong class="text-slate-200">&le; 30s</strong></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px]">Tuân thủ NĐ 13/2023/NĐ-CP</span>
+        <span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[10px]">Mô hình 100% Asset-Light</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Speaker Notes Drawer (Toggled by Button) -->
+  <div id="speakerNotesDrawer" class="no-print w-full max-w-6xl mt-4 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl hidden transition">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+        <span>🎙️</span> Kịch Bản Thuyết Trình (Speaker Notes — 40 Giây)
+      </h3>
+      <span class="text-[11px] text-slate-400">Dành cho Thuyết trình viên Gate 1</span>
+    </div>
+    <p class="text-xs md:text-sm text-slate-300 leading-relaxed italic">
+      "Kính thưa Ban Giám khảo, kiến trúc công nghệ của VinStay AI được thiết kế theo đúng 2 từ khóa: <strong>Asset-Light (Không ôm phần cứng)</strong> và <strong>AI-First (Tốc độ tính bằng giây)</strong>:
+      <br><br>
+      • <strong>Ở tầng người dùng:</strong> Chúng tôi loại bỏ rào cản tải app — khách và chủ nhà dùng trực tiếp qua Web và Zalo 1-chạm; Field Host vận hành qua PWA cực nhẹ.
+      <br>
+      • <strong>Ở tầng lõi:</strong> Hệ thống trang bị 4 module AI chuyên biệt: <em>AI Matchmaker</em> lọc ngân sách All-in trong 3 giây; <em>AI OCR</em> đọc CCCD trong 5 giây; <em>AI Dispatcher</em> điều phối Host nội khu dưới 30 giây; và <em>Conflict Resolver</em> tự động khóa căn ngay khi có cọc.
+      <br>
+      • <strong>Ở tầng hạ tầng:</strong> Thay vì đầu tư phần cứng đắt đỏ, VinStay AI tích hợp 100% vào hạ tầng số có sẵn tại Việt Nam: dùng VietQR để chốt cọc trong 3 giây, dùng Zalo ZNS nhắc hẹn kép T-10m triệt tiêu nạn bỏ bom, và cấp mã số mở cửa tức thời qua ứng dụng để nói KHÔNG hoàn toàn với hộp Lockbox treo cửa vi phạm BQL.
+      <br><br>
+      Một kiến trúc tinh gọn, bảo mật AES-256 chuẩn Nghị định 13, và sẵn sàng mở rộng quy mô toàn quốc."
+    </p>
+  </div>
+
+  <script>
+    function toggleSpeakerNotes() {
+      const drawer = document.getElementById('speakerNotesDrawer');
+      const btnText = document.getElementById('notesBtnText');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        btnText.innerText = 'Ẩn Kịch Bản Thuyết Trình';
+      } else {
+        drawer.classList.add('hidden');
+        btnText.innerText = 'Hiện Kịch Bản Thuyết Trình';
+      }
+    }
+
+    function toggleFullscreen() {
+      const frame = document.getElementById('slideFrame');
+      if (!document.fullscreenElement) {
+        if (frame.requestFullscreen) {
+          frame.requestFullscreen();
+        } else if (frame.webkitRequestFullscreen) {
+          frame.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+  </script>
+</body>
+</html>

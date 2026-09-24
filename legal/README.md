@@ -20,8 +20,16 @@
 
 ---
 
-## 2. MA TRẬN ĐỐI ỨNG: PHÁP LÝ GIẢI QUYẾT 4 NỖI ĐAU CỦA CHỦ NHÀ
+## 2. PHÂN HỆ PHÁP LÝ CHUYÊN BIỆT THEO 4 NHÓM NGƯỜI DÙNG
 
+* **Nhóm 1 — Khách Thuê (Tenant Legal Suite):** [`legal/tenant/README.md`](./tenant/README.md) *(Hoàn tất 6/6 bước: Tìm kiếm All-in $\rightarrow$ Cọc 24h VietQR $\rightarrow$ Privacy & OCR CCCD $\rightarrow$ HĐ Thuê số hóa $\rightarrow$ Ký quỹ 3 bên $\rightarrow$ Bàn giao & Hoàn cọc 60s)*.
+* **Nhóm 2 — Chủ Nhà (Landlord Legal Suite):** [`legal/landlord/README.md`](./landlord/README.md) *(Hoàn tất 6/6 bước: Ký gửi độc quyền $\rightarrow$ Mã khóa JIT & Lưu chìa cơ $\rightarrow$ Hộ chiếu bàn giao 10 hạng mục $\rightarrow$ Trừ phạt BQL & Quản lý cọc $\rightarrow$ Miễn trừ sửa chữa Asset-Light $\rightarrow$ Check-out & Smart Release 60s)*.
+* **Nhóm 3 — Field Host (Field Operations Suite):** *(Chuẩn bị triển khai)*.
+* **Nhóm 4 — Quản Trị & Đối Tác (Admin & Partners Suite):** *(Chuẩn bị triển khai)*.
+
+---
+
+### 3. MA TRẬN ĐỐI ỨNG: PHÁP LÝ GIẢI QUYẾT 4 NỖI ĐAU CỦA CHỦ NHÀ
 ```
 ┌──────────────────────────────────────────────┬────────────────────────────────────────────────────────────────┐
 │           NỖI ĐAU THỰC TẾ CHỦ NHÀ            │                 CƠ CHẾ PHÁP LÝ VINSTAY AI XỬ LÝ                │
@@ -48,7 +56,7 @@
 
 ---
 
-## 3. NGUYÊN TẮC ÁP DỤNG & GIÁ TRỊ PHÁP LÝ CHỮ KÝ SỐ
+## 4. NGUYÊN TẮC ÁP DỤNG & GIÁ TRỊ PHÁP LÝ CHỮ KÝ SỐ
 
 1. **Hiệu lực thỏa thuận điện tử:** Toàn bộ hợp đồng và thỏa thuận trong thư mục này được ký kết thông qua mã **Zalo/SMS OTP** có định danh số điện thoại thật, lưu trữ dấu vết thời gian (Timestamped Audit Log) và địa chỉ IP, có đầy đủ giá trị pháp lý theo **Luật Giao dịch Điện tử 2023** (có hiệu lực từ 01/07/2024).
 2. **Bảo mật dữ liệu:** Mọi thông tin CCCD gắn chip, số điện thoại và mã khóa cửa điện tử đều được mã hóa bằng chuẩn **AES-256** tại cơ sở dữ liệu Supabase/PostgreSQL, tuân thủ nghiêm ngặt **Nghị định 13/2023/NĐ-CP**.
