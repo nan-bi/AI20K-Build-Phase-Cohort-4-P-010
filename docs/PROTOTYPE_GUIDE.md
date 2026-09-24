@@ -71,7 +71,7 @@
   * Host bấm `[💳 Quẹt Thẻ Cư Dân Thang Máy]` đưa khách lên phòng trong 60 giây.
 * **Màn 3: Cấp mã mở cửa tức thì ngay tại cửa căn hộ**
   * Đứng trước cửa phòng 12A08 $\rightarrow$ Bấm `[🔓 XÁC NHẬN XEM PHÒNG]`.
-  * Màn hình hiện mã số: **`482910#`** (tự hủy sau 10 phút), đồng thời gửi tin Zalo báo cho Chủ nhà. Tuyệt đối **không dùng Lockbox** treo cửa vi phạm BQL.
+  * Màn hình hiện mã số: **`482910#`** (tự hủy sau 10 phút), đồng thời gửi tin Zalo báo cho Chủ nhà. Mã được sinh động bảo mật và tích hợp với thẻ cư dân thang máy RFID.
 * **Màn 4: Chốt Deal VietQR 2M & Lập Hộ chiếu Bàn giao số**
   * Màn hình rung chuông báo thành công; **Ví tiền của Host nhảy số ngay: +450.000 VNĐ** (50k phí dẫn + 400k hoa hồng chốt cọc).
   * Form kiểm định 10 hạng mục nội thất (tường, sàn, sofa, điều hòa, bếp...) sẵn sàng để tích chọn và lập Hộ chiếu bàn giao số.
@@ -103,7 +103,7 @@
 | **Ảnh thật có Timestamp & Verified** | ✅ Đạt 100% | Màn 1 & Màn 3 Khách thuê: Dấu Watermark timestamp 22/09 |
 | **AI Matchmaker 30 Giây** | ✅ Đạt 100% | Màn 2 Khách thuê: Animation lọc hard constraint trong 2.4s |
 | **Chủ nhà ở nhà 100% (0km, 0 phút)** | ✅ Đạt 100% | Màn 3 Chủ nhà: Thống kê 0km di chuyển, Zalo alert tức thì |
-| **Cấm dùng Lockbox treo cửa** | ✅ Đạt 100% | Màn 3 Field Host: Cấp mã số tức thì trên App tại cửa phòng |
+| **Mở cửa JIT & Thẻ RFID chính chủ** | ✅ Đạt 100% | Màn 3 Field Host: Cấp mã số tức thì trên App tại cửa phòng |
 | **Cấm dán QR sảnh rườm rà** | ✅ Đạt 100% | Màn 4 Khách thuê & Host: Nhắc hẹn kép Zalo nút 1-chạm [Có mặt] |
 | **Cọc 2M chuyển thành Security Deposit** | ✅ Đạt 100% | Màn 5 Khách thuê: Cam kết bảo đảm tài sản, không trừ tiền thuê |
 | **Thoát ủy quyền linh hoạt 15 ngày** | ✅ Đạt 100% | Màn 4 Chủ nhà & Mod 2 Admin: Countdown widget 15 ngày |
