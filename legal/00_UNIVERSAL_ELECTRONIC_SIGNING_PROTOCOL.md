@@ -53,13 +53,15 @@ Toàn bộ hợp đồng và thỏa thuận trên nền tảng VinStay AI đư�
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                   QUY TRÌNH KÝ SỐ HYBRID 4 BƯỚC ĐỒNG BỘ TRONG 60 GIÂY                            │
+│              QUY TRÌNH KÝ SỐ HYBRID 4 BƯỚC VỚI CƠ CHẾ ZERO-STORAGE (CHỈ TRONG 60 GIÂY)           │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                  │
-│  [BƯỚC 1: AI OCR CCCD TỰ ĐỘNG ĐIỀN THÔNG TIN (AUTO-POPULATE)]                                    │
-│  Người dùng chụp ảnh 2 mặt CCCD gắn chip ──► AI OCR bóc tách: Họ tên, Số định danh cá nhân,      │
-│  Ngày cấp, Nơi thường trú trong 5 giây. Hệ thống tự động điền vào phôi hợp đồng số chuẩn mực.   │
-│  Người dùng KHÔNG CẦN NHẬP TAY bất kỳ dòng chữ nào.                                             │
+│  [BƯỚC 1: AI OCR XỬ LÝ TRÊN BỘ NHỚ TẠM & TIÊU HỦY ẢNH TỨC THÌ (ZERO-STORAGE EPHEMERAL OCR)]       │
+│  • Khách / Chủ nhà chụp ảnh CCCD gắn chip ──► Ảnh được nạp tạm vào bộ nhớ RAM (In-Memory).        │
+│  • AI OCR bóc tách: Họ tên, Số định danh 12 số, Ngày cấp, Nơi thường trú trong 3 giây.           │
+│  • TIÊU HỦY VĨNH VIỄN ẢNH GỐC NGAY LẬP TỨC (Memory Flush): Máy chủ KHÔNG lưu trữ file ảnh CCCD; │
+│    loại trừ 100% rủi ro lộ lọt ảnh thẻ, miễn nhiễm trách nhiệm rò rỉ dữ liệu theo Nghị định 13.   │
+│  • Điền tự động các trường chữ vào Hợp đồng số; người dùng KHÔNG CẦN GÕ CHỮ một dòng nào.       │
 │                                                                                                  │
 │  [BƯỚC 2: XEM BẢN TÓM TẮT ĐIỀU KHOẢN CỐT LÕI (INTERACTIVE SUMMARY)]                              │
 │  Màn hình hiển thị tóm tắt trực quan: Mã căn, Giá thuê All-in Cost trọn gói, Mức cọc bảo đảm,   │
@@ -103,7 +105,7 @@ Toàn bộ hợp đồng và thỏa thuận trên nền tảng VinStay AI đư�
 
 ## ĐIỀU 5. GIÁ TRỊ CHỨNG CỨ PHÁP LÝ TRƯỚC TÒA ÁN (AUDIT TRAIL LOGGING)
 Đối với mỗi hợp đồng ký số, hệ thống tự động ghi nhận và lưu trữ vĩnh viễn **Hồ Sơ Chứng Cứ Điện Tử (Electronic Audit Trail)** gồm 7 yếu tố:
-1. File ảnh chụp gốc 2 mặt CCCD gắn chip được mã hóa AES-256.
+1. Bản trích xuất thông tin nhân thân từ CCCD (Họ tên, Số định danh 12 số, Ngày cấp, Nơi thường trú) kèm chuỗi mã băm SHA-256 xác thực thời điểm quét (File ảnh gốc được tiêu hủy ngay lập tức trên bộ nhớ RAM theo cơ chế Zero-Storage Ephemeral OCR).
 2. Mã Zalo UID và Số điện thoại đã xác thực OTP của người ký.
 3. Địa chỉ IP mạng và mã định danh phần cứng thiết bị (User-Agent / Device ID).
 4. Tọa độ GPS Geofence tại thời điểm thực hiện thao tác ký.
