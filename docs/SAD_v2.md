@@ -7,12 +7,12 @@
 
 ### Ký hiệu trạng thái (dùng xuyên suốt tài liệu)
 
-| Ký hiệu | Nghĩa |
-|---|---|
-| ✅ **CHỐT** | Đã có trong Charter / Gap Analysis / SAD v1.0 |
-| 🟡 **TBD** | Chưa quyết định (vendor, chính sách, tham số) |
+| Ký hiệu        | Nghĩa                                                                                                           |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| ✅ **CHỐT**    | Đã có trong Charter / Gap Analysis / SAD v1.0                                                                   |
+| 🟡 **TBD**     | Chưa quyết định (vendor, chính sách, tham số)                                                                   |
 | 🔵 **ĐỀ XUẤT** | Bổ sung kỹ thuật/tính năng lấy từ bản Enterprise, **ngoài phạm vi Charter** — cần duyệt phạm vi trước khi build |
-| ⚖️ **PHÁP LÝ** | Có nội dung pháp lý — **chưa được luật sư/pháp chế xác nhận** |
+| ⚖️ **PHÁP LÝ** | Có nội dung pháp lý — **chưa được luật sư/pháp chế xác nhận**                                                   |
 
 ---
 
@@ -20,20 +20,20 @@
 
 ### 0.1 Sửa so với bản Enterprise
 
-| # | Nội dung bản Enterprise | Xử lý trong v2 |
-|---|---|---|
-| 1 | AI Vision OCR tự xây, "Zero-Storage RAM" | **Thay bằng đối tác eKYC thương mại FPT.AI (FPT Smart Cloud) có Liveness Detection** — §7. Cơ chế Zero-Storage: máy chủ VinStay AI không lưu trữ file ảnh CCCD gốc (0 byte), FPT.AI chịu trách nhiệm bảo mật và đối chiếu dữ liệu |
-| 2 | Giữ chỗ 24h (mandate, cọc, worker, Redis TTL) | **7 ngày** xuyên suốt |
-| 3 | Mã cửa JIT tự sinh/tự biến mất mỗi lượt | **Mã khóa cố định theo căn**, mã hóa trong Vault, chỉ hiển thị cho Host khi có ticket active, hỗ trợ xoay mã — §8 |
-| 4 | RBAC 4 gạch đầu dòng (RLS) | **7 vai trò × ma trận tài nguyên + Authorization Service tập trung**, RLS làm lớp phòng thủ thứ hai — §9 |
-| 5 | Dispatcher 3p → 2p → Area Lead; gọi là "AI" | **Rule engine**, SLA đã chốt **5p → 3p (≤500m) → broadcast** (ADR-01) — §6.2 |
-| 6 | Webhook VietQR ≤ 3s | **≤ 5s** (mâu thuẫn 5s/10s đã được giải quyết ở Charter) |
-| 7 | Trích dẫn điều/khoản luật cụ thể, trích nguyên văn luật, khẳng định "đầy đủ giá trị chứng cứ trước Tòa" | **Gỡ số điều/khoản và đoạn trích nguyên văn**, đánh dấu ⚖️; danh mục cần kiểm ở Phụ lục B |
-| 8 | Ngân hàng (MB/Vietinbank), Cloudflare R2, Upstash, FPT/eSMS trình bày như đã chốt | Đánh dấu **🟡 TBD / 🔵 đề xuất** |
-| 9 | Trình bày mọi thứ như đã chốt 100% | Thêm bảng chốt tính năng có nhãn trạng thái (§4) và danh sách quyết định còn mở (§19) |
-| 10 | Số liệu "thị trường truyền thống" (60–70% tin ảo, 25–35% no-show…) và cột "Dữ liệu kiểm chứng" | Gỡ số liệu không rõ nguồn; giữ KPI Charter (§17.2) |
-| 11 | Ví dụ API: giá 6,5tr vs thị trường 8,5tr nhưng badge "tiết kiệm 10%" | **Sửa: tiết kiệm ≈ 24%** — (8,5 − 6,5)/8,5 = 23,5% |
-| 12 | Tự động bóc tách chỉ số công tơ EVN, tích hợp EVN | **Ngoài MVP** — Host nhập chỉ số + chụp ảnh (§3, §4) |
+| #   | Nội dung bản Enterprise                                                                                 | Xử lý trong v2                                                                                                                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | AI Vision OCR tự xây, "Zero-Storage RAM"                                                                | **Thay bằng đối tác eKYC thương mại FPT.AI (FPT Smart Cloud) có Liveness Detection** — §7. Cơ chế Zero-Storage: máy chủ VinStay AI không lưu trữ file ảnh CCCD gốc (0 byte), FPT.AI chịu trách nhiệm bảo mật và đối chiếu dữ liệu |
+| 2   | Giữ chỗ 24h (mandate, cọc, worker, Redis TTL)                                                           | **7 ngày** xuyên suốt                                                                                                                                                                                                             |
+| 3   | Mã cửa JIT tự sinh/tự biến mất mỗi lượt                                                                 | **Mã khóa cố định theo căn**, mã hóa trong Vault, chỉ hiển thị cho Host khi có ticket active, hỗ trợ xoay mã — §8                                                                                                                 |
+| 4   | RBAC 4 gạch đầu dòng (RLS)                                                                              | **7 vai trò × ma trận tài nguyên + Authorization Service tập trung**, RLS làm lớp phòng thủ thứ hai — §9                                                                                                                          |
+| 5   | Dispatcher 3p → 2p → Area Lead; gọi là "AI"                                                             | **Rule engine**, SLA đã chốt **5p → 3p (≤500m) → broadcast** (ADR-01) — §6.2                                                                                                                                                      |
+| 6   | Webhook VietQR ≤ 3s                                                                                     | **≤ 5s** (mâu thuẫn 5s/10s đã được giải quyết ở Charter)                                                                                                                                                                          |
+| 7   | Trích dẫn điều/khoản luật cụ thể, trích nguyên văn luật, khẳng định "đầy đủ giá trị chứng cứ trước Tòa" | **Gỡ số điều/khoản và đoạn trích nguyên văn**, đánh dấu ⚖️; danh mục cần kiểm ở Phụ lục B                                                                                                                                         |
+| 8   | Ngân hàng (MB/Vietinbank), Cloudflare R2, Upstash, FPT/eSMS trình bày như đã chốt                       | Đánh dấu **🟡 TBD / 🔵 đề xuất**                                                                                                                                                                                                  |
+| 9   | Trình bày mọi thứ như đã chốt 100%                                                                      | Thêm bảng chốt tính năng có nhãn trạng thái (§4) và danh sách quyết định còn mở (§19)                                                                                                                                             |
+| 10  | Số liệu "thị trường truyền thống" (60–70% tin ảo, 25–35% no-show…) và cột "Dữ liệu kiểm chứng"          | Gỡ số liệu không rõ nguồn; giữ KPI Charter (§17.2)                                                                                                                                                                                |
+| 11  | Ví dụ API: giá 6,5tr vs thị trường 8,5tr nhưng badge "tiết kiệm 10%"                                    | **Sửa: tiết kiệm ≈ 24%** — (8,5 − 6,5)/8,5 = 23,5%                                                                                                                                                                                |
+| 12  | Tự động bóc tách chỉ số công tơ EVN, tích hợp EVN                                                       | **Ngoài MVP** — Host nhập chỉ số + chụp ảnh (§3, §4)                                                                                                                                                                              |
 
 ### 0.2 Điểm phát hiện thêm khi gộp
 
@@ -60,15 +60,15 @@ VinStay AI số hóa vòng đời thuê căn hộ tại đại đô thị theo m
 
 ### 1.3 Bảy nguyên tắc thiết kế
 
-| # | Nguyên tắc | Hàm ý kiến trúc |
-|---|---|---|
-| P1 | **Reliability & Speed** | SLA tại §17; webhook idempotent; khóa căn giao dịch |
-| P2 | **Privacy & Legal by design** | Không tự xử lý CCCD; mã hóa AES-256; DPA với vendor; consent rõ ràng |
-| P3 | **Operational Lean (0đ CapEx)** | Không IoT, không Lockbox; dùng thẻ cư dân RFID của Host, khóa điện tử/chìa cơ sẵn có |
-| P4 | **Anti-disintermediation** | Attribution Lock (`host_id` trong VietQR), Hợp đồng Độc quyền, che SĐT |
-| P5 | **Graceful degradation** | Mọi bước tự động có đường lui thủ công (§16) |
-| P6 | **Immutability & Audit** | Audit log append-only cho mọi truy cập nhạy cảm và thay đổi cấu hình |
-| P7 | **Rule-first, AI khi xứng đáng** | Dispatcher/Conflict Resolver là rule engine (ADR-01). Chỉ Matchmaker có lớp ranking; không quảng bá "AI" cho thứ không phải AI |
+| #   | Nguyên tắc                       | Hàm ý kiến trúc                                                                                                                |
+| --- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| P1  | **Reliability & Speed**          | SLA tại §17; webhook idempotent; khóa căn giao dịch                                                                            |
+| P2  | **Privacy & Legal by design**    | Không tự xử lý CCCD; mã hóa AES-256; DPA với vendor; consent rõ ràng                                                           |
+| P3  | **Operational Lean (0đ CapEx)**  | Không IoT, không Lockbox; dùng thẻ cư dân RFID của Host, khóa điện tử/chìa cơ sẵn có                                           |
+| P4  | **Anti-disintermediation**       | Attribution Lock (`host_id` trong VietQR), Hợp đồng Độc quyền, che SĐT                                                         |
+| P5  | **Graceful degradation**         | Mọi bước tự động có đường lui thủ công (§16)                                                                                   |
+| P6  | **Immutability & Audit**         | Audit log append-only cho mọi truy cập nhạy cảm và thay đổi cấu hình                                                           |
+| P7  | **Rule-first, AI khi xứng đáng** | Dispatcher/Conflict Resolver là rule engine (ADR-01). Chỉ Matchmaker có lớp ranking; không quảng bá "AI" cho thứ không phải AI |
 
 ---
 
@@ -115,15 +115,15 @@ flowchart TB
 
 ## 3. PHÂN HỆ THEO BÊN LIÊN QUAN
 
-| Bên | Kênh | Năng lực chính |
-|---|---|---|
-| **Khách thuê** | Web PWA (Next.js) + Zalo | Tìm căn theo All-in Cost; đặt lịch xem (OTP SĐT, không QR); nút Zalo "Tôi đã có mặt tại sảnh"; cọc VietQR; xác thực eKYC; ký thỏa thuận/hợp đồng; nhận bàn giao 10 hạng mục |
-| **Chủ nhà** | Web Portal + Zalo OTP | Ký gửi Độc quyền (thẩm định 0đ); **cấu hình mã khóa (ghi, không xem plaintext)**; theo dõi từ xa; duyệt/ký hợp đồng; yêu cầu xoay mã; thoát ủy quyền 15 ngày khi căn `available` |
-| **Field Host** | Mobile PWA | Nhận ticket theo tầng SLA; đón sảnh; xem mã khóa **chỉ khi ticket active**; sinh VietQR cọc có Attribution Lock; lập Hộ chiếu Bàn giao; thu nhập biến phí vào ví |
-| **Area Lead** | Mobile/Web | Nhận ticket Tầng 3 (broadcast/leo thang), chỉ định nhân sự, hỗ trợ khẩn cấp (chìa dự phòng) |
-| **Ops Admin** | Admin Portal | BI/funnel, cấu hình biến phí, giám sát SLA, xử lý ngoại lệ, xoay mã khi cần |
-| **Compliance Officer** | Admin Portal (quyền hẹp) | Rà soát thủ công ca eKYC `needs_review`; đối soát pháp lý; mọi truy cập đều có audit |
-| **Đối tác** | API | Bank/VietQR, Zalo, FPT.AI eKYC↔C06, dấu thời gian; BQL Vinhomes (ràng buộc vận hành: không QR/tờ rơi ở sảnh, không Lockbox); mạng lưới thợ ngoài (chỉ giới thiệu, 🔵) |
+| Bên                    | Kênh                     | Năng lực chính                                                                                                                                                                   |
+| ---------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Khách thuê**         | Web PWA (Next.js) + Zalo | Tìm căn theo All-in Cost; đặt lịch xem (OTP SĐT, không QR); nút Zalo "Tôi đã có mặt tại sảnh"; cọc VietQR; xác thực eKYC; ký thỏa thuận/hợp đồng; nhận bàn giao 10 hạng mục      |
+| **Chủ nhà**            | Web Portal + Zalo OTP    | Ký gửi Độc quyền (thẩm định 0đ); **cấu hình mã khóa (ghi, không xem plaintext)**; theo dõi từ xa; duyệt/ký hợp đồng; yêu cầu xoay mã; thoát ủy quyền 15 ngày khi căn `available` |
+| **Field Host**         | Mobile PWA               | Nhận ticket theo tầng SLA; đón sảnh; xem mã khóa **chỉ khi ticket active**; sinh VietQR cọc có Attribution Lock; lập Hộ chiếu Bàn giao; thu nhập biến phí vào ví                 |
+| **Area Lead**          | Mobile/Web               | Nhận ticket Tầng 3 (broadcast/leo thang), chỉ định nhân sự, hỗ trợ khẩn cấp (chìa dự phòng)                                                                                      |
+| **Ops Admin**          | Admin Portal             | BI/funnel, cấu hình biến phí, giám sát SLA, xử lý ngoại lệ, xoay mã khi cần                                                                                                      |
+| **Compliance Officer** | Admin Portal (quyền hẹp) | Rà soát thủ công ca eKYC `needs_review`; đối soát pháp lý; mọi truy cập đều có audit                                                                                             |
+| **Đối tác**            | API                      | Bank/VietQR, Zalo, FPT.AI eKYC↔C06, dấu thời gian; BQL Vinhomes (ràng buộc vận hành: không QR/tờ rơi ở sảnh, không Lockbox); mạng lưới thợ ngoài (chỉ giới thiệu, 🔵)            |
 
 ### 3.1 All-in Cost (✅ rule tất định)
 
@@ -131,11 +131,11 @@ flowchart TB
 All-in Cost = base_rent + management_fee + parking_fee_estimate + utility_cost_estimate
 ```
 
-| Thành phần | Công thức mặc định (tham số cấu hình, ⚠ giá trị lấy từ bản Enterprise — cần xác thực với BQL/nguồn) |
-|---|---|
-| Phí quản lý | Diện tích thông thủy × 9.500 đ/m² |
-| Phí gửi xe | 150.000 đ/xe máy; 1.250.000 đ/ô tô |
-| Điện nước ước tính | 300.000 đ/người/tháng |
+| Thành phần         | Công thức mặc định (tham số cấu hình, ⚠ giá trị lấy từ bản Enterprise — cần xác thực với BQL/nguồn) |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| Phí quản lý        | Diện tích thông thủy × 9.500 đ/m²                                                                   |
+| Phí gửi xe         | 150.000 đ/xe máy; 1.250.000 đ/ô tô                                                                  |
+| Điện nước ước tính | 300.000 đ/người/tháng                                                                               |
 
 ### 3.2 Biến phí Host (Dynamic Commission) — cấu hình qua Admin, không sửa mã
 
@@ -151,33 +151,33 @@ Tường/sơn · sàn · cửa & khóa · điều hòa · tủ lạnh · bếp &
 
 ## 4. BẢNG CHỐT TÍNH NĂNG (FEATURE LOCK-IN)
 
-| # | Tính năng | Quyết định | Trạng thái | Ghi chú |
-|---|---|---|---|---|
-| 1 | All-in Cost Engine | Rule tất định | ✅ | §3.1 |
-| 2 | Matchmaker Top 3 | Lọc cứng + ranking nhẹ; ≤3s tính toán / ≤30s trải nghiệm | ✅ | §6.1 |
-| 3 | Xác nhận lịch xem | **Bỏ QR** — Zalo 2 chiều + OTP SĐT | ✅ | Gap Analysis |
-| 4 | Dispatcher Field Host | **Rule engine 3 tầng: 5p → 3p (≤500m) → broadcast** | ✅ | Bán kính Tầng 1 (≤200m) và giới hạn 1 ca/45 phút là 🔵 |
-| 5 | Mở cửa khi xem phòng | **Mã khóa điện tử cố định / chìa cơ tập trung**, không Lockbox, không IoT | ✅ | §8 |
-| 6 | Giữ chỗ (holding) | **7 ngày** kể từ lúc nhận cọc | ✅ | ADR-05 |
-| 7 | Xác thực CCCD & Khuôn mặt | **FPT.AI eKYC (FPT Smart Cloud) + Liveness Detection**; Zero-Storage | ✅ ĐÃ CHỐT | §7 |
-| 8 | Ký thỏa thuận cọc điện tử | Ký OTP, PDF có audit | ✅ ⚖️ | §10 |
-| 9 | Hộ chiếu bàn giao số 10 hạng mục | Giữ nguyên | ✅ | §3.3 |
-| 10 | Ký gửi Độc quyền + thoát 15 ngày | Chỉ hủy khi căn `available` | ✅ ⚖️ | §10.4 |
-| 11 | Khách "chưa ưng" | Host giới thiệu trực tiếp tại chỗ (app tính sẵn căn tương đương) | ✅ | Khác với hủy lịch do căn bị cọc (dòng 20) |
-| 12 | Quản lý mã khóa cửa | Vòng đời, Vault, cấp phát có điều kiện, audit | ✅ (mới) | §8 |
-| 13 | Phân quyền RBAC | 7 vai trò, ma trận, AuthZ tập trung | ✅ (mới) | §9 |
-| 14 | Hardware CapEx | 0 VNĐ | ✅ | |
-| 15 | Ký quỹ ba bên (Tripartite Escrow) tại tài khoản định danh của nền tảng | Mô hình dòng tiền cọc | 🔵 🟡 ⚖️ | Charter chỉ nói VietQR/ngân hàng; chính sách hoàn cọc chưa chốt. Cần xác nhận mô hình pháp lý dòng tiền (§19 #8) |
-| 16 | Gói chứng cứ pháp lý (Evidence Package), lưu 10 năm | Manifest + hash + dấu thời gian | 🔵 ⚖️ | Thời hạn lưu cần pháp chế xác nhận |
-| 17 | Redis + BullMQ (khóa, OTP, worker đếm ngược) | Hạ tầng | 🔵 | Có thể thay bằng cron/pg-boss cho MVP |
-| 18 | Proxy Masked Call (tổng đài ảo) | Che SĐT hai chiều khi gọi | 🔵 | Cần vendor viễn thông; sau pilot |
-| 19 | Mã hóa cấp trường SĐT (AES-256-GCM) | | ✅ (bảo mật) | Dùng blind index |
-| 20 | Auto-cancel lịch trùng + Zalo gợi ý 2 căn khi căn được cọc | Conflict Resolver | ✅ | Chỉ cho lịch bị hủy do cọc |
-| 21 | Phát hiện Căn HOT (≥3 lịch/24h) | Cờ + badge | 🔵 | Ngưỡng là tham số |
-| 22 | Occupancy Heatmap, Financial Simulator, Maker–Checker | BI nâng cao | 🔵 | Pilot chỉ cần funnel + SLA |
-| 23 | PWA offline-tolerant cho Host | | 🔵 | **Tuyệt đối không cache mã khóa** (§8) |
-| 24 | Bóc tách công tơ tự động / tích hợp EVN | | ❌ Ngoài MVP | Host nhập tay |
-| 25 | Danh bạ thợ giới thiệu (Handyman Referral) | | 🔵 | Không phải trách nhiệm nền tảng |
+| #   | Tính năng                                                              | Quyết định                                                                | Trạng thái   | Ghi chú                                                                                                          |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | All-in Cost Engine                                                     | Rule tất định                                                             | ✅           | §3.1                                                                                                             |
+| 2   | Matchmaker Top 3                                                       | Lọc cứng + ranking nhẹ; ≤3s tính toán / ≤30s trải nghiệm                  | ✅           | §6.1                                                                                                             |
+| 3   | Xác nhận lịch xem                                                      | **Bỏ QR** — Zalo 2 chiều + OTP SĐT                                        | ✅           | Gap Analysis                                                                                                     |
+| 4   | Dispatcher Field Host                                                  | **Rule engine 3 tầng: 5p → 3p (≤500m) → broadcast**                       | ✅           | Bán kính Tầng 1 (≤200m) và giới hạn 1 ca/45 phút là 🔵                                                           |
+| 5   | Mở cửa khi xem phòng                                                   | **Mã khóa điện tử cố định / chìa cơ tập trung**, không Lockbox, không IoT | ✅           | §8                                                                                                               |
+| 6   | Giữ chỗ (holding)                                                      | **7 ngày** kể từ lúc nhận cọc                                             | ✅           | ADR-05                                                                                                           |
+| 7   | Xác thực CCCD & Khuôn mặt                                              | **FPT.AI eKYC (FPT Smart Cloud) + Liveness Detection**; Zero-Storage      | ✅ ĐÃ CHỐT   | §7                                                                                                               |
+| 8   | Ký thỏa thuận cọc điện tử                                              | Ký OTP, PDF có audit                                                      | ✅ ⚖️        | §10                                                                                                              |
+| 9   | Hộ chiếu bàn giao số 10 hạng mục                                       | Giữ nguyên                                                                | ✅           | §3.3                                                                                                             |
+| 10  | Ký gửi Độc quyền + thoát 15 ngày                                       | Chỉ hủy khi căn `available`                                               | ✅ ⚖️        | §10.4                                                                                                            |
+| 11  | Khách "chưa ưng"                                                       | Host giới thiệu trực tiếp tại chỗ (app tính sẵn căn tương đương)          | ✅           | Khác với hủy lịch do căn bị cọc (dòng 20)                                                                        |
+| 12  | Quản lý mã khóa cửa                                                    | Vòng đời, Vault, cấp phát có điều kiện, audit                             | ✅ (mới)     | §8                                                                                                               |
+| 13  | Phân quyền RBAC                                                        | 7 vai trò, ma trận, AuthZ tập trung                                       | ✅ (mới)     | §9                                                                                                               |
+| 14  | Hardware CapEx                                                         | 0 VNĐ                                                                     | ✅           |                                                                                                                  |
+| 15  | Ký quỹ ba bên (Tripartite Escrow) tại tài khoản định danh của nền tảng | Mô hình dòng tiền cọc                                                     | 🔵 🟡 ⚖️     | Charter chỉ nói VietQR/ngân hàng; chính sách hoàn cọc chưa chốt. Cần xác nhận mô hình pháp lý dòng tiền (§19 #8) |
+| 16  | Gói chứng cứ pháp lý (Evidence Package), lưu 10 năm                    | Manifest + hash + dấu thời gian                                           | 🔵 ⚖️        | Thời hạn lưu cần pháp chế xác nhận                                                                               |
+| 17  | Redis + BullMQ (khóa, OTP, worker đếm ngược)                           | Hạ tầng                                                                   | 🔵           | Có thể thay bằng cron/pg-boss cho MVP                                                                            |
+| 18  | Proxy Masked Call (tổng đài ảo)                                        | Che SĐT hai chiều khi gọi                                                 | 🔵           | Cần vendor viễn thông; sau pilot                                                                                 |
+| 19  | Mã hóa cấp trường SĐT (AES-256-GCM)                                    |                                                                           | ✅ (bảo mật) | Dùng blind index                                                                                                 |
+| 20  | Auto-cancel lịch trùng + Zalo gợi ý 2 căn khi căn được cọc             | Conflict Resolver                                                         | ✅           | Chỉ cho lịch bị hủy do cọc                                                                                       |
+| 21  | Phát hiện Căn HOT (≥3 lịch/24h)                                        | Cờ + badge                                                                | 🔵           | Ngưỡng là tham số                                                                                                |
+| 22  | Occupancy Heatmap, Financial Simulator, Maker–Checker                  | BI nâng cao                                                               | 🔵           | Pilot chỉ cần funnel + SLA                                                                                       |
+| 23  | PWA offline-tolerant cho Host                                          |                                                                           | 🔵           | **Tuyệt đối không cache mã khóa** (§8)                                                                           |
+| 24  | Bóc tách công tơ tự động / tích hợp EVN                                |                                                                           | ❌ Ngoài MVP | Host nhập tay                                                                                                    |
+| 25  | Danh bạ thợ giới thiệu (Handyman Referral)                             |                                                                           | 🔵           | Không phải trách nhiệm nền tảng                                                                                  |
 
 ```mermaid
 flowchart TD
@@ -256,6 +256,7 @@ flowchart LR
 ```
 
 **Ghi chú:**
+
 - Mã khóa cửa và dữ liệu định danh **không nằm dạng plaintext trong Primary DB**; DB chỉ giữ tham chiếu (`vault_secret_ref`), ciphertext ở Vault với khóa quản lý tách biệt.
 - `IdentitySvc` là adapter/orchestrator; **không** OCR/Vision trong nội bộ.
 - `AuthZ` được Gateway gọi **trước mọi request** tới module nghiệp vụ (§9).
@@ -306,11 +307,11 @@ Không dùng vector search/pgvector trừ khi có yêu cầu tìm kiếm ngữ n
 
 ### 6.2 Engine 2 — Dispatcher Field Host (✅ rule engine, ADR-01)
 
-| Tầng | Điều kiện | SLA nhận | Khi hết SLA |
-|---|---|---|---|
-| **1** | Host online gần nhất (cụm tòa; 🔵 ≤200m), xếp theo SPS | **5 phút** | → Tầng 2 |
-| **2** | Host trong phân khu ≤ **500m** | **3 phút** | → Tầng 3 |
-| **3** | **Broadcast** toàn bộ Host + cảnh báo **Area Lead** chỉ định/tiếp quản | — | Area Lead xử lý |
+| Tầng  | Điều kiện                                                              | SLA nhận   | Khi hết SLA     |
+| ----- | ---------------------------------------------------------------------- | ---------- | --------------- |
+| **1** | Host online gần nhất (cụm tòa; 🔵 ≤200m), xếp theo SPS                 | **5 phút** | → Tầng 2        |
+| **2** | Host trong phân khu ≤ **500m**                                         | **3 phút** | → Tầng 3        |
+| **3** | **Broadcast** toàn bộ Host + cảnh báo **Area Lead** chỉ định/tiếp quản | —          | Area Lead xử lý |
 
 - 🔵 Chống ôm lead: mỗi Host tối đa 1 lịch trong khung 45 phút.
 - Worker đếm ngược SLA theo từng ticket; ghi `dispatch_tickets(tier, sla_seconds, status)`.
@@ -353,13 +354,13 @@ Trước: tự chạy OCR, tự chịu độ chính xác/tuân thủ. **Nay:** �
 
 Dựa trên thẩm định pháp lý và kỹ thuật cho giai đoạn Build & Pilot, VinStay AI chính thức lựa chọn giải pháp **FPT.AI eKYC** do **FPT Smart Cloud** (Tập đoàn FPT) cung cấp:
 
-| Tiêu chí | Đáp ứng của FPT.AI eKYC | Đánh giá |
-|---|---|---|
-| **Pháp lý & Giấy phép** | Đơn vị công nghệ Việt Nam hàng đầu, đạt chuẩn an toàn thông tin ISO 27001; đối chiếu dữ liệu định danh hợp chuẩn; đăng ký kích hoạt trực tiếp theo tài khoản nhà phát triển mà không bị rào cản GPKD doanh nghiệp lớn ở vòng MVP | ✅ Đạt |
-| **Công nghệ Chống Giả mạo** | Tích hợp **Face Liveness Detection** (quét cử động chớp mắt, quay đầu, mỉm cười), phát hiện gian lận ảnh in lại (printed photo), video phát lại qua màn hình (screen replay) và Deepfake | ✅ Vượt trội |
-| **Độ chính xác & Tốc độ** | Bóc tách OCR CCCD 2 mặt chính xác > 98%; thời gian xử lý eKYC ≤ 3–5 giây (SLA đạt chuẩn) | ✅ Đạt |
-| **Cơ chế Zero-Storage** | Hỗ trợ xử lý trực tiếp In-Memory (Stream); VinStay AI **không lưu trữ bất kỳ file ảnh CCCD gốc nào trên máy chủ (0 byte)**; loại trừ 100% rủi ro lộ lọt dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP và Luật BVDLCN 2025 | ✅ Đạt |
-| **Chi phí vận hành** | Mô hình Pay-as-you-go (~1.500 – 2.000 VNĐ / lượt xác thực thành công); có gói Free Tier kiểm thử trong giai đoạn phát triển | ✅ Tối ưu |
+| Tiêu chí                    | Đáp ứng của FPT.AI eKYC                                                                                                                                                                                                          | Đánh giá     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **Pháp lý & Giấy phép**     | Đơn vị công nghệ Việt Nam hàng đầu, đạt chuẩn an toàn thông tin ISO 27001; đối chiếu dữ liệu định danh hợp chuẩn; đăng ký kích hoạt trực tiếp theo tài khoản nhà phát triển mà không bị rào cản GPKD doanh nghiệp lớn ở vòng MVP | ✅ Đạt       |
+| **Công nghệ Chống Giả mạo** | Tích hợp **Face Liveness Detection** (quét cử động chớp mắt, quay đầu, mỉm cười), phát hiện gian lận ảnh in lại (printed photo), video phát lại qua màn hình (screen replay) và Deepfake                                         | ✅ Vượt trội |
+| **Độ chính xác & Tốc độ**   | Bóc tách OCR CCCD 2 mặt chính xác > 98%; thời gian xử lý eKYC ≤ 3–5 giây (SLA đạt chuẩn)                                                                                                                                         | ✅ Đạt       |
+| **Cơ chế Zero-Storage**     | Hỗ trợ xử lý trực tiếp In-Memory (Stream); VinStay AI **không lưu trữ bất kỳ file ảnh CCCD gốc nào trên máy chủ (0 byte)**; loại trừ 100% rủi ro lộ lọt dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP và Luật BVDLCN 2025         | ✅ Đạt       |
+| **Chi phí vận hành**        | Mô hình Pay-as-you-go (~1.500 – 2.000 VNĐ / lượt xác thực thành công); có gói Free Tier kiểm thử trong giai đoạn phát triển                                                                                                      | ✅ Tối ưu    |
 
 ### 7.3 Luồng
 
@@ -392,12 +393,21 @@ sequenceDiagram
 ```typescript
 interface IdentityProvider {
   startVerification(input: {
-    subjectId: string; consentVersion: string; images?: Buffer[]; sessionMode: 'RELAY' | 'CLIENT_SDK';
+    subjectId: string;
+    consentVersion: string;
+    images?: Buffer[];
+    sessionMode: "RELAY" | "CLIENT_SDK";
   }): Promise<{ providerRef: string; clientToken?: string }>;
   getResult(providerRef: string): Promise<{
-    status: 'VERIFIED' | 'NEEDS_REVIEW' | 'REJECTED';
-    confidence: number; c06Confirmed: boolean;
-    fields?: { fullName: string; idNumber: string; issueDate: string; permanentAddress: string };
+    status: "VERIFIED" | "NEEDS_REVIEW" | "REJECTED";
+    confidence: number;
+    c06Confirmed: boolean;
+    fields?: {
+      fullName: string;
+      idNumber: string;
+      issueDate: string;
+      permanentAddress: string;
+    };
   }>;
 }
 ```
@@ -438,17 +448,17 @@ flowchart LR
 
 ### 8.3 Nguyên tắc
 
-| Nguyên tắc | Chi tiết |
-|---|---|
-| Lưu trữ | AES-256 trong Vault, tách khỏi Primary DB; DB chỉ giữ `vault_secret_ref` |
+| Nguyên tắc            | Chi tiết                                                                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lưu trữ               | AES-256 trong Vault, tách khỏi Primary DB; DB chỉ giữ `vault_secret_ref`                                                                                   |
 | Cấp phát có điều kiện | Host chỉ thấy mã khi có `dispatch_ticket` ở `ACCEPTED`/`CHECKED` **cho đúng căn đó**; hết ticket → mã bị ẩn. 🔵 Có thể thêm cửa sổ thời gian quanh giờ hẹn |
-| Chủ nhà | Cấu hình/thu hồi/yêu cầu xoay qua Portal nhưng **không xem lại plaintext** |
-| Xoay mã | Theo yêu cầu (nghi lộ, đổi Host phụ trách, chấm dứt Mandate); kiến trúc hỗ trợ sẵn, MVP không bắt buộc theo lịch (🟡 §19) |
-| Thu hồi | Khi `mandate_termination_countdown` về 0: vô hiệu hóa, xóa khỏi mọi cache/app Host |
-| Hiển thị | ≤ 2 giây sau khi ticket `accepted`; **không cache offline, không lưu localStorage/service worker**, tự ẩn khi rời màn hình/hết ticket |
-| Audit | Mọi lần hiển thị ghi: ai, lúc nào, ticket nào, căn nào |
-| Thông báo | 🔵 Zalo cho chủ nhà mỗi lượt mở cửa xem phòng (có thể tắt) |
-| Chìa cơ | `KeySvc` quản lý trạng thái `AT_DESK` / `WITH_HOST` (đã bàn giao/đã trả), vẫn ghi log; chìa niêm phong tại quầy phân khu |
+| Chủ nhà               | Cấu hình/thu hồi/yêu cầu xoay qua Portal nhưng **không xem lại plaintext**                                                                                 |
+| Xoay mã               | Theo yêu cầu (nghi lộ, đổi Host phụ trách, chấm dứt Mandate); kiến trúc hỗ trợ sẵn, MVP không bắt buộc theo lịch (🟡 §19)                                  |
+| Thu hồi               | Khi `mandate_termination_countdown` về 0: vô hiệu hóa, xóa khỏi mọi cache/app Host                                                                         |
+| Hiển thị              | ≤ 2 giây sau khi ticket `accepted`; **không cache offline, không lưu localStorage/service worker**, tự ẩn khi rời màn hình/hết ticket                      |
+| Audit                 | Mọi lần hiển thị ghi: ai, lúc nào, ticket nào, căn nào                                                                                                     |
+| Thông báo             | 🔵 Zalo cho chủ nhà mỗi lượt mở cửa xem phòng (có thể tắt)                                                                                                 |
+| Chìa cơ               | `KeySvc` quản lý trạng thái `AT_DESK` / `WITH_HOST` (đã bàn giao/đã trả), vẫn ghi log; chìa niêm phong tại quầy phân khu                                   |
 
 ### 8.4 Luồng reveal
 
@@ -477,34 +487,34 @@ sequenceDiagram
 
 ### 9.1 Vai trò
 
-| Vai trò | Mô tả |
-|---|---|
-| `tenant` | Chỉ thao tác trên dữ liệu của chính mình |
-| `field_host` | Sale/CTV nội khu — trong phạm vi ticket được giao |
-| `landlord` | Thao tác trên căn hộ mình sở hữu/ủy quyền |
-| `area_lead` | Host cấp cao, nhận ticket Tầng 3; không có quyền admin |
-| `ops_admin` | Cấu hình biến phí, giám sát SLA, xử lý ngoại lệ |
-| `compliance_officer` | Quyền hẹp — truy cập dữ liệu xác thực danh tính để đối soát |
-| `system` | Tài khoản dịch vụ nội bộ (Dispatcher, Payment Webhook, Notification…) |
+| Vai trò              | Mô tả                                                                 |
+| -------------------- | --------------------------------------------------------------------- |
+| `tenant`             | Chỉ thao tác trên dữ liệu của chính mình                              |
+| `field_host`         | Sale/CTV nội khu — trong phạm vi ticket được giao                     |
+| `landlord`           | Thao tác trên căn hộ mình sở hữu/ủy quyền                             |
+| `area_lead`          | Host cấp cao, nhận ticket Tầng 3; không có quyền admin                |
+| `ops_admin`          | Cấu hình biến phí, giám sát SLA, xử lý ngoại lệ                       |
+| `compliance_officer` | Quyền hẹp — truy cập dữ liệu xác thực danh tính để đối soát           |
+| `system`             | Tài khoản dịch vụ nội bộ (Dispatcher, Payment Webhook, Notification…) |
 
 ### 9.2 Ma trận quyền theo tài nguyên
 
-| Tài nguyên | tenant | field_host | landlord | area_lead | ops_admin | compliance_officer | system |
-|---|---|---|---|---|---|---|---|
-| Xem listing công khai | R | R | R (căn của mình) | R | CRUD | – | R |
-| Đặt lịch xem (viewings) | C (của mình) | RU (ticket được giao) | R (căn của mình) | RU (ticket broadcast) | CRUD | – | CRUD |
-| Nhận/từ chối dispatch ticket | – | RU (ticket của mình) | – | RU | CRUD | – | CRUD |
-| Xem mã khóa cửa | – | R (chỉ khi ticket active) | – | R (chỉ khi ticket active) | R (audit bắt buộc) | – | CRUD |
-| Cấu hình/xoay mã khóa | – | – | U (yêu cầu xoay) | – | CRUD | – | CRUD |
-| Dữ liệu xác thực danh tính (CCCD) | R (của mình) | – | – | – | – | R (audit bắt buộc) | CRUD |
-| Cọc giữ chỗ | R (của mình) | RU (ticket của mình) | R (căn của mình) | – | CRUD | – | CRUD |
-| Ký thỏa thuận/hợp đồng | CU (của mình) | – | R (căn của mình) | – | R | R (audit) | CRUD |
-| Hộ chiếu bàn giao số | R (của mình) | CRU (ticket của mình) | R (căn của mình) | – | R | – | CRUD |
-| Cấu hình biến phí Host | – | – | – | – | CRUD | – | R |
-| Dashboard BI / Funnel | – | R (số liệu cá nhân) | R (căn của mình) | R (khu vực) | CRUD | – | R |
-| Audit log | – | – | – | – | R | R (liên quan compliance) | CRUD |
+| Tài nguyên                        | tenant        | field_host                | landlord         | area_lead                 | ops_admin          | compliance_officer       | system |
+| --------------------------------- | ------------- | ------------------------- | ---------------- | ------------------------- | ------------------ | ------------------------ | ------ |
+| Xem listing công khai             | R             | R                         | R (căn của mình) | R                         | CRUD               | –                        | R      |
+| Đặt lịch xem (viewings)           | C (của mình)  | RU (ticket được giao)     | R (căn của mình) | RU (ticket broadcast)     | CRUD               | –                        | CRUD   |
+| Nhận/từ chối dispatch ticket      | –             | RU (ticket của mình)      | –                | RU                        | CRUD               | –                        | CRUD   |
+| Xem mã khóa cửa                   | –             | R (chỉ khi ticket active) | –                | R (chỉ khi ticket active) | R (audit bắt buộc) | –                        | CRUD   |
+| Cấu hình/xoay mã khóa             | –             | –                         | U (yêu cầu xoay) | –                         | CRUD               | –                        | CRUD   |
+| Dữ liệu xác thực danh tính (CCCD) | R (của mình)  | –                         | –                | –                         | –                  | R (audit bắt buộc)       | CRUD   |
+| Cọc giữ chỗ                       | R (của mình)  | RU (ticket của mình)      | R (căn của mình) | –                         | CRUD               | –                        | CRUD   |
+| Ký thỏa thuận/hợp đồng            | CU (của mình) | –                         | R (căn của mình) | –                         | R                  | R (audit)                | CRUD   |
+| Hộ chiếu bàn giao số              | R (của mình)  | CRU (ticket của mình)     | R (căn của mình) | –                         | R                  | –                        | CRUD   |
+| Cấu hình biến phí Host            | –             | –                         | –                | –                         | CRUD               | –                        | R      |
+| Dashboard BI / Funnel             | –             | R (số liệu cá nhân)       | R (căn của mình) | R (khu vực)               | CRUD               | –                        | R      |
+| Audit log                         | –             | –                         | –                | –                         | R                  | R (liên quan compliance) | CRUD   |
 
-*C=Create, R=Read, U=Update, D=Delete. "của mình" = ràng buộc theo `owner_id`/`tenant_id` ở tầng policy, không phải quyền toàn cục.*
+_C=Create, R=Read, U=Update, D=Delete. "của mình" = ràng buộc theo `owner_id`/`tenant_id` ở tầng policy, không phải quyền toàn cục._
 
 ### 9.3 Cơ chế thực thi
 
@@ -522,23 +532,23 @@ sequenceDiagram
 
 ### 10.1 Văn bản pháp luật liên quan (cấp tên văn bản — số điều do pháp chế xác định)
 
-| Chủ đề | Văn bản liên quan | Cần pháp chế xác nhận |
-|---|---|---|
-| Hợp đồng thuê nhà ở | Luật Nhà ở 2023 | Hình thức hợp đồng, công chứng/chứng thực có bắt buộc không |
-| Giao dịch/chữ ký điện tử | Luật Giao dịch điện tử 2023 | Ký tay cảm ứng + OTP có phải "chữ ký điện tử" đáp ứng điều kiện độ tin cậy không; giá trị chứng cứ |
-| Dịch vụ môi giới/quản lý BĐS | Luật Kinh doanh Bất động sản 2023 | Tư cách pháp lý của VinStay và Field Host (CTV); yêu cầu chứng chỉ/đăng ký; hình thức hợp đồng ký gửi |
-| Đặt cọc, thuê, ủy quyền, dịch vụ | Bộ luật Dân sự 2015 | Quy chế đặt cọc/hoàn/tịch thu; quan hệ ba bên |
-| Dữ liệu cá nhân | **Luật BVDLCN 2025 (91/2025/QH15) + NĐ 356/2025/NĐ-CP** (hiệu lực 01/01/2026, thay NĐ 13/2023 — theo tra cứu ngày 24/09/2026) | Consent, đánh giá tác động, hợp đồng xử lý dữ liệu với vendor, thời hạn lưu |
-| Dòng tiền cọc | Quy định về thanh toán/trung gian thanh toán, thu hộ–chi hộ | Nền tảng giữ/nhận tiền cọc có cần giấy phép hay phải thông qua cấu trúc ngân hàng? |
-| Dịch vụ tin cậy (dấu thời gian, chứng thư) | Luật GDĐT 2023 và văn bản hướng dẫn | Nhà cung cấp TSA/CA được công nhận ở VN |
+| Chủ đề                                     | Văn bản liên quan                                                                                                             | Cần pháp chế xác nhận                                                                                 |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Hợp đồng thuê nhà ở                        | Luật Nhà ở 2023                                                                                                               | Hình thức hợp đồng, công chứng/chứng thực có bắt buộc không                                           |
+| Giao dịch/chữ ký điện tử                   | Luật Giao dịch điện tử 2023                                                                                                   | Ký tay cảm ứng + OTP có phải "chữ ký điện tử" đáp ứng điều kiện độ tin cậy không; giá trị chứng cứ    |
+| Dịch vụ môi giới/quản lý BĐS               | Luật Kinh doanh Bất động sản 2023                                                                                             | Tư cách pháp lý của VinStay và Field Host (CTV); yêu cầu chứng chỉ/đăng ký; hình thức hợp đồng ký gửi |
+| Đặt cọc, thuê, ủy quyền, dịch vụ           | Bộ luật Dân sự 2015                                                                                                           | Quy chế đặt cọc/hoàn/tịch thu; quan hệ ba bên                                                         |
+| Dữ liệu cá nhân                            | **Luật BVDLCN 2025 (91/2025/QH15) + NĐ 356/2025/NĐ-CP** (hiệu lực 01/01/2026, thay NĐ 13/2023 — theo tra cứu ngày 24/09/2026) | Consent, đánh giá tác động, hợp đồng xử lý dữ liệu với vendor, thời hạn lưu                           |
+| Dòng tiền cọc                              | Quy định về thanh toán/trung gian thanh toán, thu hộ–chi hộ                                                                   | Nền tảng giữ/nhận tiền cọc có cần giấy phép hay phải thông qua cấu trúc ngân hàng?                    |
+| Dịch vụ tin cậy (dấu thời gian, chứng thư) | Luật GDĐT 2023 và văn bản hướng dẫn                                                                                           | Nhà cung cấp TSA/CA được công nhận ở VN                                                               |
 
 ### 10.2 Ba loại tài liệu ký trên nền tảng
 
-| Tài liệu | Các bên | Phương thức dự kiến |
-|---|---|---|
-| Hợp đồng Ký gửi Quản lý Độc quyền (Mandate) | Chủ nhà ↔ VinStay | Ký tay cảm ứng + Zalo OTP chủ nhà |
-| Thỏa thuận cọc giữ chỗ (7 ngày) | Khách ↔ VinStay ↔ Chủ nhà | VietQR 2.000.000đ + eKYC + Zalo OTP khách |
-| Hợp đồng thuê chính thức | Chủ nhà ↔ Khách (VinStay làm chứng/quản lý) | Ký hai đầu từ xa: OTP khách và OTP chủ nhà |
+| Tài liệu                                    | Các bên                                     | Phương thức dự kiến                        |
+| ------------------------------------------- | ------------------------------------------- | ------------------------------------------ |
+| Hợp đồng Ký gửi Quản lý Độc quyền (Mandate) | Chủ nhà ↔ VinStay                           | Ký tay cảm ứng + Zalo OTP chủ nhà          |
+| Thỏa thuận cọc giữ chỗ (7 ngày)             | Khách ↔ VinStay ↔ Chủ nhà                   | VietQR 2.000.000đ + eKYC + Zalo OTP khách  |
+| Hợp đồng thuê chính thức                    | Chủ nhà ↔ Khách (VinStay làm chứng/quản lý) | Ký hai đầu từ xa: OTP khách và OTP chủ nhà |
 
 ### 10.3 Quy trình ký Hybrid 4 bước (🔵 ⚖️ giá trị pháp lý chờ xác nhận)
 
