@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # PostgreSQL (Dùng cho Local Dev Offline khi chưa có Supabase Cloud)
+  postgres:
+    image: postgres:15-alpine
+    container_name: vinstay-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: vinstay_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis (Cache, BullMQ Queue, Conflict Resolver Lock)
+  redis:
+    image: redis:7-alpine
+    container_name: vinstay-redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

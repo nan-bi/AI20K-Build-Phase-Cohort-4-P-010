@@ -62,3 +62,12 @@ out/
 #uv
 .python-version
 pyproject.toml
+
+# Chrome debug profile & temporary data
+**/chrome_debug_profile/
+tech data/giaodien/
+
+# Backend NestJS
+backend/node_modules/
+backend/dist/
+backend/.env
