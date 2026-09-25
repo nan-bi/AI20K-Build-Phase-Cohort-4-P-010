@@ -1,0 +1,266 @@
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 780px) {
+  .screen {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.brandPanel {
+  position: relative;
+  background: linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 100%);
+  color: #fff;
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+@media (max-width: 780px) {
+  .brandPanel {
+    padding: 32px 28px 24px;
+  }
+}
+
+.towerLayer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 0 0 40%;
+  opacity: 0.9;
+}
+
+@media (max-width: 780px) {
+  .towerLayer {
+    padding-left: 55%;
+  }
+}
+
+.brandHead {
+  position: relative;
+  z-index: 1;
+}
+
+.wordmark {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+}
+
+.tagline {
+  margin-top: 12px;
+  max-width: 30ch;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.brandFoot {
+  position: relative;
+  z-index: 1;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+}
+
+.card {
+  width: 100%;
+  max-width: 360px;
+}
+
+.cardHeading {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink-text);
+}
+
+.cardHelp {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--slate);
+}
+
+.googleButton {
+  margin-top: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink-text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(14, 27, 34, 0.06);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.googleButton:hover {
+  border-color: #c7cfcc;
+  box-shadow: 0 4px 12px rgba(14, 27, 34, 0.1);
+}
+
+.googleButton:active {
+  transform: translateY(1px);
+}
+
+.googleButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.errorBanner {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.footnote {
+  margin-top: 32px;
+  font-size: 0.82rem;
+  color: var(--slate);
+}
+
+.tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 28px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tab {
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--slate);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.tabActive {
+  color: var(--ink-text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(14, 27, 34, 0.1);
+}
+
+.field {
+  display: block;
+  margin-top: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-text);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink-text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.primaryButton {
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--ink);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.linkButton {
+  margin-top: 16px;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--slate);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.devHint {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--slate);
+}
+
+.divider {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--slate);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.notice {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
