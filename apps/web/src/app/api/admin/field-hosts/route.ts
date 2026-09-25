@@ -11,13 +11,13 @@ const bodySchema = z.object({
 
 async function guardAdmin() {
   try {
-    return { user: await requireRole(["admin"]) };
+    return { user: await requireRole(["admin"]), response: undefined };
   } catch (err) {
     if (err instanceof UnauthorizedError) {
-      return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
+      return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }), user: undefined };
     }
     if (err instanceof ForbiddenError) {
-      return { response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
+      return { response: NextResponse.json({ error: "forbidden" }, { status: 403 }), user: undefined };
     }
     throw err;
   }

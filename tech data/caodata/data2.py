@@ -51,7 +51,7 @@ OCEAN_PARK_KEYWORDS_PATTERN = re.compile(
     r"zenpark|zen\s*park|r1\.\d+|r1|"
     r"pavilion|p1|p2|p3|p4|"
     r"zurich|zr1|zr2|zr3|metropolitan|"
-    r"masteri|waterfront|masteri\s*waterfront|m1|m2|m3|h2|h1|h3|"
+    r"masteri|waterfront|masteri\s*waterfront|m1|m2|m3|"
     r"ngọc\s*trai|hải\s*âu|sao\s*biển|san\s*hô|"
     r"chà\s*là|vịnh\s*thiên\s*đường|kính\s*đô|đảo\s*dừa|hải\s*đăng|cọ\s*xanh"
     r")",
@@ -87,8 +87,10 @@ def clean_facebook_noise(text: str) -> str:
     if not text:
         return ""
     
+    # 1. Đưa về chuẩn NFC (tránh bị tách dấu thanh khỏi nguyên âm)
     text = unicodedata.normalize('NFC', text)
     
+    # 2. Loại bỏ các mẫu văn bản rác của giao diện Facebook
     noise_patterns = [
         r"Facebook",
         r"Đã chia sẻ (với Nhóm công khai|bài viết)?",
@@ -100,19 +102,34 @@ def clean_facebook_noise(text: str) -> str:
         r"Ảnh từ bài viết của.*",
         r"Chi\s*tiết\s*xin\s*liên\s*hệ.*",
         r"\d+:\d+\s*/\s*\d+:\d+",
+        r"[a-zA-Z0-9_-]+\.com",
+        r"\b[a-zA-Z0-9]{15,}\b",
     ]
     for pattern in noise_patterns:
         text = re.sub(pattern, " ", text, flags=re.IGNORECASE)
         
+    # 3. Bổ sung trọn vẹn bảng mã tiếng Việt Unicode
     text = re.sub(r'[^\w\s,.\-/( )+:%đĐàáâãèéêìíòóôõùúăđĩũơưạảấầnẩẫậnắằẳẵặẹẻẽềềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ]', ' ', text)
 
+    # 4. Lọc bỏ dòng tương tác rác
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     valid_lines = [line for line in lines if not re.match(r'^(thích|bình luận|chia sẻ|gửi tin nhắn|chi tiết|chia sẻ bài viết)$', line, re.IGNORECASE)]
         
     cleaned = " ".join(valid_lines)
-    return re.sub(r'\s+', ' ', cleaned).strip()
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    # 5. Lọc bỏ tên người đăng ở đầu
+    cleaned = re.sub(
+        r'^[A-ZĐÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầnẩẫậnắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\s]{2,25}\s*[-·•]?\s*(?=(cho thuê|pass|căn|bán|chính chủ|nhà|phòng|quỹ|giỏ hàng|suất|trực tiếp|danh sách))', 
+        '', 
+        cleaned, 
+        flags=re.IGNORECASE
+    )
+
+    return cleaned.strip()
 
 def create_property_fingerprint(cleaned_desc: str) -> str:
+    """Tạo dấu vân tay độc nhất cho từng CĂN HỘ Ocean Park."""
     loc = OCEAN_PARK_KEYWORDS_PATTERN.search(cleaned_desc)
     pn = re.search(r"(\d+)\s*(?:n|pn|phòng ngủ)", cleaned_desc, re.IGNORECASE)
     wc = re.search(r"(\d+)\s*(?:vs|wc|phòng tắm|vệ sinh)", cleaned_desc, re.IGNORECASE)
@@ -130,6 +147,7 @@ def create_property_fingerprint(cleaned_desc: str) -> str:
     return clean_str[:70]
 
 def parse_price(text: str):
+    """Trích xuất giá chuẩn theo VNĐ."""
     t = text.lower()
     if re.search(r'(\d+)\s*(?:tỷ|ty|triệu|tr|trđ)\s*x+', t) or re.search(r'giá\s*x', t):
         return ""
@@ -141,12 +159,12 @@ def parse_price(text: str):
     if match_full_vnd:
         return int(match_full_vnd.group(1).replace('.', ''))
 
-    match_tr = re.search(r'(\d+(?:[\.,]\d+)?)\s*(?:triệu|trđ|tr|tr5|tr8)', t)
+    match_tr = re.search(r'(\d+(?:[\.,]\d+)?)\s*(?:triệu|trđ|tr)', t)
     if match_tr:
         val_tr = float(match_tr.group(1).replace(',', '.'))
         return int(val_tr * 1_000_000)
 
-    # Bắt trường hợp ghi tắt kiểu 5tr5, 7tr5
+    # Bổ sung trích xuất dạng viết tắt kiểu 5tr5, 7tr5
     match_short_tr = re.search(r'(\d+)tr(\d+)', t)
     if match_short_tr:
         val = float(f"{match_short_tr.group(1)}.{match_short_tr.group(2)}")
@@ -434,6 +452,7 @@ async def main():
                     if len(cleaned_text) < 20:
                         continue
 
+                    # BỘ LỌC CHỈ GIỮ LẠI BÀI VIẾT THUỘC OCEAN PARK
                     if not is_ocean_park_related(cleaned_text):
                         continue
 
