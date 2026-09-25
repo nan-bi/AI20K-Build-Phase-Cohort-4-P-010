@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VinStay AI — Backend Architecture & Interactive Diagram</title>
+  <!-- Tailwind CSS via Google gstatic CDN -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <!-- Mermaid.js for beautiful diagrams rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+      border-radius: 0.75rem;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #020617 !important; color: #fff !important; }
+      .print-page-break { page-break-before: always; }
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- ================= TOP NAVIGATION / CONTROL BAR ================= -->
+  <header class="no-print sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-teal-400 flex items-center justify-center shadow-lg shadow-blue-500/20 font-black text-lg text-white">
+        V
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-black tracking-tight text-white">VINSTAY AI BACKEND</span>
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">v2.0 Monolith</span>
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">NestJS + Prisma</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Vinhomes Ocean Park (Sapphire 1 & 2) • Pilot Cohort 4</p>
+      </div>
+    </div>
+
+    <!-- Toggle Controls: Basic Overview vs Show Diagram Mode -->
+    <div class="flex items-center gap-2">
+      <!-- Segmented View Toggle -->
+      <div class="bg-slate-950 border border-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+        <button id="btnOverviewMode" onclick="switchView('overview')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-md shadow-blue-500/20">
+          <span>📄</span>
+          <span>Xem Cơ Bản (Overview)</span>
+        </button>
+        <button id="btnShowMode" onclick="switchView('show')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span class="relative flex h-2 w-2 mr-0.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>📊 Mở Trình Chiếu Sơ Đồ (Show Mode)</span>
+        </button>
+      </div>
+
+      <!-- Action Buttons -->
+      <a href="http://localhost:3000/api/docs" target="_blank" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+        <span>⚡</span> Swagger UI
+      </a>
+      <button onclick="window.print()" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+        <span>🖨️</span> In / PDF
+      </button>
+      <button onclick="toggleFullscreen()" class="p-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Toàn màn hình (F11)">
+        ⛶
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT CONTAINER ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8">
+
+    <!-- ======================================================== -->
+    <!-- VIEW 1: XEM CƠ BẢN (OVERVIEW & SUMMARY)                   -->
+    <!-- ======================================================== -->
+    <div id="viewOverview" class="space-y-8 animate-fadeIn">
+      
+      <!-- Hero Banner -->
+      <div class="relative bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-slate-900 border border-blue-500/30 rounded-2xl p-6 md:p-8 overflow-hidden shadow-2xl">
+        <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="max-w-3xl">
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold mb-3">
+            <span>🚀 Backend Ready</span> • <span>Sẵn sàng kết nối Web App & PWA</span>
+          </div>
+          <h1 class="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            Khung Backend Toàn Diện <br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400">VinStay AI Residential Leasing Platform</span>
+          </h1>
+          <p class="text-slate-300 text-sm md:text-base mt-2 leading-relaxed">
+            Hệ sinh thái dịch vụ hoàn chỉnh thiết kế theo mô hình <strong>Asset-Light (0đ CapEx phần cứng)</strong>, giải quyết triệt để 5 nỗi đau cốt lõi của thị trường thuê chung cư: Chi phí ẩn, No-show môi giới ảo, Chủ nhà phải đi lại, Rủi ro pháp lý & Tranh chấp cọc.
+          </p>
+
+          <!-- Metric Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 uppercase font-semibold">Phân hệ nghiệp vụ</div>
+              <div class="text-xl font-black text-blue-400 mt-0.5">11 Modules</div>
+              <div class="text-[10px] text-slate-500">Clean Architecture</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 uppercase font-semibold">Data Models (Prisma)</div>
+              <div class="text-xl font-black text-teal-400 mt-0.5">22 Entities</div>
+              <div class="text-[10px] text-slate-500">Supabase PostgreSQL</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 uppercase font-semibold">Hành trình Người dùng</div>
+              <div class="text-xl font-black text-amber-400 mt-0.5">4 Vai trò</div>
+              <div class="text-[10px] text-slate-500">Tenant, Host, Landlord, Admin</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 uppercase font-semibold">Bảo mật Danh tính</div>
+              <div class="text-xl font-black text-emerald-400 mt-0.5">Zero-Storage</div>
+              <div class="text-[10px] text-slate-500">NĐ 356/2025/NĐ-CP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Switch to Show Mode Banner -->
+      <div class="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-blue-950/40 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+            📊
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white">Bạn muốn xem sơ đồ chi tiết dòng dữ liệu & kiến trúc?</div>
+            <div class="text-xs text-slate-400">Bấm nút "Mở Trình Chiếu Sơ Đồ" để khám phá 6 sơ đồ kiến trúc động chuẩn C4 Model, ERD & Sequence.</div>
+          </div>
+        </div>
+        <button onclick="switchView('show')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer shrink-0">
+          <span>⚡ Mở Show Sơ Đồ Ngay</span>
+        </button>
+      </div>
+
+      <!-- 11 Modules Detailed Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-white">Bảng Danh Sách 11 Phân Hệ Backend & API Endpoints</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Thiết kế phục vụ trực tiếp cho bộ Prototype tương tác đa vai trò</p>
+          </div>
+          <span class="text-xs font-mono text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Base URL: http://localhost:3000/api/v1</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="p-3.5">#</th>
+                <th class="p-3.5">Phân hệ (Module)</th>
+                <th class="p-3.5">Endpoint API</th>
+                <th class="p-3.5">Phương thức</th>
+                <th class="p-3.5">Chức năng & Logic cốt lõi</th>
+                <th class="p-3.5">Đối tượng phục vụ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">01</td>
+                <td class="p-3.5 font-bold text-white">Property Module</td>
+                <td class="p-3.5 font-mono text-blue-400">/properties/units</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400">GET</span></td>
+                <td class="p-3.5">Bóc tách 4 khoản phí All-in Cost: Tiền thuê gốc + Phí BQL (9.5k/m2) + Gửi xe + Điện nước (300k/người). Gắn badge căn hời.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Khách Thuê (Màn 1)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">02</td>
+                <td class="p-3.5 font-bold text-white">AI Matchmaker</td>
+                <td class="p-3.5 font-mono text-blue-400">/matchmaker/recommend</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Quét rổ hàng 30s, loại bỏ căn vượt trần ngân sách, xếp hạng Top 3 căn hời nhất kèm giải trình tiết kiệm hàng tháng.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Khách Thuê (Màn 2)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">03</td>
+                <td class="p-3.5 font-bold text-white">Booking & Sảnh 1-chạm</td>
+                <td class="p-3.5 font-mono text-blue-400">/bookings/confirm<br>/bookings/:id/lobby-checkin</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Xác thực OTP SĐT diệt môi giới ảo/no-show. Nút 1-chạm Zalo T-10m [📍 Tôi đã có mặt tại sảnh], Host ra quẹt thẻ đón trong 60s.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Khách Thuê (Màn 3, 4)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">04</td>
+                <td class="p-3.5 font-bold text-white">Host Dispatch PWA</td>
+                <td class="p-3.5 font-mono text-blue-400">/dispatch/tickets/:id/accept<br>/dispatch/tickets/:id/reveal-key</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Điều phối 3 tầng SLA (5p -> 3p <=500m -> Area Lead). Cấp mã mở cửa Vault JIT tại phòng, 0 dùng Lockbox, gửi alert Zalo cho chủ nhà.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">Field Host (Màn 1-3)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">05</td>
+                <td class="p-3.5 font-bold text-white">VietQR Cọc 2M</td>
+                <td class="p-3.5 font-mono text-blue-400">/deposits/generate-vietqr<br>/deposits/webhook-vietqr</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">VietQR động có Attribution Lock (host_id). Webhook gạch nợ <= 5s, khóa căn HOLDING 7 ngày, Conflict Resolver tự động hủy lịch trùng.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Khách Thuê (Màn 5)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">06</td>
+                <td class="p-3.5 font-bold text-white">FPT.AI eKYC</td>
+                <td class="p-3.5 font-mono text-blue-400">/identity/ekyc/verify</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Xác thực CCCD 2 mặt, Face Liveness Detection, đối chiếu C06. Cơ chế Zero-Storage RAM 0 byte lưu ổ cứng tuân thủ NĐ 356/2025.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">Khách Thuê (Màn 6)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">07</td>
+                <td class="p-3.5 font-bold text-white">Contract & E-Sign</td>
+                <td class="p-3.5 font-mono text-blue-400">/contracts/holding-agreement/sign<br>/contracts/mandate/create</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Ký số Canvas + Zalo OTP, niêm phong SHA-256 + Dấu thời gian RFC 3161. Trao danh bạ thợ ngoài uy tín Ocean Park. Ký Mandate độc quyền.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-medium">Khách & Chủ Nhà</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">08</td>
+                <td class="p-3.5 font-bold text-white">Landlord Ở Nhà 100%</td>
+                <td class="p-3.5 font-mono text-blue-400">/landlord/dashboard<br>/landlord/mandates/request-exit</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400">GET/POST</span></td>
+                <td class="p-3.5">Bảng điều khiển 0km đi lại, 0 phút mở cửa. Giám sát cọc 2M, Audit Trail mở cửa. Kích hoạt thoát ủy quyền linh hoạt 15 ngày (khi căn Available).</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 font-medium">Chủ Nhà (Màn 1-4)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">09</td>
+                <td class="p-3.5 font-bold text-white">Handover Passport</td>
+                <td class="p-3.5 font-mono text-blue-400">/handovers</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400">POST</span></td>
+                <td class="p-3.5">Hộ chiếu bàn giao 10 hạng mục nội thất + công tơ điện nước Host nhập tay + ảnh timestamp. Ví Host nhận ngay +450.000đ.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">Field Host (Màn 4)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">10</td>
+                <td class="p-3.5 font-bold text-white">Admin BI & Heatmap</td>
+                <td class="p-3.5 font-mono text-blue-400">/admin/bi-funnel<br>/admin/exclusive-inventory</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400">GET</span></td>
+                <td class="p-3.5">Phễu chuyển đổi 6 giai đoạn (no-show 3.8%), Occupancy Heatmap Sapphire 1 & 2. Quản lý 128 căn hộ độc quyền & theo dõi thoát 15 ngày.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-medium">Admin (Mod 1, 2)</span></td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3.5 font-bold text-slate-500">11</td>
+                <td class="p-3.5 font-bold text-white">Dynamic Commission</td>
+                <td class="p-3.5 font-mono text-blue-400">/admin/commission-engine<br>/admin/dispatch-sla</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-purple-500/20 text-purple-400">GET/POST</span></td>
+                <td class="p-3.5">Giám sát SLA ca trực (báo động đỏ >3p). Cấu hình 4 biến phí thù lao, tính Weekly Payout, xuất file chuyển khoản ngân hàng 1-chạm.</td>
+                <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-medium">Admin (Mod 3, 4)</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Run Instructions -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="font-bold text-slate-200 flex items-center gap-2">
+            <span>1️⃣</span> Cài đặt & Khởi động
+          </div>
+          <pre class="bg-slate-950 p-2.5 rounded-lg mt-2 text-slate-400 text-[11px] overflow-x-auto">cd backend
+npm install
+npm run start:dev</pre>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="font-bold text-slate-200 flex items-center gap-2">
+            <span>2️⃣</span> Đồng bộ Prisma Schema
+          </div>
+          <pre class="bg-slate-950 p-2.5 rounded-lg mt-2 text-slate-400 text-[11px] overflow-x-auto">npx prisma generate
+npx prisma db push
+npx prisma db seed</pre>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="font-bold text-slate-200 flex items-center gap-2">
+            <span>3️⃣</span> Truy cập Swagger & Test
+          </div>
+          <pre class="bg-slate-950 p-2.5 rounded-lg mt-2 text-slate-400 text-[11px] overflow-x-auto"># Swagger UI Docs
+http://localhost:3000/api/docs
+# Test API All-in Cost
+http://localhost:3000/api/v1/properties/units</pre>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- VIEW 2: MỞ TRÌNH CHIẾU SƠ ĐỒ (SHOW MODE - INTERACTIVE)    -->
+    <!-- ======================================================== -->
+    <div id="viewShow" class="space-y-6 hidden animate-fadeIn">
+      
+      <!-- Diagram Category Selector -->
+      <div class="bg-slate-900 border border-slate-800 p-2 rounded-2xl flex flex-wrap gap-1.5 shadow-xl">
+        <button onclick="renderDiagramTab('c4_context')" id="tab_c4_context" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-blue-600 text-white shadow-md shadow-blue-500/20">
+          <span>🏛️</span>
+          <span>1. Kiến Trúc C4 & Toàn Cảnh</span>
+        </button>
+        <button onclick="renderDiagramTab('erd_models')" id="tab_erd_models" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span>🗄️</span>
+          <span>2. Sơ Đồ ERD 22 Data Models</span>
+        </button>
+        <button onclick="renderDiagramTab('flow_sequence')" id="tab_flow_sequence" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span>🔄</span>
+          <span>3. Luồng Nghiệp Vụ End-to-End</span>
+        </button>
+        <button onclick="renderDiagramTab('vault_doorkey')" id="tab_vault_doorkey" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span>🔐</span>
+          <span>4. Bảo Mật Vault & Mã Khóa JIT</span>
+        </button>
+        <button onclick="renderDiagramTab('deposit_conflict')" id="tab_deposit_conflict" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span>⚡</span>
+          <span>5. VietQR 2M & Conflict Resolver</span>
+        </button>
+        <button onclick="renderDiagramTab('dispatcher_sla')" id="tab_dispatcher_sla" class="diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <span>🚗</span>
+          <span>6. Dispatch 3 Tầng & Dynamic Biến Phí</span>
+        </button>
+      </div>
+
+      <!-- Diagram Viewer Screen -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl relative">
+        
+        <!-- Diagram Meta Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+          <div>
+            <div id="diagramBadge" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30 mb-1">
+              Architecture Overview
+            </div>
+            <h2 id="diagramTitle" class="text-xl md:text-2xl font-black text-white">
+              Sơ Đồ Kiến Trúc Hệ Thống C4 & Bối Cảnh (Context & Container)
+            </h2>
+            <p id="diagramDesc" class="text-xs text-slate-400 mt-0.5">
+              Mô hình hóa các mối quan hệ giữa 4 nhóm người dùng, NestJS Backend, Supabase và các đối tác số Việt Nam (Zalo, FPT.AI eKYC, VietQR).
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copyCurrentMermaid()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5" title="Copy mã nguồn Mermaid">
+              📋 <span>Copy Code</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mermaid Diagram Container (Rendered Canvas) -->
+        <div id="diagramCanvasWrapper" class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 md:p-8 flex justify-center items-center overflow-x-auto min-h-[500px]">
+          <div id="mermaidTarget" class="mermaid w-full flex justify-center">
+            <!-- Mermaid Code will be injected here -->
+          </div>
+        </div>
+
+        <!-- Guardrail Verification Checklist -->
+        <div id="diagramChecklist" class="mt-6 pt-5 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <!-- Injected dynamically -->
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="no-print border-t border-slate-800/80 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
+    Đề án VinStay AI • Team T-010 • AI20K Build Phase Cohort 4 • Bám sát tài liệu SAD v2.0 & Prototype Presentation
+  </footer>
+
+  <!-- ================= LOGIC & JAVASCRIPT ================= -->
+  <script>
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#020617',
+        primaryColor: '#2563eb',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#3b82f6',
+        lineColor: '#64748b',
+        secondaryColor: '#059669',
+        tertiaryColor: '#0f172a'
+      }
+    });
+
+    // Diagram Sources Store
+    const DIAGRAMS = {
+      c4_context: {
+        badge: 'C4 MODEL • CONTEXT & CONTAINERS',
+        title: 'Sơ Đồ Kiến Trúc Hệ Thống C4 & Bối Cảnh (Context & Containers)',
+        desc: 'Mô hình tương tác giữa 4 nhóm người dùng, NestJS Backend, Supabase DB/Auth và hạ tầng số Việt Nam.',
+        checklist: [
+          '✅ Asset-Light: 0đ CapEx phần cứng IoT, không Lockbox',
+          '✅ Supabase PostgreSQL + Auth (JWT & JWKS)',
+          '✅ Đối tác eKYC thương mại FPT.AI đối chiếu C06'
+        ],
+        code: `flowchart TB
+    subgraph Actors["4 Nhóm Người Dùng"]
+        Tenant["Khách Thuê (Tenant)<br>Web PWA + Zalo"]
+        Landlord["Chủ Nhà (Landlord)<br>Ở nhà 100%"]
+        Host["Field Host (Sale)<br>Mobile PWA 1-chạm"]
+        Admin["Quản Trị Viên (Admin)<br>BI & Biến Phí"]
+    end
+
+    subgraph BackendApp["VinStay AI Platform (NestJS 10)"]
+        Gateway["API Gateway & Supabase Guard"]
+        subgraph BusinessModules["11 Phân Hệ Nghiệp Vụ Lõi"]
+            PropSvc["Property & All-in Cost"]
+            MatchSvc["AI Matchmaker 30s"]
+            BookSvc["Booking & Đón Sảnh"]
+            DispSvc["Dispatcher 3 Tầng"]
+            DepSvc["VietQR 2M & Conflict Resolver"]
+            IdSvc["Identity & eKYC Zero-Storage"]
+            ContSvc["Contract & E-Sign Engine"]
+            LandSvc["Landlord 0km & Thoát 15d"]
+            HandSvc["Hộ Chiếu Bàn Giao 10 Hạng Mục"]
+            AdmSvc["BI Funnel & Dynamic Commission"]
+            AuditSvc["Audit Log Append-Only"]
+        end
+    end
+
+    subgraph DataStorage["Lưu Trữ & Bảo Mật (Supabase Cloud)"]
+        Postgres[(Supabase PostgreSQL<br>22 Prisma Models)]
+        Vault[(Vault AES-256<br>Mã PIN Cửa & eKYC Data)]
+        S3[(Supabase Storage<br>Hợp đồng & Ảnh Kiểm Định)]
+    end
+
+    subgraph ExternalPartners["Hạ Tầng Đối Tác Số Việt Nam"]
+        Zalo["Zalo OA / ZNS<br>T-10m & OTP"]
+        FPT["FPT.AI eKYC<br>Liveness & C06"]
+        Napas["VietQR Napas 247<br>Gạch Nợ <= 5s"]
+    end
+
+    Tenant <--> Gateway
+    Landlord <--> Gateway
+    Host <--> Gateway
+    Admin <--> Gateway
+
+    Gateway --> BusinessModules
+    BusinessModules <--> Postgres
+    BusinessModules <--> Vault
+    BusinessModules <--> S3
+
+    BusinessModules <--> Zalo
+    BusinessModules <--> FPT
+    BusinessModules <--> Napas`
+      },
+
+      erd_models: {
+        badge: 'PRISMA ORM • 22 MODELS ERD',
+        title: 'Sơ Đồ Quan Hệ Thực Thể (ERD 22 Data Models)',
+        desc: 'Mô hình dữ liệu chuẩn PostgreSQL / Supabase được định nghĩa trong prisma/schema.prisma.',
+        checklist: [
+          '✅ Phân quyền RBAC 7 Roles (Role, Permission, Profile)',
+          '✅ Mã hóa DoorAccessKey tách biệt qua VaultSecretRef',
+          '✅ AuditLog bất biến append-only ghi vết 100%'
+        ],
+        code: `erDiagram
+    ROLES ||--o{ PROFILES : assigns
+    PROFILES ||--o{ UNITS : owns
+    PROFILES ||--o| FIELD_HOSTS : is
+    BUILDINGS ||--o{ UNITS : houses
+    UNITS ||--o| DOOR_ACCESS_KEYS : secures
+    UNITS ||--o{ EXCLUSIVE_MANDATES : mandates
+    UNITS ||--o{ VIEWINGS : books
+    UNITS ||--o{ HOLDING_DEPOSITS : locks_7d
+    UNITS ||--o{ CONTRACTS : leases
+    VIEWINGS ||--o{ DISPATCH_TICKETS : triggers
+    FIELD_HOSTS ||--o{ DISPATCH_TICKETS : receives
+    FIELD_HOSTS ||--o{ HOST_PAYOUTS : earns
+    VIEWINGS ||--o| HOLDING_DEPOSITS : converts
+    HOLDING_DEPOSITS ||--o| IDENTITY_VERIFICATIONS : requires
+    HOLDING_DEPOSITS ||--o{ ESCROW_TRANSACTIONS : logs
+    HOLDING_DEPOSITS ||--o| CONTRACTS : finalizes
+    CONTRACTS ||--o{ DIGITAL_HANDOVERS : inspects
+    DIGITAL_HANDOVERS ||--o{ HANDOVER_ITEMS : checks_10
+    DIGITAL_HANDOVERS ||--o{ UTILITY_READINGS : meters
+    SIGNED_DOCUMENTS ||--o{ SIGNATURES : seals
+    PROFILES ||--o{ AUDIT_LOGS : acts`
+      },
+
+      flow_sequence: {
+        badge: 'SEQUENCE FLOW • 4 ROLES',
+        title: 'Luồng Nghiệp Vụ End-to-End Toàn Bộ Vòng Đời Thuê',
+        desc: 'Quy trình tương tác tuần tự từ lúc Chủ nhà ký gửi, Khách tìm căn, Đón sảnh, Cọc VietQR đến Ký số.',
+        checklist: [
+          '✅ 0km đi lại, 0 phút mở cửa cho Chủ nhà',
+          '✅ Đón sảnh 1-chạm, 0 dán QR sảnh vi phạm BQL',
+          '✅ Cọc 2M chuyển thành Security Deposit (không trừ tiền thuê)'
+        ],
+        code: `sequenceDiagram
+    autonumber
+    actor L as 🏠 Chủ Nhà
+    actor T as 👤 Khách Thuê
+    actor H as 🚶 Field Host
+    participant API as ⚙️ Backend API
+    participant Z as 📱 Zalo ZNS
+    participant B as 💳 VietQR Bank
+
+    L->>API: 1. Ký gửi Độc quyền Mandate (nhập mã PIN cửa)
+    API->>API: Mã hóa PIN lưu Vault AES-256 (0 lưu plaintext)
+    T->>API: 2. Quét AI Matchmaker 30s & chọn lịch hẹn
+    API->>Z: Gửi OTP xác thực SĐT (diệt no-show)
+    T->>API: 3. Xác thực OTP & chốt lịch xem phòng
+    API->>H: 4. Phát Ticket ca trực Tầng 1 (SLA 5 phút)
+    H->>API: Host bấm [⚡ Nhận Ca Trực]
+    Note over T,H: Đến giờ hẹn (Mốc T-10m)
+    Z->>T: Gửi tin Zalo T-10m kèm nút [Tôi đã có mặt tại sảnh]
+    T->>Z: Bấm nút 1-chạm
+    API->>H: Báo động Host ra sảnh quẹt thẻ RFID thang máy
+    H->>API: Đứng trước phòng -> Bấm [🔓 Mở cửa JIT]
+    API-->>H: Cấp mã PIN 482910# (không cache, gửi Zalo báo Chủ nhà)
+    T->>API: 5. Ưng ý -> Quét VietQR cọc 2.000.000 VNĐ
+    B->>API: Webhook gạch nợ <= 5s
+    API->>API: Khóa căn HOLDING 7 ngày & Tự hủy lịch trùng
+    T->>API: 6. Quét FPT.AI eKYC (Zero-Storage RAM 0 byte)
+    T->>API: Ký Thỏa thuận cọc số Canvas + OTP
+    API->>Z: Gửi PDF niêm phong SHA-256 cho Khách & Chủ Nhà`
+      },
+
+      vault_doorkey: {
+        badge: 'SECURITY & VAULT • ZERO LOCKBOX',
+        title: 'Kiến Trúc Quản Lý Mã Khóa Cửa Cố Định (Door Key Vault)',
+        desc: 'Cơ chế bảo vệ mã khóa điện tử nghiêm ngặt bám sát nguyên tắc Asset-Light (cấm treo Lockbox ở cửa hành lang).',
+        checklist: [
+          '✅ Cấm Lockbox treo cửa vi phạm quy chế BQL Vinhomes',
+          '✅ Mã số lưu AES-256 trong Vault, Database chỉ giữ vault_secret_ref',
+          '✅ Cấp phát có điều kiện JIT: chỉ hiển thị cho Host khi ticket ACCEPTED/active'
+        ],
+        code: `flowchart TD
+    subgraph MandatePhase["Giai Đoạn 1: Chủ Nhà Cấu Hình"]
+        L[Chủ Nhà nhập mã số 482910# khi ký Mandate] --> Enc[Mã hóa AES-256-GCM]
+        Enc --> Vault[(Vault Secret Store<br>vault:aes256:pin:482910)]
+        Enc -.-> DB[(PostgreSQL Units Table<br>Chỉ lưu vault_secret_ref)]
+    end
+
+    subgraph ViewingPhase["Giai Đoạn 2: Cấp Phát JIT Khi Xem Phòng"]
+        HostApp[Field Host Mobile PWA] --> Check{Kiểm tra Ticket?}
+        Check -->|Status != ACCEPTED| Deny[Từ chối cấp mã<br>HTTP 403 Forbidden]
+        Check -->|Status == ACCEPTED & Trước cửa| Allow[Cấp mã JIT hiển thị trên màn hình]
+        Allow --> Decrypt[Giải mã từ Vault]
+        Decrypt --> Display[Hiển thị: 482910#<br>Không cache offline/localStorage]
+    end
+
+    subgraph AuditPhase["Giai Đoạn 3: Giám Sát & Thoát"]
+        Allow --> Audit[(Audit Log Append-Only<br>Ai mở - Lúc nào - Căn nào)]
+        Allow --> ZaloNotify[Gửi tin nhắn Zalo cho Chủ Nhà:<br>Căn hộ đang được mở cửa xem phòng]
+        ExitCmd[Hết hạn thoát 15 ngày] --> Purge[Xóa vĩnh viễn khỏi hệ thống Host]
+    end`
+      },
+
+      deposit_conflict: {
+        badge: 'PAYMENT & CONFLICT RESOLVER',
+        title: 'Luồng VietQR Gạch Nợ & Conflict Resolver Khóa Căn 7 Ngày',
+        desc: 'Cơ chế khóa giao dịch PostgreSQL đảm bảo tính nhất quán (ACID), tự động giải quyết xung đột lịch xem.',
+        checklist: [
+          '✅ Webhook ngân hàng xử lý bất đồng bộ idempotent <= 5s',
+          '✅ Chuyển trạng thái HOLDING 7 ngày toàn mạng lưới',
+          '✅ Tự động hủy lịch trùng và kích hoạt gợi ý Zalo 2 căn thay thế'
+        ],
+        code: `flowchart TD
+    Tenant[Khách Thuê quét VietQR 2.000.000đ] --> Bank[Cổng Thanh Toán / Ngân Hàng Napas 247]
+    Bank -->|POST Webhook <= 5s| WebhookHandler[Deposit Webhook Controller]
+
+    subgraph TransactionBlock["PostgreSQL Transaction (FOR UPDATE)"]
+        WebhookHandler --> Idempotent{Kiểm tra trùng lặp?}
+        Idempotent -->|Đã thanh toán| Return200[Bỏ qua - Trả HTTP 200]
+        Idempotent -->|Mới| LockUnit[Khóa bản ghi Căn hộ]
+        LockUnit --> UpdateDeposit[Cập nhật cọc: PAID_HOLDING<br>Hạn giữ chỗ: expires_at = now + 7 ngày]
+        UpdateDeposit --> UpdateUnitStatus[Chuyển trạng thái căn: HOLDING]
+    end
+
+    subgraph ConflictResolver["Conflict Resolver Engine"]
+        UpdateUnitStatus --> FindConflicts[Tìm các lịch xem PENDING/CONFIRMED còn lại]
+        FindConflicts --> AutoCancel[Tự động chuyển status = CANCELLED<br>Lý do: AUTO_CANCELLED_DUE_TO_DEPOSIT]
+        AutoCancel --> ZaloSuggest[Bắn Zalo Bot thông báo lịch hủy<br>+ Gợi ý 2 căn hộ tương đương cùng phân khu]
+    end
+
+    subgraph HostReward["Thưởng Biến Phí Host"]
+        UpdateUnitStatus --> AddWallet[Cộng ví Field Host: +450.000 VNĐ<br>50k phí dẫn + 400k hoa hồng cọc]
+        AddWallet --> LogAudit[Ghi Audit Log giao dịch cọc 7 ngày]
+    end`
+      },
+
+      dispatcher_sla: {
+        badge: 'DISPATCH & COMMISSION ENGINE',
+        title: 'Điều Phối 3 Tầng SLA & Dynamic Commission Engine',
+        desc: 'Thuật toán điều phối Field Host tinh gọn (Rule Engine) và bảng tính hoa hồng biến phí thời gian thực.',
+        checklist: [
+          '✅ SLA 3 tầng: 5 phút Host chỉ định -> 3 phút Open Pool <=500m -> Area Lead',
+          '✅ 4 tham số biến phí: Thù lao dẫn, Hoa hồng cọc, Hệ số 5-star, Thưởng giờ vàng',
+          '✅ Xuất file bảng kê thanh toán tuần (Weekly Payout) 1-chạm'
+        ],
+        code: `flowchart TD
+    NewViewing[Khách xác nhận lịch xem phòng] --> Tier1[TẦNG 1: Host chỉ định phân khu<br>Đồng hồ đếm ngược SLA: 5 phút]
+    
+    Tier1 -->|Host bấm Nhận 1-chạm| Accepted1[Host tiếp quản ca trực]
+    Tier1 -->|Quá 5 phút chưa ai nhận| Tier2[TẦNG 2: Open Pool bán kính <= 500m<br>Đồng hồ đếm ngược SLA: 3 phút]
+
+    Tier2 -->|Host gần nhất bấm Nhận| Accepted2[Host tiếp quản ca trực]
+    Tier2 -->|Quá 3 phút báo động đỏ| Tier3[TẦNG 3: Broadcast Area Lead<br>Trưởng khu vực tiếp quản & chỉ định khẩn]
+
+    subgraph CommissionEngine["Dynamic Commission Engine (Quản Trị Viên)"]
+        Accepted1 & Accepted2 & Tier3 --> ViewingDone[Hoàn tất xem phòng / Chốt deal]
+        ViewingDone --> Calc[Tính biến phí tự động]
+        Calc --> Formula["Thu nhập = (Base 50k x Giờ Vàng) + (Cọc 400k x Hệ số Sao)"]
+        Formula --> WeeklyTable[Bảng kê thanh toán tuần Weekly Payout]
+        WeeklyTable --> BankExport[Xuất file Excel/CSV chuyển khoản ngân hàng 1-chạm]
+    end`
+      }
+    };
+
+    let currentDiagramKey = 'c4_context';
+
+    // Switch between Overview Mode and Show Mode
+    function switchView(mode) {
+      const viewOverview = document.getElementById('viewOverview');
+      const viewShow = document.getElementById('viewShow');
+      const btnOverview = document.getElementById('btnOverviewMode');
+      const btnShow = document.getElementById('btnShowMode');
+
+      if (mode === 'show') {
+        viewOverview.classList.add('hidden');
+        viewShow.classList.remove('hidden');
+        
+        btnOverview.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800';
+        btnShow.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-md shadow-emerald-500/20';
+
+        // Render current diagram tab
+        renderDiagramTab(currentDiagramKey);
+      } else {
+        viewShow.classList.add('hidden');
+        viewOverview.classList.remove('hidden');
+
+        btnOverview.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-md shadow-blue-500/20';
+        btnShow.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800';
+      }
+    }
+
+    // Switch Diagram Tab inside Show Mode
+    async function renderDiagramTab(key) {
+      currentDiagramKey = key;
+      const data = DIAGRAMS[key];
+      if (!data) return;
+
+      // Update Tab Buttons UI
+      document.querySelectorAll('.diagram-tab-btn').forEach(btn => {
+        btn.className = 'diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800';
+      });
+      const activeBtn = document.getElementById(`tab_${key}`);
+      if (activeBtn) {
+        activeBtn.className = 'diagram-tab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-blue-600 text-white shadow-md shadow-blue-500/20';
+      }
+
+      // Update Title & Descriptions
+      document.getElementById('diagramBadge').innerText = data.badge;
+      document.getElementById('diagramTitle').innerText = data.title;
+      document.getElementById('diagramDesc').innerText = data.desc;
+
+      // Update Checklist
+      const checklistHtml = data.checklist.map(item => `
+        <div class="bg-slate-950/80 border border-slate-800 p-2.5 rounded-lg text-slate-300 font-medium">
+          ${item}
+        </div>
+      `).join('');
+      document.getElementById('diagramChecklist').innerHTML = checklistHtml;
+
+      // Render Mermaid Diagram
+      const target = document.getElementById('mermaidTarget');
+      target.removeAttribute('data-processed');
+      target.innerHTML = data.code;
+
+      try {
+        await mermaid.run({ nodes: [target] });
+      } catch (err) {
+        console.error('Mermaid render error:', err);
+      }
+    }
+
+    // Copy Mermaid Code
+    function copyCurrentMermaid() {
+      const data = DIAGRAMS[currentDiagramKey];
+      if (data) {
+        navigator.clipboard.writeText(data.code).then(() => {
+          alert('Đã copy mã Mermaid vào clipboard thành công!');
+        });
+      }
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 's' || e.key === 'S') {
+        const isShow = !document.getElementById('viewShow').classList.contains('hidden');
+        switchView(isShow ? 'overview' : 'show');
+      }
+    });
+
+    // Auto-load on ready
+    window.addEventListener('DOMContentLoaded', () => {
+      // Default in overview mode
+    });
+  </script>
+</body>
+</html>
