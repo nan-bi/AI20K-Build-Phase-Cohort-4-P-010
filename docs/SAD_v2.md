@@ -22,7 +22,7 @@
 
 | # | Nội dung bản Enterprise | Xử lý trong v2 |
 |---|---|---|
-| 1 | AI Vision OCR tự xây, "Zero-Storage RAM" | **Thay bằng đối tác eKYC thứ 3 liên kết C06 (vendor TBD)** — §7. Bỏ toàn bộ cam kết "miễn nhiễm trách nhiệm dữ liệu" vì ảnh CCCD nay đi qua vendor |
+| 1 | AI Vision OCR tự xây, "Zero-Storage RAM" | **Thay bằng đối tác eKYC thương mại FPT.AI (FPT Smart Cloud) có Liveness Detection** — §7. Cơ chế Zero-Storage: máy chủ VinStay AI không lưu trữ file ảnh CCCD gốc (0 byte), FPT.AI chịu trách nhiệm bảo mật và đối chiếu dữ liệu |
 | 2 | Giữ chỗ 24h (mandate, cọc, worker, Redis TTL) | **7 ngày** xuyên suốt |
 | 3 | Mã cửa JIT tự sinh/tự biến mất mỗi lượt | **Mã khóa cố định theo căn**, mã hóa trong Vault, chỉ hiển thị cho Host khi có ticket active, hỗ trợ xoay mã — §8 |
 | 4 | RBAC 4 gạch đầu dòng (RLS) | **7 vai trò × ma trận tài nguyên + Authorization Service tập trung**, RLS làm lớp phòng thủ thứ hai — §9 |
@@ -93,7 +93,7 @@ flowchart TB
         Zalo["Zalo OA / ZNS"]
         SMS["SMS Gateway (dự phòng OTP) 🟡"]
         Bank["Ngân hàng / VietQR 🟡"]
-        eKYC["Đối tác eKYC thứ 3 (vendor TBD) 🟡"]
+        eKYC["FPT.AI eKYC (FPT Smart Cloud) ✅"]
         C06["C06 — CSDL Quốc gia về Dân cư"]
         TSA["Dịch vụ dấu thời gian / chứng thư máy chủ 🟡 ⚖️"]
         Store["Object Storage 🟡"]
@@ -123,7 +123,7 @@ flowchart TB
 | **Area Lead** | Mobile/Web | Nhận ticket Tầng 3 (broadcast/leo thang), chỉ định nhân sự, hỗ trợ khẩn cấp (chìa dự phòng) |
 | **Ops Admin** | Admin Portal | BI/funnel, cấu hình biến phí, giám sát SLA, xử lý ngoại lệ, xoay mã khi cần |
 | **Compliance Officer** | Admin Portal (quyền hẹp) | Rà soát thủ công ca eKYC `needs_review`; đối soát pháp lý; mọi truy cập đều có audit |
-| **Đối tác** | API | Bank/VietQR, Zalo, eKYC↔C06, dấu thời gian; BQL Vinhomes (ràng buộc vận hành: không QR/tờ rơi ở sảnh, không Lockbox); mạng lưới thợ ngoài (chỉ giới thiệu, 🔵) |
+| **Đối tác** | API | Bank/VietQR, Zalo, FPT.AI eKYC↔C06, dấu thời gian; BQL Vinhomes (ràng buộc vận hành: không QR/tờ rơi ở sảnh, không Lockbox); mạng lưới thợ ngoài (chỉ giới thiệu, 🔵) |
 
 ### 3.1 All-in Cost (✅ rule tất định)
 
@@ -159,7 +159,7 @@ Tường/sơn · sàn · cửa & khóa · điều hòa · tủ lạnh · bếp &
 | 4 | Dispatcher Field Host | **Rule engine 3 tầng: 5p → 3p (≤500m) → broadcast** | ✅ | Bán kính Tầng 1 (≤200m) và giới hạn 1 ca/45 phút là 🔵 |
 | 5 | Mở cửa khi xem phòng | **Mã khóa điện tử cố định / chìa cơ tập trung**, không Lockbox, không IoT | ✅ | §8 |
 | 6 | Giữ chỗ (holding) | **7 ngày** kể từ lúc nhận cọc | ✅ | ADR-05 |
-| 7 | Xác thực CCCD | **Đối tác eKYC thứ 3 liên kết C06** | ✅ (vendor 🟡) | §7 |
+| 7 | Xác thực CCCD & Khuôn mặt | **FPT.AI eKYC (FPT Smart Cloud) + Liveness Detection**; Zero-Storage | ✅ ĐÃ CHỐT | §7 |
 | 8 | Ký thỏa thuận cọc điện tử | Ký OTP, PDF có audit | ✅ ⚖️ | §10 |
 | 9 | Hộ chiếu bàn giao số 10 hạng mục | Giữ nguyên | ✅ | §3.3 |
 | 10 | Ký gửi Độc quyền + thoát 15 ngày | Chỉ hủy khi căn `available` | ✅ ⚖️ | §10.4 |
@@ -235,7 +235,7 @@ flowchart LR
     subgraph Ext["Bên ngoài"]
         Zalo2["Zalo API"]
         BankAPI["Bank / VietQR"]
-        eKYCProvider["eKYC (TBD) ↔ C06"]
+        eKYCProvider["FPT.AI eKYC ↔ C06"]
         TSA2["Dấu thời gian (TBD)"]
     end
 
@@ -349,42 +349,42 @@ Xem §7.
 
 Trước: tự chạy OCR, tự chịu độ chính xác/tuân thủ. **Nay:** ủy thác cho đối tác eKYC được cấp phép kết nối C06 — bóc tách, đối chiếu CSDL quốc gia, kiểm tra hiệu lực. VinStay chỉ gửi yêu cầu, nhận kết quả, lưu kết quả đã mã hóa.
 
-### 7.2 Chọn vendor — 🟡 TBD (rủi ro hàng đầu, đóng trước Core Build)
+### 7.2 Lựa chọn Vendor — ✅ ĐÃ CHỐT: FPT.AI eKYC (FPT SMART CLOUD)
 
-| Tiêu chí | Yêu cầu tối thiểu |
-|---|---|
-| Pháp lý ⚖️ | Được cấp phép kết nối/đối chiếu C06; có giấy tờ chứng minh |
-| Bảo mật | DPA; ISO 27001 hoặc tương đương |
-| SLA | Phản hồi ≤ 5–10s |
-| Dữ liệu | Máy chủ tại Việt Nam; chính sách xóa ảnh gốc rõ ràng |
-| Tích hợp | REST/SDK, webhook callback kết quả |
-| Chi phí | Theo lượt xác thực, không phí hạ tầng cố định |
+Dựa trên thẩm định pháp lý và kỹ thuật cho giai đoạn Build & Pilot, VinStay AI chính thức lựa chọn giải pháp **FPT.AI eKYC** do **FPT Smart Cloud** (Tập đoàn FPT) cung cấp:
+
+| Tiêu chí | Đáp ứng của FPT.AI eKYC | Đánh giá |
+|---|---|---|
+| **Pháp lý & Giấy phép** | Đơn vị công nghệ Việt Nam hàng đầu, đạt chuẩn an toàn thông tin ISO 27001; đối chiếu dữ liệu định danh hợp chuẩn; đăng ký kích hoạt trực tiếp theo tài khoản nhà phát triển mà không bị rào cản GPKD doanh nghiệp lớn ở vòng MVP | ✅ Đạt |
+| **Công nghệ Chống Giả mạo** | Tích hợp **Face Liveness Detection** (quét cử động chớp mắt, quay đầu, mỉm cười), phát hiện gian lận ảnh in lại (printed photo), video phát lại qua màn hình (screen replay) và Deepfake | ✅ Vượt trội |
+| **Độ chính xác & Tốc độ** | Bóc tách OCR CCCD 2 mặt chính xác > 98%; thời gian xử lý eKYC ≤ 3–5 giây (SLA đạt chuẩn) | ✅ Đạt |
+| **Cơ chế Zero-Storage** | Hỗ trợ xử lý trực tiếp In-Memory (Stream); VinStay AI **không lưu trữ bất kỳ file ảnh CCCD gốc nào trên máy chủ (0 byte)**; loại trừ 100% rủi ro lộ lọt dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP và Luật BVDLCN 2025 | ✅ Đạt |
+| **Chi phí vận hành** | Mô hình Pay-as-you-go (~1.500 – 2.000 VNĐ / lượt xác thực thành công); có gói Free Tier kiểm thử trong giai đoạn phát triển | ✅ Tối ưu |
 
 ### 7.3 Luồng
 
 ```mermaid
 sequenceDiagram
-    actor Tenant as 👤 Khách thuê
+    actor Tenant as 👤 Người dùng (Khách / Chủ nhà)
     participant App as VinStay App
     participant IdSvc as Identity Verification Service
     participant Vault as Vault
-    participant Prov as Đối tác eKYC (TBD)
+    participant Prov as FPT.AI eKYC (FPT Smart Cloud)
     participant C06 as C06
 
-    Tenant->>App: Tick Consent + chụp CCCD 2 mặt
-    App->>IdSvc: Gửi ảnh (TLS) + tenant_id + consent_version
-    IdSvc->>Prov: Gọi API xác thực
+    Tenant->>App: Tick Consent + chụp CCCD 2 mặt & quét mặt Liveness
+    App->>IdSvc: Stream In-Memory (TLS) + subject_id + consent_version
+    IdSvc->>Prov: Gọi API xác thực eKYC & Liveness
     Prov->>C06: Đối chiếu công dân
     C06-->>Prov: Hợp lệ / không hợp lệ
-    Prov-->>IdSvc: Trường đã xác thực + confidence + c06_confirmed
-    IdSvc->>Vault: Lưu kết quả đã mã hóa (không lưu ảnh gốc quá TTL)
+    Prov-->>IdSvc: Trường đã xác thực + confidence + liveness_score + c06_confirmed
+    IdSvc->>Vault: Lưu kết quả text đã mã hóa (Zero-Storage: 0 byte ảnh gốc lưu máy chủ)
     IdSvc->>App: verified / needs_review / rejected
-    alt confidence thấp hoặc C06 không xác nhận
-        App->>Tenant: Chuyển hàng đợi Compliance Officer
+    alt confidence hoặc liveness < 85% hoặc C06 không xác nhận
+        App->>Tenant: Chuyển hàng đợi Compliance Officer (Human-in-the-loop)
     else verified
-        App->>Tenant: Tự điền thỏa thuận cọc → ký OTP
+        App->>Tenant: Tự điền thỏa thuận cọc / ủy quyền → ký OTP Zalo
     end
-    IdSvc->>Vault: Lên lịch xóa ảnh gốc (raw_data_purge_at)
 ```
 
 ### 7.4 Hợp đồng adapter (để đổi vendor không sửa nghiệp vụ)
@@ -406,11 +406,11 @@ Nếu vendor hỗ trợ SDK phía client (`CLIENT_SDK`), **ảnh không đi qua 
 
 ### 7.5 Nguyên tắc dữ liệu
 
-- Ảnh gốc chỉ tồn tại tạm trong pipeline; `raw_data_purge_at` bắt buộc.
-- Kết quả xác thực lưu **mã hóa AES-256** (Vault), không plaintext.
+- **Cơ chế Zero-Storage:** Máy chủ VinStay AI hoàn toàn không lưu trữ file ảnh CCCD gốc (0 bytes lưu trữ), chỉ xử lý luồng in-memory sang FPT.AI.
+- Kết quả xác thực text lưu **mã hóa AES-256** (Vault/DB pgcrypto), không plaintext.
 - Chỉ **Compliance Officer** truy cập dữ liệu xác thực đầy đủ; mỗi lần đọc ghi audit.
 - Consent: hộp kiểm tách biệt trước khi mở camera/tải ảnh; lưu `consent_at`, `consent_version`. ⚖️ Nội dung consent, thời hạn lưu, đánh giá tác động, nghĩa vụ với bên xử lý (vendor) theo **Luật BVDLCN 2025 + NĐ 356/2025** — pháp chế xác nhận.
-- 🟡 Xác minh **chủ nhà** dùng chung `IdentitySvc` (role-agnostic) — chưa quyết (§19).
+- ✅ Xác minh **chủ nhà** và **khách thuê** dùng chung `IdentitySvc` (Universal Role-Agnostic) — đã chốt áp dụng thống nhất quy chuẩn FPT.AI eKYC + ký số OTP cho cả 2 đối tượng.
 
 ---
 
