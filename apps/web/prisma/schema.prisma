@@ -1,0 +1,332 @@
+// VinStay AI — Prisma schema, source of truth for the database.
+// Supersedes ../../database/schema.sql (kept as historical reference only).
+//
+// Auth phase (this migration): identity + RBAC for Landlord / Field Host / Admin,
+// plus the OTP infrastructure used to verify Tenant actions without a persistent
+// Tenant account. Business tables (units/viewings/holding_deposits) are carried
+// over as-is (minus the landlord_name/landlord_phone -> landlord_id swap) so
+// `prisma migrate` manages the whole database as one coherent baseline.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public", "auth"]
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+/// Stub model pointing at Supabase's own `auth.users` table. We never write to
+/// this table directly (Supabase Auth owns it) — it exists only so `Profile`
+/// can declare a real FK/shared-PK relation to it.
+model AuthUser {
+  id      String   @id @db.Uuid
+  profile Profile?
+
+  @@map("users")
+  @@schema("auth")
+}
+
+enum UserRole {
+  tenant
+  host
+  landlord
+  admin
+
+  @@schema("public")
+}
+
+enum ProfileStatus {
+  active
+  suspended
+
+  @@schema("public")
+}
+
+/// One row per authenticated identity, 1:1 with `auth.users` (shared primary
+/// key — Profile.id IS the Supabase auth user id, not a separate FK column).
+/// All four roles have a Profile. Tenant/Landlord sign up freely, Host needs
+/// an invited FieldHost row, Admin is provisioned by script.
+model Profile {
+  id          String        @id @db.Uuid
+  authUser    AuthUser      @relation(fields: [id], references: [id], onDelete: Cascade)
+  // Contact number. Not a login credential and not collected at sign-up: it is
+  // proven real by a separate Zalo OTP flow (`phone_verify` / tenant_*), which
+  // sets phoneVerifiedAt.
+  phone       String?       @unique @db.VarChar(20)
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  // Login identity for every role: Google or email + password. Admin is
+  // email + password only and is created by scripts/create-admin.ts.
+  email       String?       @unique @db.VarChar(120)
+  role        UserRole
+  fullName    String?       @map("full_name") @db.VarChar(100)
+  status      ProfileStatus @default(active)
+  lastLoginAt DateTime?     @map("last_login_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  fieldHost FieldHost?
+  landlord  Landlord?
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+enum HostOperationalStatus {
+  active
+  busy
+  off_duty
+
+  @@schema("public")
+}
+
+/// Field Host business/operational data; name/phone live on Profile.
+/// Admin creates the row up front with just an email (that IS the allowlist:
+/// an email with no row can't sign up as a host). `userId` stays null until the
+/// host signs up with that email, then lib/auth/profile.ts links it to their
+/// Profile. `email` is the invite key; after linking it mirrors Profile.email.
+model FieldHost {
+  id             String                @id @default(uuid()) @db.Uuid
+  email          String                @unique @db.VarChar(120)
+  userId         String?               @unique @map("user_id") @db.Uuid
+  profile        Profile?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignedBlock  String                @default("Vinhomes Ocean Park - The Sapphire 1") @map("assigned_block")
+  rfidCardNumber String                @map("rfid_card_number")
+  status         HostOperationalStatus @default(active)
+  rating         Decimal               @default(5.00) @db.Decimal(3, 2)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  viewings Viewing[]
+
+  @@map("field_hosts")
+  @@schema("public")
+}
+
+enum LandlordStatus {
+  active
+  suspended
+
+  @@schema("public")
+}
+
+/// Landlord business data. Replaces the old plaintext units.landlord_name /
+/// units.landlord_phone columns — a landlord now owns zero or more Units via
+/// Unit.landlordId. Self-service signup (Google or email + password).
+model Landlord {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @unique @map("user_id") @db.Uuid
+  profile   Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    LandlordStatus @default(active)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  units Unit[]
+
+  @@map("landlords")
+  @@schema("public")
+}
+
+// ---------------------------------------------------------------------------
+// OTP
+// ---------------------------------------------------------------------------
+
+enum OtpPurpose {
+  /// Proves a host/landlord phone number is real (one-time; not a login).
+  phone_verify
+  /// Legacy: OTP used to be the login method. Unused now; Postgres can't drop
+  /// enum values without recreating the type, so they stay for now.
+  landlord_signup
+  landlord_login
+  host_login
+  tenant_viewing
+  tenant_deposit_sign
+
+  @@schema("public")
+}
+
+enum OtpChannel {
+  zalo
+  sms
+
+  @@schema("public")
+}
+
+enum OtpStatus {
+  pending
+  verified
+  expired
+  consumed
+
+  @@schema("public")
+}
+
+/// Self-built OTP lifecycle, used to verify phone ownership over Zalo ZNS
+/// (Supabase's native phone-OTP only supports Twilio/MessageBird/Vonage). TTL/retry/lockout numbers here
+/// are the enforcement point — 5 min TTL, 3 attempts, 10 min lockout — not
+/// Supabase config, so they match docs/SAD.md exactly regardless of plan tier.
+model OtpCode {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @db.VarChar(20)
+  purpose      OtpPurpose
+  /// HMAC-SHA256(code, OTP_PEPPER) — the plaintext code is never stored.
+  codeHash     String     @map("code_hash")
+  channel      OtpChannel @default(zalo)
+  status       OtpStatus  @default(pending)
+  attemptCount Int        @default(0) @map("attempt_count")
+  lockedUntil  DateTime?  @map("locked_until")
+  expiresAt    DateTime   @map("expires_at")
+  verifiedAt   DateTime?  @map("verified_at")
+  consumedAt   DateTime?  @map("consumed_at")
+  ipAddress    String?    @map("ip_address")
+  userAgent    String?    @map("user_agent")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([phone, purpose, status])
+  @@map("otp_codes")
+  @@schema("public")
+}
+
+/// First slice of the audit trail required by docs/SAD.md §9 (L5, Decree
+/// 13/2023/NĐ-CP compliance): who/when/from-where for auth events. Expand
+/// later for consent/e-signature events once those flows exist.
+model AuthAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String?  @db.VarChar(20)
+  userId    String?  @map("user_id") @db.Uuid
+  event     String   @db.VarChar(50)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone])
+  @@index([userId])
+  @@map("auth_audit_log")
+  @@schema("public")
+}
+
+// ---------------------------------------------------------------------------
+// Business tables — carried over from database/schema.sql
+// (unchanged except units.landlord_name/landlord_phone -> units.landlord_id)
+// ---------------------------------------------------------------------------
+
+enum LayoutType {
+  Studio
+  OnePnPlus @map("1PN+")
+  TwoPn1Wc  @map("2PN_1WC")
+  TwoPn2Wc  @map("2PN_2WC")
+  ThreePn   @map("3PN")
+
+  @@schema("public")
+}
+
+enum UnitStatus {
+  available
+  holding
+  rented
+
+  @@schema("public")
+}
+
+model Unit {
+  id                  String     @id @default(uuid()) @db.Uuid
+  unitCode            String     @unique @map("unit_code") @db.VarChar(50)
+  blockName           String     @map("block_name") @db.VarChar(20)
+  floorNumber         Int        @map("floor_number")
+  layoutType          LayoutType @map("layout_type")
+  netAreaSqm          Decimal    @map("net_area_sqm") @db.Decimal(5, 2)
+  baseRentPrice       Decimal    @map("base_rent_price") @db.Decimal(12, 2)
+  managementFee       Decimal    @map("management_fee") @db.Decimal(12, 2)
+  parkingFeeEstimate  Decimal    @default(150000.00) @map("parking_fee_estimate") @db.Decimal(12, 2)
+  utilityCostEstimate Decimal    @default(600000.00) @map("utility_cost_estimate") @db.Decimal(12, 2)
+  marketAvgPrice      Decimal    @map("market_avg_price") @db.Decimal(12, 2)
+  doorAccessCode      String?    @map("door_access_code") @db.VarChar(50)
+  verifiedImages      Json       @default("[]") @map("verified_images")
+  status              UnitStatus @default(available)
+  isHot               Boolean    @default(false) @map("is_hot")
+  landlordId          String?    @map("landlord_id") @db.Uuid
+  landlord            Landlord?  @relation(fields: [landlordId], references: [id])
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  viewings        Viewing[]
+  holdingDeposits HoldingDeposit[]
+
+  @@index([status])
+  @@index([layoutType, baseRentPrice])
+  @@index([isHot])
+  @@map("units")
+  @@schema("public")
+}
+
+enum ViewingStatus {
+  pending
+  confirmed
+  completed
+  no_show
+  cancelled
+
+  @@schema("public")
+}
+
+model Viewing {
+  id             String        @id @default(uuid()) @db.Uuid
+  unitId         String        @map("unit_id") @db.Uuid
+  unit           Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  hostId         String?       @map("host_id") @db.Uuid
+  host           FieldHost?    @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  tenantName     String        @map("tenant_name") @db.VarChar(100)
+  tenantPhone    String        @map("tenant_phone") @db.VarChar(15)
+  viewingSlot    DateTime      @map("viewing_slot")
+  bookingRefCode String        @unique @map("booking_ref_code") @db.VarChar(100)
+  status         ViewingStatus @default(confirmed)
+  cancelReason   String?       @map("cancel_reason") @db.VarChar(255)
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  holdingDeposit HoldingDeposit?
+
+  @@index([viewingSlot])
+  @@index([unitId, status])
+  @@index([hostId])
+  @@map("viewings")
+  @@schema("public")
+}
+
+enum DepositStatus {
+  pending
+  paid
+  expired
+  refunded
+
+  @@schema("public")
+}
+
+model HoldingDeposit {
+  id                 String        @id @default(uuid()) @db.Uuid
+  viewingId          String        @unique @map("viewing_id") @db.Uuid
+  viewing            Viewing       @relation(fields: [viewingId], references: [id], onDelete: Cascade)
+  unitId             String        @map("unit_id") @db.Uuid
+  unit               Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenantIdCardData   Json?         @map("tenant_id_card_data")
+  depositAmount      Decimal       @default(2000000.00) @map("deposit_amount") @db.Decimal(12, 2)
+  vietqrPaymentCode  String        @unique @map("vietqr_payment_code") @db.VarChar(100)
+  paymentStatus      DepositStatus @default(pending) @map("payment_status")
+  signedAgreementUrl String?       @map("signed_agreement_url") @db.VarChar(255)
+  signedAt           DateTime?     @map("signed_at")
+  expiresAt          DateTime?     @map("expires_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  @@index([paymentStatus])
+  @@map("holding_deposits")
+  @@schema("public")
+}

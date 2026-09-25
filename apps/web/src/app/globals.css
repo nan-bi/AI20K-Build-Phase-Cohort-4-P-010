@@ -1,0 +1,63 @@
+:root {
+  /* Sea-glass paper + deep ink + one warm accent — a cool, Ocean Park
+     palette, deliberately not the cream/terracotta or near-black/neon
+     defaults. Named for what they stand for in the product, not by hue. */
+  --paper: #eef2f0;
+  --surface: #ffffff;
+  --ink: #0e1b22;
+  --ink-2: #14303a;
+  --ink-text: #16232c;
+  --slate: #5c6b70;
+  --line: #dce3e0;
+  --accent: #d69a46;
+  --accent-ink: #6b4212;
+  --error: #a8432e;
+  --error-bg: #f7e9e4;
+
+  color-scheme: light;
+}
+
+html {
+  height: 100%;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
+  color: var(--ink-text);
+  background: var(--paper);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
