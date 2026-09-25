@@ -118,9 +118,11 @@ Nhằm bảo đảm tính chính xác tuyệt đối trong giao dịch bất đ�
 1. **Nguyên tắc Tách Bạch Tất Định vs Xác Suất:**
    - **Tác vụ Tài chính & Trạng thái Căn hộ (Deterministic):** 100% sử dụng câu lệnh SQL thuần túy (PostgreSQL Stored Procedures / ACID Transactions). Tuyệt đối KHÔNG dùng Prompt LLM để tính toán tiền cọc, trừ tiền điện nước hay chuyển trạng thái phòng.
    - **Tác vụ Đọc hiểu & Khớp nhu cầu (Probabilistic):** Sử dụng LLM để phân tích ngôn ngữ tự nhiên từ nhu cầu của khách thuê và bóc tách chữ từ ảnh chụp CCCD.
-2. **Cổng Kiểm Soát Ngưỡng Tin Cậy (Confidence Gate $\ge 85\%$):**
-   - Khi quét ảnh CCCD gắn chip: Nếu điểm tự tin bóc tách họ tên, số định danh cá nhân và ngày cấp đạt $\ge 85\%$, hệ thống tự động điền vào Hợp đồng số.
-   - Nếu điểm tự tin $< 85\%$ (ảnh mờ, chói lóa, góc chụp nghiêng): Hệ thống kích hoạt quy trình **Human-in-the-Loop**, chuyển giao diện cho Chuyên viên CSKH kiểm tra đối chiếu bằng mắt thường trước khi cho phép ký số.
+2. **Tích Hợp FPT.AI eKYC & Cổng Kiểm Soát Ngưỡng Tin Cậy (Confidence Gate $\ge 85\%$):**
+   - Nền tảng chỉ định chính thức giải pháp eKYC thương mại được cấp phép của **FPT.AI (FPT Smart Cloud)** làm Bên xử lý dữ liệu định danh theo Nghị định 13/2023/NĐ-CP.
+   - FPT.AI chịu trách nhiệm bóc tách thông tin CCCD gắn chip và thực hiện thuật toán **Face Liveness Detection** (quét cử động khuôn mặt chống ảnh in, video phát lại và Deepfake).
+   - **Cơ chế Zero-Storage:** Máy chủ VinStay AI hoàn toàn không lưu trữ file ảnh CCCD, chỉ tiếp nhận kết quả xác minh dạng text và điểm khớp mặt (`match_score`).
+   - Cổng kiểm soát ngưỡng tin cậy: Nếu điểm tự tin bóc tách và điểm đối chiếu khuôn mặt đạt $\ge 85\%$, hệ thống tự động điền thông tin vào Hợp đồng số. Nếu điểm tự tin $< 85\%$ (ảnh mờ, chói lóa, góc chụp nghiêng): Hệ thống kích hoạt quy trình **Human-in-the-Loop**, chuyển giao diện cho Chuyên viên CSKH kiểm tra đối chiếu bằng mắt thường trước khi cho phép ký số.
 
 ---
 

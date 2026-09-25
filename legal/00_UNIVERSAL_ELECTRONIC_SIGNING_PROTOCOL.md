@@ -56,12 +56,13 @@ Toàn bộ hợp đồng và thỏa thuận trên nền tảng VinStay AI đư�
 │              QUY TRÌNH KÝ SỐ HYBRID 4 BƯỚC VỚI CƠ CHẾ ZERO-STORAGE (CHỈ TRONG 60 GIÂY)           │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                  │
-│  [BƯỚC 1: AI OCR XỬ LÝ TRÊN BỘ NHỚ TẠM & TIÊU HỦY ẢNH TỨC THÌ (ZERO-STORAGE EPHEMERAL OCR)]       │
-│  • Khách / Chủ nhà chụp ảnh CCCD gắn chip ──► Ảnh được nạp tạm vào bộ nhớ RAM (In-Memory).        │
-│  • AI OCR bóc tách: Họ tên, Số định danh 12 số, Ngày cấp, Nơi thường trú trong 3 giây.           │
-│  • TIÊU HỦY VĨNH VIỄN ẢNH GỐC NGAY LẬP TỨC (Memory Flush): Máy chủ KHÔNG lưu trữ file ảnh CCCD; │
-│    loại trừ 100% rủi ro lộ lọt ảnh thẻ, miễn nhiễm trách nhiệm rò rỉ dữ liệu theo Nghị định 13.   │
-│  • Điền tự động các trường chữ vào Hợp đồng số; người dùng KHÔNG CẦN GÕ CHỮ một dòng nào.       │
+│  [BƯỚC 1: XÁC THỰC DANH TÍNH QUA FPT.AI eKYC & CƠ CHẾ ZERO-STORAGE (CHỈ TRONG 3–5 GIÂY)]           │
+│  • Tích hợp trực tiếp API eKYC thương mại được cấp phép của FPT.AI (FPT Smart Cloud).            │
+│  • Khách / Chủ nhà quét 2 mặt CCCD gắn chip + Quét khuôn mặt (Face Liveness Detection chống giả).│
+│  • FPT.AI bóc tách chính xác > 98%: Họ tên, Số CCCD 12 số, Ngày cấp, Nơi thường trú.            │
+│  • CƠ CHẾ ZERO-STORAGE TUYỆT ĐỐI: FPT.AI chịu trách nhiệm bảo mật cấp độ 3 theo Nghị định 13;   │
+│    Máy chủ VinStay AI HOÀN TOÀN KHÔNG LƯU FILE ẢNH CCCD (0 byte ảnh), chỉ nhận dữ liệu text     │
+│    đã xác thực để tự động điền vào Hợp đồng số. Người dùng KHÔNG CẦN GÕ CHỮ một dòng nào.       │
 │                                                                                                  │
 │  [BƯỚC 2: XEM BẢN TÓM TẮT ĐIỀU KHOẢN CỐT LÕI (INTERACTIVE SUMMARY)]                              │
 │  Màn hình hiển thị tóm tắt trực quan: Mã căn, Giá thuê All-in Cost trọn gói, Mức cọc bảo đảm,   │
