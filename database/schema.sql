@@ -2,6 +2,13 @@
 -- VINSTAY AI — DATABASE SCHEMA (PostgreSQL / Supabase)
 -- Author: Team T-010 (AI20K Build Phase Cohort 4)
 -- Purpose: Schema DDL, Constraints, Indexes, Business Logic Triggers
+--
+-- SUPERSEDED: kept as historical reference only. The database schema is
+-- now managed by Prisma — see apps/web/prisma/schema.prisma (source of
+-- truth) and apps/web/prisma/migrations/. Business logic that lived here as
+-- SQL functions/triggers (calculate_all_in_cost, check_unit_hot_status,
+-- process_successful_deposit) is being moved into TypeScript application
+-- code as the corresponding features are (re)implemented in apps/web.
 -- ====================================================================
 
 -- 0. EXTENSIONS
