@@ -1,6 +1,7 @@
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Email hoặc mật khẩu không đúng.",
-  wrong_portal: "Tài khoản này không thuộc cổng đăng nhập này.",
+  wrong_portal: "Tài khoản này đã được gán cố định cho một vai trò khác (Chủ nhà hoặc Khách thuê). Không thể đăng nhập chéo giữa hai cổng.",
+  role_mismatch: "Tài khoản này đã được đăng ký với một vai trò khác. Để bảo vệ dữ liệu, một email chỉ có thể dùng cho Chủ nhà HOẶC Khách thuê, không thể dùng chung cho cả hai.",
   account_suspended: "Tài khoản đã bị tạm khoá.",
   invalid_request: "Thông tin chưa hợp lệ. Kiểm tra lại (mật khẩu tối thiểu 8 ký tự).",
   email_not_verified: "Email chưa được xác nhận. Kiểm tra hộp thư của bạn.",
