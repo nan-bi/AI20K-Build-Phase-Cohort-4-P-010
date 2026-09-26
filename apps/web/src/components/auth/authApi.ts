@@ -14,7 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_host: "Lời mời Field Host không hợp lệ hoặc đã được sử dụng.",
   unauthorized: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
   rate_limited: "Bạn thao tác quá nhanh. Thử lại sau ít phút.",
-  auth_not_configured: "Hệ thống xác thực chưa được cấu hình (backend thiếu SUPABASE_*).",
+  auth_not_configured: "Hệ thống xác thực chưa được cấu hình (backend thiếu SUPABASE_* hoặc GOOGLE_*).",
   auth_provider_unavailable: "Không kết nối được dịch vụ xác thực. Thử lại sau.",
   demo_disabled: "Chế độ demo đang tắt.",
   oauth_failed: "Đăng nhập không thành công. Thử lại.",
