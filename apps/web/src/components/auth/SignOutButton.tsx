@@ -8,7 +8,7 @@ export function SignOutButton({ redirectTo = "/login" }: { redirectTo?: string }
   async function handleSignOut() {
     setLoading(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
     } finally {
       // Full navigation (not router.push): drops the client router cache so
       // guarded pages can't be served from it after signing out.

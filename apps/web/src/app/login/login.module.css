@@ -1,0 +1,144 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(320px, 5fr) 7fr;
+  min-height: 100dvh;
+}
+
+.art {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+  background: var(--ink-950);
+  color: #fff;
+}
+
+.artBody {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  max-width: 420px;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.artNote {
+  max-width: 34ch;
+  color: #8fb0b8;
+  font-size: 14px;
+}
+
+.panel {
+  align-self: center;
+  width: min(640px, 100%);
+  margin-inline: auto;
+  padding: 40px 28px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--slate);
+  margin-bottom: 28px;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.title {
+  font-size: clamp(30px, 4vw, 40px);
+}
+
+.lead {
+  margin-top: 10px;
+  max-width: 56ch;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.role {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  text-align: left;
+  box-shadow: var(--shadow-1);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.role:hover {
+  border-color: var(--lagoon-300);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
+}
+
+.preferred {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(224, 160, 60, 0.22), var(--shadow-1);
+}
+
+.roleIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--lagoon-100);
+  color: var(--lagoon);
+}
+
+.preferred .roleIcon {
+  background: var(--amber);
+  color: var(--ink-950);
+}
+
+.roleText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.roleText strong {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.who {
+  font-size: 14px;
+  color: var(--ink-600);
+}
+
+.does {
+  margin-top: 4px;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+  .art {
+    display: none;
+  }
+  .panel {
+    padding-top: 24px;
+  }
+}

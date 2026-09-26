@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage, postJson } from "./authApi";
 import styles from "./auth.module.css";
 
 export function RfidVerifyStep({ hostId, onDone: _onDone }: { hostId: string; onDone: () => void }) {
@@ -15,15 +16,9 @@ export function RfidVerifyStep({ hostId, onDone: _onDone }: { hostId: string; on
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/verify-rfid", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hostId, rfid }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error === "rfid_mismatch") setError("Mã RFID không đúng. Kiểm tra lại.");
-        else setError("Có lỗi xảy ra. Thử lại.");
+      const { ok, code } = await postJson("/auth/verify-rfid", { hostId, rfid });
+      if (!ok) {
+        setError(errorMessage(code));
         return;
       }
       router.push("/host/dispatch");

@@ -1,0 +1,503 @@
+.frame {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 20px 22px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+
+.cap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cap h3 {
+  font-size: 18px;
+}
+.cap p {
+  margin-top: 2px;
+}
+.capRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--slate);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.toggle:hover {
+  color: var(--ink);
+  border-color: var(--lagoon-300);
+}
+.toggleOn {
+  background: var(--lagoon-100);
+  color: var(--lagoon);
+  border-color: var(--lagoon-300);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+  color: var(--ink-600);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend i {
+  width: 12px;
+  height: 8px;
+  border-radius: 3px;
+}
+.legend b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.plot {
+  position: relative;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.grid {
+  stroke: #e3ebe9;
+  stroke-width: 1;
+}
+.axis {
+  stroke: #c8d6d3;
+  stroke-width: 1;
+}
+.tick {
+  fill: var(--slate);
+  font-size: 11.5px;
+}
+.endLabel {
+  fill: var(--ink);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.cross {
+  stroke: #9db4b9;
+  stroke-width: 1;
+}
+.hit {
+  outline: none;
+}
+.hit:focus-visible .col,
+.hit:hover .col {
+  filter: brightness(0.92);
+}
+.col {
+  transition: filter 0.12s;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate);
+  border-bottom: 1px solid var(--line-strong);
+}
+.table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tip {
+  position: absolute;
+  z-index: 5;
+  min-width: 150px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--ink-950);
+  color: #dcebea;
+  font-size: 12.5px;
+  box-shadow: var(--shadow-2);
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+}
+.tipTitle {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #fff;
+}
+.tipRow {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.tipRow i {
+  flex: none;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  align-self: center;
+}
+.tipRow b {
+  font-size: 15px;
+  color: #fff;
+}
+.tipRow span {
+  color: #9fb9bf;
+}
+
+/* Funnel */
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.funnel li {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 12px;
+  outline: none;
+}
+.funnel li:focus-visible {
+  outline: 2px solid var(--lagoon-600);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.fLabel {
+  font-size: 13.5px;
+  color: var(--ink-600);
+}
+.fTrack {
+  display: block;
+  height: 22px;
+}
+.fBar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: filter 0.12s;
+}
+.funnel li:hover .fBar {
+  filter: brightness(0.92);
+}
+.fVal {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 15px;
+}
+.fVal em {
+  min-width: 34px;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--slate);
+}
+
+.insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-600);
+}
+.insight svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--amber-600);
+}
+
+/* Heatmap */
+.heat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.heatRow {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.heatZone {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-600);
+}
+.heatCells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 2px;
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  outline: none;
+  transition: filter 0.12s, transform 0.12s;
+}
+.cell b {
+  font-size: 16px;
+}
+.cell span {
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+.cell:hover,
+.cell:focus-visible {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+.cell:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.scaleBar {
+  display: flex;
+  gap: 2px;
+}
+.scaleBar i {
+  width: 28px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Bars ngang */
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bars li {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+  outline: none;
+}
+.bars li:focus-visible {
+  outline: 2px solid var(--lagoon-600);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.bLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--ink-600);
+}
+.good {
+  color: #0a7f0a;
+}
+.bad {
+  color: #d03b3b;
+}
+.bTrack {
+  position: relative;
+  display: block;
+  height: 14px;
+}
+.bFill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: filter 0.12s;
+}
+.bars li:hover .bFill {
+  filter: brightness(0.92);
+}
+.bLimit {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--ink);
+}
+.bVal {
+  text-align: right;
+  font-size: 14px;
+}
+.limitNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.limitNote i {
+  width: 2px;
+  height: 14px;
+  background: var(--ink);
+}
+
+/* Stat tile */
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+.tileLabel {
+  font-size: 13.5px;
+  color: var(--slate);
+}
+.tileValue {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.tileValue small {
+  margin-left: 4px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--slate);
+}
+.hero .tileValue {
+  font-size: 52px;
+}
+.tileFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+}
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.d-good {
+  color: #0a7f0a;
+}
+.d-bad {
+  color: #b02f2f;
+}
+.d-flat {
+  color: var(--slate);
+}
+.spark {
+  width: 84px;
+  height: 26px;
+  flex: none;
+}
+
+/* Stack bar */
+.stackWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stackTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-600);
+}
+.stack {
+  display: flex;
+  gap: 2px;
+  height: 26px;
+}
+.seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: 4px;
+  outline: none;
+  font-size: 12.5px;
+  transition: filter 0.12s;
+}
+.seg:hover,
+.seg:focus-visible {
+  filter: brightness(0.92);
+}
+.seg:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .frame {
+    padding: 16px;
+  }
+  .cap {
+    flex-direction: column;
+  }
+  .funnel li {
+    grid-template-columns: 1fr 88px;
+    row-gap: 3px;
+  }
+  .fLabel {
+    grid-column: 1 / -1;
+  }
+  .fTrack {
+    grid-column: 1;
+  }
+  .heatRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .bars li {
+    grid-template-columns: 1fr 60px;
+    row-gap: 3px;
+  }
+  .bLabel {
+    grid-column: 1 / -1;
+  }
+}

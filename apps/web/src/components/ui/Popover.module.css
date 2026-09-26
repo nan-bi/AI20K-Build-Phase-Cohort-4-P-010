@@ -1,0 +1,120 @@
+.root {
+  position: relative;
+  flex: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-600);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--lagoon-300);
+  color: var(--ink);
+}
+
+.chip[aria-expanded="true"] {
+  border-color: var(--lagoon-600);
+  color: var(--ink);
+  box-shadow: var(--ring);
+}
+
+.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.active:hover {
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.caret {
+  opacity: 0.6;
+}
+
+.panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  animation: drop 0.16s ease-out;
+}
+
+.end {
+  left: auto;
+  right: 0;
+}
+
+.top {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.panelHead {
+  margin-bottom: 10px;
+  font-family: var(--font-head);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.scrim {
+  display: none;
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    background: rgba(6, 26, 34, 0.45);
+  }
+  .panel,
+  .end,
+  .top {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding: 18px 18px calc(22px + env(safe-area-inset-bottom));
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    animation: sheet 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  @keyframes sheet {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}

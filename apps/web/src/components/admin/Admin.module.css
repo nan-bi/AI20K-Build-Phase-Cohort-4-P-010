@@ -1,0 +1,358 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1320px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.head h1 {
+  font-size: clamp(26px, 3vw, 34px);
+}
+.head p {
+  margin-top: 4px;
+}
+.headActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alerts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.alerts li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.alerts li > div {
+  flex: 1;
+  min-width: 0;
+}
+.alerts li > svg {
+  flex: none;
+  color: var(--amber-600);
+}
+.alertBad {
+  border-color: #eec5bb !important;
+  background: #fff7f5 !important;
+}
+.alertBad > svg {
+  color: var(--coral) !important;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.stackCol {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.padCard {
+  padding: 18px 20px;
+}
+
+.feedTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 17px;
+}
+.feed {
+  display: flex;
+  flex-direction: column;
+}
+.feed li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0 10px 12px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+.feed li:last-child {
+  border-bottom: 0;
+}
+.t-alert {
+  border-left-color: var(--coral) !important;
+}
+.t-warning {
+  border-left-color: var(--amber) !important;
+}
+.t-success {
+  border-left-color: var(--kelp) !important;
+}
+
+/* Bảng dữ liệu */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.tools :global(.input),
+.tools :global(.select) {
+  width: auto;
+  min-width: 160px;
+  min-height: 40px;
+}
+.search {
+  position: relative;
+}
+.search svg {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: var(--slate);
+}
+.search :global(.input) {
+  padding-left: 38px;
+  min-width: 260px;
+}
+
+.tableCard {
+  overflow: hidden;
+}
+.tableScroll {
+  overflow-x: auto;
+}
+.tbl {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.tbl th {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+.tbl tbody tr:hover {
+  background: var(--surface-2);
+}
+.right {
+  text-align: right !important;
+}
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--lagoon-100);
+  color: var(--lagoon);
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+}
+.person b {
+  display: block;
+  font-weight: 600;
+}
+.warnText {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #b02f2f;
+  font-weight: 600;
+}
+.okText {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #0a7f0a;
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--paper-2);
+  align-self: flex-start;
+}
+.tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--slate);
+  font-weight: 600;
+  font-size: 14px;
+}
+.tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+.tabs i {
+  min-width: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font-size: 11.5px;
+  font-style: normal;
+  line-height: 19px;
+  text-align: center;
+}
+
+.reqs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+.req {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+.req h3 {
+  font-size: 19px;
+}
+.reqMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+.reqMeta dt {
+  font-size: 12.5px;
+  color: var(--slate);
+}
+.reqMeta dd {
+  margin: 0;
+  font-weight: 600;
+}
+.reqActions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.empty {
+  padding: 48px 20px;
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  color: var(--slate);
+}
+
+.fee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.fee:last-of-type {
+  border-bottom: 0;
+}
+.fee h4 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  letter-spacing: 0;
+}
+.fee p {
+  margin-top: 2px;
+}
+.suffix {
+  position: relative;
+}
+.suffix :global(.input) {
+  padding-right: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.suffix span {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 14px;
+  color: var(--slate);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .two,
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+  .fee {
+    grid-template-columns: 1fr;
+  }
+  .search :global(.input) {
+    min-width: 0;
+    width: 100%;
+  }
+  .search {
+    width: 100%;
+  }
+}

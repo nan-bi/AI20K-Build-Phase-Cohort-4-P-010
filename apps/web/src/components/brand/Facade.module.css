@@ -1,0 +1,54 @@
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tower {
+  fill: #123b48;
+}
+
+.win {
+  fill: #1f5563;
+}
+
+.lit {
+  fill: var(--amber);
+  filter: drop-shadow(0 0 4px rgba(224, 160, 60, 0.55));
+}
+
+.ground {
+  fill: #2b6473;
+}
+
+.ripple {
+  fill: #5d97a5;
+}
+
+.scanning .win {
+  animation: scan 1.1s ease-in-out infinite;
+}
+
+.scanning .lit {
+  animation-name: scanLit;
+}
+
+@keyframes scan {
+  0%,
+  100% {
+    fill: #1f5563;
+  }
+  50% {
+    fill: #62a2b1;
+  }
+}
+
+@keyframes scanLit {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
