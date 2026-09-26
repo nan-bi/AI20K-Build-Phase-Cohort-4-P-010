@@ -1,0 +1,147 @@
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bigVal {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--lagoon);
+  height: 24px;
+}
+
+.rangeEnds {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -10px;
+  font-size: 12px;
+  color: var(--slate);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-600);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.pill:hover {
+  border-color: var(--lagoon-300);
+  color: var(--ink);
+}
+.pill.on {
+  background: var(--lagoon-100);
+  border-color: var(--lagoon-600);
+  color: var(--lagoon);
+  font-weight: 600;
+}
+
+.subLabel {
+  margin-bottom: -6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate);
+}
+
+.zoneList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.zone:hover {
+  background: var(--surface-2);
+}
+.zone input {
+  accent-color: var(--lagoon);
+  width: 17px;
+  height: 17px;
+}
+.zone span:nth-of-type(1) {
+  flex: 1;
+}
+.zoneOn {
+  background: var(--lagoon-100);
+  font-weight: 600;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stepLabel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stepCtl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepCtl :global(.icon-btn) {
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+}
+
+.stepCtl :global(.icon-btn):disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepVal {
+  min-width: 30px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 650;
+}
+
+/* Mobile: chip lọc thành một hàng cuộn ngang để khung chat không bị dài; panel là bottom sheet cố định nên không bị cắt. */
+@media (max-width: 640px) {
+  .tray {
+    flex-wrap: nowrap;
+    min-width: 0;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tray::-webkit-scrollbar {
+    display: none;
+  }
+}

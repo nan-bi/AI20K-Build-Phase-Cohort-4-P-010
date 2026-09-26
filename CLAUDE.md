@@ -26,21 +26,28 @@ pytest tests/test_api/test_routes.py::test_name -v   # single test
 
 CI (`.github/workflows/ci.yml`) runs `ruff check` and then `pytest` with `APP_ENV=test OPENAI_API_KEY=test-key`, so tests must not need a real LLM key. Use the `mock_llm` fixture in `tests/conftest.py`. The `client` fixture is an httpx `AsyncClient` over the ASGI app. Ruff uses a line length of 120 and the rules E, F, I, N, W and UP (E501 is ignored). This CI job only covers `src/`, not `apps/web`.
 
-**Next.js side** (`apps/web/`) — pnpm, see `apps/web/README.md` for full setup (Supabase project, env vars, one-time Dashboard steps for the Auth Hook and Google OAuth provider):
+**NestJS backend** (`backend/`) — npm, xem `backend/README.md` (Supabase project, `.env`, `prisma db push`, `npm run seed:auth`):
+
+```bash
+cd backend
+npm run start:dev   # :4000, Swagger /api/docs
+npm test            # jest (Prisma/Supabase giả)
+```
+
+**Next.js side** (`apps/web/`) — pnpm, UI 4 cổng. **Hiện chạy hoàn toàn bằng dữ liệu mock** (đăng nhập demo bằng cookie `vs_role`, store localStorage, không cần backend — xem `apps/web/README.md`); mã gọi backend NestJS còn giữ lại để khôi phục:
 
 ```bash
 cd apps/web
-pnpm dev            # localhost:3000
-pnpm build lint typecheck test   # each also runnable individually
-pnpm prisma:deploy  # apply committed migrations to a Supabase project
-pnpm prisma:seed    # seed default admin + 2 invited field hosts + 3 mock units
+pnpm dev            # localhost:3000, cần backend đang chạy (BACKEND_URL)
+pnpm build lint typecheck test
 ```
 
 ## Architecture: what exists vs. what is designed
 
 The backend is split across two independent apps, matching `docs/SAD.md`'s multi-service design but with the Core Service's stack swapped:
 
-- **`apps/web/`** — Next.js (App Router) + Prisma + Supabase, replacing SAD's FastAPI "Core Service" (listing/booking/deposit/admin CRUD). Prisma (`apps/web/prisma/schema.prisma`) is the source of truth for the database schema — `database/schema.sql` is superseded, kept only as historical reference (see the note at its top). Currently only the **auth phase** is built: all four roles (Tenant, Landlord, Field Host, Admin) have a `profiles` row and sign in with Google or email+password (Admin: email+password only, created by `pnpm create:admin`, no signup). Tenant and Landlord sign up freely; a Field Host can only sign up if an Admin already created a `field_hosts` row for that email, and must also enter that row's `rfid_card_number` (`/api/auth/verify-rfid`, which links `field_hosts.user_id`). Login/callback logic lives in `apps/web/src/lib/auth/profile.ts` (`ensureProfile`), `apps/web/src/app/api/auth/*` and `apps/web/src/app/auth/callback/route.ts`. RBAC uses a Postgres Custom Access Token Hook (`user_role` in the JWT) + `apps/web/src/middleware.ts` + `requireRole()`. Zalo OTP (self-built, `apps/web/src/lib/auth/otp.ts`; Supabase phone-OTP doesn't support Zalo ZNS) is *not* a login method: it only verifies a real phone number (`phone_verify`) and gates Tenant actions (viewing/deposit) via one-shot action tokens. Domain features (AI Matchmaker, viewings, VietQR deposits, OCR) are not implemented yet.
+- **`backend/`** — NestJS + Prisma + Supabase, nơi duy nhất xử lý đăng nhập/phân quyền/dữ liệu (SAD v2). `backend/prisma/schema.prisma` là nguồn chân lý của database (`database/schema.sql` và schema Prisma cũ của `apps/web` đã bị thay thế). Auth: `backend/src/modules/auth` (email+mật khẩu, Google PKCE, đăng ký, Field Host nhập RFID theo lời mời của Admin, OTP Zalo xác thực SĐT — không phải phương thức đăng nhập). Phiên = cookie httpOnly do backend set; vai trò đọc từ DB. Các controller nghiệp vụ hiện vẫn `@Public()` (chưa gắn `@Roles`).
+- **`apps/web/`** — Next.js (App Router), **bản MVP mock hiện không gọi backend** (xem `apps/web/README.md`; luồng đăng nhập backend bên dưới là thiết kế cũ, đang tạm dừng); chỉ có UI 4 cổng + `src/proxy.ts` chặn trang theo phiên + rewrite `/api/v1/*` sang backend.
 - **`src/`** — still the original Python/FastAPI+LangGraph AI20K template skeleton, reserved for the future AI Engine service (Matchmaker/OCR/Dispatcher per SAD §5.2). A FastAPI app (`src/main.py`, router mounted at `/api/v1`) calls a compiled LangGraph `agent` (`src/agents/graph.py`: `analyze` → conditional → `respond`). State is a `total=False` TypedDict (`src/agents/state.py`). Nodes return partial-state dicts. Settings come from `src/config.py` (pydantic-settings, `.env`, cached `get_settings()`). The LLM client is `src/services/llm.py` (OpenAI, `gpt-4o-mini` by default). The nodes and tools are still placeholders — nothing VinStay-specific has been built here.
 
 **The target design lives in docs.** Treat these as the spec when implementing:

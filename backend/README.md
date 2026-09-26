@@ -120,5 +120,34 @@ npx prisma db seed
 npm run start:dev
 ```
 
-- **Backend API Base URL:** `http://localhost:3000/api/v1`
-- **Swagger UI Interactive Documentation:** `http://localhost:3000/api/docs`
+- **Backend API Base URL:** `http://localhost:4000/api/v1`
+- **Swagger UI Interactive Documentation:** `http://localhost:4000/api/docs`
+
+### Bước 6: Tài khoản & đăng nhập
+
+```bash
+npm run create:admin -- you@example.com 'mat-khau-manh' "Ten"   # Admin (không có đăng ký trên UI)
+npm run seed:auth                # admin dev + 2 lời mời Field Host (host1/host2@vinstay.test, RFID-S1-0001/RFID-S2-0001)
+npm run seed:auth -- --demo      # thêm 4 tài khoản demo (bật AUTH_DEMO_MODE=true để dùng nút 1-click)
+npm test                         # unit + HTTP test (Prisma/Supabase giả)
+```
+
+## 4. ĐĂNG NHẬP & PHÂN QUYỀN (`modules/auth`)
+
+Toàn bộ đăng nhập nằm ở backend; `apps/web` chỉ có form và proxy `/api/v1/*` → backend.
+Phiên là **cookie httpOnly** (`vs_access`, `vs_refresh`, SameSite=Lax) do backend set — response không chứa token.
+API client có thể dùng `Authorization: Bearer <Supabase access token>`. Vai trò đọc từ DB (`profiles.role`), không cần Auth Hook.
+
+| Endpoint | Mô tả |
+|---|---|
+| `POST /auth/login` `{email,password,portal}` | portal = tenant / landlord / host / admin |
+| `POST /auth/signup` | tenant / landlord / host (host phải được Admin mời) — Supabase gửi email xác nhận |
+| `GET /auth/google?portal=` → `GET /auth/callback` | Google OAuth (PKCE, verifier nằm trong cookie httpOnly) |
+| `GET /auth/session`, `POST /auth/refresh`, `POST /auth/logout` | phiên hiện tại (tự refresh), làm mới, đăng xuất |
+| `POST /auth/verify-rfid` | Field Host nhập RFID lần đầu; chưa xong thì bị chặn mọi quyền Host |
+| `POST /auth/otp/send`, `/otp/verify`, `/phone/verify` | OTP xác thực SĐT (không phải đăng nhập); Khách thuê nhận action token dùng một lần |
+| `GET/POST /admin/field-hosts` (ops_admin) | mời Field Host bằng email + RFID |
+
+Portal `host` ↔ role `field_host`, `admin` ↔ `ops_admin`. Supabase Dashboard: bật Google provider, thêm Redirect URLs
+`${WEB_APP_URL}/api/v1/auth/callback` và `${WEB_APP_URL}/**`. Schema là nguồn chân lý duy nhất ở `prisma/schema.prisma`
+(`prisma/legacy/drop_web_schema.sql` gỡ schema cũ của apps/web nếu DB từng áp migration đó).

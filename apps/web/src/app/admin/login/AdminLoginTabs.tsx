@@ -41,6 +41,11 @@ export function AdminLoginTabs() {
         portal={tab}
         label={tab === "host" ? "Field Host" : "quản trị"}
         initialError={searchParams.get("tab") === tab ? searchParams.get("error") : null}
+        initialNotice={
+          searchParams.get("tab") === tab && searchParams.get("confirmed") === "1"
+            ? "Email đã được xác nhận. Hãy đăng nhập."
+            : null
+        }
       />
       {tab === "host" && (
         <p style={{ marginTop: 24, fontSize: "0.82rem", color: "var(--slate)" }}>

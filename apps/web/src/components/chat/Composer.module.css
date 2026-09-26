@@ -1,0 +1,146 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px 18px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.box:focus-within {
+  border-color: var(--lagoon-600);
+  box-shadow: var(--ring), var(--shadow-2);
+}
+
+.area {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  resize: none;
+  font-size: 17px;
+  line-height: 1.5;
+  padding: 2px 0;
+  outline: none;
+}
+
+.area::placeholder {
+  color: #7f9298;
+}
+
+.foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--paper-2);
+  color: var(--slate);
+  transition: background-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+.ready {
+  background: var(--amber);
+  color: var(--ink-950);
+}
+.ready:hover {
+  background: #eab253;
+}
+.send:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.send:disabled {
+  cursor: not-allowed;
+}
+
+.hint {
+  padding-right: 8px;
+}
+
+.prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prompt {
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink-600);
+  font-size: 13.5px;
+  text-align: left;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.prompt:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--lagoon-300);
+  color: var(--ink);
+}
+
+.guest {
+  padding-left: 6px;
+}
+
+/* Biến thể cột chat khi đã ở chế độ kết quả */
+.rail .box {
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.rail .area {
+  font-size: 15px;
+}
+.rail .send {
+  width: 38px;
+  height: 38px;
+}
+
+.lock {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.lock strong {
+  display: block;
+  font-family: var(--font-head);
+  font-size: 16px;
+}
+
+.lock p {
+  margin: 4px 0 12px;
+}
+
+.lockIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--amber-100);
+  color: #7a4f0a;
+}

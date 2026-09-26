@@ -1,0 +1,381 @@
+.page {
+  padding: 20px 0 88px;
+}
+
+.crumbs {
+  margin-bottom: 14px;
+}
+.crumbs a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 48px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.h1 {
+  font-size: clamp(28px, 3.6vw, 40px);
+}
+
+.headActions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--line);
+}
+
+.stats li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+.stats svg {
+  color: var(--lagoon-600);
+  margin-bottom: 4px;
+}
+.stats b {
+  font-size: 15px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.block h2 {
+  font-size: 24px;
+}
+.block h3 {
+  margin-top: 8px;
+  font-size: 16px;
+  font-family: var(--font-body);
+  letter-spacing: 0;
+}
+.block > p {
+  max-width: 68ch;
+}
+
+.cost {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.costTotal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+.costNum {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.deal {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--amber-100);
+  color: #6e4707;
+}
+
+.steppers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+.step > div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.step .icon-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+}
+.step .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.step b {
+  min-width: 28px;
+  text-align: center;
+  font-size: 19px;
+}
+
+.items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.items li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px 7px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+.items li svg {
+  color: var(--kelp);
+}
+.perks li {
+  background: transparent;
+  border-style: dashed;
+  color: var(--ink-600);
+}
+.perks li svg {
+  color: var(--lagoon-600);
+}
+
+.passport {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px 20px;
+  font-size: 14.5px;
+}
+.passport li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.passport .num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--lagoon-100);
+  color: var(--lagoon);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.terms {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.terms > div {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.terms dt {
+  font-weight: 600;
+  color: var(--ink-600);
+}
+.terms dd {
+  margin: 0;
+}
+
+.hostCard {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.hostCard h2 {
+  font-size: 19px;
+  margin-bottom: 4px;
+}
+.hostAvatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--lagoon);
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.side {
+  position: sticky;
+  top: calc(var(--nav-h) + 16px);
+}
+
+.book {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  box-shadow: var(--shadow-2);
+}
+
+.bookPrice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.bookNum {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.promises {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink-600);
+}
+.promises li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.promises svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--kelp);
+}
+
+.taken {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+}
+
+.similar {
+  margin-top: 64px;
+}
+.similar h2 {
+  margin-bottom: 20px;
+  font-size: 26px;
+}
+.similarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.bar {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .side {
+    display: none;
+  }
+  .bar {
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line-strong);
+  }
+  .bar b {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cost {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .steppers {
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .terms > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .hostCard {
+    flex-direction: column;
+  }
+}
