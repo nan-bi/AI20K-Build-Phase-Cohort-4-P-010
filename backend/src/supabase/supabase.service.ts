@@ -96,50 +96,6 @@ export class SupabaseService {
     }
   }
 
-  // ---------------------------------------------------------------- OAuth (PKCE, do backend điều khiển)
-
-  /** URL bắt đầu OAuth: Supabase → Google → `redirectTo?code=...`. */
-  buildOAuthUrl(params: {
-    provider: string;
-    redirectTo: string;
-    codeChallenge: string;
-    queryParams?: Record<string, string>;
-  }): string {
-    const url = new URL(`${this.supabaseUrl}/auth/v1/authorize`);
-    url.searchParams.set('provider', params.provider);
-    url.searchParams.set('redirect_to', params.redirectTo);
-    url.searchParams.set('code_challenge', params.codeChallenge);
-    url.searchParams.set('code_challenge_method', 's256');
-    for (const [key, value] of Object.entries(params.queryParams ?? {})) {
-      url.searchParams.set(key, value);
-    }
-    return url.toString();
-  }
-
-  /** Đổi `code` lấy phiên (PKCE) — cùng endpoint mà supabase-js gọi trong exchangeCodeForSession. */
-  async exchangePkceCode(authCode: string, codeVerifier: string): Promise<Session | null> {
-    try {
-      const res = await fetch(`${this.supabaseUrl}/auth/v1/token?grant_type=pkce`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: this.anonKey,
-          Authorization: `Bearer ${this.anonKey}`,
-        },
-        body: JSON.stringify({ auth_code: authCode, code_verifier: codeVerifier }),
-      });
-      if (!res.ok) {
-        this.logger.warn(`PKCE exchange rejected: HTTP ${res.status}`);
-        return null;
-      }
-      const session = (await res.json()) as Session;
-      return session?.access_token && session?.refresh_token && session?.user ? session : null;
-    } catch (err) {
-      this.logger.error(`PKCE exchange failed: ${(err as Error).message}`);
-      return null;
-    }
-  }
-
   // ---------------------------------------------------------------- Admin API
 
   createUser(params: { email: string; password: string; emailConfirm?: boolean }) {

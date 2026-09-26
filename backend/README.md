@@ -136,18 +136,21 @@ npm test                         # unit + HTTP test (Prisma/Supabase giả)
 
 Toàn bộ đăng nhập nằm ở backend; `apps/web` chỉ có form và proxy `/api/v1/*` → backend.
 Phiên là **cookie httpOnly** (`vs_access`, `vs_refresh`, SameSite=Lax) do backend set — response không chứa token.
-API client có thể dùng `Authorization: Bearer <Supabase access token>`. Vai trò đọc từ DB (`profiles.role`), không cần Auth Hook.
+Email + mật khẩu dùng token Supabase; **đăng nhập Google chạy bằng Passport, không qua Supabase** và phát JWT phiên do backend
+tự ký (HS256, `iss=vinstay-backend`, sống 1 ngày, không có refresh token — hết hạn thì đăng nhập lại). `AuthSessionService` nhận cả hai
+loại token. API client có thể dùng `Authorization: Bearer <token>`. Vai trò đọc từ DB (`profiles.role`), không cần Auth Hook.
 
 | Endpoint | Mô tả |
 |---|---|
 | `POST /auth/login` `{email,password,portal}` | portal = tenant / landlord / host / admin |
 | `POST /auth/signup` | tenant / landlord / host (host phải được Admin mời) — Supabase gửi email xác nhận |
-| `GET /auth/google?portal=` → `GET /auth/callback` | Google OAuth (PKCE, verifier nằm trong cookie httpOnly) |
+| `GET /auth/google?portal=` → `GET /auth/google/callback` | Google OAuth (Passport; `state` = `portal.nonce`, nonce nằm trong cookie httpOnly `vs_oauth`; luôn hiện màn chọn tài khoản) |
 | `GET /auth/session`, `POST /auth/refresh`, `POST /auth/logout` | phiên hiện tại (tự refresh), làm mới, đăng xuất |
 | `POST /auth/verify-rfid` | Field Host nhập RFID lần đầu; chưa xong thì bị chặn mọi quyền Host |
 | `POST /auth/otp/send`, `/otp/verify`, `/phone/verify` | OTP xác thực SĐT (không phải đăng nhập); Khách thuê nhận action token dùng một lần |
 | `GET/POST /admin/field-hosts` (ops_admin) | mời Field Host bằng email + RFID |
 
-Portal `host` ↔ role `field_host`, `admin` ↔ `ops_admin`. Supabase Dashboard: bật Google provider, thêm Redirect URLs
-`${WEB_APP_URL}/api/v1/auth/callback` và `${WEB_APP_URL}/**`. Schema là nguồn chân lý duy nhất ở `prisma/schema.prisma`
+Portal `host` ↔ role `field_host`, `admin` ↔ `ops_admin`. Google: điền `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`JWT_SECRET` trong `.env`
+và thêm `${WEB_APP_URL}/api/v1/auth/google/callback` vào *Authorized redirect URIs* của OAuth client (Google Cloud Console) — không cần
+cấu hình gì ở Supabase Dashboard. Cùng email đã đăng ký bằng mật khẩu thì Google dùng chung Profile đó. Schema là nguồn chân lý duy nhất ở `prisma/schema.prisma`
 (`prisma/legacy/drop_web_schema.sql` gỡ schema cũ của apps/web nếu DB từng áp migration đó).

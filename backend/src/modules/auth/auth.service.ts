@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HostDutyStatus } from '@prisma/client';
@@ -8,10 +8,12 @@ import { AuthAuditService } from './auth-audit.service';
 import { PORTAL_HOME, Portal, PORTALS, loginPathForPortal } from './auth.constants';
 import { AuthException, authError } from './auth.errors';
 import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from './demo-accounts';
+import { GoogleIdentity } from './google/google.strategy';
 import { AuthenticatedUser, AuthUserView } from './session/authenticated-user';
 import { AuthSessionService, ProfileWithRole, toAuthenticatedUser } from './session/auth-session.service';
-import { ProfileProvisioningService } from './session/profile-provisioning.service';
+import { ProfileProvisioningService, ProvisionUser } from './session/profile-provisioning.service';
 import { SessionTokens } from './session/session-cookies.service';
+import { SessionTokenService } from './session/session-token.service';
 
 export interface RequestContext {
   ipAddress?: string;
@@ -27,7 +29,7 @@ export interface LoginOutcome {
 
 export type SignupOutcome = { needsEmailConfirmation: true } | ({ needsEmailConfirmation: false } & LoginOutcome);
 
-/** Callback OAuth luôn kết thúc bằng một redirect về FE (thành công → trang chủ cổng, lỗi → màn đăng nhập). */
+/** Callback Google luôn kết thúc bằng một redirect về FE (thành công → trang chủ cổng, lỗi → màn đăng nhập). */
 export type OAuthResult =
   | { ok: true; redirectUrl: string; outcome: LoginOutcome }
   | { ok: false; redirectUrl: string };
@@ -46,7 +48,7 @@ const rfidEquals = (expected: string, given: string) => {
 };
 
 /**
- * Toàn bộ nghiệp vụ đăng nhập của VinStay: mật khẩu, đăng ký, Google (PKCE), làm mới/đăng xuất phiên
+ * Toàn bộ nghiệp vụ đăng nhập của VinStay: mật khẩu, đăng ký, Google (Passport), làm mới/đăng xuất phiên
  * và bước RFID của Field Host. FE chỉ hiển thị form và gọi các endpoint này.
  */
 @Injectable()
@@ -63,6 +65,7 @@ export class AuthService {
     private readonly sessions: AuthSessionService,
     private readonly provisioning: ProfileProvisioningService,
     private readonly audit: AuthAuditService,
+    private readonly sessionTokens: SessionTokenService,
     config: ConfigService,
   ) {
     this.webUrl = (config.get<string>('WEB_APP_URL') || 'http://localhost:3000').replace(/\/+$/, '');
@@ -117,38 +120,57 @@ export class AuthService {
     return this.login({ email: DEMO_ACCOUNTS[portal].email, password: this.demoPassword, portal }, ctx);
   }
 
-  // ------------------------------------------------------------------ Google (OAuth PKCE)
+  // ------------------------------------------------------------------ Google (Passport, không qua Supabase)
 
   /**
-   * Bước 1: dựng URL Google (qua Supabase). `state` = PKCE verifier + portal, đặt vào cookie httpOnly
-   * để bước callback đổi `code` lấy phiên — verifier không bao giờ rời backend/cookie.
+   * Bước 1: tạo `state` = `<portal>.<nonce>`. Nonce nằm trong cookie httpOnly; callback chỉ hợp lệ khi `state`
+   * Google trả về khớp cookie (chống CSRF / dính phiên của người khác).
    */
-  beginGoogle(portal: Portal): { url: string; state: string } {
+  beginGoogle(portal: unknown): { state: string; nonce: string } {
+    if (!PORTALS.includes(portal as Portal)) throw authError('invalid_request');
     // Admin chỉ đăng nhập email + mật khẩu.
     if (portal === 'admin') throw authError('signup_not_allowed');
-    this.assertConfigured();
-    const verifier = randomBytes(48).toString('base64url');
-    const codeChallenge = createHash('sha256').update(verifier).digest('base64url');
-    const url = this.supabase.buildOAuthUrl({
-      provider: 'google',
-      redirectTo: `${this.webUrl}/${this.apiPrefix}/auth/callback`,
-      codeChallenge,
-      queryParams: { prompt: 'select_account' },
-    });
-    return { url, state: Buffer.from(JSON.stringify({ v: verifier, p: portal })).toString('base64url') };
+    const nonce = randomBytes(24).toString('base64url');
+    return { state: `${portal}.${nonce}`, nonce };
   }
 
-  /** Bước 2: callback từ Google. Không ném lỗi — trả kết quả để controller redirect về FE. */
-  async completeGoogle(params: { code?: string; state?: string }, ctx: RequestContext): Promise<OAuthResult> {
-    const state = this.decodeOAuthState(params.state);
+  /** Guard callback dùng để bỏ qua bước đổi code với Google khi `state` không khớp cookie. */
+  isGoogleStateValid(state?: string, nonce?: string): boolean {
+    return this.parseGoogleState(state, nonce) !== null;
+  }
+
+  /**
+   * Bước 2: hồ sơ Google (Passport đã đổi code) → Profile → JWT phiên do backend ký. Không ném lỗi — trả kết
+   * quả để controller redirect về FE.
+   */
+  async completeGoogle(
+    params: { identity: GoogleIdentity | null; state?: string; nonce?: string },
+    ctx: RequestContext,
+  ): Promise<OAuthResult> {
+    const state = this.parseGoogleState(params.state, params.nonce);
     const failure = (error: string): OAuthResult => ({ ok: false, redirectUrl: this.loginErrorUrl(state?.portal ?? null, error) });
-    if (!state || state.portal === 'admin' || !params.code) return failure('oauth_failed');
+    const { identity } = params;
+    if (!state || state.portal === 'admin' || !identity) return failure('oauth_failed');
+    if (!identity.emailVerified) return failure('email_not_verified');
 
     try {
-      const session = await this.supabase.exchangePkceCode(params.code, state.verifier);
-      if (!session) return failure('oauth_failed');
-
-      const outcome = await this.completeLogin(session, state.portal, ctx, 'google');
+      const email = identity.email.trim().toLowerCase();
+      // Cùng email đã có tài khoản (vd. đăng ký bằng mật khẩu trước đó) thì dùng chung Profile, không tạo bản thứ hai.
+      const existing = await this.prisma.profile.findUnique({ where: { email }, select: { id: true } });
+      const user: ProvisionUser = {
+        id: existing?.id ?? randomUUID(),
+        email,
+        email_confirmed_at: new Date().toISOString(),
+        user_metadata: { full_name: identity.fullName },
+      };
+      const admitted = await this.admit(user, state.portal, ctx, 'google');
+      const tokens = this.sessionTokens.sign(admitted.profile.id, email);
+      const outcome: LoginOutcome = {
+        tokens,
+        user: this.viewOfProfile(admitted.profile),
+        needsRfidVerification: admitted.needsRfidVerification,
+        ...(admitted.hostId ? { hostId: admitted.hostId } : {}),
+      };
       const path = outcome.needsRfidVerification
         ? `/admin/login?tab=host&rfidPending=${outcome.hostId}`
         : PORTAL_HOME[state.portal];
@@ -197,7 +219,10 @@ export class AuthService {
   }
 
   async logout(accessToken?: string): Promise<void> {
-    if (accessToken && this.supabase.isConfigured()) await this.supabase.signOut(accessToken);
+    // Token do backend ký (Google) không có phiên phía Supabase để thu hồi; controller xoá cookie là đủ.
+    if (accessToken && !this.sessionTokens.verify(accessToken) && this.supabase.isConfigured()) {
+      await this.supabase.signOut(accessToken);
+    }
   }
 
   // ------------------------------------------------------------------ Field Host: xác nhận RFID
@@ -241,25 +266,45 @@ export class AuthService {
     session: Session,
     portal: Portal,
     ctx: RequestContext,
-    method: 'password' | 'google' | 'signup',
+    method: 'password' | 'signup',
   ): Promise<LoginOutcome> {
-    const result = await this.provisioning.ensureProfile(session.user, portal);
+    let admitted: Awaited<ReturnType<AuthService['admit']>>;
+    try {
+      admitted = await this.admit(session.user, portal, ctx, method);
+    } catch (err) {
+      // Đăng nhập Supabase đã thành công nhưng không được vào cổng này → thu hồi phiên vừa tạo.
+      if (err instanceof AuthException) await this.supabase.signOut(session.access_token);
+      throw err;
+    }
+    return {
+      tokens: toTokens(session),
+      user: this.viewOfProfile(admitted.profile),
+      needsRfidVerification: admitted.needsRfidVerification,
+      ...(admitted.hostId ? { hostId: admitted.hostId } : {}),
+    };
+  }
+
+  /** Tạo/nạp Profile và bắt buộc khớp cổng (dùng chung cho mật khẩu, đăng ký và Google). Ném AuthException nếu bị từ chối. */
+  private async admit(
+    user: ProvisionUser,
+    portal: Portal,
+    ctx: RequestContext,
+    method: 'password' | 'google' | 'signup',
+  ): Promise<{ profile: ProfileWithRole; needsRfidVerification: boolean; hostId?: string }> {
+    const result = await this.provisioning.ensureProfile(user, portal);
     // `in` thay vì `!result.ok`: backend chạy strictNullChecks=false nên TS không thu hẹp union theo boolean.
     if ('error' in result) {
-      // Đăng nhập Supabase đã thành công nhưng không được vào cổng này → thu hồi phiên vừa tạo.
-      await this.supabase.signOut(session.access_token);
       await this.audit.record('login_rejected', {
-        userId: session.user.id,
+        userId: user.id,
         ...ctx,
         metadata: { portal, method, reason: result.error },
       });
       throw authError(result.error);
     }
 
-    await this.audit.record('login_succeeded', { userId: session.user.id, ...ctx, metadata: { portal, method } });
+    await this.audit.record('login_succeeded', { userId: user.id, ...ctx, metadata: { portal, method } });
     return {
-      tokens: toTokens(session),
-      user: this.viewOfProfile(result.profile),
+      profile: result.profile,
       needsRfidVerification: result.needsRfidVerification,
       ...(result.needsRfidVerification ? { hostId: result.hostId } : {}),
     };
@@ -284,15 +329,15 @@ export class AuthService {
     }
   }
 
-  private decodeOAuthState(raw?: string): { verifier: string; portal: Portal } | null {
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-      if (typeof parsed?.v !== 'string' || !PORTALS.includes(parsed?.p)) return null;
-      return { verifier: parsed.v, portal: parsed.p };
-    } catch {
-      return null;
-    }
+  /** `<portal>.<nonce>` hợp lệ khi nonce trùng cookie; sai/thiếu → null (không tin portal do URL cung cấp). */
+  private parseGoogleState(state?: string, nonce?: string): { portal: Portal } | null {
+    if (!state || !nonce) return null;
+    const dot = state.indexOf('.');
+    const portal = state.slice(0, dot);
+    const given = Buffer.from(state.slice(dot + 1));
+    const expected = Buffer.from(nonce);
+    if (dot < 0 || !PORTALS.includes(portal as Portal) || given.length !== expected.length) return null;
+    return timingSafeEqual(given, expected) ? { portal: portal as Portal } : null;
   }
 
   private loginErrorUrl(portal: Portal | null, error: string): string {

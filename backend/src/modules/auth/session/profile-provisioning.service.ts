@@ -4,6 +4,12 @@ import { User } from '../../../supabase/supabase.service';
 import { Portal, PORTAL_ROLE, ROLE_NAMES } from '../auth.constants';
 import { PROFILE_INCLUDE, ProfileWithRole } from './auth-session.service';
 
+/**
+ * Phần của Supabase `User` mà ensureProfile đọc. Đăng nhập Google (Passport) dựng object cùng dạng này,
+ * với `email_confirmed_at` chỉ đặt khi Google xác nhận email.
+ */
+export type ProvisionUser = Pick<User, 'id' | 'email' | 'email_confirmed_at' | 'user_metadata'>;
+
 export type EnsureProfileError =
   | 'email_not_verified'
   | 'not_authorized' // Host chưa được Admin mời (hoặc lời mời đã dùng), hoặc Admin chưa được cấp
@@ -32,7 +38,7 @@ export class ProfileProvisioningService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async ensureProfile(user: User, portal: Portal): Promise<EnsureProfileResult> {
+  async ensureProfile(user: ProvisionUser, portal: Portal): Promise<EnsureProfileResult> {
     const email = user.email?.toLowerCase();
     // Email phải được chứng minh (Google luôn có; đăng ký email cần bấm link) — nếu không, ai cũng có
     // thể chiếm email của một Host đã được mời.

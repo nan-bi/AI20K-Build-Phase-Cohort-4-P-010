@@ -6,6 +6,7 @@ import { SupabaseService, User } from '../../../supabase/supabase.service';
 import { portalForRole } from '../auth.constants';
 import { authError } from '../auth.errors';
 import { AuthenticatedUser } from './authenticated-user';
+import { SessionTokenService } from './session-token.service';
 
 export type ProfileWithRole = Prisma.ProfileGetPayload<{
   include: { role: true; hostProfile: { select: { id: true } } };
@@ -47,8 +48,8 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 }
 
 /**
- * access token → người dùng của hệ thống: xác thực JWT với Supabase Auth rồi lấy vai trò từ DB.
- * Vai trò KHÔNG đọc từ JWT (không cần Custom Access Token Hook) nên đổi vai trò/khoá tài khoản có
+ * access token → người dùng của hệ thống: JWT do backend ký (đăng nhập Google) hoặc JWT Supabase (email +
+ * mật khẩu, xác thực với Supabase Auth), rồi lấy vai trò từ DB. Vai trò KHÔNG đọc từ JWT (không cần Custom Access Token Hook) nên đổi vai trò/khoá tài khoản có
  * hiệu lực ngay ở request kế tiếp.
  */
 @Injectable()
@@ -60,6 +61,7 @@ export class AuthSessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
+    private readonly sessionTokens: SessionTokenService,
   ) {}
 
   /** Gọi sau khi hồ sơ/vai trò của user đổi (RFID, SĐT...) để request kế tiếp đọc lại từ DB. */
@@ -74,15 +76,19 @@ export class AuthSessionService {
     if (hit && hit.expiresAt > Date.now()) return hit.user;
     this.cache.delete(key);
 
-    const supabaseUser = await this.supabase.verifyJwtToken(accessToken);
-    if (!supabaseUser) return null;
+    // Token của backend kiểm tra cục bộ (HMAC, không tốn mạng); không phải thì hỏi Supabase.
+    const local = this.sessionTokens.verify(accessToken);
+    const identity = local ? { id: local.sub, email: local.email } : await this.supabase.verifyJwtToken(accessToken);
+    if (!identity) return null;
 
     const profile = await withRetry(() =>
-      this.prisma.profile.findUnique({ where: { id: supabaseUser.id }, include: PROFILE_INCLUDE }),
+      this.prisma.profile.findUnique({ where: { id: identity.id }, include: PROFILE_INCLUDE }),
     );
+    // Phiên Google luôn gắn với một Profile đã tạo; Profile bị xoá thì token vô hiệu.
+    if (local && !profile) return null;
     if (profile && !profile.isActive) throw authError('account_suspended');
 
-    const user = toAuthenticatedUser(supabaseUser, profile);
+    const user = toAuthenticatedUser(identity, profile);
     if (this.cache.size >= CACHE_MAX_ENTRIES) this.cache.delete(this.cache.keys().next().value);
     this.cache.set(key, { user, expiresAt: Date.now() + CACHE_TTL_MS });
     return user;
