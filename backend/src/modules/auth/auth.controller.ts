@@ -1,12 +1,15 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { PORTALS } from './auth.constants';
 import { AuthException, authError } from './auth.errors';
 import { AuthService, LoginOutcome, RequestContext } from './auth.service';
 import { LoginDto, PortalQueryDto, SignupDto, VerifyRfidDto } from './dto/auth.dto';
+import { GoogleAuthGuard, GoogleCallbackGuard } from './google/google-auth.guard';
+import { GoogleIdentity } from './google/google.strategy';
 import { AuthenticatedUser } from './session/authenticated-user';
 import { SessionCookieService } from './session/session-cookies.service';
 
@@ -20,7 +23,8 @@ export const requestContext = (req: Request): RequestContext => ({
 /**
  * Đăng nhập là việc của backend: FE chỉ hiển thị form và gọi các endpoint này. Phiên nằm trong cookie
  * httpOnly (`vs_access`, `vs_refresh`) — response không bao giờ chứa token. API client có thể gửi
- * `Authorization: Bearer <Supabase access token>` thay cho cookie.
+ * `Authorization: Bearer <Supabase access token>` thay cho cookie. Đăng nhập Google chạy bằng Passport và
+ * phát JWT phiên do backend ký (không qua Supabase, không có refresh token).
  */
 @ApiTags('0. Xác thực & Phân quyền (Auth)')
 @Controller('auth')
@@ -81,24 +85,29 @@ export class AuthController {
 
   @Public()
   @Get('google')
+  @UseGuards(GoogleAuthGuard)
   @Throttle(perMinute(20))
   @ApiOperation({
-    summary: 'Bắt đầu đăng nhập Google (redirect 302 sang Google qua Supabase, PKCE)',
-    description: 'Mở bằng điều hướng trình duyệt (không phải fetch). Kết thúc ở `GET /auth/callback`.',
+    summary: 'Bắt đầu đăng nhập Google (redirect 302 sang Google qua Passport, luôn hiện màn chọn tài khoản)',
+    description:
+      'Mở bằng điều hướng trình duyệt (không phải fetch). Kết thúc ở `GET /auth/google/callback`. ' +
+      '**"Try it out" ở Swagger sẽ báo lỗi CORS** (fetch bị redirect sang accounts.google.com) — hãy mở ' +
+      '`/api/v1/auth/google?portal=tenant` trong tab mới, đăng nhập xong quay lại đây gọi `GET /auth/session` ' +
+      '(cookie `vs_access` dùng chung `localhost`).',
   })
-  google(@Query() query: PortalQueryDto, @Res() res: Response) {
-    const { url, state } = this.auth.beginGoogle(query.portal);
-    this.cookies.setOAuthState(res, state);
-    return res.redirect(302, url);
+  @ApiQuery({ name: 'portal', enum: PORTALS })
+  google() {
+    // Guard đã redirect sang Google; handler không bao giờ chạy.
   }
 
   @Public()
-  @Get('callback')
+  @Get('google/callback')
+  @UseGuards(GoogleCallbackGuard)
   @Throttle(perMinute(20))
-  @ApiOperation({ summary: 'Callback OAuth Google: đổi code lấy phiên, set cookie, redirect về FE' })
-  async callback(@Query('code') code: string | undefined, @Req() req: Request, @Res() res: Response) {
+  @ApiOperation({ summary: 'Callback Google: tạo/nạp hồ sơ, ký JWT phiên, set cookie, redirect về FE' })
+  async googleCallback(@Query('state') state: string | undefined, @Req() req: Request, @Res() res: Response) {
     const result = await this.auth.completeGoogle(
-      { code, state: this.cookies.readOAuthState(req) },
+      { identity: (req.user as GoogleIdentity | null) ?? null, state, nonce: this.cookies.readOAuthState(req) },
       requestContext(req),
     );
     this.cookies.clearOAuthState(res);

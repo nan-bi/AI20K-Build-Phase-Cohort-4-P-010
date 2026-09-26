@@ -44,11 +44,6 @@ export function createFakeSupabase() {
       error: { name: 'AuthApiError', status: 400, code: 'refresh_token_not_found', message: 'nope' },
     })),
     signOut: jest.fn(async () => undefined),
-    buildOAuthUrl: jest.fn(
-      (p: { redirectTo: string; codeChallenge: string }) =>
-        `https://project.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(p.redirectTo)}&code_challenge=${p.codeChallenge}&code_challenge_method=s256`,
-    ),
-    exchangePkceCode: jest.fn(async (_code: string, _verifier: string): Promise<Session | null> => null),
   };
 }
 

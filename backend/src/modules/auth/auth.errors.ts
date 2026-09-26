@@ -32,7 +32,7 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   forbidden: [HttpStatus.FORBIDDEN, 'Bạn không có quyền thực hiện thao tác này'],
   host_rfid_unverified: [HttpStatus.FORBIDDEN, 'Field Host cần xác nhận mã thẻ RFID trước khi sử dụng'],
   oauth_failed: [HttpStatus.BAD_REQUEST, 'Đăng nhập bằng Google không thành công'],
-  auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Dịch vụ xác thực chưa được cấu hình (thiếu SUPABASE_*)'],
+  auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Dịch vụ xác thực chưa được cấu hình (thiếu SUPABASE_* hoặc GOOGLE_*)'],
   auth_provider_unavailable: [HttpStatus.BAD_GATEWAY, 'Không kết nối được dịch vụ xác thực'],
   demo_disabled: [HttpStatus.NOT_FOUND, 'Chế độ demo đang tắt'],
   rate_limited: [HttpStatus.TOO_MANY_REQUESTS, 'Quá nhiều yêu cầu, vui lòng thử lại sau'],

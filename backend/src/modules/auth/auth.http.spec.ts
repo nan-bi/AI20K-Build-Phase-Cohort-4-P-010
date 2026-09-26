@@ -12,6 +12,7 @@ import { TransformInterceptor } from '../../common/interceptors/transform.interc
 import { PrismaService } from '../../prisma/prisma.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { AuthModule } from './auth.module';
+import { GoogleStrategy } from './google/google.strategy';
 import { createFakePrisma, FakePrisma, seedProfile } from './testing/fake-prisma';
 import { createFakeSupabase, FakeSupabase, fakeSession, fakeSupabaseUser } from './testing/fake-supabase';
 
@@ -21,9 +22,12 @@ const ENV = {
   AES_SECRET_KEY: 'a-test-master-secret-of-32-chars!!',
   OTP_ECHO_DEV_CODE: 'true',
   OTP_RESEND_SECONDS: '0',
+  JWT_SECRET: 'a-test-jwt-secret-of-at-least-32-chars',
+  GOOGLE_CLIENT_ID: 'test-client-id.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'test-client-secret',
 };
 
-async function createApp(prisma: FakePrisma, supabase: FakeSupabase): Promise<INestApplication> {
+async function createApp(prisma: FakePrisma, supabase: FakeSupabase, env: Record<string, string | undefined> = ENV): Promise<INestApplication> {
   @Global()
   @Module({
     providers: [
@@ -35,7 +39,7 @@ async function createApp(prisma: FakePrisma, supabase: FakeSupabase): Promise<IN
   class FakeInfraModule {}
 
   @Module({
-    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => ENV] }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]), FakeInfraModule, AuthModule],
+    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => env] }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]), FakeInfraModule, AuthModule],
     providers: [
       { provide: APP_GUARD, useClass: SupabaseAuthGuard },
       { provide: APP_GUARD, useClass: RolesGuard },
@@ -269,40 +273,178 @@ describe('Auth HTTP (Nest thật + Prisma/Supabase giả)', () => {
     });
   });
 
-  describe('Google OAuth', () => {
-    it('GET /auth/google → 302 sang Supabase + cookie vs_oauth httpOnly', async () => {
-      const res = await request(app.getHttpServer()).get('/api/v1/auth/google?portal=tenant').redirects(0);
+  describe('Google OAuth (Passport)', () => {
+    /** Thay hai lời gọi mạng của Passport (đổi code, lấy hồ sơ) bằng dữ liệu giả; trả về spy đổi code. */
+    function fakeGoogle(profile: Record<string, unknown> | null) {
+      const strategy = app.get(GoogleStrategy) as any;
+      const exchange = jest.fn((_code: string, _params: unknown, cb: (...args: unknown[]) => void) => cb(null, 'g-access', 'g-refresh', {}));
+      strategy._oauth2.getOAuthAccessToken = exchange;
+      strategy.userProfile = (_token: string, done: (...args: unknown[]) => void) => done(null, profile);
+      return exchange;
+    }
+    const googleProfile = (overrides: Record<string, unknown> = {}) => ({
+      id: 'google-sub-1',
+      displayName: 'Nguyễn Văn An',
+      emails: [{ value: 'g@example.com', verified: true }],
+      _json: {},
+      ...overrides,
+    });
+    const startFlow = async (portal: string) => {
+      const res = await request(app.getHttpServer()).get(`/api/v1/auth/google?portal=${portal}`).redirects(0);
+      const location = new URL(res.headers.location);
+      const cookie = cookiesOf(res).find((c) => c.startsWith('vs_oauth='))!.split(';')[0];
+      return { res, location, state: location.searchParams.get('state')!, cookie };
+    };
+    const callback = (query: string, cookie?: string) => {
+      const req = request(app.getHttpServer()).get(`/api/v1/auth/google/callback?${query}`);
+      return (cookie ? req.set('Cookie', cookie) : req).redirects(0);
+    };
+
+    it('GET /auth/google → 302 sang Google, luôn chọn tài khoản, state khớp cookie vs_oauth httpOnly', async () => {
+      const { res, location, state } = await startFlow('tenant');
+
       expect(res.status).toBe(302);
-      expect(res.headers.location).toContain('https://project.supabase.co/auth/v1/authorize');
-      expect(res.headers.location).toContain(encodeURIComponent('http://localhost:3000/api/v1/auth/callback'));
-      expect(cookiesOf(res).find((c) => c.startsWith('vs_oauth='))).toMatch(/HttpOnly/i);
+      expect(location.origin + location.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+      expect(location.searchParams.get('client_id')).toBe(ENV.GOOGLE_CLIENT_ID);
+      expect(location.searchParams.get('redirect_uri')).toBe('http://localhost:3000/api/v1/auth/google/callback');
+      expect(location.searchParams.get('prompt')).toBe('select_account');
+      expect(location.searchParams.get('scope')).toBe('email profile');
+      expect(state).toMatch(/^tenant\./);
+
+      const oauth = cookiesOf(res).find((c) => c.startsWith('vs_oauth='))!;
+      expect(oauth).toMatch(/HttpOnly/i);
+      expect(oauth.split(';')[0]).toBe(`vs_oauth=${state.slice('tenant.'.length)}`);
     });
 
-    it('portal không hợp lệ → 400', async () => {
-      expect((await request(app.getHttpServer()).get('/api/v1/auth/google?portal=root')).status).toBe(400);
+    it.each([
+      ['root', 400, 'invalid_request'],
+      ['', 400, 'invalid_request'],
+      ['admin', 403, 'signup_not_allowed'],
+    ])('portal "%s" → %i %s, không redirect, không set cookie', async (portal, status, code) => {
+      const res = await request(app.getHttpServer()).get(`/api/v1/auth/google?portal=${portal}`).redirects(0);
+      expect(res.status).toBe(status);
+      expect(res.body).toMatchObject({ success: false, code });
+      expect(cookiesOf(res)).toHaveLength(0);
     });
 
-    it('callback: đổi code, set cookie phiên, xoá vs_oauth, redirect về FE', async () => {
-      const start = await request(app.getHttpServer()).get('/api/v1/auth/google?portal=landlord').redirects(0);
-      const oauthCookie = cookiesOf(start).find((c) => c.startsWith('vs_oauth='))!.split(';')[0];
-      const user = fakeSupabaseUser({ email: 'g@example.com' });
-      const session = fakeSession(user);
-      sessions.set(session.access_token, user);
-      supabase.exchangePkceCode.mockResolvedValue(session);
+    it('chưa cấu hình GOOGLE_CLIENT_ID/SECRET → 503 auth_not_configured (backend vẫn khởi động)', async () => {
+      const bare = await createApp(prisma, supabase, { ...ENV, GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined });
+      try {
+        for (const path of ['/api/v1/auth/google?portal=tenant', '/api/v1/auth/google/callback?code=x&state=y']) {
+          const res = await request(bare.getHttpServer()).get(path).redirects(0);
+          expect(res.status).toBe(503);
+          expect(res.body).toMatchObject({ success: false, code: 'auth_not_configured' });
+        }
+      } finally {
+        await bare.close();
+      }
+    });
 
-      const res = await request(app.getHttpServer()).get('/api/v1/auth/callback?code=abc').set('Cookie', oauthCookie).redirects(0);
+    it('callback: tạo Profile, cookie phiên httpOnly (JWT backend, không refresh), xoá vs_oauth, redirect về FE', async () => {
+      const exchange = fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('landlord');
+
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+
       expect(res.status).toBe(302);
       expect(res.headers.location).toBe('http://localhost:3000/landlord/dashboard');
+      expect(exchange).toHaveBeenCalledWith('abc', expect.anything(), expect.any(Function));
       const cookies = cookiesOf(res);
-      expect(cookies.find((c) => c.startsWith('vs_access='))).toContain(session.access_token);
+      const access = cookies.find((c) => c.startsWith('vs_access='))!;
+      expect(access).toMatch(/HttpOnly/i);
+      expect(access).toMatch(/SameSite=Lax/i);
+      expect(access).toMatch(/Max-Age=86400/);
+      expect(cookies.find((c) => c.startsWith('vs_refresh=;'))).toBeDefined(); // xoá refresh cũ, không đặt mới
       expect(cookies.find((c) => c.startsWith('vs_oauth=;'))).toBeDefined();
+      expect(res.text).not.toContain(access.split(';')[0].slice('vs_access='.length));
+      expect(prisma.profile.rows).toHaveLength(1);
+      expect(supabase.verifyJwtToken).not.toHaveBeenCalled();
     });
 
-    it('callback không có cookie vs_oauth (CSRF / mở link ở trình duyệt khác) → về màn đăng nhập', async () => {
-      const res = await request(app.getHttpServer()).get('/api/v1/auth/callback?code=abc').redirects(0);
+    it('sau callback: /auth/session nhận ra người dùng, guard nhận Bearer, logout xoá phiên — không hỏi Supabase', async () => {
+      fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('tenant');
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+      const access = cookiesOf(res).find((c) => c.startsWith('vs_access='))!.split(';')[0];
+      const token = access.slice('vs_access='.length);
+
+      const session = await request(app.getHttpServer()).get('/api/v1/auth/session').set('Cookie', access);
+      expect(session.body.data.user).toMatchObject({ email: 'g@example.com', portal: 'tenant', role: 'tenant', fullName: 'Nguyễn Văn An' });
+      expect(JSON.stringify(session.body)).not.toContain(token);
+
+      // Route cần đăng nhập (guard toàn cục) chấp nhận token backend qua Bearer.
+      const guarded = await request(app.getHttpServer()).post('/api/v1/auth/verify-rfid').set('Authorization', `Bearer ${token}`).send({ hostId: '11111111-1111-4111-8111-111111111111', rfid: 'x' });
+      expect(guarded.status).toBe(400); // qua guard, bị nghiệp vụ từ chối vì không phải Field Host
+      expect(guarded.body.code).toBe('invalid_host');
+
+      const out = await request(app.getHttpServer()).post('/api/v1/auth/logout').set('Cookie', access);
+      expect(out.status).toBe(200);
+      expect(cookiesOf(out).find((c) => c.startsWith('vs_access=;'))).toBeDefined();
+      expect(supabase.verifyJwtToken).not.toHaveBeenCalled();
+      expect(supabase.signOut).not.toHaveBeenCalled();
+    });
+
+    it('callback thiếu cookie vs_oauth (CSRF / mở link ở trình duyệt khác) → về màn đăng nhập, không gọi Google', async () => {
+      const exchange = fakeGoogle(googleProfile());
+      const { state } = await startFlow('tenant');
+
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`);
       expect(res.status).toBe(302);
       expect(res.headers.location).toBe('http://localhost:3000/login?error=oauth_failed&tab=tenant');
-      expect(supabase.exchangePkceCode).not.toHaveBeenCalled();
+      expect(exchange).not.toHaveBeenCalled();
+      expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
+      expect(prisma.profile.rows).toHaveLength(0);
+    });
+
+    it('state giả (nonce không khớp cookie) → oauth_failed, không tạo Profile', async () => {
+      const exchange = fakeGoogle(googleProfile());
+      const { cookie } = await startFlow('tenant');
+
+      const res = await callback('code=abc&state=tenant.nonce-cua-ke-tan-cong', cookie);
+      expect(res.headers.location).toBe('http://localhost:3000/login?error=oauth_failed&tab=tenant');
+      expect(exchange).not.toHaveBeenCalled();
+      expect(prisma.profile.rows).toHaveLength(0);
+    });
+
+    it('người dùng từ chối ở màn Google (error=access_denied) → về màn đăng nhập của cổng, không phải JSON 401', async () => {
+      fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('host');
+
+      const res = await callback(`error=access_denied&state=${encodeURIComponent(state)}`, cookie);
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe('http://localhost:3000/admin/login?error=oauth_failed&tab=host');
+      expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
+    });
+
+    it('email Google chưa xác minh → email_not_verified, không cấp phiên', async () => {
+      fakeGoogle(googleProfile({ emails: [{ value: 'g@example.com', verified: false }] }));
+      const { state, cookie } = await startFlow('tenant');
+
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+      expect(res.headers.location).toBe('http://localhost:3000/login?error=email_not_verified&tab=tenant');
+      expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
+    });
+
+    it('sai cổng (email đã là Chủ nhà) → wrong_portal, không cấp phiên', async () => {
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'landlord' });
+      fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('tenant');
+
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+      expect(res.headers.location).toBe('http://localhost:3000/login?error=wrong_portal&tab=tenant');
+      expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
+    });
+
+    it('Field Host được mời nhưng chưa nhập RFID → có phiên, redirect kèm rfidPending; session báo pendingHostId', async () => {
+      const invite = await prisma.hostInvite.create({ data: { email: 'g@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
+      fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('host');
+
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+      expect(res.headers.location).toBe(`http://localhost:3000/admin/login?tab=host&rfidPending=${invite.id}`);
+      const access = cookiesOf(res).find((c) => c.startsWith('vs_access='))!.split(';')[0];
+      const session = await request(app.getHttpServer()).get('/api/v1/auth/session').set('Cookie', access);
+      expect(session.body.data.user).toMatchObject({ portal: 'host', isHostVerified: false, pendingHostId: invite.id });
     });
   });
 

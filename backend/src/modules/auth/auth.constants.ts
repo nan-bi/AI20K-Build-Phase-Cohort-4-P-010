@@ -40,11 +40,15 @@ export function loginPathForPortal(portal: Portal): string {
   return portal === 'host' || portal === 'admin' ? '/admin/login' : '/login';
 }
 
-// Cookie phiên (httpOnly). Access token = JWT Supabase, refresh token = Supabase refresh token.
+// Cookie phiên (httpOnly). Email + mật khẩu: access token = JWT Supabase, refresh token = Supabase refresh token.
+// Đăng nhập Google: access token = JWT do backend ký (SessionTokenService), không có refresh token.
 export const ACCESS_COOKIE = 'vs_access';
 export const REFRESH_COOKIE = 'vs_refresh';
-/** Cookie tạm giữ PKCE verifier + portal trong lúc đi vòng qua Google. */
+/** Cookie tạm giữ nonce chống CSRF (khớp với `state`) trong lúc đi vòng qua Google. */
 export const OAUTH_COOKIE = 'vs_oauth';
+
+/** Phiên Google sống 1 ngày; hết hạn thì đăng nhập lại (không có refresh token). */
+export const GOOGLE_SESSION_TTL_SECONDS = 24 * 60 * 60;
 
 export const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export const OAUTH_COOKIE_MAX_AGE_MS = 10 * 60 * 1000;

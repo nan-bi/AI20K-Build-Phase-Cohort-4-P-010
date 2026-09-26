@@ -1,10 +1,12 @@
-import { createHash } from 'node:crypto';
+import { JwtService } from '@nestjs/jwt';
 import { AuthAuditService } from './auth-audit.service';
 import { AuthException } from './auth.errors';
 import { AuthService } from './auth.service';
 import { AuthSessionService } from './session/auth-session.service';
 import { ProfileProvisioningService } from './session/profile-provisioning.service';
+import { GoogleIdentity } from './google/google.strategy';
 import { fakeConfig } from './testing/fake-config';
+import { createSessionTokens } from './testing/fake-session-token';
 import { createFakePrisma, seedProfile } from './testing/fake-prisma';
 import { createFakeSupabase, fakeSession, fakeSupabaseUser } from './testing/fake-supabase';
 
@@ -14,15 +16,18 @@ const supabaseError = (status: number, code?: string, name = 'AuthApiError') => 
 function setup(env: Record<string, string> = {}) {
   const prisma = createFakePrisma();
   const supabase = createFakeSupabase();
+  const sessionTokens = createSessionTokens();
+  const sessions = new AuthSessionService(prisma as any, supabase as any, sessionTokens);
   const service = new AuthService(
     prisma as any,
     supabase as any,
-    new AuthSessionService(prisma as any, supabase as any),
+    sessions,
     new ProfileProvisioningService(prisma as any),
     new AuthAuditService(prisma as any),
+    sessionTokens,
     fakeConfig({ WEB_APP_URL: 'http://localhost:3000/', API_PREFIX: 'api/v1', ...env }),
   );
-  return { prisma, supabase, service };
+  return { prisma, supabase, service, sessions, sessionTokens };
 }
 
 const codeOf = async (promise: Promise<unknown>) => {
@@ -169,84 +174,225 @@ describe('AuthService', () => {
     });
   });
 
-  describe('Google (PKCE)', () => {
-    it('code_challenge trong URL là SHA-256 của verifier nằm trong state cookie', () => {
-      const { service, supabase } = setup();
-      const { url, state } = service.beginGoogle('host');
+  describe('Google (Passport)', () => {
+    const google = (overrides: Partial<GoogleIdentity> = {}): GoogleIdentity => ({
+      googleId: 'g-1',
+      email: 'g@example.com',
+      emailVerified: true,
+      fullName: 'Nguyễn Văn An',
+      ...overrides,
+    });
+    /** Mô phỏng vòng đi–về: nonce nằm trong cookie, state đi qua Google rồi quay lại query. */
+    const roundTrip = (service: AuthService, portal: 'tenant' | 'landlord' | 'host' = 'tenant') => {
+      const { state, nonce } = service.beginGoogle(portal);
+      return { state, nonce };
+    };
 
-      const { v, p } = JSON.parse(Buffer.from(state, 'base64url').toString());
-      expect(p).toBe('host');
-      const challenge = createHash('sha256').update(v).digest('base64url');
-      expect(new URL(url).searchParams.get('code_challenge')).toBe(challenge);
-      expect(supabase.buildOAuthUrl).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: 'google', redirectTo: 'http://localhost:3000/api/v1/auth/callback' }),
-      );
+    it('state = <portal>.<nonce>, mỗi lần bắt đầu dùng nonce khác nhau', () => {
+      const { service } = setup();
+      const a = service.beginGoogle('host');
+      expect(a.state).toBe(`host.${a.nonce}`);
+      expect(service.beginGoogle('host').nonce).not.toBe(a.nonce);
     });
 
-    it('admin không đăng nhập được bằng Google', async () => {
+    it('portal không hợp lệ → invalid_request; admin không đăng nhập được bằng Google', () => {
       const { service } = setup();
-      expect(() => service.beginGoogle('admin')).toThrow();
-      const state = Buffer.from(JSON.stringify({ v: 'x', p: 'admin' })).toString('base64url');
-      expect(await service.completeGoogle({ code: 'c', state }, CTX)).toMatchObject({ ok: false });
+      expect(() => service.beginGoogle('root')).toThrow(expect.objectContaining({ code: 'invalid_request' }));
+      expect(() => service.beginGoogle(undefined)).toThrow(expect.objectContaining({ code: 'invalid_request' }));
+      expect(() => service.beginGoogle('admin')).toThrow(expect.objectContaining({ code: 'signup_not_allowed' }));
     });
 
-    it('mỗi lần bắt đầu dùng verifier khác nhau', () => {
+    it('thiếu/sai state hoặc nonce không khớp cookie → về màn đăng nhập tenant với oauth_failed', async () => {
       const { service } = setup();
-      expect(service.beginGoogle('tenant').state).not.toBe(service.beginGoogle('tenant').state);
+      const { state, nonce } = roundTrip(service, 'host');
+      const tenantFailure = { ok: false, redirectUrl: 'http://localhost:3000/login?error=oauth_failed&tab=tenant' };
+
+      expect(await service.completeGoogle({ identity: google(), state: undefined, nonce }, CTX)).toEqual(tenantFailure);
+      expect(await service.completeGoogle({ identity: google(), state, nonce: undefined }, CTX)).toEqual(tenantFailure);
+      expect(await service.completeGoogle({ identity: google(), state: 'garbage', nonce }, CTX)).toEqual(tenantFailure);
+      expect(await service.completeGoogle({ identity: google(), state, nonce: 'khac-nonce-hoan-toan' }, CTX)).toEqual(tenantFailure);
     });
 
-    const start = (service: AuthService, portal: 'tenant' | 'host' = 'tenant') => service.beginGoogle(portal).state;
-
-    it('thiếu/hỏng state hoặc thiếu code → về màn đăng nhập với oauth_failed', async () => {
-      const { service } = setup();
-      expect(await service.completeGoogle({ code: 'c', state: undefined }, CTX)).toEqual({
+    it('state mang cổng admin (dù nonce đúng) → bị từ chối, không tạo Profile', async () => {
+      const { service, prisma } = setup();
+      const nonce = 'nonce-hop-le-nhung-portal-admin';
+      expect(await service.completeGoogle({ identity: google(), state: `admin.${nonce}`, nonce }, CTX)).toEqual({
         ok: false,
-        redirectUrl: 'http://localhost:3000/login?error=oauth_failed&tab=tenant',
+        redirectUrl: 'http://localhost:3000/admin/login?error=oauth_failed&tab=admin',
       });
-      expect(await service.completeGoogle({ code: 'c', state: 'garbage' }, CTX)).toMatchObject({ ok: false });
-      expect(await service.completeGoogle({ code: undefined, state: start(service, 'host') }, CTX)).toEqual({
+      expect(prisma.profile.rows).toHaveLength(0);
+    });
+
+    it('Google không trả hồ sơ (người dùng từ chối / code sai) → oauth_failed đúng màn của cổng', async () => {
+      const { service } = setup();
+      const { state, nonce } = roundTrip(service, 'host');
+      expect(await service.completeGoogle({ identity: null, state, nonce }, CTX)).toEqual({
         ok: false,
         redirectUrl: 'http://localhost:3000/admin/login?error=oauth_failed&tab=host',
       });
     });
 
-    it('đổi code thất bại → oauth_failed', async () => {
-      const { service, supabase } = setup();
-      supabase.exchangePkceCode.mockResolvedValue(null);
-      expect(await service.completeGoogle({ code: 'c', state: start(service) }, CTX)).toMatchObject({ ok: false });
+    it('email Google chưa xác minh → email_not_verified, không tạo Profile', async () => {
+      const { service, prisma } = setup();
+      const { state, nonce } = roundTrip(service);
+      expect(await service.completeGoogle({ identity: google({ emailVerified: false }), state, nonce }, CTX)).toEqual({
+        ok: false,
+        redirectUrl: 'http://localhost:3000/login?error=email_not_verified&tab=tenant',
+      });
+      expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('thành công → redirect trang chủ cổng; verifier từ state được dùng để đổi code', async () => {
-      const { service, supabase } = setup();
-      const state = start(service, 'tenant');
-      const verifier = JSON.parse(Buffer.from(state, 'base64url').toString()).v;
-      supabase.exchangePkceCode.mockResolvedValue(fakeSession(fakeSupabaseUser({ email: 'g@example.com' })));
+    it('lần đầu: tạo Profile, ký JWT phiên (không có refresh token), redirect trang chủ cổng', async () => {
+      const { service, prisma, supabase, sessionTokens } = setup();
+      const { state, nonce } = roundTrip(service, 'landlord');
 
-      const result = await service.completeGoogle({ code: 'auth-code', state }, CTX);
-      expect(supabase.exchangePkceCode).toHaveBeenCalledWith('auth-code', verifier);
+      const result = await service.completeGoogle({ identity: google(), state, nonce }, CTX);
+
+      expect(result).toMatchObject({ ok: true, redirectUrl: 'http://localhost:3000/landlord/dashboard' });
+      if (!result.ok) return;
+      const profile = prisma.profile.rows[0];
+      expect(profile).toMatchObject({ email: 'g@example.com', fullName: 'Nguyễn Văn An' });
+      expect(result.outcome.user).toMatchObject({ id: profile.id, role: 'landlord', portal: 'landlord' });
+      expect(result.outcome.tokens.refreshToken).toBeUndefined();
+      expect(result.outcome.tokens.expiresIn).toBe(24 * 60 * 60);
+      expect(sessionTokens.verify(result.outcome.tokens.accessToken)).toMatchObject({ sub: profile.id, email: 'g@example.com' });
+      expect(supabase.signInWithPassword).not.toHaveBeenCalled();
+      expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_succeeded').metadata).toMatchObject({ method: 'google' });
+    });
+
+    it('email đã có Profile (vd. đăng ký mật khẩu trước) → dùng chung Profile, không tạo bản thứ hai', async () => {
+      const { service, prisma, sessionTokens } = setup();
+      const existing = seedProfile(prisma, { id: '00000000-0000-4000-8000-0000000000aa', email: 'g@example.com', roleCode: 'tenant' });
+      const { state, nonce } = roundTrip(service);
+
+      const result = await service.completeGoogle({ identity: google({ email: 'G@Example.com' }), state, nonce }, CTX);
+
       expect(result).toMatchObject({ ok: true, redirectUrl: 'http://localhost:3000/' });
+      if (!result.ok) return;
+      expect(prisma.profile.rows).toHaveLength(1);
+      expect(sessionTokens.verify(result.outcome.tokens.accessToken)?.sub).toBe(existing.id);
     });
 
     it('Host chưa nhập RFID → redirect kèm rfidPending', async () => {
-      const { service, supabase, prisma } = setup();
+      const { service, prisma } = setup();
       const invite = await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      supabase.exchangePkceCode.mockResolvedValue(fakeSession(fakeSupabaseUser({ email: 'h@example.com' })));
+      const { state, nonce } = roundTrip(service, 'host');
 
-      const result = await service.completeGoogle({ code: 'c', state: start(service, 'host') }, CTX);
+      const result = await service.completeGoogle({ identity: google({ email: 'h@example.com' }), state, nonce }, CTX);
       expect(result).toMatchObject({ ok: true, redirectUrl: `http://localhost:3000/admin/login?tab=host&rfidPending=${invite.id}` });
     });
 
-    it('bị từ chối (sai cổng) → redirect lỗi có mã cụ thể, không có phiên', async () => {
-      const { service, supabase, prisma } = setup();
-      const user = fakeSupabaseUser({ email: 'g@example.com' });
-      seedProfile(prisma, { id: user.id, email: 'g@example.com', roleCode: 'landlord' });
-      supabase.exchangePkceCode.mockResolvedValue(fakeSession(user));
+    it('Host chưa được Admin mời → not_authorized, không có phiên', async () => {
+      const { service, prisma } = setup();
+      const { state, nonce } = roundTrip(service, 'host');
+      expect(await service.completeGoogle({ identity: google(), state, nonce }, CTX)).toEqual({
+        ok: false,
+        redirectUrl: 'http://localhost:3000/admin/login?error=not_authorized&tab=host',
+      });
+      expect(prisma.profile.rows).toHaveLength(0);
+    });
 
-      expect(await service.completeGoogle({ code: 'c', state: start(service, 'tenant') }, CTX)).toEqual({
+    it('sai cổng → redirect lỗi wrong_portal, không có phiên (và không đụng Supabase)', async () => {
+      const { service, prisma, supabase } = setup();
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'landlord' });
+      const { state, nonce } = roundTrip(service, 'tenant');
+
+      expect(await service.completeGoogle({ identity: google(), state, nonce }, CTX)).toEqual({
         ok: false,
         redirectUrl: 'http://localhost:3000/login?error=wrong_portal&tab=tenant',
       });
-      expect(supabase.signOut).toHaveBeenCalled();
+      expect(supabase.signOut).not.toHaveBeenCalled();
+      expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_rejected').metadata).toMatchObject({ reason: 'wrong_portal' });
+    });
+
+    it('tài khoản bị khoá → account_suspended', async () => {
+      const { service, prisma } = setup();
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'tenant', isActive: false });
+      const { state, nonce } = roundTrip(service);
+      expect(await service.completeGoogle({ identity: google(), state, nonce }, CTX)).toMatchObject({
+        ok: false,
+        redirectUrl: 'http://localhost:3000/login?error=account_suspended&tab=tenant',
+      });
+    });
+  });
+
+  describe('phiên do backend ký (Google)', () => {
+    const signedInGoogleUser = async (setupResult: ReturnType<typeof setup>, roleCode = 'tenant') => {
+      const profile = seedProfile(setupResult.prisma, { email: 'g@example.com', roleCode });
+      return { profile, token: setupResult.sessionTokens.sign(profile.id, 'g@example.com').accessToken };
+    };
+
+    it('authenticate: token backend hợp lệ → user lấy vai trò từ DB, không hỏi Supabase', async () => {
+      const ctx = setup();
+      const { profile, token } = await signedInGoogleUser(ctx, 'landlord');
+      expect(await ctx.sessions.authenticate(token)).toMatchObject({ id: profile.id, role: 'landlord', portal: 'landlord' });
+      expect(ctx.supabase.verifyJwtToken).not.toHaveBeenCalled();
+    });
+
+    it('authenticate: Profile bị xoá hoặc khoá → phiên vô hiệu', async () => {
+      const ctx = setup();
+      const { profile, token } = await signedInGoogleUser(ctx);
+      ctx.prisma.profile.rows.splice(0);
+      expect(await ctx.sessions.authenticate(token)).toBeNull();
+
+      const other = setup();
+      const { profile: p2, token: t2 } = await signedInGoogleUser(other);
+      other.prisma.profile.rows.find((r: any) => r.id === p2.id).isActive = false;
+      expect(await codeOf(other.sessions.authenticate(t2))).toBe('account_suspended');
+      expect(profile.id).toBeDefined();
+    });
+
+    it('authenticate: token ký bằng khóa khác / hết hạn / thiếu issuer không được chấp nhận là token backend', async () => {
+      const ctx = setup();
+      const profile = seedProfile(ctx.prisma, { email: 'g@example.com', roleCode: 'tenant' });
+      const forged = createSessionTokens('another-secret-of-at-least-32-characters').sign(profile.id, 'g@example.com').accessToken;
+      const noIssuer = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign({ sub: profile.id });
+      const expired = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign(
+        { sub: profile.id },
+        { issuer: 'vinstay-backend', expiresIn: -10 },
+      );
+
+      for (const token of [forged, noIssuer, expired]) {
+        expect(ctx.sessionTokens.verify(token)).toBeNull();
+        expect(await ctx.sessions.authenticate(token)).toBeNull(); // rơi xuống Supabase, Supabase giả từ chối
+      }
+      expect(ctx.supabase.verifyJwtToken).toHaveBeenCalledTimes(3);
+    });
+
+    it('token Supabase (mật khẩu) vẫn hoạt động song song', async () => {
+      const ctx = setup();
+      const user = fakeSupabaseUser({ email: 't@example.com' });
+      seedProfile(ctx.prisma, { id: user.id, email: 't@example.com', roleCode: 'tenant' });
+      ctx.supabase.verifyJwtToken.mockResolvedValue(user);
+      expect(await ctx.sessions.authenticate('supabase-access-token')).toMatchObject({ id: user.id, role: 'tenant' });
+    });
+
+    it('resolveSession: token backend → user, không cần refresh', async () => {
+      const ctx = setup();
+      const { profile, token } = await signedInGoogleUser(ctx);
+      const result = await ctx.service.resolveSession(token, undefined);
+      expect(result.user).toMatchObject({ id: profile.id });
+      expect(result.tokens).toBeUndefined();
+    });
+
+    it('resolveSession: token backend hết hạn, không có refresh → xoá cookie', async () => {
+      const ctx = setup();
+      const profile = seedProfile(ctx.prisma, { email: 'g@example.com', roleCode: 'tenant' });
+      const expired = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign(
+        { sub: profile.id },
+        { issuer: 'vinstay-backend', expiresIn: -10 },
+      );
+      expect(await ctx.service.resolveSession(expired, undefined)).toEqual({ user: null, clear: true });
+    });
+
+    it('logout token backend: không gọi Supabase; token Supabase vẫn bị thu hồi', async () => {
+      const ctx = setup();
+      const { token } = await signedInGoogleUser(ctx);
+      await ctx.service.logout(token);
+      expect(ctx.supabase.signOut).not.toHaveBeenCalled();
+
+      await ctx.service.logout('supabase-access-token');
+      expect(ctx.supabase.signOut).toHaveBeenCalledWith('supabase-access-token');
     });
   });
 

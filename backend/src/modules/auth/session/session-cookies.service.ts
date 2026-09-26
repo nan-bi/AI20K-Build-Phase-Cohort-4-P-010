@@ -11,7 +11,8 @@ import {
 
 export interface SessionTokens {
   accessToken: string;
-  refreshToken: string;
+  /** Không có với phiên Google (JWT do backend ký, hết hạn thì đăng nhập lại). */
+  refreshToken?: string;
   /** Số giây access token còn hiệu lực. */
   expiresIn: number;
 }
@@ -37,7 +38,12 @@ export class SessionCookieService {
 
   set(res: Response, tokens: SessionTokens): void {
     res.cookie(ACCESS_COOKIE, tokens.accessToken, { ...this.base(), maxAge: tokens.expiresIn * 1000 });
-    res.cookie(REFRESH_COOKIE, tokens.refreshToken, { ...this.base(), maxAge: REFRESH_COOKIE_MAX_AGE_MS });
+    if (tokens.refreshToken) {
+      res.cookie(REFRESH_COOKIE, tokens.refreshToken, { ...this.base(), maxAge: REFRESH_COOKIE_MAX_AGE_MS });
+    } else {
+      // Đừng để refresh token cũ (của tài khoản khác đăng nhập trước đó) làm mới thành phiên khác.
+      res.clearCookie(REFRESH_COOKIE, this.base());
+    }
   }
 
   clear(res: Response): void {
