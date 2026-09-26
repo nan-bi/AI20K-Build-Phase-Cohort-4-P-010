@@ -2,27 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { PORTAL_HOME, type Portal } from "@/lib/auth/portals";
 import { GoogleMark } from "./GoogleMark";
 import { RfidVerifyStep } from "./RfidVerifyStep";
-import { GoogleAccountChooser, type GoogleAccount } from "./GoogleAccountChooser";
-import { errorMessage, postJson } from "./authApi";
+import { API_BASE, errorMessage, postJson } from "./authApi";
 import styles from "./auth.module.css";
 
-export type Portal = "tenant" | "landlord" | "host" | "admin";
-
-const HOME: Record<Portal, string> = {
-  tenant: "/",
-  landlord: "/landlord/dashboard",
-  host: "/host/dispatch",
-  admin: "/admin/dashboard",
-};
+export type { Portal };
 
 interface PortalAuthProps {
   portal: Portal;
   label: string;
   initialError?: string | null;
+  initialNotice?: string | null;
+}
+
+interface LoginData {
+  needsRfidVerification?: boolean;
+  hostId?: string;
+  needsEmailConfirmation?: boolean;
 }
 
 /**
@@ -30,126 +28,49 @@ interface PortalAuthProps {
  * Admin is email + password only and cannot sign up.
  * Host (on first login) must verify their RFID card number.
  */
-export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
+export function PortalAuth({ portal, label, initialError, initialNotice }: PortalAuthProps) {
   const router = useRouter();
   const canSignup = portal !== "admin";
-  const canGoogle = true; // Cho phép đăng nhập bằng Google trên tất cả các vai trò
+  const canGoogle = portal !== "admin"; // Admin chỉ đăng nhập email + mật khẩu
+  const demoEnabled = process.env.NEXT_PUBLIC_DEMO_LOGIN === "true";
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError ? errorMessage(initialError) : null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [loading, setLoading] = useState(false);
   const [pendingRfid, setPendingRfid] = useState<string | null>(null);
-  const [showGoogleChooser, setShowGoogleChooser] = useState(false);
-  const [boundPortalTarget, setBoundPortalTarget] = useState<string | null>(null);
-
-  const callbackUrl = () => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-    return `${appUrl}/auth/callback?portal=${portal}`;
-  };
 
   function enter() {
-    router.push(HOME[portal]);
+    router.push(PORTAL_HOME[portal]);
     router.refresh();
   }
 
-  async function handleGoogle() {
+  // Google chạy hoàn toàn ở backend (PKCE): điều hướng trình duyệt, không dùng fetch.
+  function handleGoogle() {
     setError(null);
     setLoading(true);
-
-    // 1. Nếu Supabase đã cấu hình OAuth, kích hoạt trực tiếp Google OAuth với select_account
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = createSupabaseBrowserClient();
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: callbackUrl(),
-            queryParams: {
-              prompt: "select_account",
-              access_type: "offline",
-            },
-          },
-        });
-        if (!error) return; // Google OAuth redirect đang diễn ra
-      } catch (err) {
-        console.warn("Supabase Google OAuth fallback to Account Chooser:", err);
-      }
-    }
-
-    // 2. Chế độ tiện ích: Mở bảng chọn tài khoản Google đã lưu trên máy
-    setLoading(false);
-    setShowGoogleChooser(true);
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- /api/v1 là backend (rewrite), không phải trang Next
+    window.location.assign(`${API_BASE}/auth/google?portal=${portal}`);
   }
-
-  const handleGoogleAccountSelect = async (account: GoogleAccount) => {
-    setShowGoogleChooser(false);
-    setLoading(true);
-    setError(null);
-    setBoundPortalTarget(null);
-    try {
-      const { ok, data } = await postJson("/api/auth/login", {
-        email: account.email,
-        fullName: account.name,
-        portal,
-        provider: "google",
-      });
-      if (ok) {
-        return enter();
-      }
-      if (data?.boundRole) {
-        setBoundPortalTarget(data.boundRole);
-      }
-      setError(data?.message || errorMessage(data?.error ?? "oauth_failed"));
-    } catch {
-      setError("Đăng nhập bằng Google thất bại");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setNotice(null);
-    setBoundPortalTarget(null);
     setLoading(true);
     try {
-      if (mode === "login") {
-        const { ok, data } = await postJson("/api/auth/login", { email, password, portal });
-        if (!ok) {
-          if (data?.boundRole) setBoundPortalTarget(data.boundRole);
-          return setError(data?.message || errorMessage(data?.error));
-        }
-        if (portal === "host" && data.needsRfidVerification) return setPendingRfid(data.hostId);
-        return enter();
+      const path = mode === "login" ? "/auth/login" : "/auth/signup";
+      const body = mode === "login" ? { email, password, portal } : { email, password, fullName, portal };
+      const { ok, data, code } = await postJson<LoginData>(path, body);
+      if (!ok) return setError(errorMessage(code));
+      if (data.needsEmailConfirmation) {
+        return setNotice(`Đã gửi email xác nhận tới ${email}. Bấm vào liên kết trong email rồi quay lại đăng nhập.`);
       }
-
-      try {
-        const supabase = createSupabaseBrowserClient();
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: callbackUrl(), data: { full_name: fullName } },
-        });
-        if (error) throw error;
-        if (data.session) {
-          const { ok, data: body } = await postJson("/api/auth/complete", { portal });
-          if (!ok) return setError(errorMessage(body.error));
-          if (portal === "host" && body.needsRfidVerification) return setPendingRfid(body.hostId);
-          return enter();
-        }
-        setNotice(`Đã gửi email xác nhận tới ${email}. Bấm vào liên kết trong email để hoàn tất đăng ký.`);
-      } catch (err: unknown) {
-        // Dev fallback if Supabase is offline or mock
-        const { ok, data } = await postJson("/api/auth/login", { email, password, portal });
-        if (ok) return enter();
-        const msg = err instanceof Error ? err.message : "Đăng ký thất bại";
-        setError(errorMessage(data?.error ?? msg));
-      }
+      if (portal === "host" && data.needsRfidVerification && data.hostId) return setPendingRfid(data.hostId);
+      return enter();
     } finally {
       setLoading(false);
     }
@@ -159,22 +80,10 @@ export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
     setLoading(true);
     setError(null);
     try {
-      const demoEmail =
-        portal === "tenant"
-          ? "khachthue.demo@vinstay.vn"
-          : portal === "landlord"
-          ? "chunha.oceanpark@vinstay.vn"
-          : portal === "host"
-          ? "host.s218@vinstay.vn"
-          : "admin@vinstay.vn";
-      await postJson("/api/auth/login", {
-        email: demoEmail,
-        password: "vinstay-demo-pass",
-        portal,
-      });
+      const { ok, data, code } = await postJson<LoginData>("/auth/demo-login", { portal });
+      if (!ok) return setError(errorMessage(code));
+      if (data.needsRfidVerification && data.hostId) return setPendingRfid(data.hostId);
       enter();
-    } catch {
-      setError("Không thể khởi tạo phiên demo");
     } finally {
       setLoading(false);
     }
@@ -190,7 +99,7 @@ export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
         {mode === "login" ? `Đăng nhập ${label}` : `Đăng ký ${label}`}
       </h1>
 
-      {/* Quick Demo 1-Click Login Card */}
+      {demoEnabled && (
       <div
         style={{
           margin: "0 0 16px 0",
@@ -236,6 +145,7 @@ export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
           {portal === "admin" && "👉 Vào ngay Dashboard Quản trị (BI & SLA)"}
         </button>
       </div>
+      )}
 
       {canGoogle && (
         <>
@@ -290,41 +200,9 @@ export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
 
       {notice && <p className={styles.notice}>{notice}</p>}
       {error && (
-        <div style={{ margin: "14px 0" }}>
-          <p className={styles.errorBanner} role="alert" style={{ marginBottom: boundPortalTarget ? 10 : 0 }}>
-            {error}
-          </p>
-          {boundPortalTarget && (
-            <button
-              type="button"
-              onClick={() => {
-                const targetUrl =
-                  boundPortalTarget === "host"
-                    ? "/admin/login?tab=host"
-                    : boundPortalTarget === "admin"
-                    ? "/admin/login?tab=admin"
-                    : `/login?tab=${boundPortalTarget}`;
-                router.push(targetUrl);
-                setError(null);
-                setBoundPortalTarget(null);
-              }}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: 8,
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
-              }}
-            >
-              👉 Bấm để chuyển ngay sang Cổng {boundPortalTarget === "landlord" ? "Chủ nhà" : boundPortalTarget === "tenant" ? "Khách thuê" : boundPortalTarget}
-            </button>
-          )}
-        </div>
+        <p className={styles.errorBanner} role="alert" style={{ margin: "14px 0" }}>
+          {error}
+        </p>
       )}
 
       {canSignup && (
@@ -341,14 +219,6 @@ export function PortalAuth({ portal, label, initialError }: PortalAuthProps) {
         </button>
       )}
 
-      {showGoogleChooser && (
-        <GoogleAccountChooser
-          portal={portal}
-          portalLabel={label}
-          onSelect={handleGoogleAccountSelect}
-          onClose={() => setShowGoogleChooser(false)}
-        />
-      )}
     </>
   );
 }

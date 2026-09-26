@@ -1,0 +1,124 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OtpPurpose } from '@prisma/client';
+import { IsEmail, IsEnum, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, MinLength } from 'class-validator';
+import { PORTALS, Portal } from '../auth.constants';
+
+// Profile.email là VarChar(100).
+const EMAIL_MAX = 100;
+
+export class LoginDto {
+  @ApiProperty({ example: 'chunha@example.com' })
+  @IsEmail()
+  @MaxLength(EMAIL_MAX)
+  email: string;
+
+  @ApiProperty({ example: 'matkhau-cua-ban' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  password: string;
+
+  @ApiProperty({ enum: PORTALS, description: 'Cổng đăng nhập (màn hình FE)' })
+  @IsIn(PORTALS as unknown as string[])
+  portal: Portal;
+}
+
+export class SignupDto {
+  @ApiProperty()
+  @IsEmail()
+  @MaxLength(EMAIL_MAX)
+  email: string;
+
+  @ApiProperty({ minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(200)
+  password: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  fullName: string;
+
+  @ApiProperty({ enum: ['tenant', 'landlord', 'host'], description: 'Admin không có đăng ký — chỉ tạo bằng script' })
+  @IsIn(['tenant', 'landlord', 'host'])
+  portal: Portal;
+}
+
+export class PortalQueryDto {
+  @ApiProperty({ enum: PORTALS })
+  @IsIn(PORTALS as unknown as string[])
+  portal: Portal;
+}
+
+export class VerifyRfidDto {
+  @ApiProperty({ description: 'Id lời mời Field Host (trả về khi đăng nhập: hostId)' })
+  @IsUUID()
+  hostId: string;
+
+  @ApiProperty({ example: 'RFID-S1-0001' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  rfid: string;
+}
+
+export class SendOtpDto {
+  @ApiProperty({ example: '0912345678' })
+  @IsString()
+  @Length(9, 20)
+  phone: string;
+
+  @ApiProperty({ enum: OtpPurpose })
+  @IsEnum(OtpPurpose)
+  purpose: OtpPurpose;
+}
+
+const OTP_CODE = /^\d{4}$/;
+
+export class VerifyOtpDto {
+  @ApiProperty({ example: '0912345678' })
+  @IsString()
+  @Length(9, 20)
+  phone: string;
+
+  @ApiProperty({ enum: ['TENANT_VIEWING', 'TENANT_DEPOSIT_SIGN'] })
+  @IsIn(['TENANT_VIEWING', 'TENANT_DEPOSIT_SIGN'])
+  purpose: 'TENANT_VIEWING' | 'TENANT_DEPOSIT_SIGN';
+
+  @ApiProperty({ example: '4829' })
+  @Matches(OTP_CODE, { message: 'code phải gồm 4 chữ số' })
+  code: string;
+}
+
+export class VerifyPhoneDto {
+  @ApiProperty({ example: '0912345678' })
+  @IsString()
+  @Length(9, 20)
+  phone: string;
+
+  @ApiProperty({ example: '4829' })
+  @Matches(OTP_CODE, { message: 'code phải gồm 4 chữ số' })
+  code: string;
+}
+
+export class CreateHostInviteDto {
+  @ApiProperty({ example: 'host1@vinstay.test' })
+  @IsEmail()
+  @MaxLength(EMAIL_MAX)
+  email: string;
+
+  @ApiProperty({ example: 'RFID-S1-0001', description: 'Mã thẻ cư dân RFID — Host phải nhập đúng khi đăng nhập lần đầu' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  rfidCardNumber: string;
+
+  @ApiPropertyOptional({ example: 'The Sapphire 1', default: 'The Sapphire 1' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  assignedZone?: string;
+}

@@ -1,79 +1,60 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { SupabaseService } from '../../supabase/supabase.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { authError } from '../../modules/auth/auth.errors';
+import { portalForRole } from '../../modules/auth/auth.constants';
+import { AuthSessionService } from '../../modules/auth/session/auth-session.service';
+import { SessionCookieService } from '../../modules/auth/session/session-cookies.service';
 
+/**
+ * Xác thực mọi route không đánh dấu @Public(): lấy access token từ `Authorization: Bearer` hoặc
+ * cookie `vs_access`, xác thực với Supabase Auth, nạp vai trò từ DB và gắn `request.user`.
+ */
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  private readonly logger = new Logger(SupabaseAuthGuard.name);
+  private readonly demoMode: boolean;
 
   constructor(
-    private reflector: Reflector,
-    private supabaseService: SupabaseService,
-    private prisma: PrismaService,
-  ) {}
+    private readonly reflector: Reflector,
+    private readonly sessions: AuthSessionService,
+    private readonly cookies: SessionCookieService,
+    config: ConfigService,
+  ) {
+    // Header x-demo-role bỏ qua xác thực hoàn toàn — chỉ tồn tại khi bật tường minh và không phải production.
+    this.demoMode = config.get('AUTH_DEMO_MODE') === 'true' && config.get('NODE_ENV') !== 'production';
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-
-    if (isPublic) {
-      return true;
-    }
+    if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers['authorization'];
+    const token = this.cookies.readAccessToken(request);
 
-    if (!authHeader) {
-      // In dev or demo mode, if x-demo-role header is provided, mock the user
-      const demoRole = request.headers['x-demo-role'];
+    if (!token) {
+      const demoRole = this.demoMode ? request.headers['x-demo-role'] : undefined;
       if (demoRole) {
         request.user = {
           id: request.headers['x-demo-userid'] || '00000000-0000-0000-0000-000000000001',
-          role: demoRole,
           email: `${demoRole}@vinstay.ai`,
-          phone: '0912345678',
+          fullName: 'Demo User',
+          role: demoRole,
+          portal: portalForRole(demoRole),
+          isPhoneVerified: true,
+          isHostVerified: true,
         };
         return true;
       }
-      throw new UnauthorizedException('Thiếu mã định danh Authorization Bearer token');
+      throw authError('unauthorized');
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    try {
-      const supabaseUser = await this.supabaseService.verifyJwtToken(token);
-      if (!supabaseUser) {
-        // Fallback for dev testing if Supabase offline
-        if (process.env.NODE_ENV === 'development') {
-          request.user = {
-            id: '11111111-1111-1111-1111-111111111111',
-            role: 'field_host',
-            email: 'nam.fieldhost@vinstay.ai',
-          };
-          return true;
-        }
-        throw new UnauthorizedException('Phiên đăng nhập không hợp lệ hoặc đã hết hạn');
-      }
-
-      // Query profile role from DB
-      const profile = await this.prisma.profile.findUnique({
-        where: { id: supabaseUser.id },
-        include: { role: true },
-      });
-
-      request.user = {
-        ...supabaseUser,
-        role: profile?.role?.code || 'tenant',
-        profile,
-      };
-
-      return true;
-    } catch (err) {
-      this.logger.error(`Authentication error: ${err.message}`);
-      throw new UnauthorizedException('Không thể xác thực token');
-    }
+    const user = await this.sessions.authenticate(token);
+    if (!user) throw authError('unauthorized');
+    request.user = user;
+    return true;
   }
 }

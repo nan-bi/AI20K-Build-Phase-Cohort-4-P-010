@@ -1,0 +1,495 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1240px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.head h1 {
+  font-size: clamp(26px, 3vw, 34px);
+}
+.head p {
+  margin-top: 6px;
+  max-width: 62ch;
+}
+
+.h2 {
+  margin-bottom: 14px;
+  font-size: 21px;
+}
+
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.alerts li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #f1d9a8;
+  border-radius: var(--r-lg);
+  background: #fffaf0;
+}
+.alerts li > div {
+  flex: 1;
+  min-width: 0;
+}
+.alerts svg {
+  flex: none;
+  color: var(--amber-600);
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.padCard {
+  padding: 18px 20px;
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+}
+.feed li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 0 11px 12px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+.feed li:last-child {
+  border-bottom: 0;
+}
+.t-alert {
+  border-left-color: var(--coral) !important;
+}
+.t-warning {
+  border-left-color: var(--amber) !important;
+}
+.t-success {
+  border-left-color: var(--kelp) !important;
+}
+
+.units {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+.unit {
+  display: flex;
+  gap: 16px;
+  padding: 14px;
+}
+.unitPhoto {
+  flex: none;
+  width: 116px;
+  height: 116px;
+  border-radius: 14px;
+}
+.unitBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.unitTop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.unitTop h3 {
+  font-size: 18px;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.unitMeta {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 4px 22px;
+  margin: 0;
+}
+.unitMeta dt {
+  font-size: 12px;
+  color: var(--slate);
+}
+.unitMeta dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.reqList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.req {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+.req > div {
+  flex: 1;
+  min-width: 0;
+}
+.req > svg {
+  flex: none;
+  color: var(--lagoon-600);
+}
+
+/* Trang chi tiết căn */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  color: var(--slate);
+  font-weight: 600;
+  font-size: 14px;
+}
+.back:hover {
+  color: var(--ink);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 22px;
+  padding: 16px;
+}
+.heroPhoto {
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+}
+.heroBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.heroBody h1 {
+  font-size: clamp(24px, 3vw, 32px);
+}
+
+.mandate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+.mandate h2 {
+  font-size: 19px;
+}
+.countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.countdown b {
+  font-size: 44px;
+  line-height: 1;
+}
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--coral);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+}
+.log li {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.log li:last-child {
+  border-bottom: 0;
+}
+.log time {
+  color: var(--slate);
+  font-size: 12.5px;
+}
+
+.passport {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  font-size: 14px;
+}
+.passport li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.passport svg {
+  flex: none;
+  color: var(--kelp);
+}
+
+.terms {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+.terms li {
+  display: flex;
+  gap: 8px;
+}
+.terms svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--kelp);
+}
+.blocked {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: var(--coral-100);
+  color: #7a2a1b;
+  font-size: 14px;
+}
+
+/* Wizard ký gửi */
+.wizard {
+  max-width: 760px;
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate);
+}
+.steps li span {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.steps .on {
+  color: var(--ink);
+}
+.steps .on span {
+  background: var(--amber);
+}
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.radio {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.radio input {
+  margin-top: 3px;
+  accent-color: var(--lagoon);
+}
+.radioOn {
+  border-color: var(--lagoon-600);
+  background: var(--lagoon-100);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-600);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.chipOn {
+  background: var(--lagoon-100);
+  border-color: var(--lagoon-600);
+  color: var(--lagoon);
+  font-weight: 600;
+}
+.wizardNav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.summary dt {
+  font-size: 12.5px;
+  color: var(--slate);
+}
+.summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+.success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 32px;
+}
+.successIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--kelp-100);
+  color: var(--kelp);
+}
+
+/* Khoản thu */
+.finRows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 720px;
+}
+.finRows th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+}
+.finRows td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.finRows tfoot td {
+  font-weight: 700;
+  background: var(--surface-2);
+  border-bottom: 0;
+}
+.r {
+  text-align: right !important;
+}
+.tableScroll {
+  overflow-x: auto;
+}
+
+@media (max-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .two,
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .kpis,
+  .formGrid,
+  .summary,
+  .passport {
+    grid-template-columns: 1fr;
+  }
+  .units {
+    grid-template-columns: 1fr;
+  }
+  .unit {
+    flex-direction: column;
+  }
+  .unitPhoto {
+    width: 100%;
+    height: 160px;
+  }
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .log li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .formCard {
+    padding: 18px;
+  }
+}

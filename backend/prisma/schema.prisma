@@ -50,18 +50,20 @@ model RolePermission {
 }
 
 model Profile {
-  id              String   @id @db.Uuid // Đồng bộ từ Supabase Auth UID
-  roleId          String   @map("role_id") @db.Uuid
-  fullName        String?  @map("full_name") @db.VarChar(100)
-  phoneEnc        String?  @map("phone_enc") // AES-256-GCM encrypted
-  phoneHash       String?  @unique @map("phone_hash") @db.VarChar(64) // HMAC-SHA256 blind index
-  email           String?  @unique @db.VarChar(100)
-  isPhoneVerified Boolean  @default(false) @map("is_phone_verified")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id              String    @id @db.Uuid // Đồng bộ từ Supabase Auth UID
+  roleId          String    @map("role_id") @db.Uuid
+  fullName        String?   @map("full_name") @db.VarChar(100)
+  phoneEnc        String?   @map("phone_enc") // AES-256-GCM encrypted
+  phoneHash       String?   @unique @map("phone_hash") @db.VarChar(64) // HMAC-SHA256 blind index
+  email           String?   @unique @db.VarChar(100)
+  isPhoneVerified Boolean   @default(false) @map("is_phone_verified")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   role              Role                   @relation(fields: [roleId], references: [id])
+  claimedHostInvite HostInvite?            @relation("HostInviteClaim")
   ownedUnits        Unit[]                 @relation("LandlordUnits")
   hostProfile       FieldHost?
   viewings          Viewing[]              @relation("TenantViewings")
@@ -72,6 +74,81 @@ model Profile {
   auditActions      AuditLog[]
 
   @@map("profiles")
+}
+
+/// Allowlist của Field Host: Admin tạo trước (email + mã thẻ RFID). Người có email đó
+/// đăng ký/đăng nhập rồi nhập đúng mã RFID thì `claimedAt` được set và bản ghi FieldHost
+/// được tạo. Email không có invite thì không đăng ký được vai trò Field Host.
+model HostInvite {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique @db.VarChar(100)
+  assignedZone   String    @default("The Sapphire 1") @map("assigned_zone") @db.VarChar(50)
+  rfidCardNumber String    @map("rfid_card_number") @db.VarChar(50)
+  claimedById    String?   @unique @map("claimed_by_id") @db.Uuid
+  claimedAt      DateTime? @map("claimed_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  claimedBy Profile? @relation("HostInviteClaim", fields: [claimedById], references: [id], onDelete: SetNull)
+
+  @@map("host_invites")
+}
+
+enum OtpPurpose {
+  PHONE_VERIFY // Chứng minh SĐT của Chủ nhà / Host là thật (không phải phương thức đăng nhập)
+  TENANT_VIEWING
+  TENANT_DEPOSIT_SIGN
+}
+
+enum OtpChannel {
+  ZALO
+  SMS
+}
+
+enum OtpStatus {
+  PENDING
+  VERIFIED
+  CONSUMED
+}
+
+/// OTP tự xây (Supabase phone-OTP không hỗ trợ Zalo ZNS). TTL 5 phút, tối đa 3 lần thử,
+/// khóa 10 phút. Không lưu mã plaintext (HMAC + pepper) và không lưu SĐT plaintext
+/// (chỉ blind index HMAC, cùng cách Profile.phoneHash).
+model OtpCode {
+  id           String     @id @default(uuid()) @db.Uuid
+  phoneHash    String     @map("phone_hash") @db.VarChar(64)
+  purpose      OtpPurpose
+  codeHash     String     @map("code_hash") @db.VarChar(64)
+  channel      OtpChannel @default(ZALO)
+  status       OtpStatus  @default(PENDING)
+  attemptCount Int        @default(0) @map("attempt_count")
+  lockedUntil  DateTime?  @map("locked_until") @db.Timestamptz
+  expiresAt    DateTime   @map("expires_at") @db.Timestamptz
+  verifiedAt   DateTime?  @map("verified_at") @db.Timestamptz
+  consumedAt   DateTime?  @map("consumed_at") @db.Timestamptz
+  ipAddress    String?    @map("ip_address") @db.VarChar(45)
+  userAgent    String?    @map("user_agent")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([phoneHash, purpose, status])
+  @@map("otp_codes")
+}
+
+/// Nhật ký sự kiện xác thực (đăng nhập, OTP, RFID...) — dùng cho cả sự kiện chưa có actor
+/// (vd. đăng nhập sai) nên tách khỏi AuditLog (actorId bắt buộc).
+model AuthAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  phoneHash String?  @map("phone_hash") @db.VarChar(64)
+  event     String   @db.VarChar(50)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId])
+  @@index([phoneHash])
+  @@index([event, createdAt])
+  @@map("auth_audit_log")
 }
 
 // ====================================================================
