@@ -3,6 +3,8 @@
  * Ảnh lấy từ `tech data/caodata` (đã copy vào public/units); giá/diện tích/mã căn được chuẩn hoá lại cho demo.
  */
 
+import type { Consignment, ConsignmentPolicy } from "./types";
+
 export type ZoneId = "sapphire1" | "sapphire2" | "zenpark" | "pavilion" | "masteri";
 export type LayoutKind = "Studio" | "1PN" | "2PN" | "3PN";
 export type Furnishing = "full" | "basic" | "empty";
@@ -160,6 +162,14 @@ export interface Unit {
   title: string;
   description: string;
   items: ItemKey[];
+  /** Chính sách phí quản lý: true = chủ nhà bao trọn trong giá thuê */
+  bqlFeeIncluded?: boolean;
+  /** Mức cọc giữ chỗ 24h qua VietQR động (Admin quản lý) */
+  holdingDepositAmount?: number;
+  /** Bội số tiền cọc bảo đảm tài sản (thông thường 1 hoặc 2 tháng tiền thuê) */
+  securityDepositMonths?: number;
+  /** Kỳ hạn thanh toán (đóng tiền 1, 3 hay 6 tháng/lần) */
+  paymentTermMonths?: number;
 }
 
 interface UnitSeed extends Omit<Unit, "code" | "zoneId" | "layoutLabel" | "verifiedAt" | "door"> {
@@ -734,6 +744,68 @@ export const unitPhoto = (u: Pick<Unit, "id">, n: number) => `/units/${u.id}/${n
 
 /** "S2.12 · Tầng 16 · Căn 08" — định danh chuẩn [Tòa-Tầng-Căn]. */
 export const unitAddress = (u: Pick<Unit, "building" | "floor" | "door">) => `${u.building} · Tầng ${u.floor} · Căn ${u.door}`;
+
+/** Tạo và đưa Căn hộ mới vào rổ hàng UNITS khi Admin phê duyệt yêu cầu ký gửi. */
+export function addApprovedUnitFromConsignment(cs: Consignment, policy?: ConsignmentPolicy): Unit {
+  const existing = UNITS.find((u) => u.building === cs.building && u.floor === cs.floor && u.door === cs.door);
+  if (existing) {
+    if (policy?.rent) existing.rent = policy.rent;
+    if (policy?.bqlFeeIncluded !== undefined) existing.bqlFeeIncluded = policy.bqlFeeIncluded;
+    if (policy?.holdingDepositAmount) existing.holdingDepositAmount = policy.holdingDepositAmount;
+    if (policy?.securityDepositMonths) existing.securityDepositMonths = policy.securityDepositMonths;
+    if (policy?.minMonths) existing.minMonths = policy.minMonths;
+    if (policy?.paymentTermMonths) existing.paymentTermMonths = policy.paymentTermMonths;
+    if (policy?.petFriendly !== undefined) existing.petFriendly = policy.petFriendly;
+    existing.baseStatus = "available";
+    return existing;
+  }
+
+  const zone = zoneOfBuilding(cs.building) ?? ZONES[0];
+  const doorText = String(cs.door).padStart(2, "0");
+  const floorText = String(cs.floor).padStart(2, "0");
+  const id = `${cs.building.toLowerCase().replace(".", "-")}-${floorText}${doorText}`;
+  const bedrooms = cs.layout === "Studio" ? 1 : cs.layout === "1PN" ? 1 : cs.layout === "2PN" ? 2 : 3;
+  const bathrooms = cs.layout === "3PN" || cs.layout === "2PN" ? 2 : 1;
+  const rent = policy?.rent ?? cs.askRent;
+  const marketAvg = Math.round((rent * 1.08) / 100_000) * 100_000;
+
+  const newUnit: Unit = {
+    id,
+    code: `VHOP-${cs.building}-${floorText}${doorText}`,
+    building: cs.building,
+    zoneId: zone.id,
+    floor: cs.floor,
+    door: doorText,
+    layout: cs.layout,
+    layoutLabel: cs.layout,
+    bedrooms,
+    bathrooms,
+    areaM2: cs.areaM2,
+    direction: "Đông Nam",
+    view: "View nội khu thoáng mát",
+    furnishing: cs.furnishing,
+    rent,
+    marketAvg,
+    baseStatus: "available",
+    lock: cs.lock,
+    landlordId: cs.landlordId,
+    images: 4,
+    interest24h: 1,
+    petFriendly: policy?.petFriendly ?? false,
+    minMonths: policy?.minMonths ?? 12,
+    verifiedAt: new Date().toISOString(),
+    title: `${cs.layout} ${FURNISHING_LABEL[cs.furnishing].toLowerCase()} toà ${cs.building}`,
+    description: `Căn hộ ${cs.layout} diện tích ${cs.areaM2}m² toà ${cs.building} Vinhomes Ocean Park. Đã thẩm định và ký gửi độc quyền qua VinStay AI.`,
+    items: cs.items,
+    bqlFeeIncluded: policy?.bqlFeeIncluded ?? true,
+    holdingDepositAmount: policy?.holdingDepositAmount ?? 2_000_000,
+    securityDepositMonths: policy?.securityDepositMonths ?? 1,
+    paymentTermMonths: policy?.paymentTermMonths ?? 1,
+  };
+
+  UNITS.unshift(newUnit);
+  return newUnit;
+}
 
 // ─── Người dùng mock ────────────────────────────────────────────────────────────────────────
 

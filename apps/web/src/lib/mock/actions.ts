@@ -9,6 +9,7 @@ import type {
   Booking,
   ChatMessage,
   Consignment,
+  ConsignmentPolicy,
   CriteriaState,
   FeeConfig,
   IdCardData,
@@ -16,7 +17,7 @@ import type {
   Notice,
   OtpChallenge,
 } from "./types";
-import { hostById, hostForUnit, unitById, unitAddress, type Unit } from "./units";
+import { hostById, hostForUnit, unitById, unitAddress, addApprovedUnitFromConsignment, type Unit } from "./units";
 
 // ─── tiện ích ─────────────────────────────────────────────────────────────────────────────────
 
@@ -635,16 +636,59 @@ export function signConsignment(id: string) {
   });
 }
 
-export function approveConsignment(id: string) {
+export function approveConsignment(id: string, policy?: ConsignmentPolicy) {
   setMockState((s) => {
     const cs = s.consignments.find((c) => c.id === id);
     if (!cs) return s;
+
+    const unit = addApprovedUnitFromConsignment(cs, policy);
+    const nowIso = iso(Date.now());
+    const nextMandates = {
+      ...s.mandates,
+      [unit.id]: {
+        unitId: unit.id,
+        status: "active" as const,
+        signedAt: cs.createdAt || nowIso,
+      },
+    };
+    const nextUnitState = {
+      ...s.unitState,
+      [unit.id]: {
+        status: "available" as const,
+      },
+    };
+
+    const rentFormatted = vnd(policy?.rent ?? cs.askRent);
+    const depositFormatted = vnd(policy?.holdingDepositAmount ?? 2_000_000);
+    const bqlText = policy?.bqlFeeIncluded
+      ? "Chủ nhà bao trọn Phí QL BQL"
+      : "Khách trả riêng Phí QL BQL";
+    const host = hostForUnit(unit);
+
     return withNotices(
-      { ...s, consignments: s.consignments.map((c) => (c.id === id ? { ...c, status: "approved" as const } : c)) },
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                status: "approved" as const,
+                policy: policy ? { ...policy, rent: policy.rent ?? cs.askRent } : undefined,
+              }
+            : c,
+        ),
+        mandates: nextMandates,
+        unitState: nextUnitState,
+      },
       zaloToLandlord(cs.landlordId, {
         tone: "success",
-        title: "Yêu cầu ký gửi đã được duyệt",
-        body: `Căn ${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} đã được duyệt. Field Host sẽ liên hệ chụp ảnh thẩm định 10 hạng mục trong 48 giờ.`,
+        title: "Yêu cầu ký gửi đã được duyệt & Đăng sàn",
+        body: `Căn ${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} đã được duyệt và đăng sàn. Giá niêm yết: ${rentFormatted}đ/tháng (${bqlText}). Cọc giữ chỗ: ${depositFormatted}đ. Field Host (${host.name}) tiếp nhận quản lý.`,
+      }),
+      toAdmin({
+        tone: "success",
+        title: "Đã phê duyệt & đăng sàn căn hộ",
+        body: `Căn ${unitAddress(unit)} đã lên sàn với giá ${rentFormatted}đ/tháng. Gán cho Host ${host.name}.`,
       }),
     );
   });

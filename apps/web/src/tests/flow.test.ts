@@ -167,4 +167,22 @@ describe("Admin", () => {
     expect(s.consignments.find((c) => c.id === "cs-2")!.status).toBe("approved");
     expect(noticesFor(s, "landlord", "L1")[0].title).toContain("đã được duyệt");
   });
+  it("duyệt ký gửi kèm cấu hình chính sách thuê đưa căn hộ vào rổ hàng UNITS", () => {
+    actions.approveConsignment("cs-2", {
+      rent: 8_500_000,
+      bqlFeeIncluded: true,
+      holdingDepositAmount: 2_500_000,
+      securityDepositMonths: 1,
+      minMonths: 12,
+      paymentTermMonths: 1,
+      petFriendly: true,
+      hostId: "H01",
+    });
+    const s = getMockState();
+    const cs = s.consignments.find((c) => c.id === "cs-2")!;
+    expect(cs.status).toBe("approved");
+    expect(cs.policy?.holdingDepositAmount).toBe(2_500_000);
+    expect(cs.policy?.bqlFeeIncluded).toBe(true);
+    expect(cs.policy?.rent).toBe(8_500_000);
+  });
 });

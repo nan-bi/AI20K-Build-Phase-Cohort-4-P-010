@@ -131,6 +131,19 @@ export interface Consignment {
   status: "draft" | "pending" | "approved" | "rejected";
   createdAt: string;
   note?: string;
+  /** Chính sách thuê và tài chính do Admin cấu hình khi phê duyệt */
+  policy?: ConsignmentPolicy;
+}
+
+export interface ConsignmentPolicy {
+  rent?: number;
+  bqlFeeIncluded: boolean;
+  holdingDepositAmount: number;
+  securityDepositMonths: number;
+  minMonths: number;
+  paymentTermMonths: number;
+  petFriendly: boolean;
+  hostId?: string;
 }
 
 // ─── Cấu hình biến phí (Admin) ───────────────────────────────────────────────────────────────
