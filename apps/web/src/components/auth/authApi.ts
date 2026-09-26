@@ -1,12 +1,22 @@
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Email hoặc mật khẩu không đúng.",
-  wrong_portal: "Tài khoản này đã được gán cố định cho một vai trò khác (Chủ nhà hoặc Khách thuê). Không thể đăng nhập chéo giữa hai cổng.",
-  role_mismatch: "Tài khoản này đã được đăng ký với một vai trò khác. Để bảo vệ dữ liệu, một email chỉ có thể dùng cho Chủ nhà HOẶC Khách thuê, không thể dùng chung cho cả hai.",
+  wrong_portal:
+    "Tài khoản này đã được gán cố định cho một vai trò khác (Chủ nhà hoặc Khách thuê). Không thể đăng nhập chéo giữa các cổng.",
   account_suspended: "Tài khoản đã bị tạm khoá.",
+  account_conflict: "Email này đã gắn với một hồ sơ khác. Liên hệ Admin.",
   invalid_request: "Thông tin chưa hợp lệ. Kiểm tra lại (mật khẩu tối thiểu 8 ký tự).",
+  weak_password: "Mật khẩu chưa đủ mạnh. Dùng tối thiểu 8 ký tự.",
   email_not_verified: "Email chưa được xác nhận. Kiểm tra hộp thư của bạn.",
+  email_already_registered: "Email này đã được đăng ký. Hãy đăng nhập.",
   not_authorized: "Email này chưa được cấp quyền. Liên hệ Admin để được thêm vào danh sách.",
-  missing_code: "Không nhận được mã xác thực. Thử đăng nhập lại.",
+  signup_not_allowed: "Cổng này không cho phép tự đăng ký.",
+  rfid_mismatch: "Mã RFID không đúng. Kiểm tra lại.",
+  invalid_host: "Lời mời Field Host không hợp lệ hoặc đã được sử dụng.",
+  unauthorized: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
+  rate_limited: "Bạn thao tác quá nhanh. Thử lại sau ít phút.",
+  auth_not_configured: "Hệ thống xác thực chưa được cấu hình (backend thiếu SUPABASE_*).",
+  auth_provider_unavailable: "Không kết nối được dịch vụ xác thực. Thử lại sau.",
+  demo_disabled: "Chế độ demo đang tắt.",
   oauth_failed: "Đăng nhập không thành công. Thử lại.",
 };
 
@@ -14,13 +24,32 @@ export function errorMessage(code?: string): string {
   return ERROR_MESSAGES[code ?? ""] ?? "Có lỗi xảy ra. Thử lại.";
 }
 
-/** POST JSON; returns `{ ok, data }` so callers can branch on the error code. */
-export async function postJson(url: string, body: unknown) {
-  const res = await fetch(url, {
+export const API_BASE = "/api/v1";
+
+export interface ApiResult<T = Record<string, unknown>> {
+  ok: boolean;
+  status: number;
+  /** Phần `data` của envelope thành công (`{ success, data }`); {} khi lỗi. */
+  data: T;
+  /** Mã lỗi máy đọc được của backend (`code`), vd. `invalid_credentials`. */
+  code?: string;
+}
+
+/** Gói envelope của backend: thành công `{success, data}`, lỗi `{success:false, code, message}`. */
+export function unwrap<T>(res: { ok: boolean; status: number }, body: unknown): ApiResult<T> {
+  const b = (body ?? {}) as { data?: T; code?: string };
+  return res.ok
+    ? { ok: true, status: res.status, data: (b.data ?? {}) as T }
+    : { ok: false, status: res.status, data: {} as T, code: b.code };
+}
+
+/** POST JSON tới backend (cùng origin, cookie phiên tự đi kèm). */
+export async function postJson<T = Record<string, unknown>>(path: string, body?: unknown): Promise<ApiResult<T>> {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body ?? {}),
   });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, data };
+  return unwrap<T>(res, await res.json().catch(() => ({})));
 }

@@ -1,15 +1,38 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { ACCESS_COOKIE } from './modules/auth/auth.constants';
 
 async function bootstrap() {
   const logger = new Logger('VinStayBootstrap');
-  const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  // 1. CORS Configuration (Hỗ trợ PWA, Web Portal, Admin & Prototype)
+  // Chế độ demo bỏ qua/nới xác thực (header x-demo-role, đăng nhập 1-chạm) — không bao giờ chạy ở production.
+  if (isProduction && process.env.AUTH_DEMO_MODE === 'true') {
+    throw new Error('AUTH_DEMO_MODE=true không được phép khi NODE_ENV=production.');
+  }
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Sau Next.js proxy (`/api/v1` rewrite) thì IP client nằm ở X-Forwarded-For; TRUST_PROXY=1 để rate limit
+  // và audit log thấy IP thật. Chỉ bật khi backend không lộ trực tiếp ra Internet (nếu không client tự giả IP).
+  const trustProxy = process.env.TRUST_PROXY;
+  if (trustProxy) app.set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
+
+  // Phiên nằm trong cookie httpOnly nên cần đọc cookie.
+  app.use(cookieParser());
+
+  // 1. CORS: cookie phiên chỉ dùng cùng origin (FE gọi qua rewrite /api/v1), nhưng vẫn cho phép danh sách
+  // origin tường minh gọi kèm credentials. Không dùng '*' với credentials (trình duyệt từ chối).
+  const allowedOrigins = (process.env.CORS_ORIGINS || process.env.WEB_APP_URL || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: '*',
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -46,11 +69,14 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'JWT Authorization',
-        description: 'Nhập Supabase Auth JWT Token hoặc gửi header [x-demo-role: admin / field_host / landlord / tenant]',
+        description:
+          'Supabase access token (trình duyệt dùng cookie httpOnly do POST /auth/login set). ' +
+          'Khi AUTH_DEMO_MODE=true có thể gửi header [x-demo-role: ops_admin / field_host / landlord / tenant].',
         in: 'header',
       },
       'bearer-token',
     )
+    .addCookieAuth(ACCESS_COOKIE, { type: 'apiKey', in: 'cookie', name: ACCESS_COOKIE }, 'session-cookie')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -59,7 +85,8 @@ async function bootstrap() {
     customCss: '.swagger-ui .topbar { display: none }',
   });
 
-  const port = process.env.PORT || 3000;
+  // 4000 (không phải 3000) để không đụng cổng dev của Next.js ở apps/web.
+  const port = process.env.PORT || 4000;
   await app.listen(port);
 
   logger.log(`========================================================`);

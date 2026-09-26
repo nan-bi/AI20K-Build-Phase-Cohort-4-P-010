@@ -29,6 +29,11 @@ export function LoginTabs() {
         portal={tab}
         label={tab === "tenant" ? "khách thuê" : "chủ nhà"}
         initialError={searchParams.get("tab") === tab ? searchParams.get("error") : null}
+        initialNotice={
+          searchParams.get("tab") === tab && searchParams.get("confirmed") === "1"
+            ? "Email đã được xác nhận. Hãy đăng nhập."
+            : null
+        }
       />
     </AuthShell>
   );

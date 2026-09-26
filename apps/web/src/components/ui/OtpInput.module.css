@@ -1,0 +1,38 @@
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.box {
+  width: 58px;
+  height: 64px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: center;
+  font-family: var(--font-head);
+  font-size: 28px;
+  font-weight: 650;
+  caret-color: var(--lagoon-600);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.box:focus {
+  outline: none;
+  border-color: var(--lagoon-600);
+  box-shadow: var(--ring);
+}
+
+.error .box {
+  border-color: var(--coral);
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}

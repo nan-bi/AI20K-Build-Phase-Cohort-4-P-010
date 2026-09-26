@@ -1,33 +1,44 @@
-import type { Metadata } from "next";
-import { Be_Vietnam_Pro, Fraunces } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Be_Vietnam_Pro, Bricolage_Grotesque } from "next/font/google";
+import { DemoDock } from "@/components/demo/DemoDock";
+import { ToastHost } from "@/components/ui/Toast";
 import "./globals.css";
 
-// UI/body copy — set in Vietnamese throughout the product, so the typeface
-// needs real Vietnamese diacritic support (Be Vietnam Pro is designed for it).
+// Thân chữ và giao diện: Be Vietnam Pro được thiết kế cho dấu tiếng Việt.
 const beVietnamPro = Be_Vietnam_Pro({
   variable: "--font-sans",
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-// Display face for the "VinStay AI" wordmark only (ASCII, no diacritics) —
-// Fraunces doesn't ship a Vietnamese subset, so it's never used for
-// Vietnamese copy. See src/app/admin/login/AdminLoginForm.tsx.
-const fraunces = Fraunces({
+// Tiêu đề & con số tiền: Bricolage Grotesque (có bộ dấu tiếng Việt), trục opsz cho chữ lớn sắc nét.
+const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600"],
+  subsets: ["latin", "vietnamese"],
+  axes: ["opsz"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "VinStay AI",
-  description: "Vận hành cho thuê căn hộ tại Vinhomes Ocean Park.",
+  title: { default: "VinStay AI — Thuê căn hộ Vinhomes Ocean Park", template: "%s — VinStay AI" },
+  description: "Tìm căn thật, biết trước mọi chi phí hàng tháng, xem nhà có Field Host đón tại sảnh. Vinhomes Ocean Park 1, Gia Lâm, Hà Nội.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b2530",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={`${beVietnamPro.variable} ${fraunces.variable}`}>
-      <body>{children}</body>
+    <html lang="vi" className={`${beVietnamPro.variable} ${bricolage.variable}`}>
+      <body>
+        {children}
+        <ToastHost />
+        <DemoDock />
+      </body>
     </html>
   );
 }

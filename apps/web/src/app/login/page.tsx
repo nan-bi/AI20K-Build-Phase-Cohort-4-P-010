@@ -1,16 +1,10 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
-import { LoginTabs } from "./LoginTabs";
+import { isRole, safeNext } from "@/lib/mock/auth";
+import { LoginPicker } from "./LoginPicker";
 
-export const metadata: Metadata = {
-  title: "Đăng nhập — VinStay AI",
-};
+export const metadata: Metadata = { title: "Đăng nhập demo" };
 
-// useSearchParams() (?error=... from the auth callback) needs Suspense.
-export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginTabs />
-    </Suspense>
-  );
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ as?: string; next?: string }> }) {
+  const { as, next } = await searchParams;
+  return <LoginPicker preferred={isRole(as) ? as : undefined} next={safeNext(next)} />;
 }

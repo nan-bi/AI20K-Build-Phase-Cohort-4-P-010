@@ -1,17 +1,6 @@
-import { Suspense } from "react";
-import type { Metadata } from "next";
-import { AdminLoginTabs } from "./AdminLoginTabs";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Đăng nhập quản trị — VinStay AI",
-};
-
-// useSearchParams() (used to read ?error=... from the OAuth callback) opts
-// this route out of static prerendering unless wrapped in Suspense.
+// Bản MVP mock dùng chung một màn đăng nhập demo cho cả 4 vai trò.
 export default function AdminLoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <AdminLoginTabs />
-    </Suspense>
-  );
+  redirect("/login?as=admin");
 }
