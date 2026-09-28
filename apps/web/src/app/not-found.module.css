@@ -1,0 +1,19 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-3);
+  min-height: 70dvh;
+  padding: var(--s-8) var(--s-4);
+  margin: 0 auto;
+}
+
+.facade {
+  width: 220px;
+  margin-bottom: var(--s-3);
+}
+
+.title {
+  font-size: var(--fs-24);
+}

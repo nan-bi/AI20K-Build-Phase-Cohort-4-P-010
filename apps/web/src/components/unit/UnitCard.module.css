@@ -3,14 +3,13 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-panel);
   background: var(--surface);
-  box-shadow: var(--shadow-1);
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: border-color 0.2s, transform 0.2s;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-2);
+  border-color: var(--line-strong);
   transform: translateY(-2px);
 }
 

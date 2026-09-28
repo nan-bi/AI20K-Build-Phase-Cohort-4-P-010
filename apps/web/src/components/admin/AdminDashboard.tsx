@@ -8,11 +8,14 @@ import { Heatmap } from "@/components/charts/Heatmap";
 import { StackBar } from "@/components/charts/StackBar";
 import { StatTile } from "@/components/charts/StatTile";
 import { Trend } from "@/components/charts/Trend";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Section } from "@/components/ui/Section";
 import { dayLabel, fmtTime, relTime } from "@/lib/mock/format";
 import { funnel, noShowRate, noticesFor, unitStatus } from "@/lib/mock/selectors";
 import { dailyBookings, heatRows, occupancyOverall } from "@/lib/mock/stats";
 import { useMock } from "@/lib/mock/store";
 import { HOSTS, UNITS } from "@/lib/mock/units";
+import { contractKpis, contractRows } from "@/lib/mock/contracts";
 import { useNow } from "@/lib/useNow";
 import styles from "./Admin.module.css";
 
@@ -25,7 +28,7 @@ export function AdminDashboard() {
 
   const occ = occupancyOverall(state);
   const overSla = state.bookings.filter((b) => b.status === "pending" && now - new Date(b.createdAt).getTime() > SLA * 1000);
-  const pendingCs = state.consignments.filter((c) => c.status === "pending").length;
+  const pendingCs = state.consignments.filter((c) => c.status === "reviewing").length;
   const exiting = Object.values(state.mandates).filter((m) => m.status === "exiting");
   const nsr = noShowRate(state);
   const daily = dailyBookings(state, now);
@@ -35,62 +38,79 @@ export function AdminDashboard() {
   const counts = { rented: Math.max(0, occ.used - holding), holding, available: occ.total - occ.used };
   const feed = noticesFor(state, "admin").slice(0, 8);
 
+  const cRows = contractRows(state, now);
+  const cKpis = contractKpis(cRows);
+  const exitDueCount = cRows.filter((r) => r.status === "exit_due").length;
+  const expiringCount = cRows.filter((r) => r.status === "expiring" && r.needsAction).length;
+
+  const workItems = [
+    overSla.length > 0 && {
+      key: "sla",
+      icon: AlertTriangle,
+      bad: true,
+      title: `${overSla.length} ticket quá SLA 3 phút`,
+      body: "Chưa có Host nhận, đã chuyển Open Pool 500m.",
+      href: "/admin/bookings",
+      cta: "Điều phối",
+    },
+    pendingCs > 0 && {
+      key: "cs",
+      icon: ClipboardCheck,
+      title: `${pendingCs} báo cáo thẩm định chờ duyệt`,
+      body: "Field Host đã nộp báo cáo % độ mới, chờ Admin chốt ký gửi.",
+      href: "/admin/inventory?tab=requests",
+      cta: "Xem",
+    },
+    exiting.length > 0 && {
+      key: "exit",
+      icon: Timer,
+      title: `${exiting.length} căn đang đếm ngược thoát uỷ quyền`,
+      body: "Hết 15 ngày hệ thống tự gỡ mã cửa khỏi mạng lưới Host.",
+      href: "/admin/inventory?tab=exit",
+      cta: "Xem",
+    },
+    cKpis.needsAction > 0 && {
+      key: "contracts",
+      icon: Clock3,
+      bad: true,
+      title: `${cKpis.needsAction} hợp đồng cần xử lý`,
+      body: `${exitDueCount > 0 ? `${exitDueCount} quá hạn offboard` : ""}${exitDueCount > 0 && expiringCount > 0 ? " · " : ""}${expiringCount > 0 ? `${expiringCount} HĐ sắp hết hạn chưa nhắc` : ""}`,
+      href: "/admin/contracts",
+      cta: "Mở sổ hợp đồng",
+    },
+  ].filter(Boolean) as { key: string; icon: typeof AlertTriangle; bad?: boolean; title: string; body: string; href: string; cta: string }[];
+
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <div>
-          <h1>Tổng quan vận hành</h1>
-          <p className="muted">Vinhomes Ocean Park 1 · dữ liệu tuần này, cập nhật theo thời gian thực</p>
-        </div>
-      </header>
+      <PageHeader title="Tổng quan vận hành" description="Vinhomes Ocean Park 1 · dữ liệu tuần này, cập nhật theo thời gian thực" />
 
-      {(overSla.length > 0 || pendingCs > 0 || exiting.length > 0) && (
-        <ul className={styles.alerts} aria-label="Cần xử lý">
-          {overSla.length > 0 && (
-            <li className={styles.alertBad}>
-              <AlertTriangle size={20} />
-              <div>
-                <b>{overSla.length} ticket quá SLA 3 phút</b>
-                <p className="small">Chưa có Host nhận, đã chuyển Open Pool 500m.</p>
-              </div>
-              <Link href="/admin/bookings" className="btn btn-quiet btn-sm">
-                Điều phối <ArrowRight size={14} />
-              </Link>
-            </li>
-          )}
-          {pendingCs > 0 && (
-            <li>
-              <ClipboardCheck size={20} />
-              <div>
-                <b>{pendingCs} yêu cầu ký gửi chờ duyệt</b>
-                <p className="small">Duyệt để Field Host lên lịch thẩm định ảnh 10 hạng mục.</p>
-              </div>
-              <Link href="/admin/inventory?tab=requests" className="btn btn-quiet btn-sm">
-                Xem <ArrowRight size={14} />
-              </Link>
-            </li>
-          )}
-          {exiting.length > 0 && (
-            <li>
-              <Timer size={20} />
-              <div>
-                <b>{exiting.length} căn đang đếm ngược thoát uỷ quyền</b>
-                <p className="small">Hết 15 ngày hệ thống tự gỡ mã cửa khỏi mạng lưới Host.</p>
-              </div>
-              <Link href="/admin/inventory?tab=exit" className="btn btn-quiet btn-sm">
-                Xem <ArrowRight size={14} />
-              </Link>
-            </li>
-          )}
-        </ul>
+      {workItems.length > 0 && (
+        <Section title="Việc cần xử lý" flush>
+          <ul className={styles.alerts} aria-label="Cần xử lý">
+            {workItems.map((w) => (
+              <li key={w.key} className={w.bad ? styles.alertBad : undefined}>
+                <w.icon size={20} />
+                <div>
+                  <b>{w.title}</b>
+                  <p className="small">{w.body}</p>
+                </div>
+                <Link href={w.href} className="btn btn-quiet btn-sm">
+                  {w.cta} <ArrowRight size={14} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
       )}
 
-      <div className={styles.kpis}>
-        <StatTile hero label="Tỷ lệ lấp đầy" value={`${Math.round(occ.rate * 100)}`} unit="%" delta={{ text: "+2 điểm so với tuần trước", tone: "good", dir: "up" }} spark={[71, 72, 72, 74, 73, 75, 76, 76, 77, 78, 78, Math.round(occ.rate * 100)]} />
-        <StatTile label="Lịch xem hôm nay" value={String(todayCount)} delta={{ text: "so với 11 hôm qua", tone: "flat" }} spark={daily.slice(-12).map((d) => d.value)} />
-        <StatTile label="Tỷ lệ khách bỏ hẹn" value={`${Math.round(nsr * 100)}`} unit="%" delta={{ text: "mục tiêu ≤ 5%", tone: nsr <= 0.05 ? "good" : "bad", dir: nsr <= 0.05 ? "down" : "up" }} />
-        <StatTile label="Host nhận ca trung bình" value={`${Math.floor(avgAccept / 60)}′${String(avgAccept % 60).padStart(2, "0")}″`} delta={{ text: `SLA 3′00″ · ${HOSTS.filter((h) => h.avgAcceptSec > SLA).length} Host vượt`, tone: "bad", dir: "up" }} />
-      </div>
+      <Section flush>
+        <div className={styles.kpis}>
+          <StatTile hero label="Tỷ lệ lấp đầy" value={`${Math.round(occ.rate * 100)}`} unit="%" delta={{ text: "+2 điểm so với tuần trước", tone: "good", dir: "up" }} spark={[71, 72, 72, 74, 73, 75, 76, 76, 77, 78, 78, Math.round(occ.rate * 100)]} />
+          <StatTile label="Lịch xem hôm nay" value={String(todayCount)} delta={{ text: "so với 11 hôm qua", tone: "flat" }} spark={daily.slice(-12).map((d) => d.value)} />
+          <StatTile label="Tỷ lệ khách bỏ hẹn" value={`${Math.round(nsr * 100)}`} unit="%" delta={{ text: "mục tiêu ≤ 5%", tone: nsr <= 0.05 ? "good" : "bad", dir: nsr <= 0.05 ? "down" : "up" }} />
+          <StatTile label="Host nhận ca trung bình" value={`${Math.floor(avgAccept / 60)}′${String(avgAccept % 60).padStart(2, "0")}″`} delta={{ text: `SLA 3′00″ · ${HOSTS.filter((h) => h.avgAcceptSec > SLA).length} Host vượt`, tone: "bad", dir: "up" }} />
+        </div>
+      </Section>
 
       <div className={styles.two}>
         <Funnel steps={funnel(state)} />

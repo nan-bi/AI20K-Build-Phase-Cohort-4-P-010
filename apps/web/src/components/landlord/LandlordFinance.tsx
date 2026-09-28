@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import { Columns } from "@/components/charts/Columns";
 import { StatTile } from "@/components/charts/StatTile";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { RATES } from "@/lib/mock/cost";
@@ -50,20 +51,20 @@ export function LandlordFinance() {
     a.download = "khoan-thu-chu-nha.csv";
     a.click();
     URL.revokeObjectURL(a.href);
-    toast("Đã xuất bảng khoản thu", "success");
+    toast("Đã tải bảng kê tháng này", "success");
   };
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <div>
-          <h1>Khoản thu</h1>
-          <p className="muted">Tiền thuê thu về, phí dịch vụ ký gửi và tiền cọc đang được giữ hộ theo hợp đồng.</p>
-        </div>
-        <button type="button" className="btn btn-quiet" onClick={exportCsv}>
-          <Download size={16} /> Xuất CSV
-        </button>
-      </header>
+      <PageHeader
+        title="Khoản thu"
+        description="Tiền thuê thu về, phí dịch vụ ký gửi và tiền cọc đang được giữ hộ theo hợp đồng."
+        actions={
+          <button type="button" className="btn btn-quiet" onClick={exportCsv}>
+            <Download size={16} /> Tải bảng kê
+          </button>
+        }
+      />
 
       <div className={styles.kpis}>
         <StatTile hero label="Thực nhận tháng này" value={vndShort(net)} delta={{ text: `đã trừ phí dịch vụ ${vndShort(fee)}`, tone: "flat" }} spark={series.map((s) => s.value)} />

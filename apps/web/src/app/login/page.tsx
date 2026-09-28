@@ -1,10 +1,28 @@
+import Link from "next/link";
 import type { Metadata } from "next";
-import { isRole, safeNext } from "@/lib/mock/auth";
-import { LoginPicker } from "./LoginPicker";
+import { AuthLayout } from "@/components/ui/AuthLayout";
+import { LoginForm } from "@/components/authui/LoginForm";
+import { safeNext } from "@/lib/mock/auth";
 
-export const metadata: Metadata = { title: "Đăng nhập demo" };
+export const metadata: Metadata = { title: "Đăng nhập" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ as?: string; next?: string }> }) {
-  const { as, next } = await searchParams;
-  return <LoginPicker preferred={isRole(as) ? as : undefined} next={safeNext(next)} />;
+interface LoginPageProps {
+  searchParams: Promise<{ as?: string; next?: string; tab?: string }>;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { as, next, tab } = await searchParams;
+  return (
+    <AuthLayout
+      title="Đăng nhập VinStay"
+      description="Dùng email hoặc số điện thoại đã đăng ký."
+      footer={
+        <p className="small muted">
+          Chưa có tài khoản? <Link href="/register">Đăng ký</Link>
+        </p>
+      }
+    >
+      <LoginForm as={as} next={safeNext(next)} initialTab={tab === "landlord" ? "landlord" : undefined} />
+    </AuthLayout>
+  );
 }

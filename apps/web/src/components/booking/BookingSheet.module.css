@@ -1,43 +1,88 @@
 .flow {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
+/* ── Thanh tiến trình 3 bước ─────────────────────────────────────────── */
 .progress {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--slate);
+  padding: 0;
+  margin: 0 0 4px;
+  list-style: none;
 }
 
-.progress li {
+.stepItem {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.progress span {
+.stepBar {
   height: 4px;
   border-radius: 999px;
   background: var(--line);
+  transition: background 0.2s ease;
 }
 
-.progress .on {
-  color: var(--ink);
+.stepLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-3);
+  transition: color 0.2s ease;
 }
-.progress .on span {
+
+.stepNumber {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--line);
+  color: var(--ink-2);
+}
+
+.stepItem.active .stepBar {
   background: var(--amber);
 }
 
+.stepItem.active .stepLabel {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.stepItem.active .stepNumber {
+  background: var(--amber);
+  color: var(--surface);
+}
+
+.stepItem.completed .stepBar {
+  background: var(--lagoon);
+}
+
+.stepItem.completed .stepLabel {
+  color: var(--lagoon);
+}
+
+.stepItem.completed .stepNumber {
+  background: var(--lagoon);
+  color: var(--surface);
+}
+
+/* ── Host header row ─────────────────────────────────────────────────── */
 .hostRow {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   padding: 12px 14px;
-  border-radius: var(--r);
+  border-radius: var(--r-panel);
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
@@ -46,110 +91,395 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--lagoon);
-  color: #fff;
+  color: var(--surface);
   font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.hostInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.hostInfoTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hostRating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber-600);
+}
+
+.hostSub {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+
+/* ── Step Info: Slot recap card ───────────────────────────────────────── */
+.slotRecapCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-panel);
+  background: var(--lagoon-050);
+  border: 1px solid var(--line-strong);
+}
+
+.slotRecapLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.slotRecapIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--lagoon);
+  box-shadow: var(--shadow-1);
+}
+
+.slotRecapMeta {
+  min-width: 0;
+}
+
+.slotRecapTime {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slotRecapLocation {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.changeSlotBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--r-control);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lagoon);
+  cursor: pointer;
+  flex: none;
+  transition: all 0.15s ease;
+}
+
+.changeSlotBtn:hover {
+  background: var(--surface-2);
+  border-color: var(--lagoon);
+}
+
+/* ── Step Info: Form fields ──────────────────────────────────────────── */
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.formLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.labelIcon {
+  color: var(--lagoon);
+  flex-shrink: 0;
+}
+
+.requiredStar {
+  color: var(--danger);
   font-weight: 700;
 }
 
-.days {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+.zaloBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lagoon);
+  background: var(--lagoon-050);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 999px;
 }
 
-.day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 10px 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r);
-  background: var(--surface);
-  color: var(--ink-600);
-  transition: border-color 0.12s, background-color 0.12s;
+.optionalBadge {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
-.day b {
-  font-size: 19px;
+
+.formInput {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14.5px;
+  border-radius: var(--r-control);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: var(--lagoon);
+  box-shadow: var(--ring);
+}
+
+.inputError {
+  border-color: var(--danger) !important;
+}
+
+.fieldHint {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+/* ── Segmented persons selector ──────────────────────────────────────── */
+.segmentedGroup {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+.segmentedBtn {
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-control) - 2px);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: grid;
+  place-items: center;
+}
+
+.segmentedBtn:hover {
   color: var(--ink);
 }
-.day:hover {
-  border-color: var(--lagoon-300);
-}
-.daySel {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #b9cfd3;
-}
-.daySel b {
-  color: #fff;
+
+.segmentedBtnActive {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 650;
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
 }
 
-.part {
-  margin-bottom: 8px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--slate);
+.formTextarea {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  border-radius: var(--r-control);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+  min-height: 64px;
 }
 
-.slots {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+.formTextarea:focus {
+  outline: none;
+  border-color: var(--lagoon);
+  box-shadow: var(--ring);
+}
+
+/* ── Security & consent card ─────────────────────────────────────────── */
+.securityCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--r-panel);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease;
+}
+
+.securityCardError {
+  border-color: var(--danger);
+}
+
+.securityHeader {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.slot {
+.securityIcon {
+  color: var(--ok);
+  flex-shrink: 0;
+}
+
+.securityTitle {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.securityText {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.consentLabel {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.consentCheckbox {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--lagoon);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.consentText {
+  font-size: 12.5px;
+  color: var(--ink);
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.submitBtn {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  min-height: 48px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--ink);
-  transition: border-color 0.12s, background-color 0.12s;
-}
-.slot b {
-  font-size: 16px;
-}
-.slot:hover:not(:disabled) {
-  border-color: var(--lagoon-600);
-}
-.slot:disabled {
-  background: var(--surface-2);
-  color: #8fa0a5;
-  cursor: not-allowed;
-  border-style: dashed;
-}
-.slotSel {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--ink-950);
-  box-shadow: 0 0 0 3px rgba(224, 160, 60, 0.28);
+  gap: 8px;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.back {
-  align-self: flex-start;
+/* ── Step OTP ────────────────────────────────────────────────────────── */
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
   margin-left: -8px;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;
 }
 
-.two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.backBtn:hover {
+  color: var(--ink);
+}
+
+.otpHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.otpBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lagoon);
+  background: var(--lagoon-050);
+  padding: 4px 10px;
+  border-radius: 999px;
+  width: fit-content;
 }
 
 .otpTitle {
-  font-size: 22px;
-  margin-bottom: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.otpSub {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.otpInputWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.resendBtn {
+  font-size: 13px;
+  font-weight: 550;
 }
 
 .demoZalo {
@@ -157,57 +487,157 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px dashed #b7cdee;
-  border-radius: var(--r);
-  background: #eef4fc;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--lagoon-050);
 }
 
+/* ── Step Done (Digital Boarding Pass) ────────────────────────────────── */
 .done {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  align-items: flex-start;
+  gap: 18px;
+  align-items: center;
+  text-align: center;
+  padding: 4px 0 8px;
 }
 
-.doneIcon {
+.doneIconWrap {
   display: grid;
   place-items: center;
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--kelp-100);
-  color: var(--kelp);
+  background: var(--ok-050);
+  color: var(--ok);
+  border: 2px solid rgba(31, 118, 84, 0.15);
 }
 
 .doneTitle {
-  font-size: 24px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
 }
 
-.summary {
+.doneSub {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 440px;
+  margin: 0;
+}
+
+.ticketCard {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+  text-align: left;
+  box-shadow: var(--shadow-1);
+}
+
+.ticketHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.ticketTag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lagoon);
+  letter-spacing: 0.04em;
+}
+
+.ticketRef {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.refCode {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ticketBody {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 16px;
-  width: 100%;
-  margin: 4px 0 0;
+  gap: 14px 16px;
   padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface-2);
 }
 
-.summary dt {
-  font-size: 12.5px;
-  color: var(--slate);
+.ticketItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.summary dd {
-  margin: 2px 0 0;
+.ticketItemLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 550;
+}
+
+.ticketItemVal {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticketSubVal {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.hostBadgeVerified {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ok);
   font-weight: 600;
+  margin-top: 2px;
 }
 
-.ref {
-  font-size: 26px;
-  letter-spacing: 0.02em;
+.ticketNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--lagoon-050);
+  border-top: 1px solid var(--line);
+}
+
+.ticketNoticeIcon {
+  color: var(--lagoon);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ticketNoticeText {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin: 0;
 }
 
 .doneActions {
@@ -216,4 +646,11 @@
   gap: 8px;
   width: 100%;
   margin-top: 4px;
+}
+
+@media (max-width: 420px) {
+  .ticketBody {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }

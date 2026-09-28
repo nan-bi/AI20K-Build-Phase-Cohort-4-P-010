@@ -119,7 +119,7 @@ Khách thuê đi qua chuỗi **6 màn hình chuẩn**, tập trung triệt để
   * Slide ảnh 10 hạng mục kiểm định thực tế (phòng khách, sofa, bếp, điều hòa, WC, view ban công).
   * Bảng thông số kỹ thuật: Diện tích thông thủy, nội thất bàn giao, tầng cao, hướng mát.
   * **Modal Đặt lịch xem phòng:**
-    * Khung chọn ngày: Hôm nay hoặc 2 ngày tới.
+    * Khung chọn ngày: Calendar Date Picker trực quan theo tháng (cho phép đặt từ hôm nay đến tối đa hết tháng tiếp theo, chặn quá khứ và tương lai xa); dot chỉ báo ngày còn giờ trống; chip 'Sớm nhất' chọn nhanh khung gần nhất.
     * Khung chọn slot giờ khả dụng (khớp ca trực Field Host): Sáng (08:30, 09:30, 10:30) | Chiều (14:30, 15:30, 16:30, 17:30).
     * Ô nhập Họ tên & Số điện thoại.
     * Ô nhập mã OTP 4 số gửi về Zalo/SMS.
@@ -208,7 +208,7 @@ Chủ nhà trải nghiệm quy trình **"ở nhà 100%"**, chỉ cần ủy quy�
 
 ## 4. CHI TIẾT LUỒNG 3: FIELD HOST / SALE NỘI KHU (MOBILE DASHBOARD 1-CHẠM)
 
-Field Host thao tác trên **Mobile Web / PWA cực kỳ tối giản**, thao tác 1-chạm khi đang di chuyển:
+Field Host thao tác trên **cổng web dạng dashboard (sidebar như Chủ nhà/Admin), responsive tới 390px; thao tác chính vẫn 1-chạm** khi đang di chuyển:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -251,6 +251,17 @@ Field Host thao tác trên **Mobile Web / PWA cực kỳ tối giản**, thao t�
   * Màn hình Host hiển thị mã VietQR động 2.000.000 VNĐ cho khách quét.
   * Khi thanh toán thành công: Màn hình rung chuông chúc mừng; ví hoa hồng của Host nhảy số thù lao lượt dẫn + hoa hồng chốt cọc (theo tỷ lệ Admin cấu hình).
   * Chụp ảnh lập Hộ chiếu bàn giao số: App mở camera có khung định vị 10 hạng mục nội thất (Sofa, Sàn gỗ, Tường, Điều hòa, Bếp, Tủ lạnh...), tự động nhúng timestamp và lưu vào hồ sơ bàn giao.
+
+### Màn 5: Thẩm Định Ký Gửi Độc Quyền Tại Phân Khu (`/host/inspections` & `/host/inspections/[id]`)
+* **Thành phần:**
+  * Host nhận ticket thẩm định theo phân khu phụ trách ngay khi chủ nhà ký OTP (hạn SLA 48 giờ).
+  * Danh sách ticket chia 2 khu vực: "Cần xử lý" (chờ nhận / đang kiểm tra) và "Đã nộp" (chờ Admin duyệt / đã chốt).
+  * Phiếu thẩm định thực địa gồm 4 khối kiểm tra bắt buộc:
+    1. **Đối chiếu 5 trường kê khai:** Toà-Tầng-Căn, loại căn, diện tích m², mức nội thất, loại khoá — mỗi trường xác nhận `Khớp` hoặc `Sai lệch + giá trị thực tế`.
+    2. **Đồ dùng chủ nhà kê khai:** Kiểm tra hiện diện thực tế (có mặt / thiếu).
+    3. **Đánh giá độ mới 10 hạng mục nội thất (`PASSPORT_ITEMS`):** Chấm % độ mới bậc 10% (0–100%), chụp 1 ảnh thực tế nhúng timestamp cho từng hạng mục (mock).
+    4. **Đề xuất của Host:** Khuyến nghị `Duyệt ký gửi` hoặc `Từ chối ký gửi` kèm ghi chú hiện trạng.
+  * Khi Host nộp báo cáo: Báo cáo chuyển sang chế độ chỉ đọc, gửi về Admin chốt và đồng bộ hiển thị cho Chủ nhà theo dõi.
 
 ---
 
@@ -297,18 +308,65 @@ Bảng điều khiển trung tâm giúp Quản trị viên nắm bắt toàn di�
   * Lịch sử Audit Log: Người sửa, ngày giờ, giá trị cũ/mới.
   * **Công cụ xuất Bảng kê thanh toán (Payout Report):** Tự động tổng hợp thu nhập thực nhận của từng Host trong tuần, xuất file đối soát chuyển khoản ngân hàng 1-chạm.
 
+### Màn 5: Sổ Quản Lý Hợp Đồng & Chứng Cứ Ký Số (`/admin/contracts` & `/admin/contracts/[key]`)
+* **Thành phần:**
+  * **Sổ quản lý tập trung 4 loại hợp đồng:** Uỷ quyền độc quyền (`mandate`), Thoả thuận cọc giữ chỗ 24h (`holding`), Hợp đồng thuê căn hộ chính thức (`lease`), và Thoả thuận đối tác Field Host (`partnership`).
+  * **Dải 4 chỉ số KPI vận hành:** Số HĐ thuê hiệu lực, HĐ thuê sắp hết hạn $\le 30$ ngày, Tiền cọc đang giữ, và Uỷ quyền đang thoát/quá hạn offboard.
+  * **Bộ lọc đa chiều:** Tab phân loại (Tất cả, Uỷ quyền, Cọc giữ chỗ, HĐ thuê, Đối tác Host), ô tìm kiếm toàn văn, lọc theo trạng thái và nút 1-chạm "Cần xử lý" (nhận diện nhanh hợp đồng cần Admin can thiệp).
+  * **Thanh điều hướng phụ 3 phân hệ (Contracts Subnav):** Sổ hợp đồng (`/admin/contracts`), Mẫu hợp đồng (`/admin/contracts/templates`), và Theo bên ký (`/admin/contracts/parties`).
+  * **Trang chi tiết hợp đồng:**
+    * Bố cục 2 cột chuyên nghiệp: Cột chính hiển thị toàn bộ điều khoản pháp lý, mốc tiến trình ký số (timestamps), liên kết chéo giữa cọc giữ chỗ và hợp đồng thuê.
+    * Bất biến cọc bảo đảm: Minh bạch 100% việc chuyển đổi 2.000.000đ từ cọc giữ chỗ thành một phần của Tiền cọc bảo đảm tài sản; tiền thuê tháng đầu không bị trừ 2 triệu.
+    * 2 hành động ghi chuyên biệt cho Admin:
+      1. `Hoàn tất thoát uỷ quyền`: Kích hoạt khi mandate đã quá 15 ngày đếm ngược để offboard căn hộ khỏi mạng lưới Host, gỡ mã mở cửa và gửi thông báo nhận lại chìa cơ tại văn phòng phân khu.
+      2. `Nhắc gia hạn hợp đồng`: Kích hoạt khi HĐ thuê còn $\le 30$ ngày để gửi Zalo nhắc gia hạn đồng thời cho cả Chủ nhà và Khách thuê.
+    * Nhật ký chứng cứ ký số: Hiển thị minh bạch mã định danh HĐ, thời điểm ký OTP Zalo và SĐT đã che bảo mật theo Nghị định 13/2023/NĐ-CP.
+    * Mẫu áp dụng & Bên ký: Hiển thị mẫu hợp đồng chính (kèm liên kết sang trang chi tiết mẫu), các văn bản phụ lục đính kèm, và liên kết trực tiếp sang hồ sơ từng bên ký (`/admin/contracts/parties/[key]`).
+
+### Màn 5b: Danh Mục Mẫu Hợp Đồng & Bản Đồ Bước Nghiệp Vụ (`/admin/contracts/templates` & `/admin/contracts/templates/[id]`)
+* **Thành phần:**
+  * **Nguồn tra cứu chuẩn "Làm gì gắn mẫu nào":** Nguồn tra cứu duy nhất cho Quản trị viên và Đội ngũ vận hành về quy chuẩn gắn kết văn bản pháp lý vào từng bước vận hành thực tế.
+  * **Bản đồ 18 bước nghiệp vụ (`TemplateStep`):**
+    * Phân định theo 5 nhóm chủ thể thực hiện: Khách thuê (`tenant`), Chủ nhà (`landlord`), Field Host (`host`), Quản trị (`admin`), Hệ thống (`system`).
+    * Mỗi bước chỉ rõ: Nội dung công việc, Route giao diện thao tác, Mẫu hợp đồng chính cần ký (`primary`), Danh sách phụ lục/chính sách kèm theo (`attached`), Loại hợp đồng phát sinh/thay đổi trong sổ (`produces`), và Trạng thái luồng thực thi trong bản demo (`implemented`).
+    * Cho phép click trực tiếp từ mã mẫu trong bước sang chi tiết mẫu tương ứng.
+  * **Danh mục 32 mẫu văn bản pháp lý (`ContractTemplate`):**
+    * Đồng bộ 100% với 32 tệp văn bản trong kho pháp lý `legal/` (chia 5 nhóm: Nền tảng `core`, Khách thuê `tenant`, Chủ nhà `landlord`, Field Host `host`, Quản trị `admin`).
+    * Phân loại chuẩn 5 hình thức: Hợp đồng ký số (`contract`), Bản hiển thị theo vai (`variant`), Phụ lục cam kết kèm theo (`annex`), Chính sách chấp nhận tại bước (`policy`), và Quy chế vận hành nội bộ (`sop`).
+    * Thống kê số lượng hợp đồng thực tế trong sổ đang áp dụng từng mẫu.
+  * **Trang chi tiết mẫu (`/admin/contracts/templates/[id]`):**
+    * Sinh tĩnh toàn bộ 32 trang (SSG) với `generateStaticParams`.
+    * Hiển thị đầy đủ thông tin pháp lý: Mã văn bản, số hiệu, các bên tham gia, tóm tắt nội dung, đường dẫn tệp nguồn trong `legal/`, văn bản liên quan.
+    * Danh sách các bước nghiệp vụ có sử dụng mẫu này (chỉ rõ vai trò mẫu chính hay văn bản kèm).
+    * Bảng danh sách hợp đồng thực tế trong hệ thống đang áp dụng hoặc chịu ràng buộc bởi mẫu văn bản.
+
+### Màn 5c: Quản Lý Hợp Đồng Theo Bên Ký (`/admin/contracts/parties` & `/admin/contracts/parties/[key]`)
+* **Thành phần:**
+  * **Tổng hợp theo 3 đối tượng chủ thể:** Chủ nhà (`landlord`), Khách thuê (`tenant`), và Field Host (`host`).
+  * **Bảo mật danh tính & PII (Nghị định 13/2023/NĐ-CP):** Số điện thoại luôn được che mờ (`phoneMasked`); khoá định danh URL của khách thuê dùng hàm băm FNV-1a 32-bit (`T` + base36), tuyệt đối không để lộ SĐT hay số CCCD trên thanh địa chỉ duyệt web.
+  * **Bảng danh sách bên ký:** Thống kê tổng số hợp đồng của từng cá nhân, số lượng HĐ đang còn hiệu lực, và số lượng HĐ đang có cảnh báo cần xử lý (`needsAction`).
+  * **Trang chi tiết hồ sơ bên ký (`/admin/contracts/parties/[key]`):**
+    * 3 thẻ StatTile KPI: Tổng số hợp đồng, Số HĐ đang hiệu lực, và Cảnh báo việc cần xử lý.
+    * Danh sách toàn bộ hợp đồng liên quan: Phân định rõ quan hệ "Bên ký" (trực tiếp ký hợp đồng) hoặc "Host phụ trách" (Field Host được phân công tiếp đón/quản lý căn hộ).
+    * Lưới danh mục mẫu áp dụng cho vai này: Hiển thị trực quan toàn bộ các mẫu hợp đồng, phụ lục và chính sách bảo vệ quyền lợi được thiết kế riêng cho vai trò tương ứng để tiện tra cứu và tư vấn.
+
 ---
 
 ## 6. MA TRẬN ĐỒNG BỘ DỮ LIỆU GIỮA 4 LUỒNG (DATA SYNC MATRIX)
 
 | Sự kiện nghiệp vụ phát sinh | Cập nhật Luồng Khách Thuê | Cập nhật Luồng Chủ Nhà | Cập nhật Luồng Field Host | Cập nhật Luồng Admin Portal |
-| :--- | :--- | :--- | :--- | :--- |
-| **Chủ nhà đăng ký ký gửi độc quyền** | Chưa hiển thị (chờ duyệt) | Trạng thái: `Chờ thẩm định` | Nhận nhiệm vụ chụp ảnh thẩm định | Hiện thông báo duyệt căn mới |
+| :-- | :-- | :-- | :-- | :-- |
+| **Chủ nhà ký OTP ủy quyền ký gửi** | Chưa hiển thị (chờ duyệt) | Trạng thái: `Chờ Field Host nhận` (hạn 48h) | Nhận ticket thẩm định 48h (gán theo phân khu) | Thông báo có hồ sơ ký gửi mới |
+| **Host bấm nhận ticket thẩm định** | Chưa hiển thị | Trạng thái: `Đang thẩm định` | Mở form thẩm định thực địa (5 trường kê khai, đồ dùng, 10 mục % độ mới có ảnh) | Giám sát: Host đang thẩm định thực tế |
+| **Host nộp báo cáo % độ mới** | Chưa hiển thị | Trạng thái: `Chờ Admin duyệt` (xem trước báo cáo hiện trạng) | Phiếu chuyển sang chế độ chỉ đọc | Chuông báo: Có báo cáo thẩm định cần duyệt |
+| **Admin chốt duyệt hoặc từ chối** | Nếu duyệt: rổ hàng hiển thị; Nếu từ chối: không hiển thị | Zalo thông báo kết quả (nếu từ chối: kèm lý do & nút ký gửi lại) | Push thông báo kết quả chốt ký gửi | Cập nhật rổ hàng / lưu lý do từ chối vào hồ sơ |
 | **Khách bấm [Đặt lịch OTP]** | Nhận mã hẹn & thông tin Host | Chưa nhận báo động | Nhận ticket ca trực (SLA 3m) | Ghi nhận phễu: Tăng số lịch hẹn |
 | **Mốc T-10m trước giờ hẹn** | Zalo bot gửi nút 1-chạm [Có mặt] | Chưa nhận báo động | Rung chuông nhắc xuống sảnh | Giám sát SLA tiếp đón đúng giờ |
 | **Host bấm [Xác nhận xem phòng]** | Khách cùng Host lên phòng | **Zalo bot báo phòng đang mở cửa** | Màn hình Host hiện mã cửa số | Ghi nhận lượt mở cửa thực tế |
 | **Khách quét VietQR cọc 2 triệu** | Khóa căn `holding` 24h, mở form OCR | **Zalo bot báo tin nhận cọc 2 triệu** | App báo thành công, ghi nhận ví hoa hồng | Cập nhật phễu chốt cọc; tự động hủy lịch xem sau |
 | **Chủ nhà bấm [Yêu cầu thoát 15 ngày]** | Vẫn hiển thị nếu căn trống | Kích hoạt đồng hồ đếm ngược 15 ngày | Vẫn được dẫn khách nốt trong 15 ngày | Giám sát danh sách sắp thanh lý ủy quyền |
+| **Admin bấm [Hoàn tất thoát uỷ quyền]** | Căn hộ ngừng hiển thị (unlisted) | Zalo thông báo căn hộ đã offboard, nhận lại chìa cơ tại VP phân khu | Push thông báo căn hộ đã offboard, gỡ mã cửa khỏi mạng lưới | Chuyển trạng thái mandate `ended`, giảm badge việc cần xử lý |
+| **Admin bấm [Nhắc gia hạn HĐ thuê]** | Zalo bot thông báo HĐ sắp hết hạn $\le 30$ ngày, đề nghị báo gia hạn hoặc chuẩn bị trả phòng | Zalo bot thông báo HĐ sắp hết hạn, đề nghị xác nhận gia hạn hoặc mở đón khách mới sớm | — | Ghi nhận thời điểm nhắc `renewalRemindedAt`, tắt cảnh báo cần xử lý |
 
 ---
 

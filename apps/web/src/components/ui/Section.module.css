@@ -1,0 +1,35 @@
+.section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+}
+.section + .section {
+  margin-top: var(--s-5);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-5) 0;
+}
+
+.title {
+  font-size: var(--fs-17);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: none;
+}
+
+.body {
+  padding: var(--s-5);
+}
+
+.bodyFlush {
+  padding: 0;
+}

@@ -1,32 +1,38 @@
 "use client";
 
-import { Armchair, BedDouble, Layers, MapPin, Minus, Plus, Users, Wallet } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import { RATES } from "@/lib/mock/cost";
 import { vndShort } from "@/lib/mock/format";
 import { FLOOR_LABEL } from "@/lib/mock/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
-import {
-  ALL_ITEMS,
-  FURNISHING_LABEL,
-  ITEM_LABEL,
-  LAYOUT_LABEL,
-  UNITS,
-  ZONES,
-  type Furnishing,
-  type LayoutKind,
-} from "@/lib/mock/units";
-import { PopoverChip } from "@/components/ui/Popover";
+import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, type Furnishing, type LayoutKind } from "@/lib/mock/units";
 import styles from "./FilterTray.module.css";
 
 interface FilterTrayProps {
   criteria: CriteriaState;
   onChange: (next: CriteriaState) => void;
-  placement?: "top" | "bottom";
+  /** Chip nhỏ gọn hơn — dùng khi đặt trong khung chat chật chỗ. */
+  compact?: boolean;
 }
 
 const BUDGET_MIN = 5_000_000;
 const BUDGET_MAX = 25_000_000;
 const LAYOUTS: LayoutKind[] = ["Studio", "1PN", "2PN", "3PN"];
+type FilterKey = "zone" | "layout" | "budget" | "floor" | "furnishing" | "household";
+
+const EMPTY_CRITERIA: CriteriaState = {
+  budget: undefined,
+  layouts: [],
+  zones: [],
+  buildings: [],
+  floor: undefined,
+  furnishing: undefined,
+  items: [],
+  pets: undefined,
+  household: { persons: 1, motorbikes: 1, cars: 0 },
+  moveIn: undefined,
+};
 
 const toggle = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -34,6 +40,31 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   return (
     <button type="button" className={`${styles.pill} ${on ? styles.on : ""}`} aria-pressed={on} onClick={onClick}>
       {children}
+    </button>
+  );
+}
+
+function Chip({
+  filterKey,
+  label,
+  value,
+  openKey,
+  onToggle,
+  compact,
+}: {
+  filterKey: FilterKey;
+  label: string;
+  value: string;
+  openKey: FilterKey | null;
+  onToggle: (k: FilterKey) => void;
+  compact?: boolean;
+}) {
+  const isOpen = openKey === filterKey;
+  return (
+    <button type="button" className={`${styles.chip} ${compact ? styles.chipSm : ""}`} aria-expanded={isOpen} onClick={() => onToggle(filterKey)}>
+      <span className={styles.chipLabel}>{label}</span>
+      <span className={styles.chipValue}>{value}</span>
+      <ChevronDown size={14} className={styles.caret} style={{ transform: isOpen ? "rotate(180deg)" : undefined }} />
     </button>
   );
 }
@@ -58,189 +89,214 @@ function Stepper({ label, value, min, max, onChange, hint }: { label: string; va
   );
 }
 
-/** Các bộ lọc tổng quan dành riêng cho Vinhomes Ocean Park 1: ngân sách All-in, loại căn, phân khu/toà, tầng, đồ dùng, người ở. */
-export function FilterTray({ criteria: c, onChange, placement = "bottom" }: FilterTrayProps) {
+/**
+ * Bộ lọc gọn trong 1 tag "Bộ lọc" trên khung chat — bấm vào mới mở thẻ chứa các chip "nhãn + giá trị" (kiểu
+ * Thành phố ▾ / Quận ▾), mỗi chip lại mở tiếp tuỳ chọn của riêng nó ngay trong thẻ đó.
+ * (Hàng tag tiện ích "Điều hòa, Tủ lạnh, …" tạm ẩn theo yêu cầu — logic items/pets trong CriteriaState vẫn giữ nguyên để bật lại sau.)
+ */
+export function FilterTray({ criteria: c, onChange, compact }: FilterTrayProps) {
+  const [open, setOpen] = useState(false);
+  const [openKey, setOpenKey] = useState<FilterKey | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) {
+        setOpen(false);
+        setOpenKey(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setOpenKey(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   const set = (patch: Partial<CriteriaState>) => onChange({ ...c, ...patch });
   const counts = Object.fromEntries(ZONES.map((z) => [z.id, UNITS.filter((u) => u.zoneId === z.id && u.baseStatus === "available").length]));
   const zoneBuildings = ZONES.filter((z) => c.zones.includes(z.id)).flatMap((z) => z.buildings);
   const hh = c.household;
-  const itemCount = c.items.length + (c.furnishing ? 1 : 0) + (c.pets ? 1 : 0);
   const hhChanged = hh.persons !== 1 || hh.motorbikes !== 1 || hh.cars !== 0;
+  const zoneActive = c.zones.length > 0 || c.buildings.length > 0;
+  const activeGroups = [!!c.budget, c.layouts.length > 0, zoneActive, !!c.floor, !!c.furnishing, hhChanged].filter(Boolean).length;
+
+  const zoneValue = c.buildings.length ? `Toà ${c.buildings.join(", ")}` : c.zones.length ? c.zones.map((z) => ZONES.find((x) => x.id === z)!.short).join(", ") : "Tất cả";
+  const layoutValue = c.layouts.length ? c.layouts.join(", ") : "Tất cả";
+  const budgetValue = c.budget ? vndShort(c.budget) : "Không giới hạn";
+  const floorValue = c.floor ? FLOOR_LABEL[c.floor].split(" (")[0] : "Bất kỳ";
+  const furnishingValue = c.furnishing ? FURNISHING_LABEL[c.furnishing] : "Bất kỳ";
+  const householdValue = hhChanged ? `${hh.persons} người · ${hh.motorbikes + hh.cars} xe` : "Mặc định";
+
+  const toggleOpen = (k: FilterKey) => setOpenKey((prev) => (prev === k ? null : k));
 
   return (
-    <div className={styles.tray} role="group" aria-label="Bộ lọc tìm căn">
-      <PopoverChip icon={<Wallet size={15} />} label={c.budget ? `≤ ${vndShort(c.budget)}` : "Ngân sách"} active={!!c.budget} title="Ngân sách tối đa mỗi tháng" placement={placement}>
-        {(close) => (
-          <div className={styles.panel}>
-            <div className={`num ${styles.bigVal}`}>{c.budget ? vndShort(c.budget) : "Không giới hạn"}</div>
-            <input
-              type="range"
-              className={styles.range}
-              min={BUDGET_MIN}
-              max={BUDGET_MAX}
-              step={500_000}
-              value={c.budget ?? BUDGET_MAX}
-              aria-label="Ngân sách tối đa"
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                set({ budget: v >= BUDGET_MAX ? undefined : v });
-              }}
-            />
-            <div className={styles.rangeEnds}>
-              <span>{vndShort(BUDGET_MIN)}</span>
-              <span>{vndShort(BUDGET_MAX)}+</span>
-            </div>
-            <div className={styles.pills}>
-              {[7, 9, 12, 15].map((m) => (
-                <Pill key={m} on={c.budget === m * 1_000_000} onClick={() => set({ budget: m * 1_000_000 })}>
-                  ≤ {m} triệu
-                </Pill>
-              ))}
-              <Pill on={!c.budget} onClick={() => set({ budget: undefined })}>
-                Không giới hạn
-              </Pill>
-            </div>
-            <p className="muted xs">Tính theo All-in Cost: đã gồm phí quản lý, gửi xe và điện nước, không cộng thêm khi vào ở.</p>
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
-
-      <PopoverChip icon={<BedDouble size={15} />} label={c.layouts.length ? c.layouts.map((l) => (l === "Studio" ? "Studio" : l)).join(" · ") : "Loại căn"} active={c.layouts.length > 0} title="Loại căn" placement={placement}>
-        {(close) => (
-          <div className={styles.panel}>
-            <div className={styles.pills}>
-              {LAYOUTS.map((l) => (
-                <Pill key={l} on={c.layouts.includes(l)} onClick={() => set({ layouts: toggle(c.layouts, l) })}>
-                  {LAYOUT_LABEL[l]}
-                </Pill>
-              ))}
-            </div>
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
-
-      <PopoverChip
-        icon={<MapPin size={15} />}
-        label={c.buildings.length ? `Toà ${c.buildings.join(", ")}` : c.zones.length ? c.zones.map((z) => ZONES.find((x) => x.id === z)!.short).join(", ") : "Khu vực & toà"}
-        active={c.zones.length > 0 || c.buildings.length > 0}
-        title="Phân khu và toà"
-        placement={placement}
+    <div className={styles.tray} ref={root}>
+      <button
+        type="button"
+        className={`${styles.trigger} ${compact ? styles.triggerSm : ""} ${activeGroups ? styles.triggerActive : ""}`}
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((o) => !o);
+          setOpenKey(null);
+        }}
       >
-        {(close) => (
-          <div className={styles.panel}>
-            <div className={styles.zoneList}>
-              {ZONES.map((z) => {
-                const on = c.zones.includes(z.id);
-                return (
-                  <label key={z.id} className={`${styles.zone} ${on ? styles.zoneOn : ""}`}>
+        <SlidersHorizontal size={compact ? 13 : 15} />
+        <span>{activeGroups ? `Bộ lọc · ${activeGroups}` : "Bộ lọc"}</span>
+        <ChevronDown size={compact ? 12 : 14} className={styles.caret} style={{ transform: open ? "rotate(180deg)" : undefined }} />
+      </button>
+
+      {open && (
+        <div className={styles.card} role="region" aria-label="Bộ lọc tìm căn">
+          <div className={`${styles.chipRow} ${styles.chipRowSticky}`}>
+            <Chip filterKey="zone" label="Khu vực" value={zoneValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            <Chip filterKey="layout" label="Loại" value={layoutValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            <Chip filterKey="budget" label="Ngân sách" value={budgetValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            <Chip filterKey="floor" label="Tầng" value={floorValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            <Chip filterKey="furnishing" label="Nội thất" value={furnishingValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            <Chip filterKey="household" label="Người ở" value={householdValue} openKey={openKey} onToggle={toggleOpen} compact={compact} />
+            {activeGroups > 0 && (
+              <button type="button" className={styles.clearBtn} aria-label="Xoá mọi bộ lọc" onClick={() => onChange(EMPTY_CRITERIA)}>
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {openKey && (
+            <>
+              <hr className={`divider ${styles.subDivider}`} />
+              <div>
+                {openKey === "budget" && (
+                  <div className={styles.section}>
+                    <div className={`num ${styles.bigVal}`}>{budgetValue}</div>
                     <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => {
-                        const zones = toggle(c.zones, z.id);
-                        const keep = ZONES.filter((x) => zones.includes(x.id)).flatMap((x) => x.buildings);
-                        set({ zones, buildings: c.buildings.filter((b) => keep.includes(b)) });
+                      type="range"
+                      className={styles.range}
+                      min={BUDGET_MIN}
+                      max={BUDGET_MAX}
+                      step={500_000}
+                      value={c.budget ?? BUDGET_MAX}
+                      aria-label="Ngân sách tối đa"
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        set({ budget: v >= BUDGET_MAX ? undefined : v });
                       }}
                     />
-                    <span>{z.name}</span>
-                    <span className="muted xs">{counts[z.id]} căn</span>
-                  </label>
-                );
-              })}
-            </div>
-            {zoneBuildings.length > 0 && (
-              <div>
-                <div className={styles.subLabel}>Thu hẹp theo toà</div>
-                <div className={styles.pills}>
-                  {zoneBuildings.map((b) => (
-                    <Pill key={b} on={c.buildings.includes(b)} onClick={() => set({ buildings: toggle(c.buildings, b) })}>
-                      {b}
+                    <div className={styles.rangeEnds}>
+                      <span>{vndShort(BUDGET_MIN)}</span>
+                      <span>{vndShort(BUDGET_MAX)}+</span>
+                    </div>
+                    <div className={styles.pills}>
+                      {[7, 9, 12, 15].map((m) => (
+                        <Pill key={m} on={c.budget === m * 1_000_000} onClick={() => set({ budget: m * 1_000_000 })}>
+                          ≤ {m} triệu
+                        </Pill>
+                      ))}
+                      <Pill on={!c.budget} onClick={() => set({ budget: undefined })}>
+                        Không giới hạn
+                      </Pill>
+                    </div>
+                    <p className="muted xs">Đã gồm phí quản lý, gửi xe và điện nước — không cộng thêm khi vào ở.</p>
+                  </div>
+                )}
+
+                {openKey === "layout" && (
+                  <div className={styles.pills}>
+                    {LAYOUTS.map((l) => (
+                      <Pill key={l} on={c.layouts.includes(l)} onClick={() => set({ layouts: toggle(c.layouts, l) })}>
+                        {LAYOUT_LABEL[l]}
+                      </Pill>
+                    ))}
+                  </div>
+                )}
+
+                {openKey === "floor" && (
+                  <div className={styles.pills}>
+                    <Pill on={!c.floor} onClick={() => set({ floor: undefined })}>
+                      Bất kỳ
                     </Pill>
-                  ))}
-                </div>
+                    {(Object.keys(FLOOR_LABEL) as (keyof typeof FLOOR_LABEL)[]).map((f) => (
+                      <Pill key={f} on={c.floor === f} onClick={() => set({ floor: c.floor === f ? undefined : f })}>
+                        {FLOOR_LABEL[f]}
+                      </Pill>
+                    ))}
+                  </div>
+                )}
+
+                {openKey === "furnishing" && (
+                  <div className={styles.pills}>
+                    <Pill on={!c.furnishing} onClick={() => set({ furnishing: undefined })}>
+                      Bất kỳ
+                    </Pill>
+                    {(Object.keys(FURNISHING_LABEL) as Furnishing[]).map((f) => (
+                      <Pill key={f} on={c.furnishing === f} onClick={() => set({ furnishing: c.furnishing === f ? undefined : f })}>
+                        {FURNISHING_LABEL[f]}
+                      </Pill>
+                    ))}
+                  </div>
+                )}
+
+                {openKey === "zone" && (
+                  <div className={styles.section}>
+                    <div className={styles.zoneList}>
+                      {ZONES.map((z) => {
+                        const on = c.zones.includes(z.id);
+                        return (
+                          <label key={z.id} className={`${styles.zone} ${on ? styles.zoneOn : ""}`}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => {
+                                const zones = toggle(c.zones, z.id);
+                                const keep = ZONES.filter((x) => zones.includes(x.id)).flatMap((x) => x.buildings);
+                                set({ zones, buildings: c.buildings.filter((b) => keep.includes(b)) });
+                              }}
+                            />
+                            <span>{z.name}</span>
+                            <span className="muted xs">{counts[z.id]} căn</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {zoneBuildings.length > 0 && (
+                      <div>
+                        <div className={styles.subLabel}>Thu hẹp theo toà</div>
+                        <div className={styles.pills}>
+                          {zoneBuildings.map((b) => (
+                            <Pill key={b} on={c.buildings.includes(b)} onClick={() => set({ buildings: toggle(c.buildings, b) })}>
+                              {b}
+                            </Pill>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {openKey === "household" && (
+                  <div className={styles.section}>
+                    <Stepper label="Số người ở" value={hh.persons} min={1} max={6} hint={`Điện nước ${vndShort(RATES.utilityPerPerson)}/người`} onChange={(n) => set({ household: { ...hh, persons: n } })} />
+                    <Stepper label="Xe máy" value={hh.motorbikes} min={0} max={4} hint={`${vndShort(RATES.motorbike)}/xe/tháng`} onChange={(n) => set({ household: { ...hh, motorbikes: n } })} />
+                    <Stepper label="Ô tô" value={hh.cars} min={0} max={2} hint={`${vndShort(RATES.car)}/xe/tháng`} onChange={(n) => set({ household: { ...hh, cars: n } })} />
+                    <label className="field">
+                      <span className="label">Dự kiến dọn vào</span>
+                      <input type="date" className="input" value={c.moveIn ?? ""} onChange={(e) => set({ moveIn: e.target.value || undefined })} />
+                    </label>
+                  </div>
+                )}
               </div>
-            )}
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
-
-      <PopoverChip icon={<Layers size={15} />} label={c.floor ? FLOOR_LABEL[c.floor].split(" (")[0] : "Tầng"} active={!!c.floor} title="Tầng cao" placement={placement}>
-        {(close) => (
-          <div className={styles.panel}>
-            <div className={styles.pills}>
-              <Pill on={!c.floor} onClick={() => set({ floor: undefined })}>
-                Bất kỳ
-              </Pill>
-              {(Object.keys(FLOOR_LABEL) as (keyof typeof FLOOR_LABEL)[]).map((f) => (
-                <Pill key={f} on={c.floor === f} onClick={() => set({ floor: f })}>
-                  {FLOOR_LABEL[f]}
-                </Pill>
-              ))}
-            </div>
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
-
-      <PopoverChip icon={<Armchair size={15} />} label={itemCount ? `Nội thất · ${itemCount}` : "Nội thất & đồ dùng"} active={itemCount > 0} title="Nội thất và đồ dùng" placement={placement}>
-        {(close) => (
-          <div className={styles.panel}>
-            <div className={styles.subLabel}>Mức nội thất</div>
-            <div className={styles.pills}>
-              <Pill on={!c.furnishing} onClick={() => set({ furnishing: undefined })}>
-                Bất kỳ
-              </Pill>
-              {(Object.keys(FURNISHING_LABEL) as Furnishing[]).map((f) => (
-                <Pill key={f} on={c.furnishing === f} onClick={() => set({ furnishing: f })}>
-                  {FURNISHING_LABEL[f]}
-                </Pill>
-              ))}
-            </div>
-            <div className={styles.subLabel}>Phải có sẵn</div>
-            <div className={styles.pills}>
-              {ALL_ITEMS.map((i) => (
-                <Pill key={i} on={c.items.includes(i)} onClick={() => set({ items: toggle(c.items, i) })}>
-                  {ITEM_LABEL[i]}
-                </Pill>
-              ))}
-              <Pill on={!!c.pets} onClick={() => set({ pets: c.pets ? undefined : true })}>
-                Cho nuôi thú cưng
-              </Pill>
-            </div>
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
-
-      <PopoverChip icon={<Users size={15} />} label={hhChanged ? `${hh.persons} người · ${hh.motorbikes + hh.cars} xe` : "Người ở & xe"} active={hhChanged} title="Người ở và phương tiện" align="end" placement={placement}>
-        {(close) => (
-          <div className={styles.panel}>
-            <Stepper label="Số người ở" value={hh.persons} min={1} max={6} hint={`Điện nước ${vndShort(RATES.utilityPerPerson)}/người`} onChange={(n) => set({ household: { ...hh, persons: n } })} />
-            <Stepper label="Xe máy" value={hh.motorbikes} min={0} max={4} hint={`${vndShort(RATES.motorbike)}/xe/tháng`} onChange={(n) => set({ household: { ...hh, motorbikes: n } })} />
-            <Stepper label="Ô tô" value={hh.cars} min={0} max={2} hint={`${vndShort(RATES.car)}/xe/tháng`} onChange={(n) => set({ household: { ...hh, cars: n } })} />
-            <label className="field">
-              <span className="label">Dự kiến dọn vào</span>
-              <input type="date" className="input" value={c.moveIn ?? ""} onChange={(e) => set({ moveIn: e.target.value || undefined })} />
-            </label>
-            <button type="button" className="btn btn-primary btn-sm btn-block" onClick={close}>
-              Xong
-            </button>
-          </div>
-        )}
-      </PopoverChip>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

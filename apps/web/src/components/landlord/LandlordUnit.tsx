@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, CircleAlert, ShieldCheck, Timer } from "lucide-react";
+import { CheckCircle2, CircleAlert, ShieldCheck, Timer } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
 import { STATUS_META } from "@/components/booking/status";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
@@ -50,9 +51,7 @@ export function LandlordUnit({ id }: { id: string }) {
 
   return (
     <div className={styles.page}>
-      <Link href="/landlord/dashboard" className={styles.back}>
-        <ArrowLeft size={16} /> Tổng quan
-      </Link>
+      <PageHeader title={unitAddress(unit)} back={{ href: "/landlord/units", label: "Căn hộ" }} />
 
       <section className={`card ${styles.hero}`}>
         <VerifiedPhoto unit={unit} sizes="220px" stamp="compact" className={styles.heroPhoto} />
@@ -61,7 +60,6 @@ export function LandlordUnit({ id }: { id: string }) {
             <span className={`badge ${s === "available" ? "badge-kelp" : s === "holding" ? "badge-amber-soft" : "badge-ink"}`}>{statusLabel}</span>
             <span className="badge badge-plain">{unit.lock === "smart" ? "Khoá điện tử" : "Chìa cơ tại quầy phân khu"}</span>
           </div>
-          <h1>{unitAddress(unit)}</h1>
           <p className="muted">
             {zoneById(unit.zoneId).name} · {unit.layoutLabel} · {unit.areaM2} m² · mã {unit.code}
           </p>

@@ -56,6 +56,87 @@
   display: none;
 }
 
+.landlordLink {
+  padding: 8px 4px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.landlordLink:hover {
+  color: var(--lagoon);
+}
+
+.account {
+  position: relative;
+}
+
+.accountBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.accountBtn:hover {
+  border-color: var(--lagoon-300);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--lagoon-050);
+  color: var(--lagoon-700);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.caret {
+  opacity: 0.6;
+}
+
+.accountPanel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+
+.accountItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--r-control);
+  color: var(--ink);
+  font-size: 14px;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.accountItem:hover {
+  background: var(--surface-2);
+}
+.accountDanger {
+  color: var(--danger);
+}
+
 .drawer {
   display: none;
 }
@@ -68,7 +149,8 @@
   .burger {
     display: inline-grid;
   }
-  .who {
+  .who,
+  .onlyDesktop {
     display: none;
   }
   .drawer {

@@ -1,17 +1,158 @@
 .tray {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Tag gọn duy nhất trên khung chat — bấm vào mới mở thẻ chứa các chip lọc chi tiết. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-600);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+.trigger:hover {
+  border-color: var(--lagoon-300);
+  color: var(--ink);
+}
+.trigger[aria-expanded="true"] {
+  border-color: var(--lagoon-600);
+  box-shadow: var(--ring);
+}
+.triggerActive {
+  background: var(--lagoon-100);
+  border-color: var(--lagoon-600);
+  color: var(--lagoon);
+  font-weight: 600;
+}
+.triggerSm {
+  min-height: 29px;
+  padding: 0 10px;
+  gap: 5px;
+  font-size: 12.5px;
+}
+
+.subDivider {
+  margin: 14px 0;
+}
+
+.chipRow {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
-.panel {
+/* Chip "nhãn + giá trị" kiểu Thành phố/Quận: nền xám nhạt liền khối, luôn hiện giá trị hiện tại (kể cả mặc định). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13.5px;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.chip:hover {
+  background: var(--paper-2);
+}
+.chip[aria-expanded="true"] {
+  border-color: var(--lagoon-600);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.chipSm {
+  min-height: 34px;
+  padding: 0 11px;
+  gap: 5px;
+  font-size: 12.5px;
+}
+
+.chipLabel {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.chipValue {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.caret {
+  opacity: 0.55;
+  flex: none;
+  transition: transform 0.15s ease;
+}
+
+.clearBtn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--ink-2);
+  background: transparent;
+  transition: background-color 0.15s, color 0.15s;
+}
+.clearBtn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Thẻ mở ngay trong dòng chảy, rộng bằng khung nhập. Giới hạn chiều cao + tự cuộn bên trong: nội dung dài
+   (nhiều khu vực/toà) không được kéo giãn thẻ vô hạn rồi đè/dính vào tiêu đề phía trên trong sidebar hẹp. */
+.card {
+  width: 100%;
+  max-height: min(58dvh, 420px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  animation: drop 0.16s ease-out;
+}
+
+/* Hàng chip đứng yên khi cuộn thẻ, luôn thấy được để đóng/chuyển mục khác. */
+.chipRowSticky {
+  position: sticky;
+  top: -16px;
+  margin: -16px -16px 0;
+  padding: 16px 16px 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .bigVal {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
 }
 
@@ -36,6 +177,9 @@
 }
 
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 34px;
   padding: 0 13px;
   border: 1px solid var(--line-strong);
@@ -130,18 +274,4 @@
   text-align: center;
   font-size: 20px;
   font-weight: 650;
-}
-
-/* Mobile: chip lọc thành một hàng cuộn ngang để khung chat không bị dài; panel là bottom sheet cố định nên không bị cắt. */
-@media (max-width: 640px) {
-  .tray {
-    flex-wrap: nowrap;
-    min-width: 0;
-    flex: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .tray::-webkit-scrollbar {
-    display: none;
-  }
 }

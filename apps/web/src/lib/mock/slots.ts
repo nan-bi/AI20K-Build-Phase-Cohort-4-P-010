@@ -16,12 +16,15 @@ export function slotDate(day: Date, time: string): Date {
   return d;
 }
 
-/** Ba ngày gần nhất (hôm nay + 2 ngày tới) còn ít nhất một khung giờ đặt được. */
+/** Cửa sổ đặt lịch xem phòng mặc định: 14 ngày có khung giờ khả dụng. */
+export const BOOKING_WINDOW_DAYS = 14;
+
+/** Các ngày gần nhất còn ít nhất một khung giờ đặt được (mặc định 3 ngày, tối đa theo span). */
 export function bookableDays(now: number, span = 3): Date[] {
   const days: Date[] = [];
   const base = new Date(now);
   base.setHours(0, 0, 0, 0);
-  for (let i = 0; days.length < span && i < 10; i++) {
+  for (let i = 0; days.length < span && i < span + 7; i++) {
     const day = new Date(base.getTime() + i * 86_400_000);
     const hasSlot = ALL_SLOT_TIMES.some((t) => slotDate(day, t).getTime() >= now + MIN_LEAD_MS);
     if (hasSlot) days.push(day);

@@ -86,7 +86,7 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
           <Link href={`/units/${unit.id}`} className="btn btn-quiet btn-sm">
             Xem chi tiết
           </Link>
-          <Link href={`/units/${unit.id}?book=1`} className="btn btn-amber btn-sm">
+          <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
             Đặt lịch xem
           </Link>
         </div>

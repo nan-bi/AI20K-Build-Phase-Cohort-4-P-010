@@ -1,0 +1,82 @@
+.shell {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  min-height: 100dvh;
+  background: var(--surface);
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-6);
+  padding: var(--s-7) var(--s-6);
+  background: var(--lagoon-700);
+  color: var(--surface);
+}
+
+.facade {
+  align-self: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.caption {
+  max-width: 34ch;
+  font-size: var(--fs-17);
+  line-height: 1.5;
+  color: var(--lagoon-050);
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6) var(--s-5);
+}
+
+.panel {
+  width: 100%;
+  max-width: 400px;
+}
+
+.mobileLogo {
+  display: none;
+  margin-bottom: var(--s-6);
+}
+
+.title {
+  font-size: var(--fs-24);
+}
+
+.description {
+  margin-top: var(--s-2);
+}
+
+.body {
+  margin-top: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.footer {
+  margin-top: var(--s-5);
+  text-align: center;
+  font-size: var(--fs-13);
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .aside {
+    display: none;
+  }
+  .mobileLogo {
+    display: block;
+  }
+  .main {
+    padding: var(--s-6) var(--s-4);
+  }
+}

@@ -254,7 +254,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
 
             {bookable ? (
               <>
-                <button type="button" className="btn btn-amber btn-lg btn-block" onClick={() => setBooking(true)}>
+                <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => setBooking(true)}>
                   <CalendarPlus size={19} /> Đặt lịch xem phòng
                 </button>
                 <Link href="/" className="btn btn-quiet btn-block">
@@ -302,7 +302,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
             <b className="num">{vnd(cost.total)}đ</b>
             <span className="muted xs"> /tháng · All-in</span>
           </div>
-          <button type="button" className="btn btn-amber" onClick={() => setBooking(true)}>
+          <button type="button" className="btn btn-primary" onClick={() => setBooking(true)}>
             Đặt lịch xem
           </button>
         </div>

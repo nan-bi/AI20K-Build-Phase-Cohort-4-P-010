@@ -20,7 +20,7 @@ export function StatTile({ label, value, unit, delta, spark, hero }: StatTilePro
   return (
     <div className={`${styles.tile} ${hero ? styles.hero : ""}`}>
       <p className={styles.tileLabel}>{label}</p>
-      <p className={`num ${styles.tileValue}`}>
+      <p className={`num ${styles.tileValue} ${value.length >= 8 ? styles.tileValueLong : ""}`}>
         {value}
         {unit && <small>{unit}</small>}
       </p>

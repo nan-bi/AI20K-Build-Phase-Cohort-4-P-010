@@ -1,0 +1,52 @@
+.body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  padding: 28px clamp(16px, 3vw, 40px) 96px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side a {
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.side a:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.side a.active {
+  background: var(--lagoon-050);
+  color: var(--lagoon-700);
+  font-weight: 600;
+}
+
+.main {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px 16px 72px;
+  }
+  .side {
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .side a {
+    flex: none;
+    white-space: nowrap;
+  }
+}

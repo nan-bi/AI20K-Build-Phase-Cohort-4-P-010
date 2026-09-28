@@ -1,0 +1,249 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.earliestChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--lagoon-050);
+  color: var(--lagoon);
+  border: 1px solid var(--line-strong);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.earliestChip:hover {
+  background: var(--surface);
+  border-color: var(--lagoon);
+}
+
+.calendarCard {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.calHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.monthTitle {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.navBtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.navBtn:hover:not(:disabled) {
+  border-color: var(--lagoon);
+  background: var(--surface-2);
+}
+
+.navBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: var(--line);
+}
+
+.weekdaysRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.weekdayCol {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate);
+  padding: 4px 0;
+}
+
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.dayBtn {
+  aspect-ratio: 1;
+  min-height: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 14.5px;
+  font-weight: 600;
+  transition: border-color 0.12s, background-color 0.12s;
+  padding: 0;
+}
+
+.dayBtn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+
+.daySelected {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: var(--surface) !important;
+  font-weight: 700;
+}
+
+.dayToday {
+  border: 1px dashed var(--lagoon);
+}
+
+.dayBtn:disabled {
+  color: var(--ink-3);
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: transparent;
+}
+
+.dayDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.daySelected .dayDot {
+  background: var(--amber);
+}
+
+.slotsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selectedDateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.selectedDateTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.availBadge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lagoon);
+}
+
+.part {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--slate);
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.slot b {
+  font-size: 16px;
+}
+
+.slot:hover:not(:disabled) {
+  border-color: var(--lagoon);
+}
+
+.slot:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.slotSel {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--ink-950);
+  box-shadow: 0 0 0 3px rgba(224, 160, 60, 0.28);
+}
+
+.slotSel b {
+  color: var(--ink-950);
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--slate);
+  margin-top: 4px;
+}

@@ -4,51 +4,89 @@
   Hổ phách CHỈ dùng cho tín hiệu (căn hời, hành động chính, ô cửa sáng) nên nó luôn nổi bật.
 */
 :root {
-  --ink-950: #061a22;
-  --ink: #0b2530;
-  --ink-800: #143845;
-  --ink-600: #3a5560;
-  --slate: #566b72;
-  --lagoon: #14505f;
-  --lagoon-600: #1c6e80;
-  --lagoon-300: #8fb8c1;
-  --lagoon-100: #d3e5e8;
-
-  --paper: #e9f0ee;
-  --paper-2: #dde8e5;
+  /* ── Hệ thiết kế "kinh doanh tối giản" (SPEC-P01) ─────────────────────────────────────────── */
+  --canvas: #f3f5f6;
   --surface: #ffffff;
-  --surface-2: #f4f8f7;
-  --line: #d3dfdc;
-  --line-strong: #b7c8c4;
+  --surface-2: #f8fafa;
 
-  --amber: #e0a03c;
-  --amber-600: #a86d0c;
-  --amber-100: #fbeed3;
-  --coral: #c04a34;
-  --coral-100: #f8e2dc;
-  --kelp: #2a8564;
-  --kelp-100: #d9efe5;
+  --ink: #132a31;
+  --ink-2: #51656b;
+  --ink-3: #7d8e93;
+
+  --line: #dde4e6;
+  --line-strong: #c3cfd2;
+
+  --lagoon: #0e5263;
+  --lagoon-700: #0a3d4a;
+  --lagoon-050: #e6f0f2;
+
+  --amber: #e1a13a;
+  --amber-050: #fbf1de;
+  --danger: #b3402c;
+  --danger-050: #f8e4df;
+  --ok: #1f7654;
+  --ok-050: #e0f1e9;
+
+  --r-control: 6px;
+  --r-panel: 10px;
+
+  --shadow-float: 0 12px 32px -12px rgba(19, 42, 49, 0.28);
+
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-15: 15px;
+  --fs-17: 17px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-30: 30px;
+  --fs-38: 38px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 48px;
+
+  /* ── Alias tên cũ → token mới (CSS module cũ ngoài phạm vi WP1 không vỡ) ─────────────────── */
+  --ink-950: var(--lagoon-700);
+  --ink-800: var(--ink);
+  --ink-600: var(--ink-2);
+  --slate: var(--ink-2);
+  --lagoon-600: var(--lagoon);
+  --lagoon-300: #8fb0b8;
+  --lagoon-100: var(--lagoon-050);
+
+  --paper: var(--canvas);
+  --paper-2: #eceff0;
+  --coral: var(--danger);
+  --coral-100: var(--danger-050);
+  --kelp: var(--ok);
+  --kelp-100: var(--ok-050);
+  --amber-600: #b6801e;
+  --amber-100: var(--amber-050);
 
   /* Tên biến cũ của màn đăng nhập NestJS (auth.module.css) — giữ để không vỡ giao diện cũ. */
-  --ink-2: var(--ink-800);
   --ink-text: var(--ink);
   --accent: var(--amber);
   --accent-ink: #6b4212;
-  --error: var(--coral);
-  --error-bg: var(--coral-100);
+  --error: var(--danger);
+  --error-bg: var(--danger-050);
 
   --r-xs: 6px;
-  --r-sm: 9px;
-  --r: 12px;
-  --r-lg: 18px;
-  --r-xl: 26px;
+  --r-sm: var(--r-control);
+  --r: var(--r-control);
+  --r-lg: var(--r-panel);
+  --r-xl: 14px;
 
-  --shadow-1: 0 1px 2px rgba(11, 37, 48, 0.06), 0 6px 18px -10px rgba(11, 37, 48, 0.2);
-  --shadow-2: 0 2px 4px rgba(11, 37, 48, 0.06), 0 22px 44px -18px rgba(11, 37, 48, 0.32);
-  --ring: 0 0 0 3px rgba(28, 110, 128, 0.28);
+  --shadow-1: 0 1px 0 rgba(19, 42, 49, 0.04);
+  --shadow-2: var(--shadow-float);
+  --ring: 0 0 0 3px rgba(14, 82, 99, 0.28);
 
   --font-body: var(--font-sans), "Segoe UI", system-ui, sans-serif;
-  --font-head: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  --font-head: var(--font-body);
 
   --nav-h: 64px;
   color-scheme: light;
@@ -68,10 +106,10 @@ body {
 body {
   min-height: 100%;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--canvas);
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: var(--fs-15);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -106,14 +144,19 @@ h2,
 h3,
 h4 {
   font-family: var(--font-head);
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   text-wrap: balance;
 }
 
 p {
   text-wrap: pretty;
+}
+
+/* Đoạn văn dài: giới hạn 72ch cho dễ đọc (SPEC-P01 §2). Dùng ở mô tả trang, không ép toàn bộ layout. */
+.prose {
+  max-width: 72ch;
 }
 
 a {
@@ -174,15 +217,15 @@ button {
 }
 
 .muted {
-  color: var(--slate);
+  color: var(--ink-2);
 }
 
 .small {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 
 .xs {
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 /* ─── Bố cục ──────────────────────────────────────────────────────────────────────────────── */
@@ -235,19 +278,20 @@ button {
 }
 
 .btn-primary {
-  background: var(--ink);
+  background: var(--lagoon);
   color: #fff;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--ink-800);
+  background: var(--lagoon-700);
 }
 
+/* Hổ phách là ánh đèn tín hiệu, không còn là màu nút chính (SPEC-P01 §0/§4): alias sang .btn-primary. */
 .btn-amber {
-  background: var(--amber);
-  color: var(--ink-950);
+  background: var(--lagoon);
+  color: #fff;
 }
 .btn-amber:hover:not(:disabled) {
-  background: #eab253;
+  background: var(--lagoon-700);
 }
 
 .btn-quiet {
@@ -370,8 +414,7 @@ button {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--r-panel);
 }
 
 .field {

@@ -801,3 +801,5 @@ export const PASSPORT_ITEMS = [
   "Thiết bị vệ sinh",
   "Cửa, khoá & công tơ",
 ] as const;
+
+export type PassportItem = (typeof PASSPORT_ITEMS)[number];

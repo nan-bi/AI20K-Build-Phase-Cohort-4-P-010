@@ -1,0 +1,37 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.neutral {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+
+.info {
+  background: var(--lagoon-050);
+  color: var(--lagoon-700);
+}
+
+.ok {
+  background: var(--ok-050);
+  color: var(--ok);
+}
+
+.warn {
+  background: var(--amber-050);
+  color: var(--amber-600);
+}
+
+.danger {
+  background: var(--danger-050);
+  color: var(--danger);
+}

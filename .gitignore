@@ -71,3 +71,11 @@ tech data/giaodien/
 backend/node_modules/
 backend/dist/
 backend/.env
+
+#harness
+brain4agent/
+planning/
+.claude/agents/
+.claude/skills/
+.agents/
+brain4agent-v1.7.1.md

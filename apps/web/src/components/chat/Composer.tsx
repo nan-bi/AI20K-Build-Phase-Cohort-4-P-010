@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { ArrowUp, Lock, LogIn } from "lucide-react";
-import { criteriaChips, SAMPLE_PROMPTS, sentenceFromCriteria, hasCriteria } from "@/lib/mock/matchmaker";
+import { Lock, LogIn, Send } from "lucide-react";
+import { SAMPLE_PROMPTS, sentenceFromCriteria, hasCriteria } from "@/lib/mock/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
 import { FilterTray } from "./FilterTray";
 import styles from "./Composer.module.css";
@@ -24,11 +24,10 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
   const [text, setText] = useState("");
   const area = useRef<HTMLTextAreaElement>(null);
   const filtered = hasCriteria(criteria);
-  const chips = criteriaChips(criteria);
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, variant === "hero" ? 160 : 120)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
   const submit = (value?: string) => {
@@ -57,8 +56,8 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
   }
 
   return (
-    <div className={`${styles.wrap} ${variant === "rail" ? styles.rail : ""}`}>
-      <div className={styles.box}>
+    <div className={styles.wrap}>
+      <div className={styles.shell}>
         <label htmlFor={`composer-${variant}`} className="sr-only">
           Nhập yêu cầu tìm căn
         </label>
@@ -66,7 +65,7 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
           id={`composer-${variant}`}
           ref={area}
           className={styles.area}
-          rows={variant === "hero" ? 2 : 1}
+          rows={1}
           placeholder={variant === "hero" ? "Ví dụ: Studio dưới 8 triệu, có điều hòa, gần VinUni…" : "Hỏi tiếp hoặc chỉnh yêu cầu…"}
           value={text}
           disabled={busy}
@@ -81,16 +80,15 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
             }
           }}
         />
-        <div className={styles.foot}>
-          <FilterTray criteria={criteria} onChange={onCriteria} placement={variant === "rail" ? "top" : "bottom"} />
-          <button type="button" className={`${styles.send} ${text.trim() || filtered ? styles.ready : ""}`} disabled={busy || (!text.trim() && !filtered)} onClick={() => submit()} aria-label={text.trim() ? "Gửi tin nhắn" : "Tìm căn theo bộ lọc"}>
-            <ArrowUp size={20} />
-          </button>
-        </div>
-        {chips.length > 0 && variant === "hero" && (
-          <p className={`muted xs ${styles.hint}`}>Đang lọc: {chips.map((c) => c.label).join(" · ")}. Bấm mũi tên để tìm ngay, hoặc gõ thêm ý bạn muốn.</p>
-        )}
+        <button type="button" className={`${styles.send} ${text.trim() || filtered ? styles.ready : ""}`} disabled={busy || (!text.trim() && !filtered)} onClick={() => submit()} aria-label={text.trim() ? "Gửi tin nhắn" : "Tìm căn theo bộ lọc"}>
+          <Send size={18} />
+        </button>
       </div>
+
+      <div className={styles.filterRow}>
+        <FilterTray criteria={criteria} onChange={onCriteria} compact />
+      </div>
+      {variant === "hero" && filtered && <p className={`muted xs ${styles.footHint}`}>Bấm mũi tên để tìm theo bộ lọc, hoặc gõ thêm ý bạn muốn.</p>}
 
       {showPrompts && (
         <div className={styles.prompts}>

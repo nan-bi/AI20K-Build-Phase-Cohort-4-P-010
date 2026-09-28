@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, CalendarClock, Plus, ReceiptText, Footprints } from "lucide-react";
-import { Facade } from "@/components/brand/Facade";
+import { LogoMark } from "@/components/brand/Logo";
 import { chatAppend, chatReset, chatSetCriteria, chatSetSearch, countGuestMessage } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { vndShort } from "@/lib/mock/format";
@@ -18,10 +18,10 @@ import { ResultsPanel } from "./ResultsPanel";
 import styles from "./ChatExperience.module.css";
 
 const TRUST = [
-  { icon: BadgeCheck, text: "Ảnh thật, có dấu thời gian" },
-  { icon: ReceiptText, text: "All-in Cost, không phụ phí ẩn" },
-  { icon: Footprints, text: "Host có thẻ cư dân đón tại sảnh" },
-  { icon: CalendarClock, text: "Cọc giữ chỗ 24h qua VietQR" },
+  { icon: BadgeCheck, text: "Ảnh thật, có mốc thời gian" },
+  { icon: ReceiptText, text: "All-in Cost, không phí ẩn" },
+  { icon: Footprints, text: "Host đón tại sảnh" },
+  { icon: CalendarClock, text: "Giữ chỗ 24h qua VietQR" },
 ];
 
 /** Trang chủ khách thuê: ban đầu là hero + khung chat; khi bắt đầu tìm căn, chat thu về cột trái và mở màn kết quả. */
@@ -80,46 +80,52 @@ export function ChatExperience({ below }: { below: ReactNode }) {
     return (
       <>
         <section className={styles.hero}>
-          <div className={`wrap ${styles.heroGrid}`}>
-            <div className={styles.heroMain}>
-              <h1 className={styles.h1}>Tìm căn thật ở Ocean Park trong 30 giây</h1>
-              <p className={styles.lead}>Nói ngân sách và số người ở. VinStay AI lọc những căn đã được xác minh, tính sẵn mọi khoản phí hàng tháng và đặt lịch xem có Field Host đón bạn tại sảnh.</p>
+          <div className={`wrap ${styles.heroInner}`}>
+            <div className={styles.heroTop}>
+              <span className={styles.liveBadge}>
+                <i className={styles.liveDot} /> <strong className="num">{openCount} căn</strong> đang mở tại Ocean Park 1
+              </span>
+              <h1 className={styles.h1}>Căn hộ thật ở Ocean Park, tìm ra trong 30 giây</h1>
+              <p className={styles.lead}>Không tin ảo, không phí ẩn, không môi giới làm phiền — Host nội khu đón bạn tận sảnh.</p>
+            </div>
 
+            <div className={styles.chatCard}>
+              <div className={styles.chatHead}>
+                <span className={styles.chatHeadIcon}>
+                  <LogoMark size={18} inverse />
+                </span>
+                <div className={styles.chatHeadText}>
+                  <strong>VinStay AI</strong>
+                  <span>
+                    <i className={styles.liveDot} /> Trợ lý thuê nhà · đang hoạt động
+                  </span>
+                </div>
+              </div>
               <div className={styles.convo}>
                 <Messages greeting={greeting} messages={chat.messages} thinking={thinking} freshId={freshId} onFreshDone={() => setFreshId(null)} />
               </div>
-              <Composer
-                variant="hero"
-                criteria={chat.criteria}
-                onCriteria={onCriteria}
-                onSend={onSend}
-                busy={!!thinking}
-                locked={locked}
-                guestNotice={state.ready && role === null && state.guestSent === 0}
-                showPrompts={chat.messages.length === 0}
-              />
+              <div className={styles.chatFoot}>
+                <Composer
+                  variant="hero"
+                  criteria={chat.criteria}
+                  onCriteria={onCriteria}
+                  onSend={onSend}
+                  busy={!!thinking}
+                  locked={locked}
+                  guestNotice={state.ready && role === null && state.guestSent === 0}
+                  showPrompts={chat.messages.length === 0}
+                />
+              </div>
             </div>
 
-            <aside className={styles.art} aria-label="Các căn đang mở tại Ocean Park 1">
-              <Facade lit={openCount} />
-              <div className={styles.artCap}>
-                <p>
-                  <strong className="num">{openCount} căn</strong> đang mở tại Ocean Park 1
-                </p>
-                <p className={styles.legend}>
-                  <i className={styles.dotLit} /> Đang mở, đã xác minh <i className={styles.dotDim} /> Đã thuê hoặc chưa ký gửi
-                </p>
-              </div>
-            </aside>
+            <ul className={styles.trust}>
+              {TRUST.map(({ icon: Icon, text }) => (
+                <li key={text}>
+                  <Icon size={18} /> {text}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <ul className={`wrap ${styles.trust}`}>
-            {TRUST.map(({ icon: Icon, text }) => (
-              <li key={text}>
-                <Icon size={18} /> {text}
-              </li>
-            ))}
-          </ul>
         </section>
         {below}
       </>

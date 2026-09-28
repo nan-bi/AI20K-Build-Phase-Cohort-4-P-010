@@ -1,5 +1,5 @@
 import type { Household } from "./cost";
-import type { Furnishing, ItemKey, LayoutKind, UnitStatus, ZoneId } from "./units";
+import type { Furnishing, ItemKey, LayoutKind, PassportItem, UnitStatus, ZoneId } from "./units";
 
 // ─── Lịch xem nhà ───────────────────────────────────────────────────────────────────────────
 
@@ -72,7 +72,7 @@ export interface Booking {
   deposit?: DepositInfo;
   kyc?: IdCardData;
   agreement?: { signedAt: string; docId: string };
-  lease?: { signedAt: string; startDate: string; months: number; rent: number; docId: string };
+  lease?: { signedAt: string; startDate: string; months: number; rent: number; docId: string; renewalRemindedAt?: string };
   closedReason?: string;
   rating?: number;
   reminderSentAt?: string;
@@ -112,7 +112,37 @@ export interface Mandate {
   signedAt: string;
   exitRequestedAt?: string;
   exitEffectiveAt?: string;
+  endedAt?: string;   // ISO — lúc Admin hoàn tất thoát uỷ quyền
+  endedBy?: string;   // tên Admin
 }
+
+export type ConsignmentStatus =
+  | "draft"          // đã đăng ký, chưa ký OTP ủy quyền
+  | "awaiting_host"  // đã ký, ticket đã gán Host phân khu, Host chưa nhận
+  | "inspecting"     // Host đã nhận, đang kiểm tra thực tế
+  | "reviewing"      // Host đã nộp báo cáo, chờ Admin chốt
+  | "approved"       // Admin duyệt — ký gửi hiệu lực
+  | "rejected";      // Admin không duyệt (kèm note)
+
+export type DeclaredField = "identity" | "layout" | "areaM2" | "furnishing" | "lock";
+export interface DeclaredCheck { field: DeclaredField; ok: boolean; /** bắt buộc khi ok=false, ≤80 ký tự */ actual?: string }
+export interface ItemPresence { key: ItemKey; present: boolean }
+export interface EquipmentCondition {
+  item: PassportItem;          // `(typeof PASSPORT_ITEMS)[number]`, export từ units.ts
+  condition: number;           // % độ mới, bội số 10 trong [0,100]
+  photoAt: string;             // ISO — mock “ảnh chụp trong app có timestamp”
+  note?: string;               // ≤120 ký tự
+}
+export interface InspectionReport {
+  hostId: string;
+  submittedAt: string;
+  declared: DeclaredCheck[];        // đúng 5 phần tử, mỗi DeclaredField 1 lần
+  items: ItemPresence[];            // đúng các key trong Consignment.items, cùng thứ tự
+  equipment: EquipmentCondition[];  // đúng 10, thứ tự PASSPORT_ITEMS
+  recommendation: "approve" | "reject";
+  note?: string;                    // ≤300 ký tự
+}
+export type InspectionDraft = Omit<InspectionReport, "hostId" | "submittedAt">;
 
 export interface Consignment {
   id: string;
@@ -127,10 +157,16 @@ export interface Consignment {
   lock: "smart" | "physical";
   auditByHost: boolean;
   items: ItemKey[];
-  /** draft = mới đăng ký, chưa ký uỷ quyền · pending = chờ Admin duyệt · approved · rejected */
-  status: "draft" | "pending" | "approved" | "rejected";
+  status: ConsignmentStatus;
   createdAt: string;
   note?: string;
+  signedAt?: string;       // lúc ký OTP (vào awaiting_host)
+  hostId?: string;         // gán lúc ký = zoneOfBuilding(building).hostId
+  inspectDueAt?: string;   // signedAt + 48h
+  hostAcceptedAt?: string;
+  report?: InspectionReport;
+  decidedAt?: string;
+  decidedBy?: string;      // tên Admin
 }
 
 // ─── Cấu hình biến phí (Admin) ───────────────────────────────────────────────────────────────
