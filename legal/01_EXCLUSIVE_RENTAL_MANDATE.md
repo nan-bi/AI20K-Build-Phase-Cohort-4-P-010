@@ -60,10 +60,10 @@ Bên A đồng ý ủy quyền độc quyền cho Bên B thực hiện việc qu
    * Đối với căn hộ sử dụng khóa điện tử, mật mã khóa cửa do Bên A cung cấp được hệ thống của Bên B mã hóa bảo mật theo tiêu chuẩn an ninh cấp cao AES-256.
    * Thông tin mở cửa chỉ được hệ thống cấp quyền hoặc hiển thị tức thời cho nhân sự tiếp đón nội khu đúng vào thời điểm nhân sự đã có mặt trước cửa căn hộ cùng khách thuê đã được xác thực danh tính qua mã xác thực một lần (OTP).
    * Hệ thống tự động gửi thông báo qua Zalo/SMS cho Bên A ngay tại thời điểm cửa căn hộ được mở, nêu rõ họ tên nhân sự tiếp đón, họ tên khách thuê và thời gian bắt đầu xem phòng.
-4. **Cơ chế ủy quyền kiểm định hiện trạng, bàn giao và giám sát tài sản căn hộ:**
-   * Bên A ủy quyền cho Bên B thay mặt Bên A tiến hành đo đạc, khảo sát, kiểm tra công năng động và lập Hồ sơ bàn giao hiện trạng số hóa khi giao nhận căn hộ với khách thuê (Check-in và Check-out).
-   * Quy trình ủy quyền bàn giao và giám sát tài sản bắt buộc phải tuân thủ nghiêm ngặt **06 Nguyên tắc vận hành cốt lõi**: (1) Định danh và đóng băng hiện trạng bằng ảnh chụp trực tiếp qua ứng dụng có khóa dữ liệu thực (dấu thời gian, tọa độ GPS, mã băm SHA-256); (2) Phân tách minh bạch giữa hao mòn tự nhiên (Chủ nhà chịu) và hư hỏng do lỗi người dùng (Khách thuê bồi thường theo đơn giá niêm yết công khai); (3) Bắt buộc kiểm tra công năng vận hành thực tế của trang thiết bị (điều hòa, bếp từ, bình nóng lạnh, hệ thống cấp thoát nước); (4) Khung giờ ân hạn 24–48 giờ cho khách thuê tự kiểm tra sâu và báo cáo bổ sung một chạm trước khi khóa cổng ghi nhận; (5) Xác thực điện tử kép độc lập bằng chữ ký số OTP giữa đại diện hiện trường của Bên B và khách thuê; (6) Đối soát khép kín đầu - cuối bằng hình ảnh song song nhận phòng vs trả phòng để tự động giải tỏa cọc trong 24 giờ.
-   * Chi tiết quyền, nghĩa vụ và quy chuẩn kỹ thuật được quy định cụ thể tại **Phụ lục 01: Thỏa thuận ủy quyền kiểm định hiện trạng, quản lý bàn giao và giám sát tài sản nội thất căn hộ** đính kèm, là bộ phận pháp lý cấu thành không thể tách rời của Hợp đồng này.
+4. **Ủy quyền kiểm định hiện trạng, bàn giao và giám sát tài sản:**
+   * Bên A ủy quyền cho Bên B (thông qua nhân sự tiếp đón thường trú nội khu và hệ thống công nghệ VinStay AI) đại diện thực hiện quy trình kiểm tra công năng, lập Hồ sơ hiện trạng số hóa và chủ trì việc bàn giao (Check-in) cũng như nghiệm thu thu hồi căn hộ (Check-out) với khách thuê.
+   * Toàn bộ quy chuẩn kỹ thuật kiểm tra công năng, 06 nguyên tắc vận hành cốt lõi, cùng Bảng kê chi tiết danh mục 32 trang thiết bị nội thất và biểu phí bồi thường quy chuẩn được quy định cụ thể tại **Phụ lục 01: Quy chuẩn kỹ thuật kiểm định, 06 nguyên tắc bàn giao và Bảng kê chi tiết trang thiết bị nội thất**, là bộ phận cấu thành không thể tách rời của Hợp đồng này.
+
 
 ---
 

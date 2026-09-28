@@ -1,29 +1,19 @@
-# CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-**Độc lập – Tự do – Hạnh phúc**
-***
+# PHỤ LỤC 01: QUY CHUẨN KỸ THUẬT KIỂM ĐỊNH, 06 NGUYÊN TẮC BÀN GIAO VÀ BẢNG KÊ CHI TIẾT TRANG THIẾT BỊ NỘI THẤT CĂN HỘ
+*(Kèm theo và là bộ phận cấu thành không thể tách rời của Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền số: VSA-MANDATE-[MÃ CĂN]-[NĂM])*
 
-# PHỤ LỤC 01: THỎA THUẬN ỦY QUYỀN KIỂM ĐỊNH HIỆN TRẠNG, QUẢN LÝ BÀN GIAO VÀ GIÁM SÁT TÀI SẢN NỘI THẤT CĂN HỘ
-*(Số: VSA-APPENDIX-HANDOVER-[MÃ CĂN]-[NĂM])*
-*(Ban hành kèm theo và là bộ phận không thể tách rời của Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền số: VSA-MANDATE-[MÃ CĂN]-[NĂM])*
+* Căn cứ thỏa thuận tại **Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền** số: `VSA-MANDATE-[MÃ CĂN]-[NĂM]` đã ký kết giữa **Bên A (Chủ căn hộ)** và **Bên B (Công ty Cổ phần Công nghệ VinStay AI)**;
+* Căn cứ nhu cầu chuẩn hóa dữ liệu kiểm định hiện trường, bảo vệ giá trị tài sản nội thất và loại trừ triệt để tranh chấp hư hại giữa Chủ nhà và Khách thuê;
 
-* Căn cứ **Bộ luật Dân sự số 91/2015/QH13** ngày 24/11/2015;
-* Căn cứ **Luật Nhà ở số 27/2023/QH15** ngày 27/11/2023;
-* Căn cứ **Luật Giao dịch Điện tử số 20/2023/QH15** ngày 22/06/2023;
-* Căn cứ **Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền** đã ký kết giữa Bên A và Bên B.
-
-Hôm nay, ngày [NGÀY] tháng [THÁNG] năm 2026, Các Bên gồm có:
-* **BÊN A (BÊN ỦY QUYỀN / CHỦ NHÀ):** [TÊN CHỦ NHÀ] — Số CCCD: [SỐ CCCD]
-* **BÊN B (BÊN ĐƯỢC ỦY QUYỀN):** CÔNG TY CỔ PHẦN CÔNG NGHỆ VINSTAY AI — Đại diện bởi: [TÊN ĐẠI DIỆN]
-
-Hai Bên thống nhất xác lập Thỏa thuận ủy quyền kiểm định hiện trạng, quản lý bàn giao và bảo vệ tài sản căn hộ với 06 nguyên tắc vận hành pháp lý bắt buộc như sau:
+Hai Bên thống nhất xác lập Phụ lục này với các quy chuẩn kỹ thuật vận hành và danh mục trang thiết bị chi tiết như sau:
 
 ---
 
-### ĐIỀU 1: PHẠM VI ỦY QUYỀN KIỂM ĐỊNH VÀ BÀN GIAO HIỆN TRẠNG TÀI SẢN
-Bên A ủy quyền cho Bên B (thông qua đội ngũ nhân sự tiếp đón thường trú nội khu và hệ thống công nghệ của VinStay AI) thay mặt Bên A thực hiện toàn bộ các công việc thực tế tại hiện trường căn hộ:
-1. Thực hiện quy trình đo đạc, khảo sát, kiểm tra công năng và thiết lập **Hồ sơ hiện trạng bàn giao số hóa** đối với căn hộ tại thời điểm tiếp nhận và trước khi giao cho khách thuê.
-2. Đại diện Bên A thực hiện bàn giao căn hộ cho khách thuê khi nhận phòng (Check-in) và nghiệm thu thu hồi căn hộ khi khách thuê trả phòng (Check-out).
-3. Sử dụng chứng cứ hình ảnh số hóa và biên bản nghiệm thu điện tử để làm căn cứ quyết toán, giải tỏa hoặc khấu trừ tiền cọc bảo đảm tài sản của khách thuê theo quy định của Hợp đồng thuê căn hộ.
+### ĐIỀU 1: PHẠM VI ỦY QUYỀN VÀ TRÁCH NHIỆM HIỆN TRƯỜNG
+Bên A ủy quyền cho Bên B (thông qua nhân sự tiếp đón thường trú nội khu và hệ thống công nghệ VinStay AI) thay mặt Bên A thực hiện các tác vụ kỹ thuật tại căn hộ:
+1. Thực hiện quy trình đo đạc, khảo sát, kiểm tra công năng động và thiết lập **Hồ sơ hiện trạng bàn giao số hóa (Hộ chiếu bàn giao số)** tại thời điểm tiếp nhận và trước khi giao cho khách thuê.
+2. Đại diện Bên A chủ trì bàn giao căn hộ cho khách thuê khi nhận phòng (Check-in) và nghiệm thu thu hồi căn hộ khi khách thuê trả phòng (Check-out).
+3. Sử dụng chứng cứ hình ảnh số hóa và biên bản nghiệm thu điện tử làm căn cứ pháp lý độc quyền để quyết toán, cấn trừ bồi thường (nếu có lỗi vi phạm) hoặc giải tỏa hoàn trả tiền cọc bảo đảm tài sản cho khách thuê qua tài khoản ký quỹ ngân hàng.
+
 
 ---
 
@@ -161,10 +151,10 @@ Quy trình bàn giao tài sản tuyệt đối không áp dụng hình thức x�
 
 ---
 
-### ĐIỀU 4: HIỆU LỰC RÀNG BUỘC VÀ ĐIỀU KHOẢN THI HÀNH
-1. Thỏa thuận ủy quyền này có hiệu lực đồng thời với Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền số: `VSA-MANDATE-[MÃ CĂN]-[NĂM]`.
-2. Mọi nội dung chưa được quy định tại Thỏa thuận này sẽ được dẫn chiếu và thực hiện theo các điều khoản chung của Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền và các quy định pháp luật liên quan.
-3. Thỏa thuận này được ký bằng phương thức xác thực điện tử và có giá trị pháp lý ràng buộc tuyệt đối Các Bên.
+### ĐIỀU 4: HIỆU LỰC RÀNG BUỘC VÀ PHƯƠNG THỨC XÁC THỰC
+1. Phụ lục này là bộ phận cấu thành không thể tách rời của Hợp đồng Ủy quyền và Ký gửi Cho thuê Căn hộ Độc quyền số: `VSA-MANDATE-[MÃ CĂN]-[NĂM]`. Mọi điều khoản khác tại Hợp đồng chính vẫn giữ nguyên giá trị hiệu lực thi hành.
+2. Phụ lục được tích hợp trực tiếp trên hệ thống số hóa của VinStay AI và có hiệu lực đồng thời cùng thời điểm Bên A xác thực ký số điện tử Hợp đồng chính thông qua mã xác thực một lần (OTP).
+3. Trường hợp có phát sinh thay đổi hoặc bổ sung trang thiết bị nội thất thực tế tại căn hộ trong quá trình cho thuê, hai bên sẽ cập nhật thông qua biên bản kiểm định bổ sung điện tử có gắn dấu thời gian và được Các Bên xác thực qua hệ thống.
 
 ---
 
@@ -172,4 +162,5 @@ Quy trình bàn giao tài sản tuyệt đối không áp dụng hình thức x�
 | :---: | :---: |
 | *(Đã xác thực chữ ký điện tử qua mã OTP)* | *(Đã ký số điện tử và chứng thực số)* |
 | **[TÊN CHỦ NHÀ]** | **CÔNG TY CỔ PHẦN CÔNG NGHỆ VINSTAY AI** |
+
 
