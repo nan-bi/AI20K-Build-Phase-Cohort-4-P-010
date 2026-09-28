@@ -1,14 +1,15 @@
 "use client";
 
-import { Banknote, FilePlus2, LayoutDashboard } from "lucide-react";
+import { Banknote, Building2, DoorOpen, FilePlus2, LayoutDashboard, UserCircle2 } from "lucide-react";
 import { DEMO_USERS } from "@/lib/mock/auth";
+import { landlordConsignments } from "@/lib/mock/selectors-landlord";
 import { useMock } from "@/lib/mock/store";
 import { PortalShell } from "./PortalShell";
 
 export function LandlordShell({ children }: { children: React.ReactNode }) {
   const state = useMock();
   const u = DEMO_USERS.landlord;
-  const draft = state.consignments.filter((c) => c.landlordId === u.refId && c.status === "draft").length;
+  const draft = landlordConsignments(state, u.refId!).filter((c) => c.status === "draft").length;
   return (
     <PortalShell
       portal="Cổng chủ nhà"
@@ -16,8 +17,11 @@ export function LandlordShell({ children }: { children: React.ReactNode }) {
       userMeta="Ký gửi độc quyền"
       nav={[
         { href: "/landlord/dashboard", label: "Tổng quan", icon: LayoutDashboard, badge: draft },
+        { href: "/landlord/units", label: "Căn hộ", icon: Building2 },
         { href: "/landlord/finance", label: "Khoản thu", icon: Banknote },
         { href: "/landlord/consign", label: "Ký gửi căn mới", icon: FilePlus2 },
+        { href: "/landlord/exit-request", label: "Thoát uỷ quyền", icon: DoorOpen },
+        { href: "/landlord/account", label: "Tài khoản", icon: UserCircle2 },
       ]}
     >
       {children}

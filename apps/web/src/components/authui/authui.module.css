@@ -1,0 +1,141 @@
+/* Khối dùng chung cho các form đăng nhập/đăng ký (WP2). Token từ globals.css (SPEC-P01). */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.rowBetween {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.labelLink {
+  color: var(--lagoon);
+}
+
+.alert {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  background: var(--danger-050);
+  color: var(--danger);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.alert a {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  background: var(--lagoon-050);
+  color: var(--lagoon-700);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.dividerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--fs-13);
+}
+
+.dividerRow::before,
+.dividerRow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.googleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.demoNote {
+  color: var(--ink-3);
+}
+
+.demoFillBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--lagoon);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+
+.segmentBtn {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: none;
+  border-left: 1px solid var(--line-strong);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.segmentBtn:first-child {
+  border-left: none;
+}
+
+.segmentBtnActive {
+  background: var(--lagoon-050);
+  color: var(--lagoon);
+}
+
+.stepLabel {
+  color: var(--ink-3);
+}
+
+.otpRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.resendLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-13);
+  color: var(--lagoon);
+  cursor: pointer;
+}
+
+.resendLink:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.rfidBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}

@@ -3,15 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, KeyRound, Smartphone, Timer, X } from "lucide-react";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
+import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { approveConsignment, rejectConsignment } from "@/lib/mock/actions";
+import { DEMO_USERS } from "@/lib/mock/auth";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { fmtDate, vnd } from "@/lib/mock/format";
 import { unitStatus } from "@/lib/mock/selectors";
+import { inspectionSummary, isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { useMock } from "@/lib/mock/store";
 import type { Consignment } from "@/lib/mock/types";
-import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, hostForUnit, landlordById, unitAddress, unitById, zoneById, type UnitStatus } from "@/lib/mock/units";
+import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, hostById, hostForUnit, landlordById, unitAddress, unitById, zoneById, type Unit, type UnitStatus } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
 import styles from "./Admin.module.css";
 
@@ -20,12 +26,6 @@ const ST: Record<UnitStatus, { label: string; badge: string }> = {
   available: { label: "Còn trống", badge: "badge-kelp" },
   holding: { label: "Giữ chỗ 24h", badge: "badge-amber-soft" },
   rented: { label: "Đã cho thuê", badge: "badge-ink" },
-};
-const CS: Record<Consignment["status"], { label: string; badge: string }> = {
-  draft: { label: "Chưa ký ủy quyền", badge: "badge-plain" },
-  pending: { label: "Chờ duyệt", badge: "badge-amber-soft" },
-  approved: { label: "Đã duyệt", badge: "badge-kelp" },
-  rejected: { label: "Không duyệt", badge: "badge-coral-soft" },
 };
 
 export function AdminInventory({ initialTab }: { initialTab: Tab }) {
@@ -37,28 +37,26 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
   const [lock, setLock] = useState<"all" | "smart" | "physical">("all");
   const [rejecting, setRejecting] = useState<Consignment | null>(null);
   const [note, setNote] = useState("Ảnh hiện trạng chưa rõ, cần bổ sung");
+  const [rejectError, setRejectError] = useState("");
 
   if (!state.ready || !now) return <div className="skeleton" style={{ height: 360 }} />;
 
-  const pending = state.consignments.filter((c) => c.status === "pending");
+  const reviewing = state.consignments.filter((c) => c.status === "reviewing");
+  const inspecting = state.consignments.filter((c) => c.status === "awaiting_host" || c.status === "inspecting");
+  const overdueCount = inspecting.filter((c) => isInspectOverdue(c, now)).length;
   const exiting = Object.values(state.mandates).filter((m) => m.status === "exiting");
   const units = UNITS.filter((u) => (zone === "all" || u.zoneId === zone) && (status === "all" || unitStatus(state, u) === status) && (lock === "all" || u.lock === lock));
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <div>
-          <h1>Căn hộ và ký gửi</h1>
-          <p className="muted">Rổ hàng ký gửi độc quyền: chi phí kiểm định một lần khi tiếp nhận, không môi giới ngoài.</p>
-        </div>
-      </header>
+      <PageHeader title="Căn hộ và ký gửi" description="Rổ hàng ký gửi độc quyền: chi phí kiểm định một lần khi tiếp nhận, không môi giới ngoài." />
 
       <div className={styles.tabs} role="tablist">
         <button type="button" role="tab" aria-selected={tab === "units"} onClick={() => setTab("units")}>
           Rổ hàng ({UNITS.length})
         </button>
         <button type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")}>
-          Yêu cầu ký gửi {pending.length > 0 && <i>{pending.length}</i>}
+          Yêu cầu ký gửi {reviewing.length > 0 && <i>{reviewing.length}</i>}
         </button>
         <button type="button" role="tab" aria-selected={tab === "exit"} onClick={() => setTab("exit")}>
           Thoát uỷ quyền 15 ngày {exiting.length > 0 && <i>{exiting.length}</i>}
@@ -89,134 +87,198 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
             </select>
             <span className="muted small">{units.length} căn</span>
           </div>
-          <div className={`card ${styles.tableCard}`}>
-            <div className={styles.tableScroll}>
-              <table className={styles.tbl}>
-                <thead>
-                  <tr>
-                    <th scope="col">Căn hộ</th>
-                    <th scope="col">Phân khu · Host</th>
-                    <th scope="col">Loại</th>
-                    <th scope="col" className={styles.right}>Giá thuê</th>
-                    <th scope="col" className={styles.right}>All-in</th>
-                    <th scope="col">Trạng thái</th>
-                    <th scope="col">Khoá</th>
-                    <th scope="col">Chủ nhà</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {units.map((u) => {
+          <DataTable<Unit>
+            columns={
+              [
+                {
+                  key: "unit",
+                  header: "Căn hộ",
+                  render: (u) => (
+                    <>
+                      <b>{unitAddress(u)}</b>
+                      <span className="muted xs" style={{ display: "block" }}>
+                        {u.code}
+                      </span>
+                    </>
+                  ),
+                },
+                {
+                  key: "zone",
+                  header: "Phân khu · Host",
+                  render: (u) => (
+                    <>
+                      {zoneById(u.zoneId).short}
+                      <span className="muted xs" style={{ display: "block" }}>
+                        {hostForUnit(u).name}
+                      </span>
+                    </>
+                  ),
+                },
+                { key: "layout", header: "Loại", render: (u) => `${u.layoutLabel} · ${u.areaM2}m²` },
+                { key: "rent", header: "Giá thuê", align: "right", render: (u) => vnd(u.rent) },
+                { key: "allin", header: "All-in", align: "right", render: (u) => vnd(allInCost(u, DEFAULT_HOUSEHOLD).total) },
+                {
+                  key: "status",
+                  header: "Trạng thái",
+                  render: (u) => {
                     const s = unitStatus(state, u);
                     const m = state.mandates[u.id];
                     return (
-                      <tr key={u.id}>
-                        <td>
-                          <Link href={`/units/${u.id}`} className="link" style={{ textDecoration: "none" }}>
-                            <b>{unitAddress(u)}</b>
-                          </Link>
-                          <span className="muted xs" style={{ display: "block" }}>
-                            {u.code}
+                      <>
+                        <span className={`badge ${ST[s].badge}`}>{ST[s].label}</span>
+                        {m?.status === "exiting" && (
+                          <span className="badge badge-coral-soft" style={{ marginLeft: 6 }}>
+                            <Timer size={12} /> Đang thoát
                           </span>
-                        </td>
-                        <td>
-                          {zoneById(u.zoneId).short}
-                          <span className="muted xs" style={{ display: "block" }}>
-                            {hostForUnit(u).name}
-                          </span>
-                        </td>
-                        <td>
-                          {u.layoutLabel} · {u.areaM2}m²
-                        </td>
-                        <td className={`${styles.right} tnum`}>{vnd(u.rent)}</td>
-                        <td className={`${styles.right} tnum`}>{vnd(allInCost(u, DEFAULT_HOUSEHOLD).total)}</td>
-                        <td>
-                          <span className={`badge ${ST[s].badge}`}>{ST[s].label}</span>
-                          {m?.status === "exiting" && (
-                            <span className="badge badge-coral-soft" style={{ marginLeft: 6 }}>
-                              <Timer size={12} /> Đang thoát
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          <span className="badge badge-plain">
-                            {u.lock === "smart" ? <Smartphone size={12} /> : <KeyRound size={12} />} {u.lock === "smart" ? "Điện tử" : "Chìa cơ"}
-                          </span>
-                        </td>
-                        <td>{landlordById(u.landlordId)?.name}</td>
-                      </tr>
+                        )}
+                      </>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  },
+                },
+                {
+                  key: "lock",
+                  header: "Khoá",
+                  render: (u) => (
+                    <span className="badge badge-plain">
+                      {u.lock === "smart" ? <Smartphone size={12} /> : <KeyRound size={12} />} {u.lock === "smart" ? "Điện tử" : "Chìa cơ"}
+                    </span>
+                  ),
+                },
+                { key: "landlord", header: "Chủ nhà", render: (u) => landlordById(u.landlordId)?.name },
+              ] satisfies DataTableColumn<Unit>[]
+            }
+            rows={units}
+            rowHref={(u) => `/admin/inventory/${u.id}`}
+            empty={<span className="muted">Không có căn nào khớp bộ lọc.</span>}
+          />
         </>
       )}
 
       {tab === "requests" && (
         <>
+          <div className="card" style={{ marginBottom: "var(--space-3)", display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <b>Chờ duyệt:</b> {reviewing.length} căn · <b>Đang thẩm định:</b> {inspecting.length} căn
+              {overdueCount > 0 && (
+                <span className="badge badge-coral-soft" style={{ marginLeft: 8 }}>
+                  <Timer size={12} /> {overdueCount} quá hạn
+                </span>
+              )}
+            </div>
+            <span className="muted small">Host kiểm tra thực tế trong 48h trước khi Admin chốt.</span>
+          </div>
+
           {state.consignments.length === 0 && <div className={styles.empty}>Chưa có yêu cầu ký gửi.</div>}
           <div className={styles.reqs}>
-            {state.consignments.map((c) => (
-              <article key={c.id} className={`card ${styles.req}`}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                  <div>
-                    <h3>
-                      {c.building} · Tầng {c.floor} · Căn {c.door}
-                    </h3>
-                    <p className="muted small">{landlordById(c.landlordId)?.name}</p>
+            {state.consignments.map((c) => {
+              const summary = c.report ? inspectionSummary(c.report) : null;
+              const host = c.hostId ? hostById(c.hostId) : null;
+              return (
+                <article key={c.id} className={`card ${styles.req}`}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                    <div>
+                      <h3>
+                        <Link href={`/admin/inventory/${c.id}`} className="link" style={{ textDecoration: "none" }}>
+                          {c.building} · Tầng {c.floor} · Căn {c.door}
+                        </Link>
+                      </h3>
+                      <p className="muted small">{landlordById(c.landlordId)?.name}</p>
+                    </div>
+                    <StatusBadge tone={CONSIGN_STATUS_META[c.status].tone}>{CONSIGN_STATUS_META[c.status].label}</StatusBadge>
                   </div>
-                  <span className={`badge ${CS[c.status].badge}`}>{CS[c.status].label}</span>
-                </div>
-                <dl className={styles.reqMeta}>
-                  <div>
-                    <dt>Loại căn</dt>
-                    <dd>
-                      {LAYOUT_LABEL[c.layout]} · {c.areaM2} m²
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Giá chào thuê</dt>
-                    <dd>{vnd(c.askRent)}đ/tháng</dd>
-                  </div>
-                  <div>
-                    <dt>Nội thất</dt>
-                    <dd>{FURNISHING_LABEL[c.furnishing]}</dd>
-                  </div>
-                  <div>
-                    <dt>Khoá cửa</dt>
-                    <dd>{c.lock === "smart" ? "Khoá điện tử (mã hoá AES-256)" : "Chìa cơ gửi quầy phân khu"}</dd>
-                  </div>
-                  <div>
-                    <dt>Thẩm định ảnh</dt>
-                    <dd>{c.auditByHost ? "Host chụp miễn phí" : "Chủ nhà tự tải"}</dd>
-                  </div>
-                  <div>
-                    <dt>Gửi lúc</dt>
-                    <dd>{fmtDate(c.createdAt)}</dd>
-                  </div>
-                </dl>
-                {c.note && <p className="small muted">Ghi chú: {c.note}</p>}
-                {c.status === "pending" && (
-                  <div className={styles.reqActions}>
-                    <button type="button" className="btn btn-quiet" onClick={() => setRejecting(c)}>
-                      <X size={16} /> Không duyệt
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      style={{ flex: 1 }}
-                      onClick={() => {
-                        approveConsignment(c.id);
-                        toast("Đã duyệt. Zalo báo chủ nhà và Host lên lịch thẩm định ảnh.", "success");
-                      }}
-                    >
-                      <Check size={16} /> Duyệt ký gửi
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
+                  <dl className={styles.reqMeta}>
+                    <div>
+                      <dt>Loại căn</dt>
+                      <dd>
+                        {LAYOUT_LABEL[c.layout]} · {c.areaM2} m²
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Giá chào thuê</dt>
+                      <dd>{vnd(c.askRent)}đ/tháng</dd>
+                    </div>
+                    <div>
+                      <dt>Nội thất</dt>
+                      <dd>{FURNISHING_LABEL[c.furnishing]}</dd>
+                    </div>
+                    <div>
+                      <dt>Khoá cửa</dt>
+                      <dd>{c.lock === "smart" ? "Khoá điện tử (mã hoá AES-256)" : "Chìa cơ gửi quầy phân khu"}</dd>
+                    </div>
+                    <div>
+                      <dt>Host phụ trách</dt>
+                      <dd>{host ? host.name : "Chưa gán"}</dd>
+                    </div>
+                    <div>
+                      <dt>Độ mới TB</dt>
+                      <dd>{summary ? `${summary.avgCondition}%` : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Gửi lúc</dt>
+                      <dd>{fmtDate(c.createdAt)}</dd>
+                    </div>
+                  </dl>
+                  {c.note && <p className="small muted">Ghi chú: {c.note}</p>}
+                  {c.report && (
+                    <p className="small" style={{ marginTop: "var(--space-2)" }}>
+                      <b>Đề xuất từ Host:</b>{" "}
+                      <span className={c.report.recommendation === "approve" ? "text-ok" : "text-danger"}>
+                        {c.report.recommendation === "approve" ? "Đủ điều kiện nhận ký gửi" : "Không khuyến nghị nhận"}
+                      </span>
+                      {c.report.note ? ` — ${c.report.note}` : ""}
+                    </p>
+                  )}
+                  {c.status === "reviewing" && (
+                    <div className={styles.reqActions}>
+                      <button
+                        type="button"
+                        className="btn btn-quiet"
+                        onClick={() => {
+                          setRejecting(c);
+                          setNote("Ảnh hiện trạng hoặc chất lượng chưa đạt yêu cầu");
+                          setRejectError("");
+                        }}
+                      >
+                        <X size={16} /> Từ chối
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-success"
+                        style={{ flex: 1 }}
+                        onClick={() => {
+                          const res = approveConsignment(c.id, DEMO_USERS.admin.name);
+                          if (res.ok) {
+                            toast("Đã nhận ký gửi. Zalo báo chủ nhà, push báo Host.", "success");
+                          } else {
+                            toast(`Không thể duyệt: ${res.reason}`);
+                          }
+                        }}
+                      >
+                        <Check size={16} /> Duyệt ký gửi
+                      </button>
+                    </div>
+                  )}
+                  {(c.status === "awaiting_host" || c.status === "inspecting") && (
+                    <div className={styles.reqActions}>
+                      <button
+                        type="button"
+                        className="btn btn-quiet"
+                        onClick={() => {
+                          setRejecting(c);
+                          setNote("Thông tin căn hộ không hợp lệ hoặc chủ nhà yêu cầu huỷ");
+                          setRejectError("");
+                        }}
+                      >
+                        <X size={16} /> Từ chối
+                      </button>
+                      <span className="muted small" style={{ alignSelf: "center", marginLeft: "auto" }}>
+                        Chờ Field Host nộp báo cáo
+                      </span>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </>
       )}
@@ -232,7 +294,11 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
                 <article key={m.unitId} className={`card ${styles.req}`}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                     <div>
-                      <h3>{unitAddress(u)}</h3>
+                      <h3>
+                        <Link href={`/admin/inventory/${u.id}`} className="link" style={{ textDecoration: "none" }}>
+                          {unitAddress(u)}
+                        </Link>
+                      </h3>
                       <p className="muted small">{landlordById(u.landlordId)?.name}</p>
                     </div>
                     <span className="badge badge-coral-soft">
@@ -250,6 +316,11 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
                     </div>
                   </dl>
                   <p className="small muted">Hết hạn, căn tự chuyển “unlisted”, mã cửa và chìa cơ bị thu hồi khỏi mạng lưới Host. Trong thời gian này căn vẫn hiển thị để đón nốt khách.</p>
+                  <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+                    <Link href={`/admin/contracts/mandate.${u.id}`} className="link small">
+                      Xem hợp đồng →
+                    </Link>
+                  </div>
                 </article>
               );
             })}
@@ -259,18 +330,30 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
 
       <Modal
         open={!!rejecting}
-        onClose={() => setRejecting(null)}
+        onClose={() => {
+          setRejecting(null);
+          setRejectError("");
+        }}
         variant="sheet"
-        title="Không duyệt yêu cầu ký gửi"
+        title="Từ chối yêu cầu ký gửi"
         footer={
           <button
             type="button"
             className="btn btn-danger btn-block"
             onClick={() => {
               if (!rejecting) return;
-              rejectConsignment(rejecting.id, note);
+              const res = rejectConsignment(rejecting.id, note, DEMO_USERS.admin.name);
+              if (!res.ok) {
+                if (res.reason === "invalid_note") {
+                  setRejectError("Lý do từ chối phải có ít nhất 5 ký tự.");
+                } else {
+                  setRejectError(res.reason);
+                }
+                return;
+              }
               setRejecting(null);
-              toast("Đã từ chối và báo chủ nhà qua Zalo");
+              setRejectError("");
+              toast("Đã từ chối và báo chủ nhà qua Zalo", "success");
             }}
           >
             Xác nhận không duyệt
@@ -279,7 +362,16 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
       >
         <label className="field">
           <span className="label">Lý do (gửi cho chủ nhà)</span>
-          <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} />
+          <textarea
+            className="textarea"
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value);
+              if (rejectError) setRejectError("");
+            }}
+            placeholder="Nêu rõ lý do từ chối (tối thiểu 5 ký tự)..."
+          />
+          {rejectError && <span className="field-error">{rejectError}</span>}
         </label>
       </Modal>
     </div>

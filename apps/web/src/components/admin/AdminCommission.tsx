@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { Download, Save } from "lucide-react";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
 import { updateFee } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtDateTime, vnd } from "@/lib/mock/format";
-import { hostEarnings } from "@/lib/mock/selectors";
+import { hostEarnings, type Earnings } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
-import type { FeeConfig } from "@/lib/mock/types";
-import { HOSTS } from "@/lib/mock/units";
+import type { FeeAudit, FeeConfig } from "@/lib/mock/types";
+import { HOSTS, type FieldHost } from "@/lib/mock/units";
 import styles from "./Admin.module.css";
 
 const FIELDS: { key: keyof FeeConfig; title: string; help: string; unit: string; step: number; min: number; max: number }[] = [
@@ -61,20 +63,20 @@ export function AdminCommission() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <div>
-          <h1>Biến phí Field Host</h1>
-          <p className="muted">Điều chỉnh thù lao theo mùa vụ mà không cần sửa mã nguồn. Thay đổi có hiệu lực ngay và được lưu vết.</p>
-        </div>
-        <div className={styles.headActions}>
-          <button type="button" className="btn btn-quiet" disabled={changed.length === 0} onClick={() => setDraft({})}>
-            Hoàn tác
-          </button>
-          <button type="button" className="btn btn-primary" disabled={changed.length === 0} onClick={save}>
-            <Save size={16} /> Lưu thay đổi{changed.length > 0 ? ` (${changed.length})` : ""}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="Biến phí Field Host"
+        description="Điều chỉnh thù lao theo mùa vụ mà không cần sửa mã nguồn. Thay đổi có hiệu lực ngay và được lưu vết."
+        actions={
+          <div className={styles.headActions}>
+            <button type="button" className="btn btn-quiet" disabled={changed.length === 0} onClick={() => setDraft({})}>
+              Hoàn tác
+            </button>
+            <button type="button" className="btn btn-primary" disabled={changed.length === 0} onClick={save}>
+              <Save size={16} /> Lưu thay đổi{changed.length > 0 ? ` (${changed.length})` : ""}
+            </button>
+          </div>
+        }
+      />
 
       <div className={styles.split}>
         <section className={`card ${styles.padCard}`} aria-label="Bốn tham số biến phí">
@@ -135,71 +137,49 @@ export function AdminCommission() {
             <Download size={16} /> Xuất CSV
           </button>
         </div>
-        <div className={styles.tableScroll}>
-          <table className={styles.tbl}>
-            <thead>
-              <tr>
-                <th scope="col">Field Host</th>
-                <th scope="col" className={styles.right}>Lượt dẫn</th>
-                <th scope="col" className={styles.right}>Thù lao lượt</th>
-                <th scope="col" className={styles.right}>Deal</th>
-                <th scope="col" className={styles.right}>Hoa hồng</th>
-                <th scope="col" className={styles.right}>Thưởng nóng</th>
-                <th scope="col" className={styles.right}>Thực nhận</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payouts.map(({ host, e }) => (
-                <tr key={host.id}>
-                  <td>
+        <DataTable<{ host: FieldHost; e: Earnings }>
+          columns={
+            [
+              {
+                key: "host",
+                header: "Field Host",
+                render: ({ host, e }) => (
+                  <>
                     <b>{host.name}</b>
                     <span className="muted xs" style={{ display: "block" }}>
                       {String(host.rating).replace(".", ",")}★{e.multiplier > 1 ? ` · ×${String(e.multiplier).replace(".", ",")}` : ""}
                     </span>
-                  </td>
-                  <td className={`${styles.right} tnum`}>{e.viewings}</td>
-                  <td className={`${styles.right} tnum`}>{vnd(e.viewingFee)}</td>
-                  <td className={`${styles.right} tnum`}>{e.deals}</td>
-                  <td className={`${styles.right} tnum`}>{vnd(e.commission)}</td>
-                  <td className={`${styles.right} tnum`}>{vnd(e.bonus)}</td>
-                  <td className={`${styles.right} tnum`}>
-                    <b>{vnd(e.total)}đ</b>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </>
+                ),
+              },
+              { key: "viewings", header: "Lượt dẫn", align: "right", render: ({ e }) => e.viewings },
+              { key: "viewingFee", header: "Thù lao lượt", align: "right", render: ({ e }) => vnd(e.viewingFee) },
+              { key: "deals", header: "Deal", align: "right", render: ({ e }) => e.deals },
+              { key: "commission", header: "Hoa hồng", align: "right", render: ({ e }) => vnd(e.commission) },
+              { key: "bonus", header: "Thưởng nóng", align: "right", render: ({ e }) => vnd(e.bonus) },
+              { key: "total", header: "Thực nhận", align: "right", render: ({ e }) => <b>{vnd(e.total)}đ</b> },
+            ] satisfies DataTableColumn<{ host: FieldHost; e: Earnings }>[]
+          }
+          rows={payouts}
+          empty={<span className="muted">Chưa có Host nào.</span>}
+        />
       </section>
 
       <section className={`card ${styles.tableCard}`} aria-label="Nhật ký thay đổi">
         <h3 style={{ fontSize: 18, padding: "18px 20px 6px" }}>Nhật ký thay đổi cấu hình</h3>
-        <div className={styles.tableScroll}>
-          <table className={styles.tbl} style={{ minWidth: 640 }}>
-            <thead>
-              <tr>
-                <th scope="col">Thời điểm</th>
-                <th scope="col">Người sửa</th>
-                <th scope="col">Tham số</th>
-                <th scope="col" className={styles.right}>Giá trị cũ</th>
-                <th scope="col" className={styles.right}>Giá trị mới</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.feeAudit.map((a) => (
-                <tr key={a.id}>
-                  <td className="tnum">{fmtDateTime(a.at)}</td>
-                  <td>{a.by}</td>
-                  <td>{LABEL[a.field]}</td>
-                  <td className={`${styles.right} tnum`}>{show(a.field, a.from)}</td>
-                  <td className={`${styles.right} tnum`}>
-                    <b>{show(a.field, a.to)}</b>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<FeeAudit>
+          columns={
+            [
+              { key: "at", header: "Thời điểm", render: (a) => <span className="tnum">{fmtDateTime(a.at)}</span> },
+              { key: "by", header: "Người sửa", render: (a) => a.by },
+              { key: "field", header: "Tham số", render: (a) => LABEL[a.field] },
+              { key: "from", header: "Giá trị cũ", align: "right", render: (a) => show(a.field, a.from) },
+              { key: "to", header: "Giá trị mới", align: "right", render: (a) => <b>{show(a.field, a.to)}</b> },
+            ] satisfies DataTableColumn<FeeAudit>[]
+          }
+          rows={state.feeAudit}
+          empty={<span className="muted">Chưa có thay đổi nào.</span>}
+        />
       </section>
     </div>
   );

@@ -213,7 +213,7 @@ export function Landing() {
           <nav aria-label="Cổng đối tác">
             <strong>Đối tác</strong>
             <Link href="/login?as=landlord">Cổng chủ nhà</Link>
-            <Link href="/login?as=host">Cổng Field Host</Link>
+            <Link href="/admin/login">Cổng Field Host</Link>
             <Link href="/login?as=admin">Quản trị</Link>
           </nav>
           <p className={styles.footLegal}>Bản MVP trình diễn dùng dữ liệu mô phỏng. Ảnh căn hộ lấy từ tin đăng công khai, chỉ phục vụ minh hoạ.</p>

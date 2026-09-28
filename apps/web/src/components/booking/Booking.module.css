@@ -280,34 +280,6 @@
   }
 }
 
-.rDays,
-.rSlots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.rDays button,
-.rSlots button {
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  font-weight: 600;
-}
-.rSlots button:disabled {
-  background: var(--surface-2);
-  color: #8fa0a5;
-  border-style: dashed;
-  cursor: not-allowed;
-}
-.rOn {
-  background: var(--ink) !important;
-  border-color: var(--ink) !important;
-  color: #fff !important;
-}
-
 /* Tra cứu */
 .lookup {
   display: grid;

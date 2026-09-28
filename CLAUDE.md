@@ -63,3 +63,5 @@ Other directories: `tech data/` holds ad-hoc scraping scripts (`caodata/data*.py
 - **AI usage logging is graded.** `.claude/settings.json` runs `scripts/log_hook.py` on every prompt and writes to `.ai-log/session.jsonl`. A pre-push hook uploads the log. Don't remove or bypass these hooks.
 - `WORKLOG.md` (daily per-member task tables) and `JOURNAL.md` are Demo Day deliverables that the team updates by hand. Follow the existing table format when asked to add entries.
 - `pyproject.toml` and `.python-version` are gitignored (local uv artifacts). `requirements.txt` is the source of truth for dependencies.
+
+@AGENTS.md

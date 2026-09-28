@@ -1,0 +1,85 @@
+.wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-13);
+}
+
+.table th {
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.rowLink {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rowLink:hover {
+  color: var(--lagoon);
+}
+
+.empty {
+  padding: var(--s-7) var(--s-5);
+}
+
+@media (max-width: 720px) {
+  .table thead {
+    display: none;
+  }
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+  .table tr {
+    padding: var(--s-3) var(--s-5);
+    border-bottom: 1px solid var(--line);
+  }
+  .table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-1) 0;
+    border-bottom: 0;
+    text-align: right !important;
+  }
+  .table td::before {
+    content: attr(data-label);
+    font-size: var(--fs-12);
+    font-weight: 600;
+    color: var(--ink-2);
+    text-align: left;
+  }
+  .rowLink {
+    text-align: right;
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { OtpSign } from "@/components/booking/OtpSign";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { submitConsignment, signConsignment } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { allInCost } from "@/lib/mock/cost";
@@ -53,6 +54,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
   const [err, setErr] = useState("");
   const [terms, setTerms] = useState(false);
   const [done, setDone] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF({ ...f, [k]: v });
 
   const rent = Number(f.askRent) || 0;
@@ -77,36 +79,69 @@ function Wizard({ draft }: { draft?: Consignment }) {
   };
 
   const finish = () => {
-    if (draft) signConsignment(draft.id);
-    else
-      submitConsignment({ landlordId: LID, building: f.building, floor: Number(f.floor), door: f.door.padStart(2, "0"), layout: f.layout, areaM2: area, askRent: rent, furnishing: f.furnishing, lock: f.lock, auditByHost: f.auditByHost, items: f.items });
+    if (draft) {
+      const res = signConsignment(draft.id);
+      if (!res.ok) {
+        setErr(res.reason);
+        return;
+      }
+      setCreatedId(draft.id);
+    } else {
+      try {
+        const created = submitConsignment({
+          landlordId: LID,
+          building: f.building,
+          floor: Number(f.floor),
+          door: f.door.padStart(2, "0"),
+          layout: f.layout,
+          areaM2: area,
+          askRent: rent,
+          furnishing: f.furnishing,
+          lock: f.lock,
+          auditByHost: f.auditByHost,
+          items: f.items,
+        });
+        setCreatedId(created.id);
+      } catch (e) {
+        setErr((e as Error).message);
+        return;
+      }
+    }
     setDone(true);
   };
 
   if (done)
     return (
       <div className={`${styles.page} ${styles.wizard}`}>
+        <PageHeader title="Ký gửi căn mới" />
         <section className={`card ${styles.success}`}>
           <span className={styles.successIcon}>
             <CheckCircle2 size={38} />
           </span>
           <h1>Đã gửi yêu cầu ký gửi</h1>
           <p className="muted">
-            Bạn đã ký ủy quyền độc quyền cho căn {f.building} · Tầng {f.floor} · Căn {f.door}. Admin sẽ duyệt và Field Host liên hệ chụp ảnh thẩm định 10 hạng mục miễn phí. Mọi cập nhật gửi qua Zalo.
+            Bạn đã ký ủy quyền độc quyền cho căn {f.building} · Tầng {f.floor} · Căn {f.door}. Field Host phân khu sẽ kiểm tra thực tế trong 48 giờ (chi phí 0đ), sau đó Admin chốt nhận ký gửi. Theo dõi tiến trình tại hồ sơ.
           </p>
-          <Link href="/landlord/dashboard" className="btn btn-primary">
-            Về tổng quan
-          </Link>
+          <div style={{ display: "flex", gap: "var(--s-3)", justifyContent: "center", flexWrap: "wrap" }}>
+            {createdId && (
+              <Link href={`/landlord/consignments/${createdId}`} className="btn btn-primary">
+                Xem tiến trình
+              </Link>
+            )}
+            <Link href="/landlord/dashboard" className="btn btn-secondary">
+              Về tổng quan
+            </Link>
+          </div>
         </section>
       </div>
     );
 
   return (
     <div className={`${styles.page} ${styles.wizard}`}>
-      <header>
-        <h1 style={{ fontSize: 30 }}>{draft ? "Ký ủy quyền cho căn đã đăng ký" : "Ký gửi căn hộ mới"}</h1>
-        <p className="muted" style={{ marginTop: 6 }}>Ký gửi độc quyền: VinStay AI lo khách, lịch xem và mở cửa. Chi phí thẩm định ảnh bằng 0.</p>
-      </header>
+      <PageHeader
+        title={draft ? "Ký ủy quyền cho căn đã đăng ký" : "Ký gửi căn mới"}
+        description="Ký gửi độc quyền: VinStay AI lo khách, lịch xem và mở cửa. Chi phí thẩm định ảnh bằng 0."
+      />
 
       <ol className={styles.steps} aria-label="Các bước">
         {LABELS.map((l, i) => (
@@ -221,7 +256,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
               <span className="label">Ảnh thẩm định</span>
               <label className="check" style={{ marginTop: 8 }}>
                 <input type="checkbox" checked={f.auditByHost} onChange={(e) => set("auditByHost", e.target.checked)} />
-                <span>Nhờ Field Host chụp ảnh thẩm định 10 hạng mục miễn phí (khuyên dùng, có dấu thời gian).</span>
+                <span>Nhờ Field Host chụp ảnh niêm yết (thẩm định thực tế luôn do Host làm).</span>
               </label>
               {!f.auditByHost && <input className="input" type="file" accept="image/*" multiple style={{ marginTop: 10, paddingTop: 9 }} aria-label="Tải ảnh hiện trạng" />}
             </div>
@@ -277,6 +312,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
               <span>Tôi đã đọc và đồng ý Hợp đồng ký gửi quản lý độc quyền.</span>
             </label>
             <OtpSign phone={PHONE} purpose="agreement" disabled={!terms} sendLabel={terms ? "Gửi mã OTP để ký ủy quyền" : "Đồng ý điều khoản để ký"} onVerified={finish} />
+            {err && <p className="field-error" role="alert" style={{ marginTop: 12 }}>{err}</p>}
             {!draft && (
               <div className={styles.wizardNav}>
                 <button type="button" className="btn btn-quiet" onClick={() => setStep(1)}>

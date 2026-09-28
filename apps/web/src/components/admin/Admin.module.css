@@ -24,18 +24,18 @@
 }
 
 .alerts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
 }
 .alerts li {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.alerts li:last-child {
+  border-bottom: 0;
 }
 .alerts li > div {
   flex: 1;
@@ -43,14 +43,10 @@
 }
 .alerts li > svg {
   flex: none;
-  color: var(--amber-600);
-}
-.alertBad {
-  border-color: #eec5bb !important;
-  background: #fff7f5 !important;
+  color: var(--amber);
 }
 .alertBad > svg {
-  color: var(--coral) !important;
+  color: var(--danger);
 }
 
 .kpis {
@@ -215,8 +211,13 @@
   border-radius: 14px;
   background: var(--paper-2);
   align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .tabs button {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -279,6 +280,27 @@
   display: flex;
   gap: 8px;
   margin-top: auto;
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.photoSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 4 / 3;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  text-align: center;
+  padding: 8px;
+  font-size: 12.5px;
 }
 
 .empty {

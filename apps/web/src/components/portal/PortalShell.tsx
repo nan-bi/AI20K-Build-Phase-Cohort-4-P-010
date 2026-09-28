@@ -13,6 +13,8 @@ export interface PortalNavItem {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  /** Tiền tố đường dẫn khác cũng tính là mục này đang active, vd ["/host/viewing"]. */
+  match?: string[];
 }
 
 interface PortalShellProps {
@@ -21,10 +23,29 @@ interface PortalShellProps {
   userMeta: string;
   nav: PortalNavItem[];
   children: React.ReactNode;
+  /** Đích sau đăng xuất. Mặc định "/login". */
+  signOutHref?: string;
+  /** Nội dung phụ trong sidebar, giữa nav và khối người dùng. */
+  sideSlot?: React.ReactNode;
+}
+
+/** Thuần, export để test: active khi khớp href, href/…, hoặc một tiền tố trong match (khớp p hoặc p/…). */
+export function isNavActive(pathname: string, item: Pick<PortalNavItem, "href" | "match">): boolean {
+  if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+    return true;
+  }
+  if (item.match) {
+    for (const prefix of item.match) {
+      if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /** Khung dashboard có sidebar cho cổng Chủ nhà và Admin (trên mobile sidebar thành thanh cuộn ngang). */
-export function PortalShell({ portal, userName, userMeta, nav, children }: PortalShellProps) {
+export function PortalShell({ portal, userName, userMeta, nav, children, signOutHref, sideSlot }: PortalShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   return (
@@ -34,8 +55,9 @@ export function PortalShell({ portal, userName, userMeta, nav, children }: Porta
           <Logo inverse href="/" sub={portal} />
         </div>
         <nav className={styles.nav} aria-label={`Điều hướng ${portal}`}>
-          {nav.map(({ href, label, icon: Icon, badge }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+          {nav.map((item) => {
+            const active = isNavActive(pathname, item);
+            const { href, label, icon: Icon, badge } = item;
             return (
               <Link key={href} href={href} className={active ? styles.active : ""} aria-current={active ? "page" : undefined}>
                 <Icon size={18} />
@@ -45,6 +67,7 @@ export function PortalShell({ portal, userName, userMeta, nav, children }: Porta
             );
           })}
         </nav>
+        {sideSlot && <div className={styles.slot}>{sideSlot}</div>}
         <div className={styles.user}>
           <span className={styles.avatar}>{initials(userName)}</span>
           <div>
@@ -57,7 +80,7 @@ export function PortalShell({ portal, userName, userMeta, nav, children }: Porta
             aria-label="Đăng xuất"
             onClick={() => {
               signOut();
-              router.push("/login");
+              router.push(signOutHref ?? "/login");
               router.refresh();
             }}
           >

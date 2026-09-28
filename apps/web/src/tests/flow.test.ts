@@ -162,9 +162,9 @@ describe("Admin", () => {
     expect(noticesFor(getMockState(), "host", "H02")[0].title).toContain("Admin giao ticket");
   });
   it("duyệt ký gửi báo chủ nhà qua Zalo", () => {
-    actions.approveConsignment("cs-2");
+    actions.approveConsignment("cs-4", "Phạm Thu Hà");
     const s = getMockState();
-    expect(s.consignments.find((c) => c.id === "cs-2")!.status).toBe("approved");
-    expect(noticesFor(s, "landlord", "L1")[0].title).toContain("đã được duyệt");
+    expect(s.consignments.find((c) => c.id === "cs-4")!.status).toBe("approved");
+    expect(noticesFor(s, "landlord", "L5")[0].title).toContain("nhận ký gửi");
   });
 });

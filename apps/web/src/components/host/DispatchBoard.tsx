@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlarmClock, Check, ChevronRight, MessageSquareText, X } from "lucide-react";
+import { StatTile } from "@/components/charts/StatTile";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
 import { STATUS_META } from "@/components/booking/status";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
@@ -51,7 +55,7 @@ export function DispatchBoard() {
 
   if (!state.ready || !now) {
     return (
-      <div className={styles.stack}>
+      <div className={styles.page}>
         <div className="skeleton" style={{ height: 96 }} />
         <div className="skeleton" style={{ height: 220 }} />
       </div>
@@ -60,37 +64,96 @@ export function DispatchBoard() {
 
   const mineAll = hostBookings(state, HOST_ID);
   const pending = mineAll.filter((b) => b.status === "pending").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const active = mineAll.filter((b) => isOpenBooking(b) && b.status !== "pending" || ["holding", "signed"].includes(b.status)).sort((a, b) => a.slot.localeCompare(b.slot));
+  const active = mineAll.filter((b) => (isOpenBooking(b) && b.status !== "pending") || ["holding", "signed"].includes(b.status)).sort((a, b) => a.slot.localeCompare(b.slot));
   const history = mineAll.filter((b) => ["leased", "completed", "no_show", "cancelled", "rejected"].includes(b.status)).sort((a, b) => b.slot.localeCompare(a.slot));
   const today = active.filter((b) => new Date(b.slot).toDateString() === new Date(now).toDateString());
   const lobbyNow = active.find((b) => b.status === "lobby");
 
-  const list = tab === "mine" ? active : history;
+  const mineColumns: DataTableColumn<Booking>[] = [
+    {
+      key: "slot",
+      header: "Giờ hẹn",
+      render: (b) => {
+        const slotMs = new Date(b.slot).getTime();
+        const soon = b.status === "confirmed" && slotMs - now <= 10 * 60_000 && slotMs - now > -900_000;
+        return (
+          <div>
+            <b className="tnum">{fmtTime(b.slot)}</b>
+            <span className="muted xs" style={{ display: "block" }}>
+              {dayLabel(b.slot, now)}
+            </span>
+            {soon && (
+              <span className="badge badge-coral xs" style={{ marginTop: 4 }}>
+                <AlarmClock size={12} /> T-10 · còn {Math.max(0, Math.ceil((slotMs - now) / 60_000))} phút
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "tenant",
+      header: "Khách",
+      render: (b) => (
+        <div>
+          <b>{b.tenant.name}</b>
+          <span className="muted xs" style={{ display: "block" }}>
+            {b.tenant.persons} người
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "unit",
+      header: "Căn hộ",
+      render: (b) => {
+        const u = unitById(b.unitId)!;
+        return (
+          <div>
+            <span>{unitAddress(u)}</span>
+            <span className="muted xs" style={{ display: "block" }}>
+              {zoneById(u.zoneId).short}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Trạng thái",
+      render: (b) => {
+        const meta = STATUS_META[b.status];
+        return <span className={`badge ${meta.badge}`}>{meta.label}</span>;
+      },
+    },
+    {
+      key: "next",
+      header: "Việc tiếp theo",
+      render: (b) => {
+        const slotMs = new Date(b.slot).getTime();
+        const soon = b.status === "confirmed" && slotMs - now <= 10 * 60_000 && slotMs - now > -900_000;
+        const cta: Record<string, string> = {
+          confirmed: soon ? "Xuống sảnh đón khách" : "Xem chi tiết & chuẩn bị",
+          lobby: "Đón khách ngay",
+          receiving: "Tiếp tục: lên phòng",
+          viewing: "Tiếp tục: kết quả xem",
+          closing: "Tiếp tục: thu cọc",
+          holding: "Xác minh CCCD & ký",
+          signed: "Ký hợp đồng thuê",
+        };
+        return <span className="small">{cta[b.status] ?? ""}</span>;
+      },
+    },
+  ];
+
+  const historyColumns: DataTableColumn<Booking>[] = mineColumns.slice(0, 4);
 
   return (
-    <div className={styles.stack}>
-      <section className={styles.greet}>
-        <h1>Chào {host.name.split(" ").slice(-1)[0]}, chúc ca trực thuận lợi</h1>
-        <p className="muted small">Ca sáng 08:30–11:30 · ca chiều 14:00–18:00. Mỗi lịch cách nhau tối thiểu 45 phút.</p>
-        <dl className={styles.kpis}>
-          <div>
-            <dt>Chờ nhận</dt>
-            <dd className={`num ${pending.length ? styles.hot : ""}`}>{pending.length}</dd>
-          </div>
-          <div>
-            <dt>Lịch hôm nay</dt>
-            <dd className="num">{today.length}</dd>
-          </div>
-          <div>
-            <dt>Nhận ca TB</dt>
-            <dd className="num">{Math.floor(host.avgAcceptSec / 60)}′{String(host.avgAcceptSec % 60).padStart(2, "0")}″</dd>
-          </div>
-          <div>
-            <dt>Đánh giá</dt>
-            <dd className="num">{String(host.rating).replace(".", ",")}★</dd>
-          </div>
-        </dl>
-      </section>
+    <div className={styles.page}>
+      <PageHeader
+        title="Lịch & yêu cầu"
+        description={`Chào ${host.name.split(" ").slice(-1)[0]}, ca sáng 08:30–11:30 · ca chiều 14:00–18:00. Mỗi lịch cách nhau tối thiểu 45 phút.`}
+      />
 
       {lobbyNow && (
         <Link href={`/host/viewing/${lobbyNow.id}`} className={styles.alert}>
@@ -103,7 +166,22 @@ export function DispatchBoard() {
         </Link>
       )}
 
-      <div className={styles.seg} role="tablist" aria-label="Danh sách">
+      <div className={styles.kpis}>
+        <StatTile
+          label="Chờ nhận"
+          value={String(pending.length)}
+          delta={pending.length > 0 ? { text: "Cần nhận ca", tone: "bad" } : { text: "Đã xử lý hết", tone: "good" }}
+        />
+        <StatTile label="Lịch hôm nay" value={String(today.length)} delta={{ text: "Trong ca trực", tone: "flat" }} />
+        <StatTile
+          label="Nhận ca trung bình"
+          value={`${Math.floor(host.avgAcceptSec / 60)}′${String(host.avgAcceptSec % 60).padStart(2, "0")}″`}
+          delta={{ text: "SLA 3′00″", tone: host.avgAcceptSec <= 180 ? "good" : "bad" }}
+        />
+        <StatTile label="Đánh giá" value={`${String(host.rating).replace(".", ",")}★`} delta={{ text: "48 lượt đánh giá", tone: "good" }} />
+      </div>
+
+      <div className={styles.tabs} role="tablist" aria-label="Danh sách">
         <button type="button" role="tab" aria-selected={tab === "new"} onClick={() => setTab("new")}>
           Yêu cầu mới {pending.length > 0 && <i>{pending.length}</i>}
         </button>
@@ -116,7 +194,7 @@ export function DispatchBoard() {
       </div>
 
       {tab === "new" && (
-        <div className={styles.stack}>
+        <div className={styles.ticketGrid}>
           {pending.length === 0 && (
             <div className={styles.empty}>
               <MessageSquareText size={28} />
@@ -131,27 +209,32 @@ export function DispatchBoard() {
             const cost = allInCost(u, { ...DEFAULT_HOUSEHOLD, persons: b.tenant.persons });
             return (
               <article key={b.id} className={`${styles.ticket} ${over ? styles.over : ""}`}>
-                <div className={styles.sla}>
-                  {over ? (
-                    <span className="badge badge-coral">Quá SLA · Open Pool 500m</span>
-                  ) : (
-                    <>
-                      <span className={styles.ring} style={{ ["--p" as string]: `${Math.max(0, left / SLA_MS) * 100}%` }} aria-hidden />
-                      <span className={`num ${styles.count}`}>{mmss(left)}</span>
-                      <span className="muted xs">để nhận ca</span>
-                    </>
-                  )}
-                </div>
-                <div className={styles.ticketBody}>
+                <div className={styles.ticketHead}>
                   <div className={styles.ticketUnit}>
-                    <VerifiedPhoto unit={u} sizes="72px" stamp="none" className={styles.thumb} />
-                    <div>
-                      <b>{unitAddress(u)}</b>
+                    <VerifiedPhoto unit={u} sizes="56px" stamp="none" className={styles.thumb} />
+                    <div className={styles.ticketUnitText}>
+                      <b className={styles.unitAddress}>{unitAddress(u)}</b>
                       <p className="muted small">
                         {zoneById(u.zoneId).short} · All-in {vnd(cost.total)}đ
                       </p>
                     </div>
                   </div>
+                  <div className={styles.ticketSla}>
+                    {over ? (
+                      <span className="badge badge-coral">Quá SLA 3′</span>
+                    ) : (
+                      <div className={styles.timerPill} title="Thời gian còn lại để nhận ca">
+                        <span className={styles.ring} style={{ ["--p" as string]: `${Math.max(0, left / SLA_MS) * 100}%` }} aria-hidden />
+                        <div className={styles.timerText}>
+                          <span className={`num ${styles.count}`}>{mmss(left)}</span>
+                          <span className={styles.timerLabel}>nhận ca</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.ticketBody}>
                   <dl className={styles.meta}>
                     <div>
                       <dt>Khách</dt>
@@ -167,24 +250,32 @@ export function DispatchBoard() {
                     </div>
                   </dl>
                   {b.tenant.note && <p className={styles.note}>“{b.tenant.note}”</p>}
-                  <p className="muted xs">
-                    <Check size={12} style={{ verticalAlign: "-1px" }} /> SĐT đã xác thực OTP Zalo · {fmtPhone(b.tenant.phone)}
+                  <p className={styles.otpStatus}>
+                    <Check size={13} /> SĐT đã xác thực OTP Zalo · {fmtPhone(b.tenant.phone)}
                   </p>
-                  <div className={styles.row2}>
-                    <button type="button" className="btn btn-quiet" onClick={() => { setRejecting(b); setReason(REJECT_REASONS[0]); }}>
-                      <X size={16} /> Từ chối
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      onClick={() => {
-                        hostAccept(b.id);
-                        toast(`Đã nhận ca. Zalo xác nhận đã gửi cho ${b.tenant.name}`, "success");
-                      }}
-                    >
-                      <Check size={17} /> Nhận ca
-                    </button>
-                  </div>
+                </div>
+
+                <div className={styles.ticketActions}>
+                  <button
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => {
+                      setRejecting(b);
+                      setReason(REJECT_REASONS[0]);
+                    }}
+                  >
+                    <X size={16} /> Từ chối
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    onClick={() => {
+                      hostAccept(b.id);
+                      toast(`Đã nhận ca. Zalo xác nhận đã gửi cho ${b.tenant.name}`, "success");
+                    }}
+                  >
+                    <Check size={17} /> Nhận ca
+                  </button>
                 </div>
               </article>
             );
@@ -193,61 +284,32 @@ export function DispatchBoard() {
       )}
 
       {tab !== "new" && (
-        <ul className={styles.stack}>
-          {list.length === 0 && (
-            <li className={styles.empty}>
-              <b>{tab === "mine" ? "Chưa có lịch nào đã nhận" : "Chưa có lịch sử"}</b>
-              <p className="muted small">{tab === "mine" ? "Nhận ca ở tab “Yêu cầu mới” để lịch xuất hiện ở đây." : "Các ca đã xong hoặc huỷ sẽ nằm ở đây."}</p>
-            </li>
-          )}
-          {list.map((b) => {
-            const u = unitById(b.unitId)!;
-            const meta = STATUS_META[b.status];
-            const slotMs = new Date(b.slot).getTime();
-            const soon = b.status === "confirmed" && slotMs - now <= 10 * 60_000 && slotMs - now > -900_000;
-            const cta: Record<string, string> = {
-              confirmed: soon ? "Xuống sảnh đón khách" : "Xem chi tiết & chuẩn bị",
-              lobby: "Đón khách ngay",
-              receiving: "Tiếp tục: lên phòng",
-              viewing: "Tiếp tục: kết quả xem",
-              closing: "Tiếp tục: thu cọc",
-              holding: "Xác minh CCCD & ký",
-              signed: "Ký hợp đồng thuê",
-            };
-            return (
-              <li key={b.id}>
-                <Link href={`/host/viewing/${b.id}`} className={`${styles.item} ${b.status === "lobby" ? styles.pulse : ""}`}>
-                  <div className={styles.time}>
-                    <b className="num">{fmtTime(b.slot)}</b>
-                    <span className="muted xs">{dayLabel(b.slot, now)}</span>
-                  </div>
-                  <div className={styles.itemMain}>
-                    <b>{b.tenant.name}</b>
-                    <p className="muted small">{unitAddress(u)}</p>
-                    <div className={styles.itemFoot}>
-                      <span className={`badge ${meta.badge}`}>{meta.label}</span>
-                      {soon && (
-                        <span className="badge badge-coral">
-                          <AlarmClock size={12} /> T-10 · còn {Math.max(0, Math.ceil((slotMs - now) / 60_000))} phút
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className={styles.itemCta}>
-                    {cta[b.status] && <span>{cta[b.status]}</span>}
-                    <ChevronRight size={18} />
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <Section flush>
+          <DataTable<Booking>
+            columns={tab === "mine" ? mineColumns : historyColumns}
+            rows={tab === "mine" ? active : history}
+            rowHref={(b) => `/host/viewing/${b.id}`}
+            empty={
+              tab === "mine" ? (
+                <div className={styles.empty}>
+                  <b>Chưa có lịch nào đã nhận</b>
+                  <p className="muted small">Nhận ca ở tab “Yêu cầu mới” để lịch xuất hiện ở đây.</p>
+                </div>
+              ) : (
+                <div className={styles.empty}>
+                  <b>Chưa có lịch sử</b>
+                  <p className="muted small">Các ca đã xong hoặc huỷ sẽ nằm ở đây.</p>
+                </div>
+              )
+            }
+          />
+        </Section>
       )}
 
       <Modal
         open={!!rejecting}
         onClose={() => setRejecting(null)}
-        variant="sheet"
+        variant="center"
         title="Từ chối ticket"
         description="Khách sẽ nhận Zalo xin lỗi kèm gợi ý đổi giờ; ticket chuyển sang Open Pool."
         footer={

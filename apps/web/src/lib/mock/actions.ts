@@ -4,19 +4,24 @@ import { RATES } from "./cost";
 import { fmtTime, dayLabel, normalizePhone, vnd } from "./format";
 import { hostBookings, isOpenBooking, similarUnits, slotTaken, unitStatus } from "./selectors";
 import { emptyChat } from "./seed";
-import { getMockState, resetMockState, setMockState } from "./store";
+import { getMockState, setMockState } from "./store";
 import type {
   Booking,
   ChatMessage,
   Consignment,
   CriteriaState,
+  DeclaredField,
   FeeConfig,
   IdCardData,
+  InspectionDraft,
+  InspectionReport,
   MockState,
   Notice,
   OtpChallenge,
 } from "./types";
-import { hostById, hostForUnit, unitById, unitAddress, type Unit } from "./units";
+import { hostById, hostForUnit, unitById, unitAddress, type Unit, PASSPORT_ITEMS, zoneOfBuilding } from "./units";
+import { inspectionSummary } from "./selectors-inspection";
+import { contractByKey } from "./contracts";
 
 // ─── tiện ích ─────────────────────────────────────────────────────────────────────────────────
 
@@ -608,61 +613,377 @@ export function signLease(id: string, opts: { startDate: string; months: number 
 
 // ─── Chủ nhà & Admin ─────────────────────────────────────────────────────────────────────────
 
+export const INSPECT_SLA_MS = 48 * 3_600_000;
+
+export type ConsignError =
+  | "not_found"
+  | "bad_status"
+  | "wrong_host"
+  | "invalid_report"
+  | "invalid_note"
+  | "unknown_building";
+
+export type ConsignResult =
+  | { ok: true }
+  | { ok: false; code: ConsignError; reason: string };
+
 export type ConsignInput = Omit<Consignment, "id" | "status" | "createdAt">;
 
 export function submitConsignment(input: ConsignInput, asDraft = false): Consignment {
-  const cs: Consignment = { ...input, id: uid("cs"), status: asDraft ? "draft" : "pending", createdAt: iso(Date.now()) };
+  const zone = zoneOfBuilding(input.building);
+  if (!asDraft && !zone) {
+    throw new Error("Tòa nhà không thuộc phân khu hỗ trợ.");
+  }
+
+  const nowMs = Date.now();
+  const csId = uid("cs");
+  const hostId = zone?.hostId;
+  const signedAt = asDraft ? undefined : iso(nowMs);
+  const inspectDueAt = asDraft ? undefined : iso(nowMs + INSPECT_SLA_MS);
+
+  const cs: Consignment = {
+    ...input,
+    id: csId,
+    status: asDraft ? "draft" : "awaiting_host",
+    createdAt: iso(nowMs),
+    signedAt,
+    hostId,
+    inspectDueAt,
+  };
+
+  const extraNotices: Notice[] = [];
+  if (!asDraft && hostId) {
+    const hostName = hostById(hostId)?.name ?? hostId;
+    const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+    extraNotices.push(
+      zaloToLandlord(cs.landlordId, {
+        tone: "info",
+        title: "Đã gửi yêu cầu thẩm định",
+        body: `${can} đã chuyển Field Host ${hostName}; kiểm tra thực tế trong 48 giờ, chi phí 0đ.`,
+      }),
+      pushToHost(hostId, {
+        tone: "info",
+        title: "Ticket thẩm định ký gửi mới",
+        body: `${can} (${cs.layout}, ${cs.areaM2} m²), hạn 48h.`,
+      }),
+      toAdmin({
+        tone: "info",
+        title: "Yêu cầu ký gửi mới",
+        body: `${can} giao ${hostName}.`,
+      }),
+    );
+  }
+
   setMockState((s) =>
     withNotices(
       { ...s, consignments: [cs, ...s.consignments] },
-      ...(asDraft
-        ? []
-        : [toAdmin({ tone: "info" as const, title: "Yêu cầu ký gửi mới", body: `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} (${cs.layout}) chờ duyệt.` })]),
+      ...extraNotices,
     ),
   );
+
   return cs;
 }
 
-/** Ký uỷ quyền độc quyền cho căn đã đăng ký (draft → pending). */
-export function signConsignment(id: string) {
-  setMockState((s) => {
-    const cs = s.consignments.find((c) => c.id === id);
-    if (!cs) return s;
-    return withNotices(
-      { ...s, consignments: s.consignments.map((c) => (c.id === id ? { ...c, status: "pending" as const } : c)) },
-      toAdmin({ tone: "info", title: "Yêu cầu ký gửi mới", body: `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} đã ký ủy quyền, chờ duyệt.` }),
-    );
-  });
-}
+/** Ký uỷ quyền độc quyền cho căn đã đăng ký (draft → awaiting_host). */
+export function signConsignment(id: string): ConsignResult {
+  const state = getMockState();
+  const cs = state.consignments.find((c) => c.id === id);
+  if (!cs) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hồ sơ ký gửi." };
+  }
+  if (cs.status !== "draft") {
+    return { ok: false, code: "bad_status", reason: "Hồ sơ không ở trạng thái nháp để ký ủy quyền." };
+  }
+  const zone = zoneOfBuilding(cs.building);
+  if (!zone) {
+    return { ok: false, code: "unknown_building", reason: "Tòa nhà không thuộc phân khu hỗ trợ." };
+  }
 
-export function approveConsignment(id: string) {
-  setMockState((s) => {
-    const cs = s.consignments.find((c) => c.id === id);
-    if (!cs) return s;
-    return withNotices(
-      { ...s, consignments: s.consignments.map((c) => (c.id === id ? { ...c, status: "approved" as const } : c)) },
+  const nowMs = Date.now();
+  const signedAt = iso(nowMs);
+  const inspectDueAt = iso(nowMs + INSPECT_SLA_MS);
+  const hostId = zone.hostId;
+  const hostName = hostById(hostId)?.name ?? hostId;
+  const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? { ...c, status: "awaiting_host", signedAt, hostId, inspectDueAt }
+            : c,
+        ),
+      },
       zaloToLandlord(cs.landlordId, {
-        tone: "success",
-        title: "Yêu cầu ký gửi đã được duyệt",
-        body: `Căn ${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} đã được duyệt. Field Host sẽ liên hệ chụp ảnh thẩm định 10 hạng mục trong 48 giờ.`,
+        tone: "info",
+        title: "Đã gửi yêu cầu thẩm định",
+        body: `${can} đã chuyển Field Host ${hostName}; kiểm tra thực tế trong 48 giờ, chi phí 0đ.`,
       }),
-    );
-  });
+      pushToHost(hostId, {
+        tone: "info",
+        title: "Ticket thẩm định ký gửi mới",
+        body: `${can} (${cs.layout}, ${cs.areaM2} m²), hạn 48h.`,
+      }),
+      toAdmin({
+        tone: "info",
+        title: "Yêu cầu ký gửi mới",
+        body: `${can} giao ${hostName}.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
 }
 
-export function rejectConsignment(id: string, note: string) {
-  setMockState((s) => {
-    const cs = s.consignments.find((c) => c.id === id);
-    if (!cs) return s;
-    return withNotices(
-      { ...s, consignments: s.consignments.map((c) => (c.id === id ? { ...c, status: "rejected" as const, note } : c)) },
+export function hostAcceptInspection(id: string, hostId: string): ConsignResult {
+  const state = getMockState();
+  const cs = state.consignments.find((c) => c.id === id);
+  if (!cs) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hồ sơ ký gửi." };
+  }
+  if (cs.status !== "awaiting_host") {
+    return { ok: false, code: "bad_status", reason: "Hồ sơ không ở trạng thái chờ Field Host nhận." };
+  }
+  if (cs.hostId !== hostId) {
+    return { ok: false, code: "wrong_host", reason: "Bạn không phải Field Host phụ trách căn này." };
+  }
+
+  const nowMs = Date.now();
+  const hostAcceptedAt = iso(nowMs);
+  const hostName = hostById(hostId)?.name ?? hostId;
+  const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? { ...c, status: "inspecting", hostAcceptedAt }
+            : c,
+        ),
+      },
       zaloToLandlord(cs.landlordId, {
+        tone: "info",
+        title: "Field Host đã nhận thẩm định",
+        body: `${hostName} sẽ kiểm tra ${can}.`,
+      }),
+      toAdmin({
+        tone: "info",
+        title: "Host đã nhận thẩm định",
+        body: `${hostName} đã nhận thẩm định căn ${can}.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+export function submitInspection(id: string, hostId: string, draft: InspectionDraft): ConsignResult {
+  const state = getMockState();
+  const cs = state.consignments.find((c) => c.id === id);
+  if (!cs) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hồ sơ ký gửi." };
+  }
+  if (cs.status !== "inspecting") {
+    return { ok: false, code: "bad_status", reason: "Hồ sơ không ở trạng thái đang thẩm định thực tế." };
+  }
+  if (cs.hostId !== hostId) {
+    return { ok: false, code: "wrong_host", reason: "Bạn không phải Field Host phụ trách căn này." };
+  }
+
+  // 1. declared thiếu/trùng field hoặc ok=false mà actual rỗng
+  const REQUIRED_DECLARED: DeclaredField[] = ["identity", "layout", "areaM2", "furnishing", "lock"];
+  if (draft.declared.length !== REQUIRED_DECLARED.length) {
+    return { ok: false, code: "invalid_report", reason: "Thông tin đối chiếu kê khai phải đủ 5 mục." };
+  }
+  const seenFields = new Set<DeclaredField>();
+  for (const d of draft.declared) {
+    if (!REQUIRED_DECLARED.includes(d.field) || seenFields.has(d.field)) {
+      return { ok: false, code: "invalid_report", reason: "Thông tin đối chiếu bị trùng lặp hoặc không hợp lệ." };
+    }
+    seenFields.add(d.field);
+    if (!d.ok && (!d.actual || !d.actual.trim())) {
+      return { ok: false, code: "invalid_report", reason: "Vui lòng nhập giá trị thực tế cho thông tin sai lệch." };
+    }
+  }
+
+  // 2. items không khớp tập + thứ tự Consignment.items
+  if (
+    draft.items.length !== cs.items.length ||
+    !draft.items.every((it, idx) => it.key === cs.items[idx])
+  ) {
+    return { ok: false, code: "invalid_report", reason: "Danh sách đồ dùng không khớp với thông tin đã kê khai." };
+  }
+
+  // 3. equipment.length !== 10 hoặc sai thứ tự PASSPORT_ITEMS, condition không phải bội 10 trong [0,100], photoAt rỗng
+  if (
+    draft.equipment.length !== 10 ||
+    !draft.equipment.every((eq, idx) => eq.item === PASSPORT_ITEMS[idx])
+  ) {
+    return { ok: false, code: "invalid_report", reason: "Báo cáo phải đủ 10 hạng mục theo chuẩn Hộ chiếu số." };
+  }
+  for (const eq of draft.equipment) {
+    if (
+      typeof eq.condition !== "number" ||
+      eq.condition < 0 ||
+      eq.condition > 100 ||
+      eq.condition % 10 !== 0
+    ) {
+      return { ok: false, code: "invalid_report", reason: "Độ mới mỗi hạng mục phải là bội số của 10 (0% - 100%)." };
+    }
+    if (!eq.photoAt || !eq.photoAt.trim()) {
+      return { ok: false, code: "invalid_report", reason: "Tất cả 10 hạng mục bắt buộc phải chụp ảnh xác thực." };
+    }
+  }
+
+  // 4. recommendation === "reject" mà note rỗng
+  if (draft.recommendation === "reject" && (!draft.note || !draft.note.trim())) {
+    return { ok: false, code: "invalid_report", reason: "Vui lòng nhập lý do ghi chú khi đề xuất không duyệt." };
+  }
+
+  const nowMs = Date.now();
+  const submittedAt = iso(nowMs);
+  const report: InspectionReport = {
+    ...draft,
+    hostId,
+    submittedAt,
+  };
+
+  const summary = inspectionSummary(report);
+  const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? { ...c, status: "reviewing", report }
+            : c,
+        ),
+      },
+      zaloToLandlord(cs.landlordId, {
+        tone: "info",
+        title: "Đã thẩm định xong, chờ duyệt",
+        body: `Căn ${can} đã được thẩm định xong, độ mới TB ${summary.avgCondition}%. Đang chờ Admin chốt duyệt ký gửi.`,
+      }),
+      toAdmin({
         tone: "warning",
-        title: "Yêu cầu ký gửi chưa được duyệt",
-        body: `Căn ${cs.building} · Tầng ${cs.floor} · Căn ${cs.door} chưa được duyệt: ${note}.`,
+        title: "Báo cáo thẩm định chờ duyệt",
+        body: `${can}, TB ${summary.avgCondition}%, ${summary.mismatches.length} sai lệch, đề xuất ${draft.recommendation === "approve" ? "Duyệt" : "Không duyệt"}.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+export function approveConsignment(id: string, by: string): ConsignResult {
+  const state = getMockState();
+  const cs = state.consignments.find((c) => c.id === id);
+  if (!cs) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hồ sơ ký gửi." };
+  }
+  if (cs.status !== "reviewing") {
+    return { ok: false, code: "bad_status", reason: "Chỉ duyệt được hồ sơ đã có báo cáo thẩm định." };
+  }
+
+  const nowMs = Date.now();
+  const decidedAt = iso(nowMs);
+  const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  const notices: Notice[] = [
+    zaloToLandlord(cs.landlordId, {
+      tone: "success",
+      title: "Căn đã được nhận ký gửi",
+      body: `Căn ${can} đã được Admin ${by} duyệt nhận ký gửi chính thức.`,
+    }),
+  ];
+
+  if (cs.hostId) {
+    notices.push(
+      pushToHost(cs.hostId, {
+        tone: "success",
+        title: "Admin đã duyệt căn bạn thẩm định",
+        body: `Căn ${can} đã được Admin ${by} phê duyệt tiếp nhận ký gửi.`,
       }),
     );
-  });
+  }
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? { ...c, status: "approved", decidedAt, decidedBy: by }
+            : c,
+        ),
+      },
+      ...notices,
+    ),
+  );
+
+  return { ok: true };
+}
+
+export function rejectConsignment(id: string, note: string, by: string): ConsignResult {
+  if (!note || note.trim().length < 5) {
+    return { ok: false, code: "invalid_note", reason: "Lý do từ chối phải có ít nhất 5 ký tự." };
+  }
+
+  const state = getMockState();
+  const cs = state.consignments.find((c) => c.id === id);
+  if (!cs) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hồ sơ ký gửi." };
+  }
+
+  const allowedStatuses = new Set(["awaiting_host", "inspecting", "reviewing"]);
+  if (!allowedStatuses.has(cs.status)) {
+    return { ok: false, code: "bad_status", reason: "Không thể từ chối hồ sơ ở trạng thái hiện tại." };
+  }
+
+  const nowMs = Date.now();
+  const decidedAt = iso(nowMs);
+  const cleanNote = note.trim();
+  const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  const notices: Notice[] = [
+    zaloToLandlord(cs.landlordId, {
+      tone: "warning",
+      title: "Yêu cầu ký gửi không được duyệt",
+      body: `Hồ sơ căn ${can} không được duyệt. Lý do: ${cleanNote}.`,
+    }),
+  ];
+
+  if (cs.hostId && cs.status !== "awaiting_host") {
+    notices.push(
+      pushToHost(cs.hostId, {
+        tone: "info",
+        title: "Hồ sơ đã bị từ chối",
+        body: `Hồ sơ căn ${can} đã bị từ chối: ${cleanNote}.`,
+      }),
+    );
+  }
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        consignments: s.consignments.map((c) =>
+          c.id === id
+            ? { ...c, status: "rejected", note: cleanNote, decidedAt, decidedBy: by }
+            : c,
+        ),
+      },
+      ...notices,
+    ),
+  );
+
+  return { ok: true };
 }
 
 export type ExitResult = { ok: true; effectiveAt: string; hasViewingsToday: boolean } | { ok: false; reason: string };
@@ -747,4 +1068,139 @@ export function setTenantProfile(profile: { name: string; phone: string }) {
   setMockState((s) => ({ ...s, tenantProfile: profile }));
 }
 
-export { resetMockState as resetDemo };
+// ─── Hợp đồng & Quản trị (Admin Contracts) ──────────────────────────────────────────────────
+
+export type ContractError = "not_found" | "bad_status" | "too_early" | "blocked";
+export type ContractResult = { ok: true } | { ok: false; code: ContractError; reason: string };
+
+/**
+ * Hoàn tất quy trình thoát uỷ quyền độc quyền khi đã hết thời hạn 15 ngày báo trước.
+ * Offboard căn hộ khỏi mạng lưới, gửi thông báo cho Chủ nhà, Host phân khu và Admin.
+ */
+export function completeMandateExit(unitId: string, by: string): ContractResult {
+  const state = getMockState();
+  const unit = unitById(unitId);
+  const m = state.mandates[unitId];
+
+  // 1. Kiểm tra tồn tại
+  if (!unit || !m) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy uỷ quyền của căn hộ." };
+  }
+
+  // 2. Trạng thái phải là exiting
+  if (m.status !== "exiting") {
+    return { ok: false, code: "bad_status", reason: "Căn không ở trạng thái đang thoát uỷ quyền." };
+  }
+
+  // 3. Phải qua mốc exitEffectiveAt
+  const effectiveMs = m.exitEffectiveAt ? Date.parse(m.exitEffectiveAt) : 0;
+  const now = Date.now();
+  if (now < effectiveMs) {
+    const daysLeft = Math.max(1, Math.ceil((effectiveMs - now) / (24 * 3600 * 1000)));
+    return { ok: false, code: "too_early", reason: `Chưa hết 15 ngày báo trước — còn ${daysLeft} ngày.` };
+  }
+
+  // 4. Ưu tiên khách cọc (nếu căn đang holding hoặc rented thì chặn offboard)
+  const uStatus = unitStatus(state, unit);
+  if (uStatus === "holding" || uStatus === "rented") {
+    return {
+      ok: false,
+      code: "blocked",
+      reason: "Căn đã có khách cọc trong thời gian đếm ngược — quyền ưu tiên thuộc khách cọc.",
+    };
+  }
+
+  // 5. Cập nhật trạng thái ended và bắn thông báo
+  const host = hostForUnit(unit);
+  setMockState((s) =>
+    withNotices(
+      {
+        ...s,
+        mandates: {
+          ...s.mandates,
+          [unit.id]: {
+            ...m,
+            status: "ended",
+            endedAt: iso(now),
+            endedBy: by,
+          },
+        },
+      },
+      zaloToLandlord(unit.landlordId, {
+        unitId: unit.id,
+        tone: "info",
+        title: "Đã hoàn tất thoát uỷ quyền",
+        body: `Căn ${unit.code} ngừng hiển thị trên VinStay AI, mã cửa đã gỡ khỏi mạng lưới Host, nhận lại chìa cơ tại văn phòng phân khu.`,
+      }),
+      pushToHost(host.id, {
+        unitId: unit.id,
+        tone: "info",
+        title: "Căn hộ đã hoàn tất offboard",
+        body: `Căn ${unit.code} đã offboard — không dẫn khách, mã cửa đã gỡ.`,
+      }),
+      toAdmin({
+        unitId: unit.id,
+        tone: "info",
+        title: "Hoàn tất thoát uỷ quyền",
+        body: `${unit.code} offboard bởi ${by}.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+/**
+ * Admin gửi thông báo nhắc gia hạn HĐ thuê khi thời hạn thuê còn ≤ 30 ngày.
+ * Gửi đồng thời Zalo cho Chủ nhà, Khách thuê và lưu nhật ký Admin.
+ */
+export function remindLeaseRenewal(bookingId: string, by: string): ContractResult {
+  const state = getMockState();
+  const b = state.bookings.find((bk) => bk.id === bookingId);
+  if (!b || !b.lease) {
+    return { ok: false, code: "not_found", reason: "Không tìm thấy hợp đồng thuê." };
+  }
+
+  const now = Date.now();
+  const row = contractByKey(state, `lease.${bookingId}`, now);
+  if (!row || row.status !== "expiring" || b.lease.renewalRemindedAt) {
+    return { ok: false, code: "bad_status", reason: "HĐ chưa vào 30 ngày cuối hoặc đã được nhắc." };
+  }
+
+  const endFormatted = row.endAt ? new Date(row.endAt).toLocaleDateString("vi-VN") : "";
+  const lease = b.lease;
+
+  setMockState((s) =>
+    withNotices(
+      patchBooking(s, bookingId, {
+        lease: {
+          ...lease,
+          renewalRemindedAt: iso(now),
+        },
+      }),
+      zaloToLandlord(row.landlordId ?? "", {
+        unitId: b.unitId,
+        bookingId: b.id,
+        tone: "warning",
+        title: "HĐ thuê sắp hết hạn",
+        body: `HĐ ${lease.docId} hết hạn ngày ${endFormatted}. Vui lòng xác nhận gia hạn hay mở đón khách mới sớm.`,
+      }),
+      zaloToTenant(b.tenant.phone, {
+        unitId: b.unitId,
+        bookingId: b.id,
+        tone: "warning",
+        title: "HĐ thuê sắp hết hạn",
+        body: `HĐ ${lease.docId} hết hạn ngày ${endFormatted}. Vui lòng xác nhận gia hạn hay trả phòng (nhắc chuẩn bị Hộ chiếu bàn giao và chốt số công tơ điện nước khi trả).`,
+      }),
+      toAdmin({
+        unitId: b.unitId,
+        bookingId: b.id,
+        tone: "info",
+        title: "Đã gửi nhắc gia hạn",
+        body: `Đã nhắc gia hạn ${lease.docId} (${by}).`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}

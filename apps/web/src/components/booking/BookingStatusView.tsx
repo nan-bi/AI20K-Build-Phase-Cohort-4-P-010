@@ -12,12 +12,12 @@ import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { cancelBooking, rateHost, rescheduleBooking, sendReminder, tenantCheckIn, tenantRunningLate } from "@/lib/mock/actions";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { dayLabel, fmtDateTime, fmtPhone, fmtTime, normalizePhone, vnd, weekday } from "@/lib/mock/format";
-import { bookableDays } from "@/lib/mock/slots";
-import { bookingByRef, noticesFor, similarUnits, slotsForDay } from "@/lib/mock/selectors";
+import { bookingByRef, noticesFor, similarUnits } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import { hostById, unitAddress, unitById, zoneById } from "@/lib/mock/units";
 import { useDemoUser } from "@/lib/mock/useRole";
 import { useNow } from "@/lib/useNow";
+import { SlotPicker } from "./SlotPicker";
 import { STATUS_META, TERMINAL, buildTimeline } from "./status";
 import styles from "./Booking.module.css";
 
@@ -363,29 +363,18 @@ function CancelModal({ open, onClose, onConfirm }: { open: boolean; onClose: () 
 }
 
 function RescheduleModal({ open, onClose, hostId, bookingId, now, onConfirm }: { open: boolean; onClose: () => void; hostId: string; bookingId: string; now: number; onConfirm: (slot: string) => void }) {
-  const state = useMock();
-  const [dayIdx, setDayIdx] = useState(0);
   const [slot, setSlot] = useState<string | null>(null);
-  const days = bookableDays(now);
-  const options = days[dayIdx] ? slotsForDay(state, hostId, days[dayIdx], now, bookingId) : [];
   return (
     <Modal open={open} onClose={onClose} variant="sheet" title="Đổi giờ xem phòng" footer={
       <button type="button" className="btn btn-primary btn-block" disabled={!slot} onClick={() => slot && onConfirm(slot)}>Xác nhận giờ mới</button>
     }>
-      <div className={styles.rDays}>
-        {days.map((d, i) => (
-          <button key={d.toISOString()} type="button" aria-pressed={i === dayIdx} className={i === dayIdx ? styles.rOn : ""} onClick={() => { setDayIdx(i); setSlot(null); }}>
-            {dayLabel(d, now)} · {String(d.getDate()).padStart(2, "0")}/{String(d.getMonth() + 1).padStart(2, "0")}
-          </button>
-        ))}
-      </div>
-      <div className={styles.rSlots}>
-        {options.map((o) => (
-          <button key={o.iso} type="button" disabled={!o.available} aria-pressed={slot === o.iso} className={slot === o.iso ? styles.rOn : ""} onClick={() => setSlot(o.iso)}>
-            {o.time}
-          </button>
-        ))}
-      </div>
+      <SlotPicker
+        hostId={hostId}
+        now={now}
+        value={slot}
+        onChange={setSlot}
+        ignoreBookingId={bookingId}
+      />
     </Modal>
   );
 }

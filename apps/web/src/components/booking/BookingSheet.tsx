@@ -2,23 +2,43 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarCheck, CheckCircle2, ChevronLeft, MessageCircleMore, Star } from "lucide-react";
+import {
+  Calendar,
+  CalendarCheck,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  FileText,
+  MapPin,
+  MessageCircleMore,
+  Pencil,
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  User,
+  Users,
+} from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { ZaloBubble } from "@/components/zalo/ZaloThread";
 import { createBooking, requestOtp, verifyOtp } from "@/lib/mock/actions";
-import { dayLabel, fmtDateTime, fmtPhone, fmtTime, isValidVnPhone, normalizePhone, weekday } from "@/lib/mock/format";
-import { slotsForDay } from "@/lib/mock/selectors";
-import { SLOT_TIMES, bookableDays } from "@/lib/mock/slots";
+import { fmtDateTime, fmtPhone, fmtTime, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
 import { hostForUnit, unitAddress, type Unit } from "@/lib/mock/units";
 import { useDemoUser } from "@/lib/mock/useRole";
 import { useNow } from "@/lib/useNow";
+import { SlotPicker } from "./SlotPicker";
 import styles from "./BookingSheet.module.css";
 
 type Step = "slot" | "info" | "otp" | "done";
-const STEP_LABEL: Record<Exclude<Step, "done">, string> = { slot: "Chọn giờ", info: "Thông tin", otp: "Xác thực Zalo" };
+
+const STEPS = [
+  { key: "slot", label: "Chọn giờ" },
+  { key: "info", label: "Thông tin" },
+  { key: "otp", label: "Xác thực Zalo" },
+] as const;
 
 interface BookingSheetProps {
   unit: Unit;
@@ -41,7 +61,6 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const host = hostForUnit(unit);
 
   const [step, setStep] = useState<Step>("slot");
-  const [dayIdx, setDayIdx] = useState(0);
   const [slot, setSlot] = useState<string | null>(null);
   const [name, setName] = useState(state.tenantProfile?.name ?? (demoUser?.role === "tenant" ? demoUser.name : ""));
   const [phone, setPhone] = useState(state.tenantProfile?.phone ?? (demoUser?.role === "tenant" ? (demoUser.phone ?? "") : ""));
@@ -60,21 +79,18 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const days = now ? bookableDays(now) : [];
-  const day = days[dayIdx];
-  const options = day && now ? slotsForDay(state, host.id, day, now) : [];
   const chosen = slot ? new Date(slot) : null;
-
   const p = normalizePhone(phone);
   const otpNotice = state.notices.find((n) => n.audience === "tenant" && n.toKey === p && n.title === "Mã xác thực VinStay AI");
 
   const sendOtp = () => {
     const next: typeof errors = {};
-    if (name.trim().length < 2) next.name = "Nhập họ tên để Host biết gọi bạn là gì.";
-    if (!isValidVnPhone(phone)) next.phone = "Số điện thoại chưa đúng. Ví dụ: 0912 345 678.";
-    if (!consent) next.consent = "Bạn cần đồng ý để tiếp tục.";
+    if (name.trim().length < 2) next.name = "Vui lòng nhập họ và tên để Field Host biết xưng hô khi đón bạn.";
+    if (!isValidVnPhone(phone)) next.phone = "Số điện thoại chưa hợp lệ. Ví dụ đúng: 0912 345 678.";
+    if (!consent) next.consent = "Vui lòng đồng ý điều khoản xác thực để tiếp tục.";
     setErrors(next);
     if (Object.keys(next).length) return;
+
     requestOtp(p, "booking");
     setCode("");
     setOtpError(false);
@@ -100,35 +116,87 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   if (step === "done" && booking) {
     return (
       <div className={styles.done}>
-        <span className={styles.doneIcon}>
-          <CheckCircle2 size={44} />
-        </span>
-        <h3 className={styles.doneTitle}>Cảm ơn {booking.tenant.name.split(" ").slice(-1)[0]}, mình đã nhận yêu cầu của bạn</h3>
-        <p className="muted">Field Host sẽ xác nhận trong vòng 3 phút. VinStay AI sẽ nhắn lại chi tiết người đón, vị trí sảnh và nút “Tôi đã có mặt tại sảnh” qua Zalo {fmtPhone(booking.tenant.phone)}.</p>
-        <dl className={styles.summary}>
-          <div>
-            <dt>Mã lịch hẹn</dt>
-            <dd className={`num ${styles.ref}`}>{booking.ref}</dd>
+        <div className={styles.doneIconWrap}>
+          <CheckCircle2 size={36} />
+        </div>
+
+        <div>
+          <h3 className={styles.doneTitle}>
+            Đặt lịch xem nhà thành công!
+          </h3>
+          <p className={styles.doneSub}>
+            Field Host <strong>{host.name}</strong> sẽ xác nhận trong vòng 3 phút. VinStay AI sẽ nhắn thông báo và nút 1-chạm xác nhận có mặt qua Zalo <strong>{fmtPhone(booking.tenant.phone)}</strong>.
+          </p>
+        </div>
+
+        <div className={styles.ticketCard}>
+          <div className={styles.ticketHead}>
+            <div className={styles.ticketTag}>
+              <Sparkles size={13} />
+              <span>VÉ HẸN XEM NHÀ NỘI KHU</span>
+            </div>
+            <div className={styles.ticketRef}>
+              <span className="muted xs">Mã lịch</span>
+              <span className={`num ${styles.refCode}`}>{booking.ref}</span>
+            </div>
           </div>
-          <div>
-            <dt>Căn hộ</dt>
-            <dd>{unitAddress(unit)}</dd>
+
+          <div className={styles.ticketBody}>
+            <div className={styles.ticketItem}>
+              <div className={styles.ticketItemLabel}>
+                <Calendar size={14} />
+                <span>Thời gian hẹn</span>
+              </div>
+              <div className={styles.ticketItemVal}>{fmtDateTime(booking.slot)}</div>
+            </div>
+
+            <div className={styles.ticketItem}>
+              <div className={styles.ticketItemLabel}>
+                <MapPin size={14} />
+                <span>Căn hộ & Toà</span>
+              </div>
+              <div className={styles.ticketItemVal}>
+                {unitAddress(unit)}
+                <span className={styles.ticketSubVal}>Sảnh toà {unit.building}</span>
+              </div>
+            </div>
+
+            <div className={styles.ticketItem}>
+              <div className={styles.ticketItemLabel}>
+                <User size={14} />
+                <span>Field Host phụ trách</span>
+              </div>
+              <div className={styles.ticketItemVal}>
+                {host.name}
+                <span className={styles.hostBadgeVerified}>
+                  <Check size={11} /> Thẻ cư dân sẵn sàng
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.ticketItem}>
+              <div className={styles.ticketItemLabel}>
+                <Users size={14} />
+                <span>Số người tham quan</span>
+              </div>
+              <div className={styles.ticketItemVal}>{booking.tenant.persons} người</div>
+            </div>
           </div>
-          <div>
-            <dt>Thời gian</dt>
-            <dd>{fmtDateTime(booking.slot)}</dd>
+
+          <div className={styles.ticketNotice}>
+            <ShieldCheck size={16} className={styles.ticketNoticeIcon} />
+            <p className={styles.ticketNoticeText}>
+              <strong>Quy chuẩn tiếp đón VinStay AI:</strong> Field Host có mặt tại sảnh toà trước 10 phút, hỗ trợ quẹt thẻ thang máy dẫn lên xem căn trong 60 giây. Tuyệt đối không để bạn phải chờ đợi.
+            </p>
           </div>
-          <div>
-            <dt>Field Host</dt>
-            <dd>{host.name}</dd>
-          </div>
-        </dl>
+        </div>
+
         <div className={styles.doneActions}>
           <Link href={`/booking/${booking.ref}`} className="btn btn-primary btn-lg btn-block">
-            Theo dõi lịch hẹn
+            Theo dõi trạng thái lịch hẹn
           </Link>
           <button type="button" className="btn btn-quiet btn-block" onClick={onClose}>
-            Tiếp tục xem căn
+            Tiếp tục xem các căn khác
           </button>
         </div>
       </div>
@@ -138,51 +206,44 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   return (
     <div className={styles.flow}>
       <ol className={styles.progress} aria-label="Các bước đặt lịch">
-        {(Object.keys(STEP_LABEL) as (keyof typeof STEP_LABEL)[]).map((k, i) => (
-          <li key={k} className={i <= stepIndex ? styles.on : ""} aria-current={i === stepIndex ? "step" : undefined}>
-            <span />
-            {STEP_LABEL[k]}
-          </li>
-        ))}
+        {STEPS.map((s, i) => {
+          const statusClass = i === stepIndex ? styles.active : i < stepIndex ? styles.completed : "";
+          return (
+            <li key={s.key} className={`${styles.stepItem} ${statusClass}`} aria-current={i === stepIndex ? "step" : undefined}>
+              <div className={styles.stepBar} />
+              <div className={styles.stepLabel}>
+                <span className={styles.stepNumber}>
+                  {i < stepIndex ? <Check size={10} /> : i + 1}
+                </span>
+                <span>{s.label}</span>
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       {step === "slot" && (
         <>
           <div className={styles.hostRow}>
             <span className={styles.hostAvatar}>{host.name.split(" ").slice(-1)[0][0]}</span>
-            <p className="small">
-              <strong>{host.name}</strong> đón bạn tại sảnh toà {unit.building} <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}
-              {String(host.rating).replace(".", ",")}
-              <br />
-              <span className="muted">Có thẻ cư dân thang máy, đưa bạn lên phòng trong khoảng 60 giây.</span>
-            </p>
-          </div>
-
-          <div className={styles.days} role="radiogroup" aria-label="Chọn ngày xem">
-            {days.map((d, i) => (
-              <button key={d.toISOString()} type="button" role="radio" aria-checked={i === dayIdx} className={`${styles.day} ${i === dayIdx ? styles.daySel : ""}`} onClick={() => { setDayIdx(i); setSlot(null); }}>
-                <span className="xs">{i === 0 && dayLabel(d, now) === "Hôm nay" ? "Hôm nay" : weekday(d)}</span>
-                <b className="num">{String(d.getDate()).padStart(2, "0")}/{String(d.getMonth() + 1).padStart(2, "0")}</b>
-              </button>
-            ))}
-          </div>
-
-          {(["morning", "afternoon"] as const).map((part) => (
-            <div key={part}>
-              <h4 className={styles.part}>{part === "morning" ? "Buổi sáng" : "Buổi chiều"}</h4>
-              <div className={styles.slots}>
-                {options
-                  .filter((o) => (SLOT_TIMES[part] as readonly string[]).includes(o.time))
-                  .map((o) => (
-                    <button key={o.iso} type="button" disabled={!o.available} aria-pressed={slot === o.iso} className={`${styles.slot} ${slot === o.iso ? styles.slotSel : ""}`} onClick={() => setSlot(o.iso)}>
-                      <b className="tnum">{o.time}</b>
-                      {!o.available && <span className="xs">{o.reason === "taken" ? "Đã kín" : "Quá gần giờ"}</span>}
-                    </button>
-                  ))}
+            <div className={styles.hostInfo}>
+              <div className={styles.hostInfoTitle}>
+                <span>{host.name} đón bạn tại sảnh toà {unit.building}</span>
+                <span className={styles.hostRating}>
+                  <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />
+                  {String(host.rating).replace(".", ",")}
+                </span>
+              </div>
+              <div className={styles.hostSub}>
+                Có thẻ cư dân thang máy, quẹt thẻ đưa bạn lên phòng trong 60 giây.
               </div>
             </div>
-          ))}
-          <p className="muted xs">Khung giờ khớp ca trực của Host: sáng 08:30–11:30, chiều 14:00–18:00. Mỗi Host chỉ nhận một lịch trong 45 phút để luôn đón bạn đúng giờ.</p>
+          </div>
+
+          {now > 0 && (
+            <SlotPicker hostId={host.id} now={now} value={slot} onChange={setSlot} />
+          )}
+
           <button type="button" className="btn btn-primary btn-lg btn-block" disabled={!slot} onClick={() => setStep("info")}>
             {chosen ? `Tiếp tục với ${fmtTime(chosen)}` : "Chọn một khung giờ"}
           </button>
@@ -191,72 +252,196 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
 
       {step === "info" && (
         <>
-          <button type="button" className={`btn btn-ghost btn-sm ${styles.back}`} onClick={() => setStep("slot")}>
-            <ChevronLeft size={16} /> Đổi giờ ({chosen ? fmtDateTime(chosen) : ""})
-          </button>
-          <label className="field">
-            <span className="label">Họ và tên</span>
-            <input className="input" autoComplete="name" autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name} />
-            {errors.name && <span className="field-error">{errors.name}</span>}
-          </label>
-          <label className="field">
-            <span className="label">Số điện thoại (nhận mã qua Zalo)</span>
-            <input className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="0912 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={!!errors.phone} />
-            {errors.phone && <span className="field-error">{errors.phone}</span>}
-          </label>
-          <div className={styles.two}>
-            <label className="field">
-              <span className="label">Số người đi xem</span>
-              <select className="select" value={persons} onChange={(e) => setPersons(Number(e.target.value))}>
-                {[1, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {n} người
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className={styles.slotRecapCard}>
+            <div className={styles.slotRecapLeft}>
+              <div className={styles.slotRecapIcon}>
+                <Calendar size={18} />
+              </div>
+              <div className={styles.slotRecapMeta}>
+                <div className={styles.slotRecapTime}>
+                  {chosen ? fmtDateTime(chosen) : "Chưa chọn giờ"}
+                </div>
+                <div className={styles.slotRecapLocation}>
+                  Sảnh toà {unit.building} · Host {host.name} đón
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.changeSlotBtn}
+              onClick={() => setStep("slot")}
+              title="Đổi khung giờ xem nhà"
+            >
+              <Pencil size={13} />
+              <span>Đổi giờ</span>
+            </button>
           </div>
-          <label className="field">
-            <span className="label">Ghi chú cho Host (không bắt buộc)</span>
-            <textarea className="textarea" rows={2} placeholder="Ví dụ: muốn xem kỹ ban công và máy giặt" value={note} onChange={(e) => setNote(e.target.value)} />
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>Tôi đồng ý để VinStay AI dùng số điện thoại này xác thực, đặt lịch và gửi tin Zalo theo Nghị định 13/2023/NĐ-CP.</span>
-          </label>
-          {errors.consent && <span className="field-error">{errors.consent}</span>}
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={sendOtp}>
-            <MessageCircleMore size={18} /> Gửi mã xác thực qua Zalo
-          </button>
+
+          <div className={styles.formBody}>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel} htmlFor="booking-name">
+                <User size={15} className={styles.labelIcon} />
+                <span>Họ và tên người xem</span>
+                <span className={styles.requiredStar}>*</span>
+              </label>
+              <input
+                id="booking-name"
+                className={`input ${styles.formInput} ${errors.name ? styles.inputError : ""}`}
+                autoComplete="name"
+                autoFocus
+                placeholder="Ví dụ: Nguyễn Văn An"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                }}
+                aria-invalid={!!errors.name}
+              />
+              {errors.name && <span className="field-error">{errors.name}</span>}
+            </div>
+
+            <div className={styles.formGroup}>
+              <div className={styles.labelRow}>
+                <label className={styles.formLabel} htmlFor="booking-phone">
+                  <Phone size={15} className={styles.labelIcon} />
+                  <span>Số điện thoại (nhận Zalo OTP)</span>
+                  <span className={styles.requiredStar}>*</span>
+                </label>
+                <span className={styles.zaloBadge}>Xác thực Zalo</span>
+              </div>
+              <input
+                id="booking-phone"
+                className={`input ${styles.formInput} ${errors.phone ? styles.inputError : ""}`}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="0912 345 678"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
+                aria-invalid={!!errors.phone}
+              />
+              {errors.phone ? (
+                <span className="field-error">{errors.phone}</span>
+              ) : (
+                <span className={styles.fieldHint}>
+                  Field Host sẽ liên hệ qua Zalo trước 10 phút để đón bạn tại sảnh.
+                </span>
+              )}
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>
+                <Users size={15} className={styles.labelIcon} />
+                <span>Số người đi xem cùng</span>
+              </label>
+              <div className={styles.segmentedGroup} role="radiogroup" aria-label="Số người đi xem">
+                {[1, 2, 3, 4].map((n) => {
+                  const label = n === 4 ? "4+ người" : `${n} người`;
+                  const isSelected = persons === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      className={`${styles.segmentedBtn} ${isSelected ? styles.segmentedBtnActive : ""}`}
+                      onClick={() => setPersons(n)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <div className={styles.labelRow}>
+                <label className={styles.formLabel} htmlFor="booking-note">
+                  <FileText size={15} className={styles.labelIcon} />
+                  <span>Ghi chú cho Host</span>
+                </label>
+                <span className={styles.optionalBadge}>Không bắt buộc</span>
+              </div>
+              <textarea
+                id="booking-note"
+                className={`textarea ${styles.formTextarea}`}
+                rows={2}
+                placeholder="Ví dụ: muốn xem kỹ ban công, hướng nắng, mang theo thú cưng..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+
+            <div className={`${styles.securityCard} ${errors.consent ? styles.securityCardError : ""}`}>
+              <div className={styles.securityHeader}>
+                <ShieldCheck size={18} className={styles.securityIcon} />
+                <span className={styles.securityTitle}>Bảo mật thông tin & Cam kết 0% spam môi giới</span>
+              </div>
+              <p className={styles.securityText}>
+                VinStay AI mã hóa số điện thoại, tuyệt đối không chuyển giao cho môi giới tự do làm phiền. SĐT chỉ dùng để Field Host nội khu gửi mã Zalo OTP và đón bạn tại sảnh toà nhà.
+              </p>
+              <label className={styles.consentLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.consentCheckbox}
+                  checked={consent}
+                  onChange={(e) => {
+                    setConsent(e.target.checked);
+                    if (errors.consent) setErrors((prev) => ({ ...prev, consent: undefined }));
+                  }}
+                />
+                <span className={styles.consentText}>
+                  Tôi đồng ý xác thực số điện thoại và nhận thông báo lịch xem nhà qua Zalo theo Nghị định 13/2023/NĐ-CP.
+                </span>
+              </label>
+              {errors.consent && <span className="field-error">{errors.consent}</span>}
+            </div>
+
+            <button type="button" className={`btn btn-primary btn-lg btn-block ${styles.submitBtn}`} onClick={sendOtp}>
+              <MessageCircleMore size={18} />
+              <span>Tiếp tục xác thực Zalo OTP</span>
+            </button>
+          </div>
         </>
       )}
 
       {step === "otp" && (
         <>
-          <button type="button" className={`btn btn-ghost btn-sm ${styles.back}`} onClick={() => setStep("info")}>
-            <ChevronLeft size={16} /> Sửa số điện thoại
+          <button type="button" className={styles.backBtn} onClick={() => setStep("info")}>
+            <ChevronLeft size={16} /> Quay lại sửa thông tin
           </button>
-          <div>
-            <h3 className={styles.otpTitle}>Nhập mã 4 số</h3>
-            <p className="muted">
-              VinStay AI vừa nhắn mã xác thực qua Zalo tới <b className="tnum">{fmtPhone(p)}</b>. Mã có hiệu lực 5 phút.
+
+          <div className={styles.otpHeader}>
+            <div className={styles.otpBadge}>
+              <MessageCircleMore size={14} />
+              <span>Zalo OTP</span>
+            </div>
+            <h3 className={styles.otpTitle}>Nhập mã xác thực 4 số</h3>
+            <p className={styles.otpSub}>
+              VinStay AI vừa nhắn mã xác thực qua Zalo tới <b className="tnum">{fmtPhone(p)}</b>. Mã có hiệu lực trong 5 phút.
             </p>
           </div>
-          <OtpInput value={code} onChange={onCode} error={otpError} autoFocus />
-          {otpError && <p className="field-error">Mã chưa đúng. Kiểm tra lại tin nhắn Zalo rồi nhập lại.</p>}
-          <button
-            type="button"
-            className="btn btn-quiet btn-sm"
-            disabled={cooldown > 0}
-            onClick={() => {
-              requestOtp(p, "booking");
-              setCode("");
-              setOtpError(false);
-              setCooldown(30);
-            }}
-          >
-            {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã"}
-          </button>
+
+          <div className={styles.otpInputWrap}>
+            <OtpInput value={code} onChange={onCode} error={otpError} autoFocus />
+            {otpError && <p className="field-error">Mã chưa đúng. Kiểm tra lại tin nhắn Zalo rồi nhập lại.</p>}
+            <button
+              type="button"
+              className={`btn btn-quiet btn-sm ${styles.resendBtn}`}
+              disabled={cooldown > 0}
+              onClick={() => {
+                requestOtp(p, "booking");
+                setCode("");
+                setOtpError(false);
+                setCooldown(30);
+              }}
+            >
+              {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã OTP qua Zalo"}
+            </button>
+          </div>
 
           {otpNotice && (
             <div className={styles.demoZalo}>

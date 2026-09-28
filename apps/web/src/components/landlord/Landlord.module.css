@@ -301,6 +301,57 @@
   font-size: 14px;
 }
 
+/* Hợp đồng uỷ quyền (trang tài khoản) */
+.contractList {
+  display: flex;
+  flex-direction: column;
+}
+.contractRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.contractRow:last-child {
+  border-bottom: 0;
+}
+
+/* Bộ lọc trạng thái căn (segmented) */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.segmented button {
+  flex: none;
+  white-space: nowrap;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.segmented button:hover {
+  color: var(--ink);
+}
+.segOn {
+  background: var(--lagoon) !important;
+  color: #fff !important;
+}
+
 /* Wizard ký gửi */
 .wizard {
   max-width: 760px;
