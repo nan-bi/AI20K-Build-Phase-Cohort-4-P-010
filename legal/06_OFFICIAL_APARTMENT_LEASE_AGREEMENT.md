@@ -12,14 +12,15 @@
 * Căn cứ Thỏa thuận đặt cọc giữ chỗ số VSA-HOLD-[MÃ CĂN] đã ký kết;
 * Căn cứ ý chí tự nguyện, bình đẳng và trung thực của Các Bên.
 
-Hôm nay, ngày [NGÀY] tháng [THÁNG] năm 2026, tại Khu đô thị Vinhomes Ocean Park, Gia Lâm, Hà Nội, Chúng tôi gồm có:
+Hôm nay, ngày [NGÀY] tháng [THÁNG] năm 2026, tại [ĐỊA ĐIỂM KÝ KẾT / ĐỊA CHỈ DỰ ÁN], Chúng tôi gồm có:
 
 ---
 
 ### BÊN CHO THUÊ (BÊN A — CHỦ NHÀ)
 * **Họ và tên:** [TÊN CHỦ NHÀ]
 * **Số CCCD:** [SỐ CCCD] • Ngày cấp: [NGÀY CẤP] • Nơi cấp: Cục CSQLHC về TTXH
-* **Địa chỉ thường trú:** [ĐỊA CHỈ NỘI THÀNH HÀ NỘI]
+* **Địa chỉ thường trú:** [ĐỊA CHỈ THƯỜNG TRÚ]
+
 * **Số điện thoại:** [SĐT CHỦ NHÀ]
 * **Số tài khoản nhận tiền thuê:** [SỐ TÀI KHOẢN] • Ngân hàng: [NGÂN HÀNG] • Chủ TK: [TÊN CHỦ TK]
 *(Đại diện ủy quyền quản lý thông tin qua Nền tảng VinStay AI theo Hợp đồng Ký gửi Quản lý Độc quyền)*
@@ -40,9 +41,10 @@ Hai Bên cùng thống nhất ký kết Hợp đồng Thuê Căn hộ Chung cư 
 
 ### ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG & MỤC ĐÍCH THUÊ
 1. **Thông tin căn hộ:**
-   * Căn hộ số: **[MÃ CĂN]** • Tầng: **[TẦNG]** • Tòa nhà: **[TÒA]** (Vd: S1.02 - Tầng 12 - Căn hộ 08).
-   * Thuộc dự án: Đại đô thị **Vinhomes Ocean Park**, xã Đa Tốn / thị trấn Trâu Quỳ, huyện Gia Lâm, TP. Hà Nội.
+   * Căn hộ số: **[MÃ CĂN]** • Tầng: **[TẦNG]** • Tòa nhà: **[TÒA]** (Ví dụ: Tòa S1.02 – Tầng 12 – Căn hộ 08).
+   * Địa điểm bất động sản / Thuộc dự án: Phân khu **[TÊN PHÂN KHU]**, Dự án **[TÊN DỰ ÁN]**, **[ĐỊA CHỈ DỰ ÁN]** (thông tin chi tiết phụ thuộc vào dữ liệu đầu vào của căn hộ do Bên A cung cấp trên hệ thống).
    * Diện tích thông thủy: **[...] m²** • Layout: **[Studio / 1PN+ / 2PN_1WC / 2PN_2WC / 3PN]**.
+
 2. **Mục đích thuê:** Căn hộ chỉ được sử dụng vào mục đích **để ở sinh hoạt gia đình/cá nhân**. Bên B tuyệt đối không được sử dụng vào mục đích kinh doanh trái phép, làm kho chứa hàng hóa độc hại/cháy nổ, hoặc cho thuê lại bên thứ ba khi chưa có sự đồng ý bằng văn bản của Bên A.
 
 ---
@@ -71,8 +73,9 @@ Hai Bên cùng thống nhất ký kết Hợp đồng Thuê Căn hộ Chung cư 
 
 1. **Tổng mức Tiền Cọc Bảo Đảm Tài Sản:** **[...] VNĐ** (Tương đương [01 hoặc 02] tháng tiền thuê cơ bản).
 2. **Chuyển đổi 100% từ tiền cọc giữ chỗ 24h:**
-   * Khoản tiền cọc giữ chỗ **2.000.000 VNĐ (Hai triệu đồng)** Bên B đã chuyển khoản qua VietQR theo Thỏa thuận số VSA-HOLD-[MÃ CĂN] được **chuyển đổi 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất**.
-   * **TUYỆT ĐỐI KHÔNG KHẤU TRỪ 2.000.000 VNĐ này vào tiền thuê nhà tháng đầu tiên.**
+   * Khoản tiền cọc giữ chỗ **[...] VNĐ** Bên B đã chuyển khoản qua VietQR theo Thỏa thuận số VSA-HOLD-[MÃ CĂN] (căn cứ theo mức thiết lập đầu vào của căn hộ trên hệ thống) được **chuyển đổi 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất**.
+   * **TUYỆT ĐỐI KHÔNG KHẤU TRỪ số tiền cọc giữ chỗ này vào tiền thuê nhà tháng đầu tiên.**
+
 3. **Thanh toán phần cọc còn lại:**
    * Bên B thanh toán nốt số tiền cọc bảo đảm còn thiếu là: **[...] VNĐ** đồng thời với tiền thuê tháng đầu tiên trước khi nhận bàn giao chìa khóa/mã mở cửa căn hộ.
 4. **Mục đích và hoàn trả tiền cọc:**
