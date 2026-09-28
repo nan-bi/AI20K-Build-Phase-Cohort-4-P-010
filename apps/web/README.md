@@ -16,7 +16,7 @@ pnpm install && pnpm dev   # http://localhost:3000
 
 ## Cách demo hoạt động
 
-- **Đăng nhập (mock)**: `/login` có tab Khách thuê/Chủ nhà; `/admin/login` có tab Sale (Field Host)/Quản trị (dùng lại đúng form `/host/login` cho tab Sale — `/host/login` vẫn là lối vào riêng, không đổi). Tài khoản thử trong `src/lib/mock/auth.ts` (`DEMO_CREDENTIALS`): `minhanh@vinstay.demo` / `hung.nguyen@vinstay.demo` / `0934556201` (mật khẩu `demo1234`, RFID `VS-0412`) / `ops@vinstay.vn` (`admin1234`). Phiên vẫn là cookie `vs_role`; `src/proxy.ts` chặn `/account`, `/landlord`, `/host`, `/admin` và đưa về đúng trang đăng nhập của cổng. Nút "Demo" ở góc màn hình đổi vai trò tức thì và đặt lại dữ liệu.
+- **Đăng nhập (mock)**: hai cổng duy nhất — `/login` có tab Khách thuê/Chủ nhà; `/admin/login` có tab Sale (Field Host)/Quản trị. `/host/login` chỉ chuyển hướng về `/admin/login` (tab Sale mặc định), không còn là lối vào riêng. Tài khoản thử trong `src/lib/mock/auth.ts` (`DEMO_CREDENTIALS`): `minhanh@vinstay.demo` / `hung.nguyen@vinstay.demo` / `0934556201` (mật khẩu `demo1234`, RFID `VS-0412`) / `ops@vinstay.vn` (`admin1234`). Phiên vẫn là cookie `vs_role`; `src/proxy.ts` chặn `/account`, `/landlord`, `/host`, `/admin` và đưa về đúng trang đăng nhập của cổng. Nút "Demo" ở góc màn hình đổi vai trò tức thì và đặt lại dữ liệu.
 - **Một store dùng chung** (`src/lib/mock/store.ts`, localStorage): khách đặt lịch → Host thấy ticket → duyệt → Zalo → đón khách →
   mở cửa (báo chủ nhà + Admin) → cọc VietQR → eKYC CCCD → ký cọc → ký hợp đồng, mọi vai trò cùng thấy một dòng sự kiện.
   Dữ liệu seed gắn với ngày hiện tại; qua ngày mới sẽ tự dựng lại.
@@ -30,11 +30,11 @@ pnpm install && pnpm dev   # http://localhost:3000
 | Cổng | Route |
 |---|---|
 | Công khai | `/` (chat AI), `/units`, `/units/[id]`, `/booking`, `/booking/[ref]` |
-| Xác thực | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/host/login`, `/admin/login` |
+| Xác thực | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/admin/login` (`/host/login` → chuyển hướng `/admin/login`) |
 | Khách thuê | `/account`, `/account/bookings`, `/account/saved`, `/account/contracts` |
-| Chủ nhà | `/landlord/dashboard`, `/landlord/units`, `/landlord/units/[id]`, `/landlord/consign`, `/landlord/finance`, `/landlord/exit-request`, `/landlord/account` |
-| Field Host | `/host/dispatch`, `/host/viewing/[id]`, `/host/earnings`, `/host/handbook`, `/host/account` (trang cổng nằm trong route group `app/host/(portal)/`) |
-| Admin | `/admin/dashboard`, `/admin/inventory`, `/admin/inventory/[id]`, `/admin/bookings`, `/admin/hosts`, `/admin/hosts/[id]`, `/admin/commission`, `/admin/settings` (route group `app/admin/(portal)/`) |
+| Chủ nhà | `/landlord/dashboard`, `/landlord/units`, `/landlord/units/[id]`, `/landlord/consign`, `/landlord/consignments/[id]`, `/landlord/finance`, `/landlord/exit-request`, `/landlord/account` |
+| Field Host | `/host/dispatch`, `/host/viewing/[id]`, `/host/inspections`, `/host/inspections/[id]`, `/host/earnings`, `/host/handbook`, `/host/account` (trang cổng nằm trong route group `app/host/(portal)/`) |
+| Admin | `/admin/dashboard`, `/admin/inventory`, `/admin/inventory/[id]`, `/admin/bookings`, `/admin/contracts`, `/admin/contracts/[key]`, `/admin/contracts/templates`, `/admin/contracts/templates/[id]`, `/admin/contracts/parties`, `/admin/contracts/parties/[key]`, `/admin/hosts`, `/admin/hosts/[id]`, `/admin/commission`, `/admin/settings` (route group `app/admin/(portal)/`) |
 
 Giao diện dùng hệ token "kinh doanh tối giản" trong `src/app/globals.css` và các primitive ở `src/components/ui/` (`AuthLayout`, `PageHeader`, `Section`, `DataTable`, `StatusBadge`, `EmptyState`, `Field`, `PasswordInput`, `KeyValue`).
 
