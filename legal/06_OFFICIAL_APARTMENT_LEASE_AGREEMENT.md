@@ -21,7 +21,8 @@ Hôm nay, ngày [NGÀY] tháng [THÁNG] năm 2026, tại [ĐỊA ĐIỂM KÝ K�
 * **Số CCCD:** [SỐ CCCD] • Ngày cấp: [NGÀY CẤP] • Nơi cấp: Cục CSQLHC về TTXH
 * **Địa chỉ thường trú:** [ĐỊA CHỈ THƯỜNG TRÚ]
 
-* **Số điện thoại:** [SĐT CHỦ NHÀ]
+* **Số điện thoại liên hệ:** **[ĐÃ ĐƯỢC MÃ HÓA BẢO MẬT]** *(Số điện thoại cá nhân thực tế của Bên A được hệ thống mã hóa bảo mật theo Nghị định 13/2023/NĐ-CP và cơ chế bảo vệ quyền riêng tư của Nền tảng, tuyệt đối không hiển thị cho Bên B; mọi thông báo, điều phối và hỗ trợ giữa Các Bên được thực hiện thông qua hệ thống tự động của VinStay AI).*
+
 * **Số tài khoản nhận tiền thuê:** [SỐ TÀI KHOẢN] • Ngân hàng: [NGÂN HÀNG] • Chủ TK: [TÊN CHỦ TK]
 *(Đại diện ủy quyền quản lý thông tin qua Nền tảng VinStay AI theo Hợp đồng Ký gửi Quản lý Độc quyền)*
 
