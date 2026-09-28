@@ -85,12 +85,65 @@ Hai Bên cùng thống nhất ký kết Hợp đồng Thuê Căn hộ Chung cư 
 
 ---
 
-### ĐIỀU 5: HỘ CHIẾU BÀN GIAO SỐ 10 HẠNG MỤC NỘI THẤT (DIGITAL PASSPORT)
-1. Hai Bên xác nhận Biên bản bàn giao đính kèm được lập thành **Hộ chiếu bàn giao số** có gắn mã định danh Timestamp + Geofence đối với 10 hạng mục:
-   *(1) Tường sơn, (2) Sàn gỗ, (3) Sofa & Bàn trà, (4) Điều hòa Daikin, (5) Hệ thống tủ bếp & hút mùi, (6) Thiết bị vệ sinh Kohler, (7) Tủ lạnh, (8) Giường & Nệm, (9) Rèm cửa, (10) Chỉ số công tơ điện nước lúc nhận nhà.*
-2. **Nguyên tắc phân định trách nhiệm hư hỏng:**
-   * **Hao mòn tự nhiên:** Các hao mòn cơ học theo thời gian do sử dụng bình thường (sơn phai màu tự nhiên, thiết bị hết niên hạn) do **Bên A chịu chi phí**.
-   * **Hư hỏng bất cẩn:** Làm rách sofa, xước sâu sàn gỗ, làm vỡ kính bếp từ, tắc bồn cầu do dị vật do **Bên B chịu 100% chi phí bồi thường/sửa chữa**.
+### ĐIỀU 5: HỒ SƠ BÀN GIAO SỐ HÓA & DANH MỤC TRANG THIẾT BỊ NỘI THẤT (DIGITAL PASSPORT)
+1. **Khởi tạo danh mục mở từ dữ liệu thực tế do Bên A bàn giao:**
+   * Danh mục trang thiết bị nội thất và hiện trạng bàn giao căn hộ **hoàn toàn ở dạng danh sách mở**, được hệ thống tự động đồng bộ và trích xuất trực tiếp từ dữ liệu khai báo thực tế của Bên A (Chủ nhà) khi tiếp nhận ký gửi căn hộ, kết hợp cùng kết quả kiểm định thực địa của nhân sự chuyên trách.
+   * Toàn bộ danh mục được số hóa thành **Hộ chiếu bàn giao số (Digital Handover Passport)** gắn liền với mã căn hộ và là bộ phận cấu thành không thể tách rời của Hợp đồng này.
+2. **Bảng kê chi tiết danh mục trang thiết bị nội thất bàn giao thực tế (Trích xuất từ dữ liệu đầu vào của căn hộ do Chủ nhà cung cấp):**
+
+| STT | Vị trí / Hạng mục tài sản | Nhãn hiệu / Model / Quy cách (Dữ liệu đầu vào) | Số lượng | Hiện trạng ghi nhận lúc bàn giao | Phân loại trách nhiệm | Đơn giá quy chuẩn thay thế / bồi thường (VNĐ) |
+| :---: | :---| :---| :---: | :---| :---: | :---|
+| **I** | **KHU VỰC PHÒNG KHÁCH & SINH HOẠT CHUNG** | | | | | |
+| 1 | Bộ ghế Sofa | [Nhãn hiệu / Chất liệu da hoặc vải nỉ] | [Số lượng] | Mới / Đã qua sử dụng (Ảnh chi tiết góc đệm, tay vịn) | Hỏng do lỗi dùng | Khắc phục theo hóa đơn xưởng / [Đơn giá bồi thường] |
+| 2 | Bàn trà phòng khách | [Mặt kính / Mặt đá / Gỗ] | [Số lượng] | Mặt bàn nguyên vẹn, không nứt vỡ, trầy xước | Hỏng do lỗi dùng | Thay thế mặt bàn / [Đơn giá bồi thường] |
+| 3 | Kệ Tivi phòng khách | [Gỗ công nghiệp / Gỗ tự nhiên] | [Số lượng] | Cánh tủ khít, ray trượt êm, bề mặt không bong tróc | Hỏng do lỗi dùng | Theo đơn giá niêm yết hệ thống |
+| 4 | Tivi thông minh & Smart Box | [Hãng, kích thước inch, Mã Serial] | [Số lượng] | Màn hình sáng nét, không kẻ sọc, có kết nối Wifi | Hỏng do lỗi dùng | Theo báo giá bảo hành chính hãng |
+| 5 | Rèm cửa phòng khách | [Rèm 2 lớp / Rèm cuốn / Rèm lá] | [Số lượng] | Kéo êm, thanh ray chắc chắn, vải sạch không rách | Hao mòn / Lỗi dùng | Giặt sấy ố bẩn hoặc bồi thường vải rèm |
+| **II** | **KHU VỰC BẾP & BÀN ĂN** | | | | | |
+| 6 | Bếp từ / Bếp hồng ngoại | [Hãng, Model bếp, Số vùng nấu] | [Số lượng] | Mặt kính nguyên vẹn; nhận nồi sau 15s; phím cảm ứng nhạy | Hỏng do lỗi dùng | Thay mặt kính hãng: [Đơn giá] / Mua mới nếu vỡ bo mạch |
+| 7 | Máy hút mùi nhà bếp | [Hãng, Model hút mùi] | [Số lượng] | Hoạt động tốt các cấp quạt hút; đèn chiếu sáng sáng; lưới sạch | Hỏng do lỗi dùng | Theo báo giá bảo hành chính hãng |
+| 8 | Tủ lạnh | [Hãng, Dung tích Lít, Mã Serial] | [Số lượng] | Ngăn đá đông đá tốt, ngăn mát lạnh sâu, khay kệ đủ không nứt | Hỏng do lỗi dùng | Theo báo giá trung tâm bảo hành hãng |
+| 9 | Hệ thống tủ bếp trên & dưới | [Chất liệu gỗ MDF lõi xanh / Phủ Melamine, Acrylic] | [Số lượng] | Cánh tủ đóng mở êm, đáy tủ khô ráo không ngấm nước rò rỉ | Hỏng do lỗi dùng | Sửa chữa cánh ray / Bồi thường tấm ngấm nước |
+| 10 | Mặt đá & Kính ốp bếp | [Đá nhân tạo / Đá tự nhiên / Kính cường lực] | [Số mét] | Không nứt nẻ, bề mặt sạch dầu mỡ, keo silicon kín mép | Hỏng do lỗi dùng | Thay thế tấm kính / mặt đá nứt vỡ |
+| 11 | Chậu rửa bát & Vòi rửa | [Inox 304 / Đá granite] | [Số bộ] | Vòi quay nhẹ không rỉ nước; xi-phông thoát nhanh, đáy khô | Hỏng do lỗi dùng | Thông tắc dị vật / Thay vòi gãy: [Đơn giá] |
+| 12 | Bộ bàn ghế ăn | [Bàn ăn ... ghế, vật liệu] | [Số bộ] | Mặt bàn phẳng đẹp; ghế chắc chắn, đệm ghế sạch sẽ | Hỏng do lỗi dùng | Sửa chữa / Thay thế theo đơn giá niêm yết |
+| **III**| **KHU VỰC PHÒNG NGỦ (MASTER & PHÒNG PHỤ)** | | | | | |
+| 13 | Giường ngủ & Táp đầu giường | [Kích thước m2, chất liệu gỗ] | [Số bộ] | Khung giường chắc chắn, giát giường phẳng, không có tiếng kêu | Hỏng do lỗi dùng | Theo đơn giá niêm yết xưởng mộc |
+| 14 | Đệm nệm & Tấm bảo vệ đệm | [Hãng, độ dày cm, loại đệm cao su/lò xo/bông ép] | [Số tấm] | Đệm phẳng phiu, đàn hồi tốt; ga và nệm sạch 100%, không ố vàng | Hỏng do lỗi dùng | Phí giặt ố hóa chất hoặc đền bù giá trị nệm |
+| 15 | Tủ quần áo | [Tủ ... cánh mở / Cánh lùa, chất liệu] | [Số lượng] | Cánh kéo trượt nhẹ, bản lề chắc, suốt treo quần áo thẳng | Hỏng do lỗi dùng | Sửa chữa bản lề / Thay cánh cong vênh |
+| 16 | Rèm chắn sáng phòng ngủ | [Rèm vải cản sáng 100% / Rèm cầu vồng] | [Số bộ] | Cơ cấu kéo trơn tru, vải rèm lành lặn | Hao mòn / Lỗi dùng | Theo đơn giá niêm yết hệ thống |
+| **IV** | **KHU VỰC PHÒNG TẮM & VỆ SINH (WC)** | | | | | |
+| 17 | Bình nước nóng lạnh | [Hãng, Dung tích Lít, Rơ-le ELCB] | [Số bình] | Nước nóng đạt chuẩn sau 10 phút; ELCB ngắt an toàn; không rò nước | Hỏng do lỗi dùng | Theo báo giá bảo hành chính hãng |
+| 18 | Bồn cầu & Vòi xịt vệ sinh | [Hãng sứ vệ sinh, nắp rơi êm] | [Số bộ] | Men sứ sáng không nứt; xả nước mạnh không rỉ ngầm van phao; dây xịt mềm | Hỏng do lỗi dùng | Thay vòi xịt: [Đơn giá]; Thông tắc dị vật bồn cầu: [Đơn giá] |
+| 19 | Chậu Lavabo & Vòi rửa mặt | [Hãng thiết bị vệ sinh] | [Số bộ] | Men sứ nguyên vẹn; vòi cấp nước áp lực tốt; xi-phông thoát thông suốt | Hỏng do lỗi dùng | Thay vòi / Thay ống xả theo giá niêm yết |
+| 20 | Vách kính tắm đứng & Bộ sen cây | [Kính cường lực, Bộ sen tắm inox] | [Số bộ] | Kính trong suốt không xước/mẻ mép; cánh đóng êm; sen cây phun đều | Hỏng do lỗi dùng | Thay vách kính vỡ / Thay bát sen tắm theo giá hãng |
+| **V**  | **KHU VỰC BAN CÔNG / LOGIA & GIẶT PHƠI** | | | | | |
+| 21 | Máy giặt / Máy sấy quần áo | [Hãng, Khối lượng giặt kg, Mã Serial] | [Số máy] | Giặt vắt êm, không rung giật lắc mạnh; ống cấp và thoát nước thông suốt | Hỏng do lỗi dùng | Theo báo giá trung tâm bảo hành hãng |
+| 22 | Giàn phơi thông minh | [Giàn phơi gắn trần tay quay / Điện tử] | [Số bộ] | Cáp tời trơn, thanh phơi nâng hạ nhẹ nhàng, đủ móc treo | Hao mòn / Lỗi dùng | Thay dây cáp đứt / Thay tay quay tời |
+| **VI** | **HỆ THỐNG ĐIỀU HÒA KHÔNG KHÍ TOÀN CĂN** | | | | | |
+| 23 | Điều hòa không khí Phòng khách | [Hãng, Công suất BTU, Inverter] | [Số máy] | Phả hơi lạnh ổn định sau 5 phút bật; không kêu rè; không chảy nước máng | Hao mòn / Lỗi dùng | Vệ sinh bơm gas định kỳ (Chủ nhà); Lỗi người dùng (Khách chịu) |
+| 24 | Điều hòa không khí Phòng ngủ | [Hãng, Công suất BTU, Inverter] | [Số máy] | Làm lạnh sâu, cánh vẫy tự động tốt; dàn nóng chạy êm | Hao mòn / Lỗi dùng | Vệ sinh bơm gas định kỳ (Chủ nhà); Lỗi người dùng (Khách chịu) |
+| **VII**| **KẾT CẤU HOÀN THIỆN & HỆ THỐNG CHIẾU SÁNG**| | | | | |
+| 25 | Sàn gỗ / Gạch lát nền | [Gỗ công nghiệp dày ...mm / Gạch men] | [Diện tích m2]| Bề mặt phẳng, không bong tróc, không có vết cào sâu hay ngấm nước phồng rộp | Hỏng do lỗi dùng | Thay thế sàn ngấm nước: [Đơn giá/m2] |
+| 26 | Nước sơn tường & Trần nhà | [Màu sơn, loại sơn] | [Toàn bộ căn] | Sơn đồng màu, không bong tróc mảng lớn, không bị vẽ bẩn hay đục lỗ trái phép | Hao mòn / Lỗi dùng | Sơn lại mảng tường vẽ bẩn/đục lỗ bừa bãi: [Đơn vị/m2] |
+| 27 | Hệ thống đèn chiếu sáng & Công tắc ổ cắm | [Đèn LED âm trần, Hãng công tắc] | [Toàn bộ căn] | Đèn sáng 100%, mặt hạt công tắc và ổ cắm chắc chắn an toàn | Hao mòn / Lỗi dùng | Thay bóng đèn cháy sau 6 tháng: theo giá niêm yết |
+| **VIII**| **THIẾT BỊ KHÓA, THẺ TỪ & ĐIỀU KHIỂN TỪ XA (PHỤ KIỆN BÀN GIAO)** | | | | | |
+| 28 | Khóa cửa chính ra vào căn hộ | [Khóa điện tử vân tay/mã số hoặc Khóa cơ] | [01 bộ] | Đóng mở mượt mà; bàn phím cảm ứng nhạy; chốt khóa an toàn | Hao mòn / Lỗi dùng | Thay pin khóa định kỳ (Chủ nhà); Làm hỏng ổ khóa (Khách chịu) |
+| 29 | Thẻ cư dân thang máy | [Mã số in trên từng thẻ cư dân] | [Số thẻ] | Quẹt thang máy bình thường các tầng được cấp phép | Hỏng do lỗi dùng | Cấp lại thẻ mất/gãy theo đơn giá BQL Vinhomes quy định: [Đơn giá/thẻ] |
+| 30 | Điều khiển điều hòa nhiệt độ (Remote) | [Điều khiển chính hãng theo từng máy] | [Số chiếc]| Bấm nhạy, màn hình hiển thị số rõ ràng, nắp pin đủ | Hỏng do lỗi dùng | Làm mất hoặc hỏng vỡ remote: [Đơn giá niêm yết/chiếc] |
+| 31 | Điều khiển Tivi (Remote Smart TV) | [Điều khiển thông minh giọng nói] | [Số chiếc]| Nhận giọng nói tốt, phím bấm êm, không nứt vỏ | Hỏng do lỗi dùng | Làm mất hoặc hỏng vỡ remote TV: [Đơn giá niêm yết/chiếc] |
+| 32 | Chìa khóa cơ các loại (Cửa chính/phòng) | [Chìa khóa cơ dự phòng] | [Số chìa]| Đút vặn ổ nhẹ nhàng | Hỏng do lỗi dùng | Đánh lại chìa mất: [Đơn giá niêm yết/chìa] |
+
+3. **Quy chuẩn kiểm tra công năng động & Khung giờ ân hạn 24–48 giờ:**
+   * **Kiểm tra công năng tại chỗ lúc nhận phòng:** Bắt buộc kích hoạt chạy thử thực tế: Máy điều hòa (phả hơi lạnh ổn định sau 5 phút, không rung lắc/chảy nước); Bếp từ (nhận nồi nấu sau 15 giây); Bình nóng lạnh (làm nóng nước sau 10 phút, kiểm tra rơ-le chống giật ELCB); Áp lực hệ thống cấp thoát nước (vòi lavabo, sen tắm, van phao bồn cầu, đáy tủ bếp không rò rỉ).
+   * **Khung giờ ân hạn 24–48 giờ:** Khách thuê có từ 24 đến 48 giờ sau thời điểm ký nhận nhà để tự kiểm tra sâu các thiết bị có chu kỳ vận hành dài (như máy giặt rung lắc khi vắt tải nặng, đường ống xả ngầm). Trong thời gian này, Bên B được quyền mở ứng dụng chụp ảnh báo cáo bổ sung một chạm; sau 48 giờ, cổng ghi nhận lỗi cũ sẽ tự động khóa lại để đảm bảo công bằng cho Bên A.
+
+4. **Nguyên tắc phân định trách nhiệm chi phí và đối soát khép kín đầu - cuối:**
+   * **Hao mòn tự nhiên (Bên A chịu 100% chi phí):** Nước sơn ngả màu hoặc ố nhẹ theo thời gian; máy điều hòa thiếu gas sau chu kỳ 6 tháng vận hành; đệm mút lún nhẹ theo cơ học; gioăng cao su, bản lề cửa hao mòn thông thường.
+   * **Hư hỏng do lỗi người dùng (Bên B bồi thường 100%):** Mặt kính bếp từ nứt vỡ; đệm sofa/nệm giường rách, thủng hoặc ố loang hóa chất; tắc nghẽn đường ống do dị vật; trầy xước sâu bong tróc sàn gỗ do kéo lê vật sắc nhọn hoặc ngấm nước phồng rộp.
+   * **Đối soát song song khi trả phòng (Mirroring Check-out):** Cấu trúc dữ liệu lúc trả nhà kế thừa chính xác 100% cấu trúc danh mục lúc nhận nhà. Hệ thống tự động đối chiếu song song ảnh nhận (bên trái) và ảnh trả (bên phải) cùng góc chụp để tự động tính toán quyết toán và giải tỏa hoàn cọc trong 24 giờ.
+
+
 
 ---
 
