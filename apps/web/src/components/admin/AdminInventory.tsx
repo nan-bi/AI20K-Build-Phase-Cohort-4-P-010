@@ -13,27 +13,22 @@ import { approveConsignment, rejectConsignment } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { fmtDate, vnd } from "@/lib/mock/format";
-import { unitStatus } from "@/lib/mock/selectors";
+import { unitDisplayStatus } from "@/lib/mock/selectors";
 import { inspectionSummary, isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { useMock } from "@/lib/mock/store";
 import type { Consignment } from "@/lib/mock/types";
-import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, hostById, hostForUnit, landlordById, unitAddress, unitById, zoneById, type Unit, type UnitStatus } from "@/lib/mock/units";
+import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, hostById, hostForUnit, landlordById, unitAddress, unitById, zoneById, type Unit, type UnitDisplayStatus } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
 import styles from "./Admin.module.css";
 
 type Tab = "units" | "requests" | "exit";
-const ST: Record<UnitStatus, { label: string; badge: string }> = {
-  available: { label: "Còn trống", badge: "badge-kelp" },
-  holding: { label: "Giữ chỗ 24h", badge: "badge-amber-soft" },
-  rented: { label: "Đã cho thuê", badge: "badge-ink" },
-};
 
 export function AdminInventory({ initialTab }: { initialTab: Tab }) {
   const state = useMock();
   const now = useNow(60_000);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [zone, setZone] = useState("all");
-  const [status, setStatus] = useState<UnitStatus | "all">("all");
+  const [status, setStatus] = useState<UnitDisplayStatus | "all">("all");
   const [lock, setLock] = useState<"all" | "smart" | "physical">("all");
   const [rejecting, setRejecting] = useState<Consignment | null>(null);
   const [note, setNote] = useState("Ảnh hiện trạng chưa rõ, cần bổ sung");
@@ -45,7 +40,7 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
   const inspecting = state.consignments.filter((c) => c.status === "awaiting_host" || c.status === "inspecting");
   const overdueCount = inspecting.filter((c) => isInspectOverdue(c, now)).length;
   const exiting = Object.values(state.mandates).filter((m) => m.status === "exiting");
-  const units = UNITS.filter((u) => (zone === "all" || u.zoneId === zone) && (status === "all" || unitStatus(state, u) === status) && (lock === "all" || u.lock === lock));
+  const units = UNITS.filter((u) => (zone === "all" || u.zoneId === zone) && (status === "all" || unitDisplayStatus(state, u) === status) && (lock === "all" || u.lock === lock));
 
   return (
     <div className={styles.page}>
@@ -74,10 +69,11 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
                 </option>
               ))}
             </select>
-            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as UnitStatus | "all")} aria-label="Lọc theo trạng thái">
+            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as UnitDisplayStatus | "all")} aria-label="Lọc theo trạng thái">
               <option value="all">Mọi trạng thái</option>
               <option value="available">Còn trống</option>
-              <option value="holding">Giữ chỗ 24h</option>
+              <option value="viewing">Có khách xem</option>
+              <option value="holding">Đang giữ căn</option>
               <option value="rented">Đã cho thuê</option>
             </select>
             <select className="select" value={lock} onChange={(e) => setLock(e.target.value as "all" | "smart" | "physical")} aria-label="Lọc theo loại khoá">
@@ -121,11 +117,19 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
                   key: "status",
                   header: "Trạng thái",
                   render: (u) => {
-                    const s = unitStatus(state, u);
+                    const s = unitDisplayStatus(state, u);
                     const m = state.mandates[u.id];
+                    let badgeEl = <span className="badge badge-kelp">Còn trống</span>;
+                    if (s === "viewing") {
+                      badgeEl = <span className="badge badge-amber-soft">Có khách xem</span>;
+                    } else if (s === "holding") {
+                      badgeEl = <span className="badge badge-amber-soft">Đang giữ căn</span>;
+                    } else if (s === "rented") {
+                      badgeEl = <span className="badge badge-ink">Đã cho thuê</span>;
+                    }
                     return (
                       <>
-                        <span className={`badge ${ST[s].badge}`}>{ST[s].label}</span>
+                        {badgeEl}
                         {m?.status === "exiting" && (
                           <span className="badge badge-coral-soft" style={{ marginLeft: 6 }}>
                             <Timer size={12} /> Đang thoát

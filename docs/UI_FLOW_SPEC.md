@@ -1,7 +1,7 @@
 # VINSTAY AI — BẢN ĐẶC TẢ LUỒNG GIAO DIỆN & NGHIỆP VỤ TỔNG THỂ (MASTER UI FLOW SPEC)
 
 > **MỤC ĐÍCH TÀI LIỆU:**  
-> Bản đặc tả này đóng vai trò "bản đồ hành trình trực quan" cho toàn bộ đội ngũ phát triển kỹ thuật (Frontend, Backend, AI Engineer) và vận hành thực địa. Tài liệu vạch rõ 4 luồng người dùng độc lập nhưng đan cài mật thiết vào nhau: **(1) Khách thuê**, **(2) Nguồn căn Chủ nhà**, **(3) Field Host nội khu**, và **(4) Quản trị viên Nền tảng**, bám sát 100% các nguyên tắc cốt lõi: **Minh bạch All-in Cost**, **Hình ảnh thật có timestamp**, **Khớp căn 30 giây**, **Chủ nhà vận hành 0 công sức** và **Mô hình Asset-Light**.
+> Bản đặc tả này đóng vai trò "bản đồ hành trình trực quan" cho toàn bộ đội ngũ phát triển kỹ thuật (Frontend, Backend, AI Engineer) và vận hành thực địa. Tài liệu vạch rõ 4 luồng người dùng độc lập nhưng đan cài mật thiết vào nhau: **(1) Khách thuê**, **(2) Nguồn căn Chủ nhà**, **(3) Field Host nội khu** (phân định rõ vai **Sale** và **Thẩm định viên - Inspector**), và **(4) Quản trị viên Nền tảng**, bám sát 100% các nguyên tắc cốt lõi: **Minh bạch All-in Cost**, **Hình ảnh thật có timestamp**, **Khớp căn 30 giây**, **Chủ nhà vận hành 0 công sức** và **Mô hình Asset-Light**.
 
 ---
 
@@ -12,96 +12,98 @@ sequenceDiagram
     autonumber
     actor Landlord as 🏠 Chủ Nhà
     actor Tenant as 👤 Khách Thuê
-    actor Host as 🚶 Field Host
+    actor HostSale as 🚶 Field Host (Sale)
+    actor HostInsp as 🔍 Field Host (Inspector)
     participant Web as 💻 VinStay Web/App
     participant AI as 🧠 AI Engine
-    participant DB as 🗄️ Supabase/DB
+    participant DB as 🗄️ Store/DB
     actor Admin as ⚙️ Admin Portal
 
-    %% GIAI ĐOẠN 1: NGUỒN CĂN
-    Note over Landlord, Admin: GIAI ĐOẠN 1: KÝ GỬI ĐỘC QUYỀN (CHỦ NHÀ 0 CÔNG SỨC)
-    Landlord->>Web: Đăng ký Ký gửi Độc quyền [Tòa-Tầng-Căn] + Cung cấp mã cửa
-    Web->>DB: Lưu rổ hàng (mã hóa door_access_code)
-    Admin->>Web: Duyệt căn, gắn nhãn Verified 100%
-    Note over Landlord: Chủ nhà ở nhà 100%, không phải đi lại
+    %% GIAI ĐOẠN 1: NGUỒN CĂN & THẨM ĐỊNH
+    Note over Landlord, Admin: GIAI ĐOẠN 1: KÝ GỬI 3 BƯỚC & THẨM ĐỊNH 32 HẠNG MỤC
+    Landlord->>Web: Form ký gửi 3 bước: [Tòa-Căn] → [Giá & Cam kết 15 ngày] → [Lịch thẩm định]
+    Web->>DB: Tạo hồ sơ ký gửi (Trạng thái: Chờ thẩm định)
+    Admin->>HostInsp: Phân công Inspector tiếp nhận ticket thẩm định
+    HostInsp->>Web: Thẩm định thực địa 32 hạng mục (5 nhóm Điều 5) + Ký biên bản số
+    Admin->>Web: Phê duyệt kết quả thẩm định → Căn chuyển sang 'available' (Verified 100%)
 
-    %% GIAI ĐOẠN 2: KHÁCH TÌM PHÒNG
-    Note over Tenant, AI: GIAI ĐOẠN 2: TÌM CĂN & KHỚP NHU CẦU 30 GIÂY
-    Tenant->>Web: Nhập Ngân sách trần + Số người ở
-    Web->>AI: Gọi AI Matchmaker (Lọc hard All-in Cost <= Budget)
-    AI-->>Web: Trả Top 3 căn tối ưu + Badge "Căn hời phân khu" (30 giây)
-    Tenant->>Web: Đặt lịch xem phòng + Xác thực SĐT qua OTP
+    %% GIAI ĐOẠN 2: KHÁCH TÌM PHÒNG & ĐẶT LỊCH
+    Note over Tenant, AI: GIAI ĐOẠN 2: TÌM CĂN & ĐẶT LỊCH 1 MÀN HÌNH
+    Tenant->>Web: Nhập Ngân sách trần + Số người ở (All-in Cost)
+    Web->>AI: Khớp nhu cầu Top 3 căn tối ưu + Badge "Căn hời phân khu" (30 giây)
+    Tenant->>Web: Đặt lịch xem phòng (Chọn ngày, ca trực, Họ tên khách đặt, SĐT, OTP)
+    Web->>Tenant: Xác nhận lịch hẹn kèm 3 lưu ý (Đến đúng giờ, Giấy tờ tùy thân, Hủy trước 2h)
 
-    %% GIAI ĐOẠN 3: ĐIỀU PHỐI FIELD HOST
-    Note over Host, Web: GIAI ĐOẠN 3: ĐIỀU PHỐI THỰC ĐỊA & NHẮC HẸN T-10M
-    Web->>Host: Bắn ticket xem phòng qua Mobile App (SLA <= 3 phút)
-    Host-->>Web: Nhận ca trực
-    Note over Tenant, Host: Mốc T-10 phút trước giờ hẹn
-    Web->>Host: Push notification nhắc di chuyển xuống sảnh
-    Web->>Tenant: Zalo Bot gửi tin nhắc hẹn kèm nút 1-chạm [Tôi đã có mặt tại sảnh]
-    Tenant->>Web: Bấm [Tôi đã có mặt tại sảnh]
-    Host->>Tenant: Đón tại sảnh, quẹt thẻ cư dân thang máy đưa lên phòng (60 giây)
+    %% GIAI ĐOẠN 3: ĐIỀU PHỐI HOST & TIẾP ĐÓN SẢNH
+    Note over HostSale, Web: GIAI ĐOẠN 3: ĐIỀU PHỐI THỰC ĐỊA & NHẮC HẸN T-10M
+    Web->>HostSale: Gán ticket xem phòng (Auto-Dispatch SLA <= 3 phút)
+    HostSale-->>Web: Nhận ca trực xem phòng
+    Note over Tenant, HostSale: Mốc T-10 phút trước giờ hẹn
+    Web->>HostSale: Nhắc di chuyển xuống sảnh tòa nhà
+    Tenant->>Web: Bấm nút 1-chạm [Tôi đã có mặt tại sảnh] trên trang tra cứu
+    HostSale->>Web: Bấm [Bắt đầu dẫn khách] trên RAIL tiến trình
+    HostSale->>Tenant: Đón tại sảnh, quẹt thẻ cư dân thang máy đưa lên tầng (60 giây)
 
-    %% GIAI ĐOẠN 4: MỞ CỬA & XEM PHÒNG
-    Note over Host, Landlord: GIAI ĐOẠN 4: CẤP MÃ CỬA TỨC THÌ QUA APP
-    Host->>Web: Đứng trước cửa phòng, bấm [Xác nhận xem phòng]
-    Web->>Host: Cấp mã khóa cửa điện tử hiển thị trên màn hình
-    Web->>Landlord: Zalo Bot báo tin: "Căn hộ của bạn đang được mở cửa dẫn khách"
-    Host->>Tenant: Mở cửa dẫn khách khảo sát hiện trường
+    %% GIAI ĐOẠN 4: MỞ CỬA & KHẢO SÁT HIỆN TRƯỜNG
+    Note over HostSale, Landlord: GIAI ĐOẠN 4: CẤP MÃ CỬA TỨC THÌ (CHỦ NHÀ Ở NHÀ 100%)
+    HostSale->>Web: Đến cửa phòng, bấm lấy mã mở khóa điện tử (hoặc xem hướng dẫn chìa cơ)
+    Web->>HostSale: Cấp mã số cửa (tự ẩn sau khi mở), đồng bộ ghi nhận nhật ký xem
+    Web->>Landlord: Báo tin: "Căn hộ của bạn đang có Host dẫn khách xem thực tế"
+    HostSale->>Tenant: Hướng dẫn khảo sát chi tiết không gian nội thất
 
-    %% GIAI ĐOẠN 5: CHỐT CỌC & KÝ SỐ
-    Note over Tenant, DB: GIAI ĐOẠN 5: CHỐT CỌC GIỮ CHỖ 24H & OCR CCCD
-    Tenant->>Host: Đồng ý thuê căn hộ
-    Host->>Web: Bấm [Khách chốt]
-    Web-->>Tenant: Sinh mã VietQR động cọc 2.000.000 VNĐ
-    Tenant->>Web: Quét VietQR thanh toán
-    Web->>DB: Webhook gạch nợ -> Chuyển căn sang 'holding' (khóa 24h)
-    Web->>Landlord: Báo tin nhận cọc thành công
-    Tenant->>Web: Tải ảnh CCCD 2 mặt
-    Web->>AI: AI Vision OCR bóc tách thông tin (5 giây)
-    Web-->>Tenant: Sinh Thỏa thuận cọc số -> Khách ký qua OTP
+    %% GIAI ĐOẠN 5: CHỐT CĂN & CỌC GIỮ CHỖ 7 NGÀY
+    Note over HostSale, Tenant: GIAI ĐOẠN 5: CỌC GIỮ CĂN 7 NGÀY (TRÊN THIẾT BỊ KHÁCH)
+    Tenant->>HostSale: Đồng ý thuê căn hộ
+    HostSale->>Web: Bấm [Khách cọc căn này] → Chuyển sang màn Chờ cọc (TUYỆT ĐỐI KHÔNG HIỆN VIETQR TRÊN MÁY HOST)
+    Web->>Tenant: Trang tra cứu của khách nảy bảng điều khoản cọc + VietQR động 2.000.000 VNĐ
+    Tenant->>Web: Quét VietQR thanh toán 2.000.000 VNĐ
+    Web->>DB: Gạch nợ tự động → Khóa căn 'holding' (Giữ chỗ 7 ngày), kích hoạt Countdown 7 ngày
+    Web->>Landlord: Báo tin nhận cọc 2.000.000 VNĐ giữ chỗ 7 ngày
 
-    %% GIAI ĐOẠN 6: BÀN GIAO & VẬN HÀNH TINH GỌN
-    Note over Tenant, Host: GIAI ĐOẠN 6: BÀN GIAO SỐ & DANH BẠ THỢ NGOÀI
-    Host->>Web: Chụp ảnh kiểm kê 10 hạng mục lập Hộ chiếu bàn giao số
-    Host-->>Tenant: Bàn giao Hộ chiếu số + Danh bạ thợ kỹ thuật ngoài uy tín
-    Admin->>Host: Tự động ghi nhận thù lao dẫn + hoa hồng chốt vào ví
+    %% GIAI ĐOẠN 6: KÝ THỎA THUẬN CỌC & HOÀN TẤT HỢP ĐỒNG THUÊ
+    Note over Tenant, HostSale: GIAI ĐOẠN 6: KÝ CỌC OTP, eKYC CCCD & KÝ HĐ THUÊ
+    Tenant->>Web: Điền thông tin, vẽ chữ ký tay, ký Thỏa thuận cọc số qua OTP Zalo
+    Web->>Tenant: Xuất Thỏa thuận cọc đã ký kèm nút in PDF / tải về
+    HostSale->>Web: Màn hình Host đồng bộ trạng thái "Đã ký cọc", chuyển sang theo dõi HĐ
+    Tenant->>Web: Thực hiện eKYC (chụp CCCD 2 mặt) & ký Hợp đồng thuê chính thức
+    Web->>DB: Căn chuyển sang 'rented'; cọc 2 triệu chuyển 100% thành Tiền Cọc Bảo Đảm Tài Sản
+    Admin->>HostSale: Tự động ghi nhận thù lao dẫn + hoa hồng chốt cọc vào ví Host
 ```
 
 ---
 
 ## 2. CHI TIẾT LUỒNG 1: KHÁCH THUÊ (TENANT UI JOURNEY)
 
-Khách thuê đi qua chuỗi **6 màn hình chuẩn**, tập trung triệt để vào trải nghiệm **Minh bạch chi phí**, **0 tin ảo**, và **không ma sát khi xem phòng**:
+Khách thuê đi qua chuỗi **6 màn hình chuẩn**, bảo đảm trải nghiệm **Minh bạch All-in Cost**, **0 tin ảo**, **tự chủ hoàn toàn trên thiết bị cá nhân**:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                               LUỒNG GIAO DIỆN KHÁCH THUÊ                                │
-│                                                                                         │
-│ [MÀN 1: Web Catalog] ──► [MÀN 2: AI Matchmaker] ──► [MÀN 3: Chi tiết & Đặt lịch OTP]   │
-│       ▲                                                         │                       │
-│       │                                                         ▼                       │
-│ [MÀN 6: OCR CCCD & Ký Cọc] ◄── [MÀN 5: VietQR Cọc 2M] ◄── [MÀN 4: Zalo T-10m & Đón Sảnh]│
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   LUỒNG GIAO DIỆN KHÁCH THUÊ                                  │
+│                                                                                               │
+│ [MÀN 1: Web Catalog] ──► [MÀN 2: AI Matchmaker] ──► [MÀN 3: Chi Tiết & Đặt Lịch 1 Màn Hình]   │
+│       ▲                                                                   │                   │
+│       │                                                                   ▼                   │
+│ [MÀN 6: eKYC & Ký HĐ Thuê] ◄── [MÀN 5: Cọc 7 Ngày & Ký Cọc] ◄── [MÀN 4: Check-in Sảnh T-10m] │
+└───────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Màn 1: Web Catalog & Bộ Lọc All-in Cost Thời Gian Thực (`/`)
-* **Mục tiêu:** Giúp khách nhìn thấy ngay tổng chi phí thực tế hàng tháng, loại trừ 100% nguy cơ sốc chi phí ẩn.
+* **Mục tiêu:** Giúp khách nhìn thấy ngay tổng chi phí thực tế hàng tháng trọn gói, loại trừ 100% nguy cơ sốc chi phí ẩn khi dọn vào ở.
 * **Thành phần giao diện:**
-  * **Header:** Logo VinStay AI, hotline khẩn cấp nội khu, nút chọn phân khu (mặc định: *The Sapphire 1 & 2*).
+  * **Header:** Logo VinStay AI, hotline khẩn cấp nội khu, nút chọn phân khu (*The Sapphire 1 & 2*).
   * **Thanh tìm kiếm All-in Cost:**
     * Dropdown Loại căn: `Studio`, `1PN+`, `2PN_1WC`, `2PN_2WC`, `3PN`.
     * Slider Ngân sách trần: từ 5.000.000 đ $\rightarrow$ 25.000.000 đ/tháng.
-    * Bộ chọn thông số phụ: Số xe máy (mặc định 1 xe: 150k), Ô tô (1.250k), Số nhân khẩu (dự toán điện nước 300k/người).
+    * Bộ chọn thông số phụ: Số xe máy (150k/xe), Ô tô (1.250k/xe), Số nhân khẩu (dự toán điện nước 300k/người).
   * **Thẻ căn hộ (Unit Card):**
     * Ảnh thực tế góc rộng có dấu **Watermark số & Timestamp** kiểm định.
     * Mã định danh chuẩn mực: `[Tòa] - [Tầng] - [Mã căn]` (vd: `S1.02 - Tầng 12 - Căn 08`).
-    * **Hộp bóc tách All-in Cost:** Giá thuê cơ bản + Phí quản lý (9.5k/m2) + Phí xe + Dự toán điện nước.
-    * **Badge động:** Nhãn `[🔥 Căn Hời Phân Khu - Rẻ hơn 12%]` (nếu giá $\le 90\%$ giá TB tòa) hoặc `[🔥 HOT - 4 người đang xem]`.
+    * **Hộp bóc tách All-in Cost:** Giá thuê cơ bản + Phí quản lý Vinhomes (9.5k/m2) + Phí xe + Dự toán điện nước.
+    * **Badge động:** Nhãn `[🔥 Căn Hời Phân Khu - Rẻ hơn 12%]` (nếu giá $\le 90\%$ giá TB tòa) hoặc `[🔥 HOT - Đang có khách quan tâm]`.
   * **Nút bấm hành động (CTA):** `[Xem Chi Tiết]` hoặc `[Chat AI Matchmaker]`.
 
 ### Màn 2: Hộp Thoại AI Matchmaker Khớp Nhu Cầu 30 Giây (`/matchmaker`)
-* **Mục tiêu:** Thay thế 7–14 ngày lướt tin rác bằng 30 giây khớp đúng Top 3 căn hộ tối ưu nhất.
+* **Mục tiêu:** Thay thế 7–14 ngày lướt tin rác mạng xã hội bằng 30 giây khớp đúng Top 3 căn hộ tối ưu nhất theo All-in Cost.
 * **Thành phần giao diện:**
   * Khung chat tương tác thông minh với 4 câu hỏi định hình nhanh (Quick Prompts):
     1. Ngân sách All-in tối đa bạn muốn chi trả mỗi tháng là bao nhiêu?
@@ -109,266 +111,234 @@ Khách thuê đi qua chuỗi **6 màn hình chuẩn**, tập trung triệt để
     3. Bạn dự kiến ngày nào dọn vào ở?
     4. Bạn có gửi ô tô hay yêu cầu đặc biệt về tầng/hướng không?
   * **Khu vực kết quả (Sau $\le 30$ giây):**
-    * Thông báo phân tích: *"VinStay AI đã quét 45 căn hộ khả dụng tại Sapphire 1 & 2 và lọc ra 3 căn hoàn toàn nằm dưới ngân sách trần của bạn:"*
+    * Thông báo phân tích: *"VinStay AI đã quét các căn hộ khả dụng tại Sapphire 1 & 2 và lọc ra 3 căn hoàn toàn nằm dưới ngân sách trần của bạn:"*
     * **Top 3 Thẻ căn hộ đề xuất:** Xếp hạng theo độ khớp và mức độ tiết kiệm chi phí; hiển thị rõ lý do AI đề xuất (vd: *"Căn này giúp bạn tiết kiệm 800k/tháng so với mặt bằng phân khu"*).
   * **Nút bấm hành động (CTA):** `[Đặt Lịch Xem Ngay]`.
 
-### Màn 3: Chi Tiết Căn Hộ & Modal Đặt Lịch Xác Thực OTP (`/units/[id]`)
-* **Mục tiêu:** Đặt lịch nhanh gọn, khớp ca trực thực địa của Host và xác thực SĐT thật để loại bỏ 100% môi giới ảo.
+### Màn 3: Chi Tiết Căn Hộ & Sheet Đặt Lịch Xem Phòng 1 Màn Hình (`/units/[id]`)
+* **Mục tiêu:** Đặt lịch xem phòng nhanh gọn trong 1 màn hình duy nhất, khớp ca trực thực địa của Host và xác thực SĐT thật.
 * **Thành phần giao diện:**
-  * Slide ảnh 10 hạng mục kiểm định thực tế (phòng khách, sofa, bếp, điều hòa, WC, view ban công).
+  * Slide ảnh kiểm định thực tế (phòng khách, sofa, bếp, điều hòa, WC, view ban công).
   * Bảng thông số kỹ thuật: Diện tích thông thủy, nội thất bàn giao, tầng cao, hướng mát.
-  * **Modal Đặt lịch xem phòng:**
-    * Khung chọn ngày: Calendar Date Picker trực quan theo tháng (cho phép đặt từ hôm nay đến tối đa hết tháng tiếp theo, chặn quá khứ và tương lai xa); dot chỉ báo ngày còn giờ trống; chip 'Sớm nhất' chọn nhanh khung gần nhất.
-    * Khung chọn slot giờ khả dụng (khớp ca trực Field Host): Sáng (08:30, 09:30, 10:30) | Chiều (14:30, 15:30, 16:30, 17:30).
-    * Ô nhập Họ tên & Số điện thoại.
+  * **BookingSheet (Form đặt lịch 1 màn hình):**
+    * Tiêu đề: **"Chọn ngày bạn muốn xem"** — Calendar Date Picker cho phép chọn từ hôm nay đến hết tháng sau; dot chỉ báo ngày còn giờ trống; chip 'Sớm nhất' chọn khung giờ khả dụng gần nhất.
+    * Khung chọn slot giờ: Sáng (08:30, 09:30, 10:30) | Chiều (14:30, 15:30, 16:30, 17:30).
+    * Nhóm thông tin: **"Thông tin người đặt lịch"** với nhãn **"Họ tên khách đặt"** và Số điện thoại.
     * Ô nhập mã OTP 4 số gửi về Zalo/SMS.
-  * **Nút bấm hành động (CTA):** `[Xác Nhận Lịch Hẹn]`.
+    * Khi đặt lịch thành công: Hiển thị ngay **3 lưu ý quan trọng**:
+      1. *Đến đúng giờ:* Host sẽ đón bạn tại sảnh tòa nhà đúng khung giờ đã chọn.
+      2. *Mang theo giấy tờ tùy thân:* Cần CCCD để xác thực và làm thủ tục thang máy/xem phòng.
+      3. *Hủy lịch trước tối thiểu 2 giờ:* Nếu có thay đổi, vui lòng hủy sớm để nhường ca cho khách khác.
+  * **Nút bấm hành động (CTA):** `[Xác Nhận Đặt Lịch]`.
 
-### Màn 4: Trải Nghiệm Tiếp Đón Sảnh & Zalo Bot Nhắc Hẹn Kép T-10m
-* **Mục tiêu:** Chấm dứt cảnh lạc đường và đứng chờ đợi vạ vật tại sảnh đại đô thị.
+### Màn 4: Trải Nghiệm Tiếp Đón Sảnh & Check-in 1-Chạm (`/booking/[ref]`)
+* **Mục tiêu:** Chấm dứt cảnh lạc đường và đứng chờ đợi vạ vật tại sảnh đại đô thị Ocean Park.
 * **Thành phần giao diện:**
-  * **Thông báo Zalo OA xác nhận:** Gửi ngay sau khi đặt lịch kèm mã `booking_ref_code`, link định vị Google Maps sảnh tòa và thông tin Field Host (Họ tên, SĐT, ảnh chân dung).
-  * **Mốc T-10 phút trước giờ hẹn:** Zalo Bot kích hoạt thông báo nhắc hẹn kép kèm 2 nút bấm tương tác 1-chạm:
-    * Nút 1: `[📍 Tôi đã có mặt tại sảnh]`
-    * Nút 2: `[🚗 Đang trên đường - Xin trễ 10p]`
-  * **Khi khách bấm "Tôi đã có mặt tại sảnh":** Màn hình hiển thị: *"Host [Nguyễn Văn A] đã nhận thông báo và đang xuống sảnh đón bạn sau 60 giây. Host mặc đồng phục VinStay và đeo thẻ cư dân thang máy."*
+  * **Timeline tiến trình 8 mốc chuẩn:** `Đã gửi yêu cầu` → `Host nhận lịch` → `Có mặt tại sảnh` → `Xem phòng` → `Chờ cọc` → `Ký cọc` → `eKYC` → `Hợp đồng thuê`.
+  * Thông tin lịch hẹn: Mã đặt lịch, căn hộ xem, thời gian hẹn, thông tin Field Host phụ trách (Họ tên, SĐT).
+  * **Nút bấm 1-chạm "Tôi đã có mặt tại sảnh" (`tenantCheckIn`):**
+    * Khi trạng thái `confirmed`: Nút hiển thị nổi bật màu xanh lá để khách bấm ngay khi đến sảnh tòa nhà.
+    * Khi đã bấm: Badge `[Đã có mặt tại sảnh]` hiển thị, thông báo Host chuẩn bị đón lên phòng.
+  * Quy tắc hủy/đổi lịch: Khóa đổi/hủy lịch khi thời gian còn dưới 2 giờ trước giờ hẹn.
 
-### Màn 5: Khảo Sát Hiện Trường & Quét VietQR Cọc Giữ Chỗ 24h
-* **Mục tiêu:** Tạo áp lực chốt phòng minh bạch, khóa căn tức thì chống tranh căn mà không sợ bị lừa cọc.
-* **Thành phần giao diện:**
-  * Khách được Host dẫn lên phòng, kiểm tra không gian thực tế.
-  * Khi khách đồng ý giữ phòng: Host bấm `[Khách chốt]` trên Mobile Dashboard.
-  * **Màn hình hiển thị mã VietQR động:**
-    * Số tiền quy định: **2.000.000 VNĐ**.
-    * Nội dung chuyển khoản: `COC [MÃ CĂN] [SĐT KHÁCH]`.
-    * Cảnh báo bảo chứng: *"Khoản cọc này chuyển thẳng vào tài khoản định danh nền tảng để khóa căn 24h; khi ký HĐ chính thức sẽ chuyển 100% thành Tiền Cọc Bảo Đảm Nội Thất (Security Deposit)."*
-  * **Trạng thái gạch nợ thời gian thực:** Đồng hồ xoay tròn $\le 10$ giây $\rightarrow$ Nảy màn hình xanh ✅: **"Thanh toán thành công! Căn hộ S1.02-12A08 đã được khóa giữ chỗ cho bạn trong 24 giờ tới."**
+### Màn 5: Cọc Giữ Căn 7 Ngày Qua VietQR & Ký Thỏa Thuận Cọc Số
+* **Mục tiêu:** Đặt cọc minh bạch, khóa căn tức thì 7 ngày chống tranh căn; khách tự thực hiện trên máy cá nhân an toàn 100%.
+* **Thành phần giao diện (khi Host bấm "Khách cọc căn này"):**
+  * **Bảng điều khoản cọc (`DepositTermsBox`):**
+    * 4 gạch đầu dòng cam kết: Cọc 2.000.000 VNĐ giữ căn độc quyền 7 ngày; Số tiền chuyển 100% thành cọc bảo đảm tài sản khi ký HĐ chính thức; Tuyệt đối không trừ vào tiền thuê tháng 1; Mất cọc nếu quá 7 ngày không ký HĐ do lỗi khách thuê.
+    * Trích dẫn pháp lý: Điều 328 Bộ luật Dân sự 2015 & Nghị định 13/2023/NĐ-CP bảo vệ dữ liệu cá nhân.
+  * **Mã VietQR động cọc 2.000.000 VNĐ:**
+    * Nội dung chuyển khoản tự động gắn mã căn và SĐT khách; tài khoản định danh nền tảng.
+    * Nút demo: "Giả lập chuyển khoản thành công (Test)".
+  * **Khi đã thanh toán thành công:**
+    * Căn hộ chuyển sang trạng thái `holding` (khóa toàn mạng lưới trong 7 ngày).
+    * **Countdown Banner:** Đếm ngược thời hạn 7 ngày cam kết ký HĐ thuê (kèm nút tua hạn demo).
+    * **Ký Thỏa thuận cọc số (`AgreementFormSection`):**
+      * Form 4 trường: Họ tên khách, Số CCCD, Ngày cấp, Nơi thường trú.
+      * Khung xem trước văn bản Thỏa thuận cọc điện tử (có watermark NHÁP).
+      * Bảng vẽ chữ ký tay điện tử (`SignaturePad`) với nút ký lại.
+      * Nút ký số: Gửi mã OTP xác nhận qua Zalo và hoàn tất ký thỏa thuận.
+    * **Xem & In Thỏa thuận cọc đã ký:**
+      * Hiển thị toàn văn biên bản Thỏa thuận cọc có chữ ký và dấu mộc điện tử.
+      * Nút in PDF (`PrintDocButton`) để khách lưu trữ hoặc in bản cứng.
 
-### Màn 6: AI OCR CCCD & Ký Thỏa Thuận Cọc Điện Tử
-* **Mục tiêu:** Ký thỏa thuận số trong 30 giây, tuân thủ Nghị định 13/2023/NĐ-CP, không lộ ảnh CCCD cho môi giới.
+### Màn 6: eKYC CCCD 2 Mặt & Ký Hợp Đồng Thuê Chính Thức
+* **Mục tiêu:** Hoàn tất thủ tục pháp lý thuê nhà chính thức 100% online, ràng buộc trách nhiệm và kích hoạt bàn giao.
 * **Thành phần giao diện:**
-  * Giao diện chụp ảnh: Khung hướng dẫn chụp rõ nét 2 mặt thẻ CCCD gắn chip.
-  * **AI Vision OCR xử lý trong $\le 5$ giây:** Trích xuất tự động: Họ tên, Số CCCD, Ngày cấp, Nơi thường trú.
-  * Giao diện điền Thỏa thuận cọc số tự động: Khách đọc lại các điều khoản cam kết và thời hạn 24 giờ.
-  * Nút bấm `[Ký Thỏa Thuận]` $\rightarrow$ Nhập mã OTP xác nhận hoàn tất giao dịch.
-  * Màn hình bàn giao: Cung cấp bản PDF hợp đồng có chữ ký số + Hướng dẫn nhận nhà và Danh bạ thợ kỹ thuật ngoài uy tín.
+  * **eKYC CCCD (`KycCapture`):** Chụp ảnh mặt trước và mặt sau CCCD gắn chip với khung hướng dẫn rõ nét; AI tự động trích xuất và đối soát khớp với thông tin đã ký cọc.
+  * **Ký Hợp đồng thuê (`LeaseForm`):**
+    * Hiển thị Hợp đồng thuê căn hộ chính thức với đầy đủ điều khoản All-in Cost, thời hạn thuê, điều khoản cọc bảo đảm tài sản.
+    * Khách ký xác nhận qua mã OTP bảo mật AES-256.
+  * **Chốt giao dịch:** Căn hộ chuyển trạng thái `rented`; tiền cọc 2 triệu chuyển thành cọc bảo đảm; mở quyền truy cập Hộ chiếu bàn giao và danh bạ thợ kỹ thuật ngoài.
+  * *Xử lý quá hạn:* Nếu quá 7 ngày không ký HĐ thuê, banner cảnh báo cọc hết hạn (`forfeited`) hiển thị theo đúng thỏa thuận.
 
 ---
 
 ## 3. CHI TIẾT LUỒNG 2: NGUỒN CĂN CHỦ NHÀ (LANDLORD UI JOURNEY — 0 CÔNG SỨC VẬN HÀNH)
 
-Chủ nhà trải nghiệm quy trình **"ở nhà 100%"**, chỉ cần ủy quyền một lần duy nhất và theo dõi từ xa:
+Chủ nhà trải nghiệm quy trình **"ở nhà 100%"**, ủy quyền 1 lần duy nhất qua form 3 bước rút gọn và theo dõi mọi biến động qua Dashboard:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                               LUỒNG GIAO DIỆN CHỦ NHÀ                                   │
-│                                                                                         │
-│ [MÀN 1: Đăng Ký Căn Hộ] ──► [MÀN 2: Cấp Mã Cửa & Ký Ủy Quyền Độc Quyền]                 │
-│                                           │                                             │
-│                                           ▼                                             │
-│ [MÀN 4: Yêu Cầu Thoát 15 Ngày] ◄── [MÀN 3: Dashboard Ở Nhà 100% & Báo Mở Cửa]          │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   LUỒNG GIAO DIỆN CHỦ NHÀ                                   │
+│                                                                                             │
+│ [MÀN 1: Ký Gửi 3 Bước Rút Gọn] ──► [MÀN 2: Lịch Hẹn Thẩm Định Thực Địa]                     │
+│                                                     │                                       │
+│                                                     ▼                                       │
+│ [MÀN 4: Thoát Ủy Quyền 15 Ngày] ◄── [MÀN 3: Dashboard Ở Nhà 100% & "Có Khách Xem"]         │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Màn 1: Đăng Ký Căn Hộ Ký Gửi Độc Quyền (`/landlord/consign`)
+### Màn 1: Form Đăng Ký Ký Gửi 3 Bước Rút Gọn (`/landlord/consign`)
 * **Thành phần:**
-  * Chọn Tòa nhà, Tầng, Số căn hộ thực tế tại Ocean Park.
-  * Chọn Layout, Diện tích thông thủy, Giá chào thuê mong muốn.
-  * Tải lên 5–10 ảnh hiện trạng căn hộ (hoặc tích chọn `[Nhờ Field Host chụp ảnh thẩm định miễn phí]`).
-  * Chọn gói dịch vụ: **Ký gửi Quản lý Độc quyền (Exclusive Rental Mandate)** — VinStay AI toàn quyền điều phối giỏ hàng, chi phí kiểm định = 0 VNĐ.
+  * **Bước 1 — Thông tin căn hộ:** Chọn Tòa nhà, Tầng, Số căn hộ thực tế tại Ocean Park, loại căn, diện tích m², hiện trạng bàn giao (đầy đủ/cơ bản/trống).
+  * **Bước 2 — Thông tin cho thuê & Cam kết:** Giá chào thuê mong muốn, hình thức khóa cửa (khóa điện tử mã số hoặc gửi chìa cơ tại sảnh); cam kết Hợp đồng Ủy quyền Quản lý Độc quyền kèm điều khoản thoát linh hoạt (báo trước 15 ngày khi nhà trống).
+  * **Bước 3 — Lịch hẹn thẩm định thực địa:** Chọn ngày và khung giờ để Field Host phân khu đến thẩm định 32 hạng mục hiện trạng; nhập SĐT và ký xác nhận OTP.
 
-### Màn 2: Cung Cấp Mã Cửa & Ký Hợp Đồng Ủy Quyền (`/landlord/door-setup`)
+### Màn 2: Danh Sách & Hồ Sơ Căn Hộ Chủ Nhà (`/landlord/units`)
 * **Thành phần:**
-  * Chọn hình thức khóa cửa:
-    * *Khóa thông minh (có mã số):* Nhập mã mở cửa (mật mã số được mã hóa AES-256 trong Database; chỉ cấp cho Host đúng thời điểm đứng trước cửa phòng).
-    * *Khóa cơ:* Xác nhận đăng ký gửi chìa cơ tại quầy nhân sự phân khu Sapphire.
-  * Hộp kiểm cam kết pháp lý: Điều khoản thoát ủy quyền linh hoạt (Chủ nhà có quyền hủy ủy quyền bất kỳ lúc nào nếu ngưng cho thuê hoặc tự cho thuê, với điều kiện: **Báo trước 15 ngày kèm trạng thái nhà trống**).
-  * Ký số Thỏa thuận Ủy quyền Độc quyền qua mã OTP Zalo/SMS.
+  * Badge trạng thái kiểm định rõ ràng: `[Chờ thẩm định]` (vừa ký gửi) hoặc `[Đã thẩm định]` (đã có biên bản thẩm định 32 hạng mục).
+  * Chỉ báo trạng thái khai thác: `available` (sẵn sàng đón khách), `holding` (đang có khách cọc giữ căn 7 ngày), `rented` (đang cho thuê).
+  * Xem lại chi tiết hồ sơ ký gửi và biên bản thẩm định hiện trạng đã được phê duyệt.
 
 ### Màn 3: Bảng Điều Khiển Chủ Nhà "Ở Nhà 100%" (`/landlord/dashboard`)
 * **Thành phần:**
-  * Thẻ trạng thái căn hộ: `available` (đang mở đón khách), `holding` (đã nhận cọc giữ chỗ 24h), `rented` (đang có hợp đồng thuê).
-  * **Nhật ký mở cửa & xem phòng (Audit Trail):** Hiển thị rõ: Ngày giờ xem, Tên Field Host phụ trách, Tên khách thuê, Trạng thái xem phòng.
+  * **Chỉ báo "Có khách xem" thời gian thực:** Hiển thị nổi bật khi căn hộ đang có $\ge 1$ lịch hẹn đang mở (từ chờ xác nhận đến chờ cọc).
+  * **Nhật ký mở cửa & xem phòng (Audit Trail):** Hiển thị chi tiết từng lượt dẫn: Ngày giờ, Host phụ trách, Họ tên khách, Kết quả xem phòng (đang xem, khách cọc, hoàn thành).
   * **Thông báo Zalo tức thì (Real-time Alert):**
-    * Khi Host bấm mở cửa: *"Căn hộ S1.02-12A08 vừa được mở khóa đón khách lúc 10:15 bởi Host Nguyễn Văn A."*
-    * Khi có cọc: *"Chúc mừng! Căn hộ của bạn vừa nhận cọc giữ chỗ 2.000.000 VNĐ qua VietQR từ khách thuê Lê Thị B."*
-  * Xem hồ sơ Hộ chiếu bàn giao số 10 hạng mục nội thất có timestamp để an tâm 100% về tài sản.
+    * Khi Host mở cửa: *"Căn hộ S1.02-12A08 đang được mở cửa đón khách bởi Host [Tên Host]."*
+    * Khi có khách cọc: *"Chúc mừng! Căn hộ của bạn đã nhận cọc giữ chỗ 2.000.000 VNĐ (giữ căn 7 ngày) từ khách thuê [Tên Khách]."*
+  * Xem Hộ chiếu bàn giao số và biên bản đối soát tài sản mọi lúc.
 
 ### Màn 4: Yêu Cầu Hủy Ủy Quyền Linh Hoạt 15 Ngày (`/landlord/exit-request`)
 * **Thành phần:**
   * Nút bấm: `[Yêu cầu ngừng ủy quyền ký gửi]`.
-  * Hệ thống kiểm tra tự động điều kiện:
-    * Nếu căn đang có cọc `holding`: Thông báo yêu cầu hoàn tất giao dịch cọc 24h trước.
-    * Nếu căn đang trống `available`: Chấp thuận yêu cầu.
-  * **Kích hoạt đồng hồ đếm ngược 15 ngày (`mandate_termination_countdown`):** Hiển thị số ngày còn lại (vd: *"Còn 12 ngày ủy quyền"*). Căn hộ vẫn hiển thị khai thác khách trừ khi chủ nhà chủ động ẩn.
-  * Hết 15 ngày: Trạng thái căn tự động chuyển sang `unlisted`, toàn bộ mã số cửa bị xóa khỏi hệ thống của mạng lưới Field Host, hoàn tất thủ tục thanh lý ủy quyền.
+  * Kiểm tra điều kiện: Nếu căn đang `holding` (có cọc 7 ngày), yêu cầu chờ giải quyết dứt điểm thời hạn cọc; nếu căn `available`, kích hoạt đồng hồ đếm ngược 15 ngày.
+  * Hết 15 ngày: Trạng thái căn chuyển sang `unlisted`, gỡ mã cửa khỏi mạng lưới Host, hoàn tất thủ tục thanh lý ủy quyền.
 
 ---
 
-## 4. CHI TIẾT LUỒNG 3: FIELD HOST / SALE NỘI KHU (MOBILE DASHBOARD 1-CHẠM)
+## 4. CHI TIẾT LUỒNG 3: FIELD HOST NỘI KHU (PHÂN VAI SALE & INSPECTOR)
 
-Field Host thao tác trên **cổng web dạng dashboard (sidebar như Chủ nhà/Admin), responsive tới 390px; thao tác chính vẫn 1-chạm** khi đang di chuyển:
+Field Host thao tác trên giao diện chuyên dụng, được phân tách quyền nghiêm ngặt theo vai trò được Admin chỉ định:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              LUỒNG MOBILE APP FIELD HOST                                │
-│                                                                                         │
-│ [MÀN 1: Bắn Ticket & SLA 3m] ──► [MÀN 2: Nhắc Hẹn T-10m & Đón Sảnh]                    │
-│                                            │                                            │
-│                                            ▼                                            │
-│ [MÀN 4: Chốt VietQR 2M & Bàn Giao] ◄── [MÀN 3: Cấp Mã Mở Cửa Trước Phòng]               │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   LUỒNG GIAO DIỆN FIELD HOST                                │
+│                                                                                             │
+│       VAI SALE (DẪN KHÁCH):                                                                 │
+│       [Ticket SLA 3m] ──► [Đón Sảnh T-10m] ──► [Mở Cửa Xem Phòng] ──► [Chờ Cọc/Ký Cọc/HĐ]   │
+│                                                                                             │
+│       VAI INSPECTOR (THẨM ĐỊNH):                                                            │
+│       [Nhận Lịch Thẩm Định] ──► [Khảo Sát 32 Hạng Mục Điều 5] ──► [Chấm Điểm & Ký Biên Bản]  │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Màn 1: Nhận Ticket Ca Trực & Cơ Chế Auto-Dispatch 3 Tầng (`/host/dispatch`)
-* **Thành phần:**
-  * Thông báo ticket mới nảy chuông báo: `[Khách: Trần Văn C] - [Căn: S1.02-12A08] - [Giờ: 15:30 Hôm nay]`.
-  * Đồng hồ đếm ngược SLA: **3 phút** để bấm `[Nhận Ticket]`.
-  * Nếu sau 3 phút không nhận: Ticket tự động chuyển sang Open Pool 500m cho các Host lân cận.
+### A. Luồng Field Host Vai Sale — Quy Trình Dẫn Khách 5 Bước Chuẩn (`/host/viewing/[id]`)
 
-### Màn 2: Nhắc Hẹn Kép T-10m & Đón Sảnh Tòa Nhà (`/host/active/[ticket_id]`)
-* **Thành phần:**
-  * Mốc T-10 phút: Điện thoại Host rung chuông cảnh báo: *"Còn 10 phút đến giờ hẹn, hãy di chuyển xuống sảnh S1.02!"*
-  * Thẻ trạng thái khách thuê:
-    * Đang chờ: Icon màu vàng ⏳ *"Khách đang trên đường tới"*.
-    * Khi khách bấm nút Zalo: Chuyển sang màu xanh lá 🟢 *"Khách đã có mặt tại sảnh!"*.
-  * Host tiến lại chào khách, bấm nút: **`[Bắt đầu tiếp đón]`** $\rightarrow$ Quẹt thẻ cư dân thang máy đưa khách lên tầng.
+Thanh tiến trình RAIL cố định 5 bước rõ ràng: `["Đón khách", "Xem phòng", "Chờ cọc", "Ký cọc", "Hợp đồng"]`:
 
-### Màn 3: Cấp Mã Mở Cửa Tức Thì Ngay Trước Cửa Căn Hộ (`/host/unlock/[ticket_id]`)
-* **Thành phần:**
-  * Host dẫn khách tới trước cửa phòng căn hộ.
-  * Nút bấm to bản chính giữa màn hình: **`[Xác Nhận Xem Phòng]`**.
-  * **Hành vi hệ thống:**
-    * App kiểm tra trạng thái ticket hợp lệ.
-    * Màn hình lập tức hiển thị mã mở khóa: **`MÃ CỬA: 482910#`** (chữ số to, rõ ràng, tự biến mất sau 10 phút) hoặc hướng dẫn mở chìa cơ phân khu.
-    * Gửi đồng thời tin báo Zalo tới chủ nhà.
-  * Host bấm mã số mở khóa đưa khách vào xem phòng (tuyệt đối không dùng Lockbox).
+1. **Bước 1 — Đón khách (GreetStep):**
+   * Theo dõi mốc T-10m: Xuống sảnh đón khách khi khách check-in "Tôi đã có mặt tại sảnh".
+   * Bấm nút **`[Bắt đầu dẫn khách]`** $\rightarrow$ Quẹt thẻ thang máy đưa khách lên tầng.
+2. **Bước 2 — Xem phòng (ViewStep):**
+   * Tới trước cửa phòng: Bấm lấy mã mở khóa điện tử (mã số lớn, tự động ẩn sau khi thao tác) hoặc xem hướng dẫn nhận chìa cơ.
+   * Gửi đồng thời tin báo Zalo tới chủ nhà: "Căn hộ đang được mở cửa dẫn khách".
+   * Dẫn khách khảo sát hiện trạng. Nếu khách ưng ý, Host bấm **`[Khách cọc căn này]`**.
+3. **Bước 3 — Chờ cọc (AwaitDepositStep):**
+   * Màn hình Host chuyển sang trạng thái chờ đồng bộ thời gian thực: *"Khách đang thực hiện chuyển khoản cọc 2.000.000 VNĐ giữ căn 7 ngày trên điện thoại cá nhân"*.
+   * **TUYỆT ĐỐI KHÔNG CÓ MÃ VIETQR TRÊN MÁY HOST** (bảo đảm an toàn pháp lý, tiền chuyển thẳng tài khoản nền tảng).
+4. **Bước 4 — Ký cọc (AwaitAgreementStep):**
+   * Khi khách đã cọc xong, màn hình Host hiển thị: *"Căn hộ đã khóa giữ chỗ 7 ngày. Khách đang đọc và ký Thỏa thuận cọc số qua OTP Zalo"*.
+5. **Bước 5 — Hợp đồng & Hoàn tất (AwaitLeaseStep & DoneStep):**
+   * Màn hình theo dõi khách hoàn tất eKYC và HĐ thuê chính thức.
+   * Host có thể xem toàn văn Thỏa thuận cọc đã ký và in PDF (`PrintDocButton`).
+   * Ghi nhận thù lao dẫn và hoa hồng chốt cọc vào ví Host.
 
-### Màn 4: Khách Chốt Cọc 2 Triệu & Lập Hộ Chiếu Bàn Giao Số (`/host/deal-closing/[ticket_id]`)
-* **Thành phần:**
-  * Khi khách ưng ý: Host bấm nút: **`[Khách Chốt Căn Này]`**.
-  * Màn hình Host hiển thị mã VietQR động 2.000.000 VNĐ cho khách quét.
-  * Khi thanh toán thành công: Màn hình rung chuông chúc mừng; ví hoa hồng của Host nhảy số thù lao lượt dẫn + hoa hồng chốt cọc (theo tỷ lệ Admin cấu hình).
-  * Chụp ảnh lập Hộ chiếu bàn giao số: App mở camera có khung định vị 10 hạng mục nội thất (Sofa, Sàn gỗ, Tường, Điều hòa, Bếp, Tủ lạnh...), tự động nhúng timestamp và lưu vào hồ sơ bàn giao.
+### B. Luồng Field Host Vai Inspector — Thẩm Định Hiện Trạng 32 Hạng Mục (`/host/inspections`)
 
-### Màn 5: Thẩm Định Ký Gửi Độc Quyền Tại Phân Khu (`/host/inspections` & `/host/inspections/[id]`)
-* **Thành phần:**
-  * Host nhận ticket thẩm định theo phân khu phụ trách ngay khi chủ nhà ký OTP (hạn SLA 48 giờ).
-  * Danh sách ticket chia 2 khu vực: "Cần xử lý" (chờ nhận / đang kiểm tra) và "Đã nộp" (chờ Admin duyệt / đã chốt).
-  * Phiếu thẩm định thực địa gồm 4 khối kiểm tra bắt buộc:
-    1. **Đối chiếu 5 trường kê khai:** Toà-Tầng-Căn, loại căn, diện tích m², mức nội thất, loại khoá — mỗi trường xác nhận `Khớp` hoặc `Sai lệch + giá trị thực tế`.
-    2. **Đồ dùng chủ nhà kê khai:** Kiểm tra hiện diện thực tế (có mặt / thiếu).
-    3. **Đánh giá độ mới 10 hạng mục nội thất (`PASSPORT_ITEMS`):** Chấm % độ mới bậc 10% (0–100%), chụp 1 ảnh thực tế nhúng timestamp cho từng hạng mục (mock).
-    4. **Đề xuất của Host:** Khuyến nghị `Duyệt ký gửi` hoặc `Từ chối ký gửi` kèm ghi chú hiện trạng.
-  * Khi Host nộp báo cáo: Báo cáo chuyển sang chế độ chỉ đọc, gửi về Admin chốt và đồng bộ hiển thị cho Chủ nhà theo dõi.
+Inspector tiếp nhận hồ sơ ký gửi mới và thực hiện khảo sát chi tiết theo **32 hạng mục thuộc 5 nhóm chuẩn** (Điều 5 Hợp đồng Ủy quyền):
+
+1. **Nhóm I: Kết cấu xây dựng & Hoàn thiện cố định** (Trần thạch cao, tường sơn, sàn gỗ/gạch, hệ thống cửa đi/cửa sổ, ban công/lô gia, kính an toàn...).
+2. **Nhóm II: Hệ thống Điện & Chiếu sáng** (Tủ điện tổng, atomat, công tắc ổ cắm, đèn chiếu sáng, đầu chờ điều hòa...).
+3. **Nhóm III: Hệ thống Cấp thoát nước & Thiết bị vệ sinh** (Lavabo, bồn cầu, vòi sen, bình nóng lạnh, thoát sàn, áp lực nước...).
+4. **Nhóm IV: Nội thất rời & Đồ gỗ** (Sofa phòng khách, bàn ghế ăn, giường ngủ, nệm, tủ quần áo, rèm cửa...).
+5. **Nhóm V: Thiết bị điện gia dụng & Tiện ích** (Điều hòa nhiệt độ, tủ lạnh, máy giặt, bếp từ, máy hút mùi, khóa cửa điện tử...).
+
+* **Thao tác thẩm định:**
+  * Mỗi hạng mục đánh giá tình trạng: `Đạt` / `Không đạt` / `Cần sửa chữa`, ghi chú hư hại cụ thể (nếu có).
+  * Chụp ảnh thực tế đính kèm timestamp kiểm định.
+  * Hệ thống tự động tính điểm chất lượng căn hộ.
+  * Inspector vẽ chữ ký tay và ký số nộp biên bản thẩm định lên Admin.
 
 ---
 
 ## 5. CHI TIẾT LUỒNG 4: QUẢN TRỊ VIÊN NỀN TẢNG (ADMIN PORTAL UI JOURNEY)
 
-Bảng điều khiển trung tâm giúp Quản trị viên nắm bắt toàn diện dữ liệu, cấu hình biến phí và xử lý ngoại lệ:
+Bảng điều khiển trung tâm giúp Quản trị viên nắm bắt toàn diện dữ liệu, quản trị phân vai Host và xử lý ngoại lệ:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              LUỒNG GIAO DIỆN ADMIN PORTAL                               │
-│                                                                                         │
-│ [MÀN 1: Bảng Điều Khiển BI & Phễu] ──► [MÀN 2: Quản Lý Rổ Hàng Ký Gửi Độc Quyền]        │
-│                    │                                      │                             │
-│                    ▼                                      ▼                             │
-│ [MÀN 4: Cấu Hình Biến Phí Động]    ◄── [MÀN 3: Giám Sát Điều Phối SLA Field Host]       │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                LUỒNG GIAO DIỆN ADMIN PORTAL                                 │
+│                                                                                             │
+│ [MÀN 1: BI Dashboard & Phễu] ──► [MÀN 2: Quản Lý Rổ Hàng & Nhật Ký Xem]                    │
+│                 │                                      │                                    │
+│                 ▼                                      ▼                                    │
+│ [MÀN 4: Phân Vai Host & RoleGate] ◄── [MÀN 3: Sổ Quản Lý Hợp Đồng & Mẫu Pháp Lý]            │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Màn 1: Bảng Điều Khiển BI & Phễu Chuyển Đổi Thời Gian Thực (`/admin/dashboard`)
 * **Thành phần:**
-  * **Phễu chuyển đổi 6 giai đoạn:** Lượt truy cập Web $\rightarrow$ Chat AI Matchmaker $\rightarrow$ Đặt lịch OTP $\rightarrow$ Check-in sảnh $\rightarrow$ Quét VietQR cọc 2M $\rightarrow$ Ký Thỏa thuận cọc số.
-  * **Bản đồ nhiệt lấp đầy (Occupancy Heatmap):** Tỷ lệ phòng trống theo từng tòa (S1.01, S1.02, S1.03...) tại Sapphire 1 & 2 để định hướng chiến dịch tiếp thị.
-  * Tỷ lệ khách bỏ bom (No-show Rate) và Tỷ lệ chuyển đổi Deal thành công.
+  * **Phễu chuyển đổi 6 giai đoạn:** Truy cập Web $\rightarrow$ Chat AI Matchmaker $\rightarrow$ Đặt lịch OTP $\rightarrow$ Check-in sảnh $\rightarrow$ Quét VietQR cọc 2M (giữ 7 ngày) $\rightarrow$ Ký Thỏa thuận cọc số & HĐ thuê.
+  * **Bản đồ nhiệt lấp đầy (Occupancy Heatmap):** Tỷ lệ phòng trống theo từng tòa tại Sapphire 1 & 2.
+  * Tỷ lệ no-show và tỷ lệ chuyển đổi deal thành công của mạng lưới Host.
 
-### Màn 2: Quản Lý Rổ Hàng & Vòng Đời Ký Gửi Độc Quyền (`/admin/inventory`)
+### Màn 2: Quản Lý Rổ Hàng & Nhật Ký Xem Phòng (`/admin/inventory` & `/admin/inventory/[id]`)
 * **Thành phần:**
-  * Bảng danh sách căn hộ: Bộ lọc theo tòa, trạng thái (`available`, `holding`, `rented`, `unlisted`), loại khóa cửa.
-  * Nút duyệt nhanh căn hộ mới ký gửi kèm ảnh thẩm định.
-  * **Tab Giám sát Hủy ủy quyền 15 ngày:** Danh sách các căn đang đếm ngược `mandate_termination_countdown`, cảnh báo ngày hết hạn để tự động gỡ mã mở cửa trên hệ thống.
+  * Bảng danh sách căn hộ kèm bộ lọc trạng thái (`available`, `holding`, `rented`, `unlisted`).
+  * Phê duyệt biên bản thẩm định 32 hạng mục do Inspector nộp.
+  * **Nhật ký xem phòng chi tiết:** Hiển thị toàn bộ lịch sử các ca dẫn khách của căn hộ (Thời gian, Host dẫn, Khách xem, Trạng thái, Kết quả).
+  * Giám sát đếm ngược thoát ủy quyền 15 ngày (`mandate_termination_countdown`).
 
-### Màn 3: Giám Sát Điều Phối & SLA Mạng Lưới Field Host (`/admin/dispatch-monitor`)
+### Màn 3: Sổ Quản Lý Hợp Đồng, Mẫu Văn Bản & Bên Ký (`/admin/contracts`)
 * **Thành phần:**
-  * Danh sách ticket xem phòng trong ngày: Giờ hẹn, Tòa nhà, Host phụ trách, Trạng thái (Chờ nhận, Đã nhận, Đang dẫn, Đã xong).
-  * **Bảng cảnh báo vi phạm SLA:** Đánh dấu đỏ các ticket quá 3 phút chưa có Host nhận để Admin can thiệp điều phối thủ công cho Area Lead.
-  * Đánh giá sao trung bình và lịch sử lượt dẫn của từng Field Host.
+  * Sổ quản lý 4 nhóm hợp đồng: Ủy quyền độc quyền, Thỏa thuận cọc giữ căn 7 ngày, Hợp đồng thuê chính thức, Thỏa thuận đối tác Host.
+  * Danh mục 32 mẫu văn bản pháp lý chuẩn hóa đồng bộ kho `legal/`.
+  * Quản lý hồ sơ các bên ký với cơ chế mã hóa PII theo Nghị định 13/2023/NĐ-CP.
 
-### Màn 4: Cấu Hình Biến Phí Động & Bảng Kê Thanh Toán Tuần (`/admin/commission-engine`)
+### Màn 4: Quản Lý Nhân Sự Host & Phân Quyền Vai Trò (`/admin/hosts` & `/admin/hosts/[id]`)
 * **Thành phần:**
-  * **Bảng cấu hình 4 tham số biến phí:**
-    1. Thù lao dẫn khách mỗi lượt (`base_viewing_fee`): vd 50.000 đ/lượt.
-    2. Hoa hồng chốt cọc thành công (`deal_commission`): vd 300.000 đ – 500.000 đ/căn.
-    3. Hệ số thưởng đánh giá sao (`rating_multiplier`): nhân x1.2 nếu sao $\ge 4.8$.
-    4. Gói thưởng nóng theo chiến dịch (`campaign_bonus`): vd thưởng 200k cho ca trực giờ vàng.
-  * Lịch sử Audit Log: Người sửa, ngày giờ, giá trị cũ/mới.
-  * **Công cụ xuất Bảng kê thanh toán (Payout Report):** Tự động tổng hợp thu nhập thực nhận của từng Host trong tuần, xuất file đối soát chuyển khoản ngân hàng 1-chạm.
-
-### Màn 5: Sổ Quản Lý Hợp Đồng & Chứng Cứ Ký Số (`/admin/contracts` & `/admin/contracts/[key]`)
-* **Thành phần:**
-  * **Sổ quản lý tập trung 4 loại hợp đồng:** Uỷ quyền độc quyền (`mandate`), Thoả thuận cọc giữ chỗ 24h (`holding`), Hợp đồng thuê căn hộ chính thức (`lease`), và Thoả thuận đối tác Field Host (`partnership`).
-  * **Dải 4 chỉ số KPI vận hành:** Số HĐ thuê hiệu lực, HĐ thuê sắp hết hạn $\le 30$ ngày, Tiền cọc đang giữ, và Uỷ quyền đang thoát/quá hạn offboard.
-  * **Bộ lọc đa chiều:** Tab phân loại (Tất cả, Uỷ quyền, Cọc giữ chỗ, HĐ thuê, Đối tác Host), ô tìm kiếm toàn văn, lọc theo trạng thái và nút 1-chạm "Cần xử lý" (nhận diện nhanh hợp đồng cần Admin can thiệp).
-  * **Thanh điều hướng phụ 3 phân hệ (Contracts Subnav):** Sổ hợp đồng (`/admin/contracts`), Mẫu hợp đồng (`/admin/contracts/templates`), và Theo bên ký (`/admin/contracts/parties`).
-  * **Trang chi tiết hợp đồng:**
-    * Bố cục 2 cột chuyên nghiệp: Cột chính hiển thị toàn bộ điều khoản pháp lý, mốc tiến trình ký số (timestamps), liên kết chéo giữa cọc giữ chỗ và hợp đồng thuê.
-    * Bất biến cọc bảo đảm: Minh bạch 100% việc chuyển đổi 2.000.000đ từ cọc giữ chỗ thành một phần của Tiền cọc bảo đảm tài sản; tiền thuê tháng đầu không bị trừ 2 triệu.
-    * 2 hành động ghi chuyên biệt cho Admin:
-      1. `Hoàn tất thoát uỷ quyền`: Kích hoạt khi mandate đã quá 15 ngày đếm ngược để offboard căn hộ khỏi mạng lưới Host, gỡ mã mở cửa và gửi thông báo nhận lại chìa cơ tại văn phòng phân khu.
-      2. `Nhắc gia hạn hợp đồng`: Kích hoạt khi HĐ thuê còn $\le 30$ ngày để gửi Zalo nhắc gia hạn đồng thời cho cả Chủ nhà và Khách thuê.
-    * Nhật ký chứng cứ ký số: Hiển thị minh bạch mã định danh HĐ, thời điểm ký OTP Zalo và SĐT đã che bảo mật theo Nghị định 13/2023/NĐ-CP.
-    * Mẫu áp dụng & Bên ký: Hiển thị mẫu hợp đồng chính (kèm liên kết sang trang chi tiết mẫu), các văn bản phụ lục đính kèm, và liên kết trực tiếp sang hồ sơ từng bên ký (`/admin/contracts/parties/[key]`).
-
-### Màn 5b: Danh Mục Mẫu Hợp Đồng & Bản Đồ Bước Nghiệp Vụ (`/admin/contracts/templates` & `/admin/contracts/templates/[id]`)
-* **Thành phần:**
-  * **Nguồn tra cứu chuẩn "Làm gì gắn mẫu nào":** Nguồn tra cứu duy nhất cho Quản trị viên và Đội ngũ vận hành về quy chuẩn gắn kết văn bản pháp lý vào từng bước vận hành thực tế.
-  * **Bản đồ 18 bước nghiệp vụ (`TemplateStep`):**
-    * Phân định theo 5 nhóm chủ thể thực hiện: Khách thuê (`tenant`), Chủ nhà (`landlord`), Field Host (`host`), Quản trị (`admin`), Hệ thống (`system`).
-    * Mỗi bước chỉ rõ: Nội dung công việc, Route giao diện thao tác, Mẫu hợp đồng chính cần ký (`primary`), Danh sách phụ lục/chính sách kèm theo (`attached`), Loại hợp đồng phát sinh/thay đổi trong sổ (`produces`), và Trạng thái luồng thực thi trong bản demo (`implemented`).
-    * Cho phép click trực tiếp từ mã mẫu trong bước sang chi tiết mẫu tương ứng.
-  * **Danh mục 32 mẫu văn bản pháp lý (`ContractTemplate`):**
-    * Đồng bộ 100% với 32 tệp văn bản trong kho pháp lý `legal/` (chia 5 nhóm: Nền tảng `core`, Khách thuê `tenant`, Chủ nhà `landlord`, Field Host `host`, Quản trị `admin`).
-    * Phân loại chuẩn 5 hình thức: Hợp đồng ký số (`contract`), Bản hiển thị theo vai (`variant`), Phụ lục cam kết kèm theo (`annex`), Chính sách chấp nhận tại bước (`policy`), và Quy chế vận hành nội bộ (`sop`).
-    * Thống kê số lượng hợp đồng thực tế trong sổ đang áp dụng từng mẫu.
-  * **Trang chi tiết mẫu (`/admin/contracts/templates/[id]`):**
-    * Sinh tĩnh toàn bộ 32 trang (SSG) với `generateStaticParams`.
-    * Hiển thị đầy đủ thông tin pháp lý: Mã văn bản, số hiệu, các bên tham gia, tóm tắt nội dung, đường dẫn tệp nguồn trong `legal/`, văn bản liên quan.
-    * Danh sách các bước nghiệp vụ có sử dụng mẫu này (chỉ rõ vai trò mẫu chính hay văn bản kèm).
-    * Bảng danh sách hợp đồng thực tế trong hệ thống đang áp dụng hoặc chịu ràng buộc bởi mẫu văn bản.
-
-### Màn 5c: Quản Lý Hợp Đồng Theo Bên Ký (`/admin/contracts/parties` & `/admin/contracts/parties/[key]`)
-* **Thành phần:**
-  * **Tổng hợp theo 3 đối tượng chủ thể:** Chủ nhà (`landlord`), Khách thuê (`tenant`), và Field Host (`host`).
-  * **Bảo mật danh tính & PII (Nghị định 13/2023/NĐ-CP):** Số điện thoại luôn được che mờ (`phoneMasked`); khoá định danh URL của khách thuê dùng hàm băm FNV-1a 32-bit (`T` + base36), tuyệt đối không để lộ SĐT hay số CCCD trên thanh địa chỉ duyệt web.
-  * **Bảng danh sách bên ký:** Thống kê tổng số hợp đồng của từng cá nhân, số lượng HĐ đang còn hiệu lực, và số lượng HĐ đang có cảnh báo cần xử lý (`needsAction`).
-  * **Trang chi tiết hồ sơ bên ký (`/admin/contracts/parties/[key]`):**
-    * 3 thẻ StatTile KPI: Tổng số hợp đồng, Số HĐ đang hiệu lực, và Cảnh báo việc cần xử lý.
-    * Danh sách toàn bộ hợp đồng liên quan: Phân định rõ quan hệ "Bên ký" (trực tiếp ký hợp đồng) hoặc "Host phụ trách" (Field Host được phân công tiếp đón/quản lý căn hộ).
-    * Lưới danh mục mẫu áp dụng cho vai này: Hiển thị trực quan toàn bộ các mẫu hợp đồng, phụ lục và chính sách bảo vệ quyền lợi được thiết kế riêng cho vai trò tương ứng để tiện tra cứu và tư vấn.
+  * **Phân vai linh hoạt:** Quản trị viên chỉ định vai trò cho từng Host:
+    * `Sale`: Phụ trách ca trực tiếp đón, dẫn khách xem phòng, xúc tiến chốt cọc.
+    * `Inspector`: Phụ trách khảo sát, thẩm định thực địa 32 hạng mục cho căn hộ mới ký gửi.
+    * Hoặc cả hai vai (`Sale & Inspector`).
+  * **Kiểm soát truy cập (RoleGate):**
+    * Host vai Sale chỉ thấy menu Điều phối ca trực (`/host/dispatch`), Lịch xem phòng (`/host/viewing`).
+    * Host vai Inspector chỉ thấy menu Thẩm định căn hộ (`/host/inspections`).
+    * Khi Host cố truy cập tính năng ngoài vai trò: Hệ thống hiển thị thông báo chặn quyền RoleGate rõ ràng.
+  * Quản lý hồ sơ Host, đánh giá KPI, lịch sử dẫn khách và ví hoa hồng.
 
 ---
 
-## 6. MA TRẬN ĐỒNG BỘ DỮ LIỆU GIỮA 4 LUỒNG (DATA SYNC MATRIX)
+## 6. MA TRẬN ĐỒNG BỘ DỮ LIỆU GIỮA CÁC LUỒNG (DATA SYNC MATRIX)
 
 | Sự kiện nghiệp vụ phát sinh | Cập nhật Luồng Khách Thuê | Cập nhật Luồng Chủ Nhà | Cập nhật Luồng Field Host | Cập nhật Luồng Admin Portal |
 | :-- | :-- | :-- | :-- | :-- |
-| **Chủ nhà ký OTP ủy quyền ký gửi** | Chưa hiển thị (chờ duyệt) | Trạng thái: `Chờ Field Host nhận` (hạn 48h) | Nhận ticket thẩm định 48h (gán theo phân khu) | Thông báo có hồ sơ ký gửi mới |
-| **Host bấm nhận ticket thẩm định** | Chưa hiển thị | Trạng thái: `Đang thẩm định` | Mở form thẩm định thực địa (5 trường kê khai, đồ dùng, 10 mục % độ mới có ảnh) | Giám sát: Host đang thẩm định thực tế |
-| **Host nộp báo cáo % độ mới** | Chưa hiển thị | Trạng thái: `Chờ Admin duyệt` (xem trước báo cáo hiện trạng) | Phiếu chuyển sang chế độ chỉ đọc | Chuông báo: Có báo cáo thẩm định cần duyệt |
-| **Admin chốt duyệt hoặc từ chối** | Nếu duyệt: rổ hàng hiển thị; Nếu từ chối: không hiển thị | Zalo thông báo kết quả (nếu từ chối: kèm lý do & nút ký gửi lại) | Push thông báo kết quả chốt ký gửi | Cập nhật rổ hàng / lưu lý do từ chối vào hồ sơ |
-| **Khách bấm [Đặt lịch OTP]** | Nhận mã hẹn & thông tin Host | Chưa nhận báo động | Nhận ticket ca trực (SLA 3m) | Ghi nhận phễu: Tăng số lịch hẹn |
-| **Mốc T-10m trước giờ hẹn** | Zalo bot gửi nút 1-chạm [Có mặt] | Chưa nhận báo động | Rung chuông nhắc xuống sảnh | Giám sát SLA tiếp đón đúng giờ |
-| **Host bấm [Xác nhận xem phòng]** | Khách cùng Host lên phòng | **Zalo bot báo phòng đang mở cửa** | Màn hình Host hiện mã cửa số | Ghi nhận lượt mở cửa thực tế |
-| **Khách quét VietQR cọc 2 triệu** | Khóa căn `holding` 24h, mở form OCR | **Zalo bot báo tin nhận cọc 2 triệu** | App báo thành công, ghi nhận ví hoa hồng | Cập nhật phễu chốt cọc; tự động hủy lịch xem sau |
-| **Chủ nhà bấm [Yêu cầu thoát 15 ngày]** | Vẫn hiển thị nếu căn trống | Kích hoạt đồng hồ đếm ngược 15 ngày | Vẫn được dẫn khách nốt trong 15 ngày | Giám sát danh sách sắp thanh lý ủy quyền |
-| **Admin bấm [Hoàn tất thoát uỷ quyền]** | Căn hộ ngừng hiển thị (unlisted) | Zalo thông báo căn hộ đã offboard, nhận lại chìa cơ tại VP phân khu | Push thông báo căn hộ đã offboard, gỡ mã cửa khỏi mạng lưới | Chuyển trạng thái mandate `ended`, giảm badge việc cần xử lý |
-| **Admin bấm [Nhắc gia hạn HĐ thuê]** | Zalo bot thông báo HĐ sắp hết hạn $\le 30$ ngày, đề nghị báo gia hạn hoặc chuẩn bị trả phòng | Zalo bot thông báo HĐ sắp hết hạn, đề nghị xác nhận gia hạn hoặc mở đón khách mới sớm | — | Ghi nhận thời điểm nhắc `renewalRemindedAt`, tắt cảnh báo cần xử lý |
+| **Chủ nhà hoàn tất ký gửi 3 bước** | Chưa hiển thị | Badge: `Chờ thẩm định` | Inspector nhận ticket thẩm định | Thông báo có hồ sơ ký gửi mới |
+| **Inspector nộp biên bản 32 mục** | Chưa hiển thị | Xem trước biên bản thẩm định | Chuyển chế độ chỉ đọc | Chuông báo: Có biên bản cần duyệt |
+| **Admin duyệt biên bản thẩm định** | Hiển thị căn hộ lên Web Catalog | Badge: `Đã thẩm định` (Sẵn sàng đón khách) | Hoàn tất ca thẩm định | Cập nhật rổ hàng verified 100% |
+| **Khách đặt lịch xem phòng** | Nhận mã hẹn & 3 lưu ý quan trọng | Nhãn: `Có khách xem` | Sale nhận ticket ca trực (SLA 3m) | Tăng chỉ số phễu đặt lịch |
+| **Khách bấm [Tôi đã có mặt tại sảnh]** | Badge: `Đã có mặt tại sảnh` | Nhận báo động khách đã tới | Rung chuông: Khách đã ở sảnh | Giám sát SLA tiếp đón đúng giờ |
+| **Host mở cửa & dẫn xem phòng** | Khảo sát hiện trạng căn hộ | **Zalo báo: Phòng đang mở cửa xem** | Cấp mã mở cửa số (tự ẩn) | Ghi nhật ký mở cửa căn hộ |
+| **Host bấm [Khách cọc căn này]** | Mở bảng điều khoản cọc & VietQR 2M | Nhận tin: Khách đang làm thủ tục cọc | Màn hình Host: Chờ khách cọc | Phễu chuyển sang giai đoạn cọc |
+| **Khách quét VietQR cọc 2 triệu** | Căn khóa `holding` 7 ngày; mở form ký cọc | **Zalo báo: Đã nhận cọc 2 triệu giữ căn 7 ngày** | Màn hình Host: Đã cọc, chờ khách ký cọc | Khóa căn toàn hệ thống; hủy lịch xem sau |
+| **Khách ký Thỏa thuận cọc OTP** | Xem & in PDF Thỏa thuận cọc; mở eKYC | Nhận bản sao Thỏa thuận cọc số | Màn hình Host: Đã ký cọc, chờ ký HĐ | Lưu trữ chứng cứ ký số AES-256 |
+| **Khách eKYC & ký Hợp đồng thuê** | Hoàn tất thuê, nhận danh bạ thợ | Nhận Hợp đồng thuê; cọc 2M chuyển cọc tài sản | Hoàn thành ca; ví hoa hồng nhảy số | Chuyển căn sang `rented`, cập nhật doanh thu |
+| **Chủ nhà bấm [Yêu cầu thoát 15 ngày]** | Vẫn hiển thị nếu căn còn trống | Đếm ngược 15 ngày thoát ủy quyền | Dẫn nốt trong thời hạn 15 ngày | Theo dõi danh sách sắp offboard |
+| **Admin bấm [Hoàn tất thoát ủy quyền]** | Gỡ căn khỏi Web Catalog (`unlisted`) | Zalo báo: Căn hộ đã offboard thành công | Gỡ mã cửa khỏi mạng lưới Host | Chuyển trạng thái mandate `ended` |
 
 ---
 
-> **KẾT LUẬN & ĐỊNH HƯỚNG TRIỂN KHAI:**  
-> Bản đặc tả UI Flow này liên kết chặt chẽ toàn bộ 4 vai trò, giải quyết triệt để bài toán thị trường mà không tạo ra bất kỳ điểm nghẽn hay rủi ro phình to chi phí vận hành. Toàn bộ mã nguồn Frontend (Web/PWA) và Backend API trong Tuần 2 sẽ bám sát 100% các màn hình và trạng thái nghiệp vụ được quy định tại văn bản này.
+> **KẾT LUẬN & ĐỊNH HƯỚNG BẢO TRÌ:**  
+> Bản đặc tả Master UI Flow Spec này phản ánh chuẩn xác 100% kiến trúc nghiệp vụ phiên bản 0.7.0. Mọi cập nhật tính năng tiếp theo phải bám sát cấu trúc phân vai, quy trình cọc giữ căn 7 ngày và tính độc lập của thiết bị khách thuê đã được định hình tại tài liệu này.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
@@ -18,10 +19,11 @@ import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { approveConsignment, rejectConsignment } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
-import { fmtDate, fmtDateTime, vnd } from "@/lib/mock/format";
-import { unitStatus } from "@/lib/mock/selectors";
+import { fmtDate, fmtDateTime, fmtPhone, fmtTime, vnd } from "@/lib/mock/format";
+import { unitDisplayStatus } from "@/lib/mock/selectors";
 import { consignmentById, unitBookings } from "@/lib/mock/selectors-admin";
 import { isInspectOverdue } from "@/lib/mock/selectors-inspection";
+import { viewingLog, type ViewingLogEntry } from "@/lib/mock/selectors-viewing";
 import { useMock } from "@/lib/mock/store";
 import type { Booking, Consignment, InspectionReport } from "@/lib/mock/types";
 import { FURNISHING_LABEL, LAYOUT_LABEL, hostById, hostForUnit, landlordById, unitAddress, unitById, zoneById, type UnitStatus } from "@/lib/mock/units";
@@ -30,8 +32,16 @@ import styles from "./Admin.module.css";
 
 const UNIT_STATUS_META: Record<UnitStatus, { label: string; tone: StatusTone }> = {
   available: { label: "Còn trống", tone: "ok" },
-  holding: { label: "Giữ chỗ 24h", tone: "warn" },
+  holding: { label: "Đang giữ căn", tone: "warn" },
   rented: { label: "Đã cho thuê", tone: "neutral" },
+};
+
+const OUTCOME_LABEL: Record<ViewingLogEntry["outcome"], { label: string; badge: string }> = {
+  in_progress: { label: "Đang xem", badge: "badge-amber-soft" },
+  deposit: { label: "Khách cọc", badge: "badge-kelp" },
+  not_decided: { label: "Chưa quyết định", badge: "badge-plain" },
+  no_show: { label: "Bỏ hẹn", badge: "badge-coral-soft" },
+  cancelled: { label: "Đã huỷ", badge: "badge-plain" },
 };
 
 /** Hồ sơ duyệt một căn ký gửi — id có thể là consignment id (chưa có Unit) hoặc unit id (đã lên rổ hàng). */
@@ -49,9 +59,10 @@ export function AdminInventoryDetail({ id }: { id: string }) {
   if (!unit && !consignment) notFound();
 
   if (unit) {
-    const s = unitStatus(state, unit);
+    const s = unitDisplayStatus(state, unit);
     const m = state.mandates[unit.id];
     const bookings = unitBookings(state, unit.id).slice(0, 8);
+    const logs = viewingLog(state, { unitId: unit.id });
     return (
       <div className={styles.page}>
         <PageHeader title={unitAddress(unit)} back={{ href: "/admin/inventory", label: "Căn hộ & ký gửi" }} />
@@ -67,9 +78,59 @@ export function AdminInventoryDetail({ id }: { id: string }) {
               { label: "Nội thất", value: FURNISHING_LABEL[unit.furnishing] },
               { label: "Loại khoá", value: unit.lock === "smart" ? "Khoá điện tử" : "Chìa cơ tại quầy phân khu" },
               { label: "Field Host phụ trách", value: hostForUnit(unit).name },
-              { label: "Trạng thái", value: <StatusBadge tone={UNIT_STATUS_META[s].tone}>{UNIT_STATUS_META[s].label}</StatusBadge> },
+              {
+                label: "Trạng thái",
+                value: (
+                  <StatusBadge tone={s === "viewing" ? "warn" : UNIT_STATUS_META[s].tone}>
+                    {s === "viewing" ? "Có khách xem" : UNIT_STATUS_META[s].label}
+                  </StatusBadge>
+                ),
+              },
               { label: "Ủy quyền ký gửi", value: m ? `${m.status === "exiting" ? "Đang thoát, hiệu lực đến " + fmtDate(m.exitEffectiveAt!) : "Đang hiệu lực"} từ ${fmtDate(m.signedAt)}` : "Chưa ký ủy quyền" },
             ]}
+          />
+        </Section>
+
+        <Section title={`Nhật ký xem phòng (${logs.length})`} flush>
+          <DataTable<ViewingLogEntry>
+            columns={[
+              {
+                key: "ref",
+                header: "Mã lịch",
+                render: (l) => (
+                  <Link href={`/admin/bookings?q=${l.ref}`} className="link" style={{ fontWeight: 600 }}>
+                    {l.ref}
+                  </Link>
+                ),
+              },
+              { key: "startedAt", header: "Bắt đầu", render: (l) => fmtDateTime(l.startedAt) },
+              { key: "doorOpenedAt", header: "Mở cửa", render: (l) => l.doorOpenedAt ? fmtTime(l.doorOpenedAt) : "—" },
+              { key: "endedAt", header: "Kết thúc", render: (l) => l.endedAt ? fmtTime(l.endedAt) : "—" },
+              { key: "duration", header: "Thời lượng", render: (l) => l.durationMin !== undefined ? `${l.durationMin} phút` : "—" },
+              {
+                key: "tenant",
+                header: "Khách",
+                render: (l) => (
+                  <div>
+                    <b>{l.tenantName}</b>
+                    <span className="muted xs" style={{ display: "block" }}>{fmtPhone(l.tenantPhone)}</span>
+                  </div>
+                ),
+              },
+              { key: "host", header: "Field Host", render: (l) => hostById(l.hostId)?.name ?? "—" },
+              {
+                key: "outcome",
+                header: "Kết quả",
+                render: (l) => (
+                  <span className={`badge ${OUTCOME_LABEL[l.outcome]?.badge ?? "badge-plain"}`}>
+                    {OUTCOME_LABEL[l.outcome]?.label ?? l.outcome}
+                  </span>
+                ),
+              },
+              { key: "note", header: "Ghi chú", render: (l) => <span className="small muted">{l.note || "—"}</span> },
+            ]}
+            rows={logs}
+            empty={<span className="muted">Chưa có lượt dẫn khách nào cho căn này.</span>}
           />
         </Section>
 

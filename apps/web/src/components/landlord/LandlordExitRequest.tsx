@@ -17,7 +17,7 @@ import styles from "./Landlord.module.css";
 const LID = DEMO_USERS.landlord.refId!;
 
 const BLOCK_REASON: Partial<Record<LandlordUnitRow["status"], string>> = {
-  holding: "đang giữ chỗ 24h",
+  holding: "đang giữ căn",
   rented: "đang cho thuê",
 };
 

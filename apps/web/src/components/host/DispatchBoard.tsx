@@ -132,21 +132,41 @@ export function DispatchBoard() {
       render: (b) => {
         const slotMs = new Date(b.slot).getTime();
         const soon = b.status === "confirmed" && slotMs - now <= 10 * 60_000 && slotMs - now > -900_000;
+        if (b.status === "receiving" || b.status === "viewing") {
+          return (
+            <span className="small" style={{ color: "var(--kelp-700, #047857)", fontWeight: 600 }}>
+              {b.receivingAt ? `Đang dẫn · từ ${fmtTime(b.receivingAt)}` : "Đang dẫn khách"}
+            </span>
+          );
+        }
         const cta: Record<string, string> = {
           confirmed: soon ? "Xuống sảnh đón khách" : "Xem chi tiết & chuẩn bị",
           lobby: "Đón khách ngay",
-          receiving: "Tiếp tục: lên phòng",
-          viewing: "Tiếp tục: kết quả xem",
-          closing: "Tiếp tục: thu cọc",
-          holding: "Xác minh CCCD & ký",
-          signed: "Ký hợp đồng thuê",
+          closing: "Chờ khách cọc",
+          holding: "Chờ khách ký cọc",
+          signed: "Chờ khách làm HĐ",
         };
         return <span className="small">{cta[b.status] ?? ""}</span>;
       },
     },
   ];
 
-  const historyColumns: DataTableColumn<Booking>[] = mineColumns.slice(0, 4);
+  const historyColumns: DataTableColumn<Booking>[] = [
+    ...mineColumns.slice(0, 4),
+    {
+      key: "viewLog",
+      header: "Nhật ký dẫn",
+      render: (b) => {
+        if (b.receivingAt && b.viewEndedAt) {
+          return <span className="small muted">Đã dẫn {fmtTime(b.receivingAt)}–{fmtTime(b.viewEndedAt)}</span>;
+        }
+        if (b.receivingAt) {
+          return <span className="small muted">Bắt đầu {fmtTime(b.receivingAt)}</span>;
+        }
+        return <span className="small muted">—</span>;
+      },
+    },
+  ];
 
   return (
     <div className={styles.page}>

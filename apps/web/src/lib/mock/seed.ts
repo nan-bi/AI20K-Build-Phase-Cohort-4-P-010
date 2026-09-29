@@ -1,7 +1,8 @@
-import { DEFAULT_HOUSEHOLD } from "./cost";
+import { DEFAULT_HOUSEHOLD, HOLD_MS } from "./cost";
 import { upcomingSlots } from "./slots";
 import type { Booking, ChatState, Consignment, FeeAudit, FeeConfig, Mandate, MockState, Notice } from "./types";
-import { PASSPORT_ITEMS, UNITS } from "./units";
+import { UNITS } from "./units";
+import { blankInventory } from "./inventory";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -30,6 +31,7 @@ export const EMPTY_STATE: MockState = {
   unitState: {},
   mandates: {},
   consignments: [],
+  hostRoles: {},
   fees: DEFAULT_FEES,
   feeAudit: [],
   favorites: [],
@@ -44,6 +46,37 @@ export const todayKey = (now: number) => {
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
+
+function makeSeedInventory(
+  now: number,
+  overrides: Record<string, { present?: boolean; condition?: number; note?: string }>
+) {
+  const defaultPhotoAt = iso(now - 4 * HOUR);
+  return blankInventory().map((line) => {
+    const ov = overrides[line.code];
+    if (ov) {
+      return {
+        ...line,
+        present: ov.present ?? true,
+        condition: ov.condition ?? 80,
+        photoAt: defaultPhotoAt,
+        qty: 1,
+        note: ov.note,
+      };
+    }
+    // Mặc định kết cấu hoàn thiện và khoá/thẻ luôn hiện diện
+    if (["25", "26", "27", "28", "29"].includes(line.code)) {
+      return {
+        ...line,
+        present: true,
+        condition: 90,
+        photoAt: defaultPhotoAt,
+        qty: 1,
+      };
+    }
+    return line;
+  });
+}
 
 export function seedState(now: number): MockState {
   const slots = upcomingSlots(now, 14);
@@ -63,11 +96,28 @@ export function seedState(now: number): MockState {
       tenant: t("Lê Hoài Nam", "0903111222"),
       slot: at(2), status: "pending", createdAt: iso(now - 20_000),
     },
-    // Đã nhận, chờ tới giờ
+    // Đã ký thỏa thuận cọc còn hạn (cho demo luồng HĐ thuê của khách TENANT_DEMO — SPEC-P01 §6)
     {
       id: "bk-103", ref: "VS-4F7K2", unitId: "s2-12-1608", hostId: "H01",
       tenant: t(TENANT_DEMO.name, TENANT_DEMO.phone, 1, "Sinh viên VinUni, dọn vào đầu tháng."),
-      slot: at(3), status: "confirmed", createdAt: iso(now - 3 * HOUR), confirmedAt: iso(now - 3 * HOUR + 70_000),
+      slot: iso(now - 1 * DAY), status: "signed", createdAt: iso(now - 2 * DAY), confirmedAt: iso(now - 2 * DAY + 70_000),
+      lobbyAt: iso(now - 1 * DAY - 5 * MIN), receivingAt: iso(now - 1 * DAY), viewingAt: iso(now - 1 * DAY + 5 * MIN), viewEndedAt: iso(now - 1 * DAY + 25 * MIN),
+      depositConsentAt: iso(now - 1 * DAY + 26 * MIN),
+      deposit: {
+        amount: 2_000_000, content: "COC VHOP-S2.12-1608 0912345678", qrRef: "VQ-4F7K-22AA",
+        createdAt: iso(now - 1 * DAY + 27 * MIN), paidAt: iso(now - 1 * DAY + 28 * MIN),
+        expiresAt: iso(now - 1 * DAY + 28 * MIN + HOLD_MS), method: "webhook",
+      },
+      agreement: {
+        signedAt: iso(now - 1 * DAY + 35 * MIN),
+        docId: "TT-2026-0420",
+        party: {
+          fullName: "TRẦN MINH ANH",
+          idNumber: "001095012345",
+          phone: "0912345678",
+          address: "Tòa S2.12 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
+        },
+      },
     },
     {
       id: "bk-104", ref: "VS-9WBE3", unitId: "s1-01-0806", hostId: "H01",
@@ -91,17 +141,29 @@ export function seedState(now: number): MockState {
       slot: iso(now - 4 * MIN), status: "lobby", createdAt: iso(now - 20 * HOUR), confirmedAt: iso(now - 20 * HOUR + 100_000),
       reminderSentAt: iso(now - 14 * MIN), lobbyAt: iso(now - 2 * MIN),
     },
-    // Đã cọc giữ chỗ 24h, chờ eKYC và ký
+    // Đang closing chờ khách tick đồng ý điều khoản và chuyển cọc (SPEC-P01 §6)
+    {
+      id: "bk-117", ref: "VS-8Z4KQ", unitId: "s2-02-2109", hostId: "H01",
+      tenant: t("Hoàng Văn Bách", "0931222333"),
+      slot: iso(now - 2 * HOUR), status: "closing", createdAt: iso(now - 12 * HOUR), confirmedAt: iso(now - 12 * HOUR + 60_000),
+      lobbyAt: iso(now - 2 * HOUR - 5 * MIN), receivingAt: iso(now - 2 * HOUR), viewingAt: iso(now - 2 * HOUR + 6 * MIN), viewEndedAt: iso(now - 2 * HOUR + 35 * MIN),
+      deposit: {
+        amount: 2_000_000, content: "COC VHOP-S2.02-2109 0931222333", qrRef: "VQ-3819-21CD",
+        createdAt: iso(now - 2 * HOUR + 36 * MIN),
+      },
+    },
+    // Đã cọc giữ chỗ 7 ngày (HOLD_DAYS), chờ ký thỏa thuận cọc (SPEC-P01 §6)
     {
       id: "bk-108", ref: "VS-X5NA1", unitId: "s2-16-2216", hostId: "H01",
       tenant: t("Hoàng Thị Yến", "0945121212", 2),
       slot: iso(now - 5 * HOUR), status: "holding", createdAt: iso(now - 30 * HOUR), confirmedAt: iso(now - 30 * HOUR + 65_000),
-      lobbyAt: iso(now - 5 * HOUR - 6 * MIN), receivingAt: iso(now - 5 * HOUR + 2 * MIN), viewingAt: iso(now - 5 * HOUR + 7 * MIN),
+      lobbyAt: iso(now - 5 * HOUR - 6 * MIN), receivingAt: iso(now - 5 * HOUR + 2 * MIN), viewingAt: iso(now - 5 * HOUR + 7 * MIN), viewEndedAt: iso(now - 4 * HOUR - 35 * MIN),
       doorCode: "482910",
+      depositConsentAt: iso(now - 4 * HOUR - 25 * MIN),
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S2.16-2216 0945121212", qrRef: "VQ-8842-10AF",
         createdAt: iso(now - 4 * HOUR - 30 * MIN), paidAt: iso(now - 4 * HOUR - 24 * MIN),
-        expiresAt: iso(now - 4 * HOUR - 24 * MIN + DAY), method: "webhook",
+        expiresAt: iso(now - 4 * HOUR - 24 * MIN + HOLD_MS), method: "webhook",
       },
     },
     // Đã ký hợp đồng thuê (căn rented)
@@ -109,22 +171,33 @@ export function seedState(now: number): MockState {
       id: "bk-109", ref: "VS-J7PD4", unitId: "s1-03-1512", hostId: "H01",
       tenant: t("Trần Quang Vinh", "0919000777"),
       slot: iso(now - 9 * DAY), status: "leased", createdAt: iso(now - 10 * DAY), confirmedAt: iso(now - 10 * DAY + 60_000),
-      lobbyAt: iso(now - 9 * DAY - 5 * MIN), receivingAt: iso(now - 9 * DAY), viewingAt: iso(now - 9 * DAY + 6 * MIN),
+      lobbyAt: iso(now - 9 * DAY - 5 * MIN), receivingAt: iso(now - 9 * DAY), viewingAt: iso(now - 9 * DAY + 6 * MIN), viewEndedAt: iso(now - 9 * DAY + 35 * MIN),
+      depositConsentAt: iso(now - 9 * DAY + 19 * MIN),
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S1.03-1512 0919000777", qrRef: "VQ-7710-33BC",
         createdAt: iso(now - 9 * DAY + 20 * MIN), paidAt: iso(now - 9 * DAY + 22 * MIN),
-        expiresAt: iso(now - 8 * DAY + 22 * MIN), method: "webhook",
+        expiresAt: iso(now - 9 * DAY + 22 * MIN + HOLD_MS), method: "webhook",
       },
-      agreement: { signedAt: iso(now - 9 * DAY + 45 * MIN), docId: "TT-2026-0418" },
+      agreement: {
+        signedAt: iso(now - 9 * DAY + 45 * MIN),
+        docId: "TT-2026-0418",
+        party: {
+          fullName: "TRẦN QUANG VINH",
+          idNumber: "001091900077",
+          phone: "0919000777",
+          address: "Tòa S1.03 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
+        },
+      },
       lease: { signedAt: iso(now - 8 * DAY - 2 * HOUR), startDate: iso(now - 6 * DAY), months: 12, rent: 6_000_000, docId: "HD-2026-0091" },
       rating: 5,
     },
-    // Xem xong, khách chưa quyết
+    // Xem xong, khách chưa quyết (có receivingAt và viewEndedAt cho nhật ký xem phòng)
     {
       id: "bk-110", ref: "VS-B6KV2", unitId: "s2-19-1907", hostId: "H01",
       tenant: t("Ngô Thanh Hà", "0908444555"),
       slot: iso(now - 1 * DAY - 3 * HOUR), status: "completed", createdAt: iso(now - 2 * DAY), confirmedAt: iso(now - 2 * DAY + 90_000),
-      viewingAt: iso(now - 1 * DAY - 3 * HOUR + 8 * MIN), closedReason: "Khách cần bàn với gia đình", rating: 5,
+      receivingAt: iso(now - 1 * DAY - 3 * HOUR - 5 * MIN), viewingAt: iso(now - 1 * DAY - 3 * HOUR + 8 * MIN), viewEndedAt: iso(now - 1 * DAY - 3 * HOUR + 32 * MIN),
+      closedReason: "Khách cần bàn với gia đình", rating: 5,
     },
     // No-show
     {
@@ -158,18 +231,27 @@ export function seedState(now: number): MockState {
       id: "bk-116", ref: "VS-V3NF4", unitId: "zr1-12-0718", hostId: "H03",
       tenant: t("Kiều Minh Quân", "0913707070"),
       slot: iso(now - 12 * DAY), status: "leased", createdAt: iso(now - 13 * DAY), confirmedAt: iso(now - 13 * DAY + 60_000),
-      viewingAt: iso(now - 12 * DAY + 5 * MIN),
+      viewingAt: iso(now - 12 * DAY + 5 * MIN), viewEndedAt: iso(now - 12 * DAY + 30 * MIN),
+      depositConsentAt: iso(now - 12 * DAY + 19 * MIN),
       deposit: {
         amount: 2_000_000, content: "COC VHOP-ZR1-1218 0913707070", qrRef: "VQ-6403-91DE",
         createdAt: iso(now - 12 * DAY + 20 * MIN), paidAt: iso(now - 12 * DAY + 21 * MIN),
-        expiresAt: iso(now - 11 * DAY + 21 * MIN), method: "webhook",
+        expiresAt: iso(now - 12 * DAY + 21 * MIN + HOLD_MS), method: "webhook",
       },
-      agreement: { signedAt: iso(now - 12 * DAY + 40 * MIN), docId: "TT-2026-0377" },
+      agreement: {
+        signedAt: iso(now - 12 * DAY + 40 * MIN),
+        docId: "TT-2026-0377",
+        party: {
+          fullName: "KIỀU MINH QUÂN",
+          idNumber: "001091370707",
+          phone: "0913707070",
+          address: "Tòa ZR1 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
+        },
+      },
       lease: { signedAt: iso(now - 11 * DAY - 4 * HOUR), startDate: iso(now - 10 * DAY), months: 12, rent: 5_500_000, docId: "HD-2026-0074" },
       rating: 5,
     },
     // Hồ sơ 07 WP1: HĐ thuê sắp hết hạn trong ≤ 30 ngày (expiring lease) cho Admin quản lý
-    // Chọn căn s1-09-1412 (Sapphire 1, host H01, rent 6.000.000đ) không bị trùng booking nào
     {
       id: "bk-120",
       ref: "VS-9K2LM",
@@ -180,16 +262,26 @@ export function seedState(now: number): MockState {
       status: "leased",
       createdAt: iso(now - 348 * DAY),
       confirmedAt: iso(now - 348 * DAY + 60_000),
+      depositConsentAt: iso(now - 347 * DAY + 10 * MIN),
       deposit: {
         amount: 2_000_000,
         content: "COC VHOP-S1.09-1412 0901234567",
         qrRef: "VQ-9921-88AA",
         createdAt: iso(now - 347 * DAY),
         paidAt: iso(now - 347 * DAY + 15 * MIN),
-        expiresAt: iso(now - 346 * DAY + 15 * MIN),
+        expiresAt: iso(now - 347 * DAY + 15 * MIN + HOLD_MS),
         method: "webhook",
       },
-      agreement: { signedAt: iso(now - 346 * DAY - 2 * HOUR), docId: "TT-2025-0907" },
+      agreement: {
+        signedAt: iso(now - 346 * DAY - 2 * HOUR),
+        docId: "TT-2025-0907",
+        party: {
+          fullName: "ĐẶNG HOÀNG NAM",
+          idNumber: "001090123456",
+          phone: "0901234567",
+          address: "Tòa S1.09 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
+        },
+      },
       lease: {
         signedAt: iso(now - 346 * DAY),
         startDate: iso(now - 345 * DAY),
@@ -210,7 +302,7 @@ export function seedState(now: number): MockState {
   const notices: Notice[] = [
     zn({ audience: "landlord", toKey: "L1", at: iso(now - 4 * HOUR - 24 * MIN), unitId: "s2-16-2216", bookingId: "bk-108", tone: "success",
       title: "Nhận cọc giữ chỗ 2.000.000đ",
-      body: "Chúc mừng! Căn hộ VHOP-S2.16-2216 vừa nhận cọc giữ chỗ 24h qua VietQR từ khách Hoàng Thị Yến." }),
+      body: "Chúc mừng! Căn hộ VHOP-S2.16-2216 vừa nhận cọc giữ căn 7 ngày qua VietQR từ khách Hoàng Thị Yến." }),
     zn({ audience: "landlord", toKey: "L1", at: iso(now - 5 * HOUR + 7 * MIN), unitId: "s2-16-2216", bookingId: "bk-108", tone: "info",
       title: "Căn hộ vừa được mở khoá đón khách",
       body: "Căn VHOP-S2.16-2216 được mở khoá lúc " + hm(now - 5 * HOUR + 7 * MIN) + " bởi Field Host Lê Quốc Bảo." }),
@@ -228,7 +320,7 @@ export function seedState(now: number): MockState {
       body: "Ticket VS-U8HS3 (Masteri Waterfront · M3 Tầng 22) chưa có Host nhận. Đã chuyển Open Pool 500m." }),
     zn({ audience: "admin", channel: "system", at: iso(now - 4 * HOUR - 24 * MIN), bookingId: "bk-108", unitId: "s2-16-2216", tone: "success",
       title: "Cọc 2.000.000đ đã gạch nợ",
-      body: "Căn VHOP-S2.16-2216 chuyển sang holding 24h. Các lịch xem còn lại của căn được huỷ tự động." }),
+      body: "Căn VHOP-S2.16-2216 chuyển sang holding 7 ngày. Các lịch xem còn lại của căn được huỷ tự động." }),
     zn({ audience: "admin", channel: "system", at: iso(now - 2 * DAY), unitId: "zr2-09-0912", tone: "warning",
       title: "Chủ nhà yêu cầu thoát ủy quyền",
       body: "Căn VHOP-ZR2-0912 (Nguyễn Văn Hùng) bắt đầu đếm ngược 15 ngày." }),
@@ -277,10 +369,14 @@ export function seedState(now: number): MockState {
       layout: "2PN",
       areaM2: 59,
       askRent: 9_500_000,
+      suggestedDeposit: 9_500_000,
+      leaseTerm: "long",
+      furnished: true,
+      locks: ["smart"],
+      auditByHost: true,
       furnishing: "full",
       lock: "smart",
-      auditByHost: true,
-      items: ["ac", "fridge", "kitchen", "bed", "sofa"],
+      items: ["ac", "fridge", "washer"],
       status: "draft",
       createdAt: iso(now - 1 * DAY),
     },
@@ -293,10 +389,14 @@ export function seedState(now: number): MockState {
       layout: "Studio",
       areaM2: 31,
       askRent: 6_200_000,
+      suggestedDeposit: 6_200_000,
+      leaseTerm: "long",
+      furnished: true,
+      locks: ["physical"],
+      auditByHost: true,
       furnishing: "full",
       lock: "physical",
-      auditByHost: true,
-      items: ["ac", "fridge", "kitchen", "bed"],
+      items: ["ac", "heater"],
       status: "awaiting_host",
       createdAt: iso(now - 7 * HOUR),
       signedAt: iso(now - 6 * HOUR),
@@ -312,10 +412,14 @@ export function seedState(now: number): MockState {
       layout: "1PN",
       areaM2: 44,
       askRent: 8_200_000,
+      suggestedDeposit: 8_200_000,
+      leaseTerm: "long",
+      furnished: true,
+      locks: ["smart"],
+      auditByHost: false,
       furnishing: "full",
       lock: "smart",
-      auditByHost: false,
-      items: ["ac", "fridge", "kitchen", "bed", "sofa", "tv"],
+      items: ["ac", "fridge", "bed"],
       status: "inspecting",
       createdAt: iso(now - 1 * DAY - 2 * HOUR),
       signedAt: iso(now - 1 * DAY),
@@ -332,10 +436,14 @@ export function seedState(now: number): MockState {
       layout: "3PN",
       areaM2: 77,
       askRent: 11_800_000,
+      suggestedDeposit: 11_800_000,
+      leaseTerm: "long",
+      furnished: false,
+      locks: ["smart"],
+      auditByHost: true,
       furnishing: "basic",
       lock: "smart",
-      auditByHost: true,
-      items: ["ac", "fridge", "kitchen"],
+      items: ["ac"],
       status: "reviewing",
       createdAt: iso(now - 2 * DAY),
       signedAt: iso(now - 2 * DAY + 2 * HOUR),
@@ -352,23 +460,12 @@ export function seedState(now: number): MockState {
           { field: "furnishing", ok: true },
           { field: "lock", ok: true },
         ],
-        items: [
-          { key: "ac", present: true },
-          { key: "fridge", present: true },
-          { key: "kitchen", present: true },
-        ],
-        equipment: [
-          { item: PASSPORT_ITEMS[0], condition: 50, photoAt: iso(now - 4 * HOUR - 10 * MIN), note: "Sơn tường hơi ố nhẹ" },
-          { item: PASSPORT_ITEMS[1], condition: 50, photoAt: iso(now - 4 * HOUR - 9 * MIN), note: "Sàn gỗ xước nhẹ" },
-          { item: PASSPORT_ITEMS[2], condition: 80, photoAt: iso(now - 4 * HOUR - 8 * MIN) },
-          { item: PASSPORT_ITEMS[3], condition: 80, photoAt: iso(now - 4 * HOUR - 7 * MIN) },
-          { item: PASSPORT_ITEMS[4], condition: 90, photoAt: iso(now - 4 * HOUR - 6 * MIN) },
-          { item: PASSPORT_ITEMS[5], condition: 80, photoAt: iso(now - 4 * HOUR - 5 * MIN) },
-          { item: PASSPORT_ITEMS[6], condition: 80, photoAt: iso(now - 4 * HOUR - 4 * MIN) },
-          { item: PASSPORT_ITEMS[7], condition: 90, photoAt: iso(now - 4 * HOUR - 3 * MIN) },
-          { item: PASSPORT_ITEMS[8], condition: 90, photoAt: iso(now - 4 * HOUR - 2 * MIN) },
-          { item: PASSPORT_ITEMS[9], condition: 90, photoAt: iso(now - 4 * HOUR - 1 * MIN) },
-        ],
+        inventory: makeSeedInventory(now, {
+          "1": { condition: 50, note: "Sơn tường hơi ố nhẹ" },
+          "25": { condition: 50, note: "Sàn gỗ xước nhẹ" },
+        }),
+        netAreaM2: 75,
+        furnishing: "basic",
         recommendation: "approve",
         note: "Căn hộ nội thất cơ bản còn tốt, sàn và tường dặm vá nhẹ trước khi đón khách.",
       },
@@ -382,10 +479,14 @@ export function seedState(now: number): MockState {
       layout: "2PN",
       areaM2: 64,
       askRent: 9_000_000,
+      suggestedDeposit: 9_000_000,
+      leaseTerm: "long",
+      furnished: true,
+      locks: ["smart"],
+      auditByHost: true,
       furnishing: "full",
       lock: "smart",
-      auditByHost: true,
-      items: ["ac", "fridge", "kitchen", "bed", "sofa"],
+      items: ["ac", "fridge", "curtain"],
       status: "approved",
       createdAt: iso(now - 5 * DAY),
       signedAt: iso(now - 5 * DAY + 1 * HOUR),
@@ -404,25 +505,9 @@ export function seedState(now: number): MockState {
           { field: "furnishing", ok: true },
           { field: "lock", ok: true },
         ],
-        items: [
-          { key: "ac", present: true },
-          { key: "fridge", present: true },
-          { key: "kitchen", present: true },
-          { key: "bed", present: true },
-          { key: "sofa", present: true },
-        ],
-        equipment: [
-          { item: PASSPORT_ITEMS[0], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[1], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[2], condition: 80, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[3], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[4], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[5], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[6], condition: 80, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[7], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[8], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-          { item: PASSPORT_ITEMS[9], condition: 90, photoAt: iso(now - 4 * DAY + 2 * HOUR) },
-        ],
+        inventory: makeSeedInventory(now, {}),
+        netAreaM2: 62,
+        furnishing: "full",
         recommendation: "approve",
         note: "Căn hộ rất mới, trang thiết bị đồng bộ, sẵn sàng cho thuê ngay.",
       },
@@ -444,10 +529,11 @@ export function seedState(now: number): MockState {
       "s1-03-1512": { status: "rented" },
       "zr1-12-0718": { status: "rented" },
       "s1-09-1412": { status: "rented" },
-      "s2-16-2216": { status: "holding", holdingUntil: iso(now - 4 * HOUR - 24 * MIN + DAY) },
+      "s2-16-2216": { status: "holding", holdingUntil: iso(now - 4 * HOUR - 24 * MIN + HOLD_MS) },
     },
     mandates,
     consignments,
+    hostRoles: {},
     fees: DEFAULT_FEES,
     feeAudit,
     favorites: [],

@@ -1,13 +1,24 @@
 "use client";
 
-import { RATES } from "./cost";
-import { fmtTime, dayLabel, normalizePhone, vnd } from "./format";
-import { hostBookings, isOpenBooking, similarUnits, slotTaken, unitStatus } from "./selectors";
+import { HOLD_DAYS, HOLD_MS, RATES } from "./cost";
+import { fmtTime, dayLabel, normalizePhone, vnd, isValidVnPhone } from "./format";
+import {
+  canTenantModify,
+  holdEndsAt,
+  hostBookings,
+  isOpenBooking,
+  pickHostFor,
+  similarUnits,
+  slotTaken,
+  unitStatus,
+} from "./selectors";
 import { emptyChat } from "./seed";
 import { getMockState, setMockState } from "./store";
 import type {
+  AgreementParty,
   Booking,
   ChatMessage,
+  ConsignInput,
   Consignment,
   CriteriaState,
   DeclaredField,
@@ -19,9 +30,30 @@ import type {
   Notice,
   OtpChallenge,
 } from "./types";
-import { hostById, hostForUnit, unitById, unitAddress, type Unit, PASSPORT_ITEMS, zoneOfBuilding } from "./units";
+import {
+  hostById,
+  hostForUnit,
+  unitById,
+  unitAddress,
+  type Unit,
+  type HostRole,
+  zoneOfBuilding,
+} from "./units";
 import { inspectionSummary } from "./selectors-inspection";
 import { contractByKey } from "./contracts";
+
+export type DealError =
+  | "not_found"
+  | "bad_status"
+  | "expired"
+  | "invalid_party"
+  | "no_consent"
+  | "no_kyc"
+  | "too_late";
+
+export type DealResult =
+  | { ok: true }
+  | { ok: false; code: DealError; reason: string };
 
 // ─── tiện ích ─────────────────────────────────────────────────────────────────────────────────
 
@@ -111,7 +143,9 @@ export interface BookingInput {
 export function createBooking(input: BookingInput): Booking {
   const state = getMockState();
   const unit = unitById(input.unitId)!;
-  const host = hostForUnit(unit);
+  const zone = zoneOfBuilding(unit.building);
+  const picked = zone ? pickHostFor(state, zone.id, "sale") : { hostId: hostForUnit(unit).id, fallback: false };
+  const host = hostById(picked.hostId) ?? hostForUnit(unit);
   const now = Date.now();
   const phone = normalizePhone(input.phone);
   const booking: Booking = {
@@ -124,6 +158,25 @@ export function createBooking(input: BookingInput): Booking {
     status: "pending",
     createdAt: iso(now),
   };
+  const adminNotices: Notice[] = [
+    toAdmin({
+      bookingId: booking.id,
+      unitId: unit.id,
+      title: "Lịch xem mới (đã xác thực OTP)",
+      body: `${booking.ref} · ${unit.code} · giao cho Host ${host.name}.`,
+    }),
+  ];
+  if (picked.fallback && zone) {
+    adminNotices.push(
+      toAdmin({
+        bookingId: booking.id,
+        unitId: unit.id,
+        tone: "warning",
+        title: "Giao tạm Host mặc định",
+        body: `Phân khu ${zone.id} không có Sale đang có vai — giao tạm Host mặc định.`,
+      }),
+    );
+  }
   setMockState((s) =>
     withNotices(
       { ...s, bookings: [booking, ...s.bookings], tenantProfile: { name: booking.tenant.name, phone } },
@@ -141,19 +194,19 @@ export function createBooking(input: BookingInput): Booking {
         title: "Ticket mới — cần nhận trong 3 phút",
         body: `${booking.tenant.name} · ${unitAddress(unit)} · hẹn ${slotText(input.slot, now)}.`,
       }),
-      toAdmin({
-        bookingId: booking.id,
-        unitId: unit.id,
-        title: "Lịch xem mới (đã xác thực OTP)",
-        body: `${booking.ref} · ${unit.code} · giao cho Host ${host.name}.`,
-      }),
+      ...adminNotices,
     ),
   );
   return booking;
 }
 
-export function cancelBooking(id: string, reason: string, by: "tenant" | "host" = "tenant") {
-  const b = requireBooking(id);
+export function cancelBooking(id: string, reason: string, by: "tenant" | "host" = "tenant"): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: `Không tìm thấy lịch hẹn ${id}` };
+  const now = Date.now();
+  if (by === "tenant" && !canTenantModify(b, now)) {
+    return { ok: false, code: "too_late", reason: "Chỉ được huỷ lịch trước giờ xem ít nhất 2 giờ" };
+  }
   const unit = unitById(b.unitId)!;
   setMockState((s) =>
     withNotices(
@@ -173,12 +226,20 @@ export function cancelBooking(id: string, reason: string, by: "tenant" | "host" 
       }),
     ),
   );
+  return { ok: true };
 }
 
-export function rescheduleBooking(id: string, slot: string) {
-  const b = requireBooking(id);
+export function rescheduleBooking(id: string, slot: string): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: `Không tìm thấy lịch hẹn ${id}` };
+  const now = Date.now();
+  if (!canTenantModify(b, now)) {
+    return { ok: false, code: "too_late", reason: "Chỉ được đổi giờ trước giờ hẹn ít nhất 2 giờ" };
+  }
   const unit = unitById(b.unitId)!;
-  if (slotTaken(getMockState(), b.hostId, slot, id)) throw new Error("Khung giờ này đã có lịch khác của Host.");
+  if (slotTaken(getMockState(), b.hostId, slot, id)) {
+    return { ok: false, code: "bad_status", reason: "Khung giờ này đã có lịch khác của Host." };
+  }
   setMockState((s) =>
     withNotices(
       patchBooking(s, id, { slot, status: "pending", confirmedAt: undefined }),
@@ -197,6 +258,7 @@ export function rescheduleBooking(id: string, slot: string) {
       }),
     ),
   );
+  return { ok: true };
 }
 
 export function tenantCheckIn(id: string) {
@@ -333,14 +395,29 @@ export function hostStartReceiving(id: string) {
   const b = requireBooking(id);
   if (!["confirmed", "lobby"].includes(b.status)) return;
   const unit = unitById(b.unitId)!;
+  const host = hostById(b.hostId) ?? hostForUnit(unit);
+  const now = Date.now();
   setMockState((s) =>
     withNotices(
-      patchBooking(s, id, { status: "receiving", receivingAt: iso(Date.now()) }),
+      patchBooking(s, id, { status: "receiving", receivingAt: iso(now) }),
       zaloToTenant(b.tenant.phone, {
         bookingId: id,
         unitId: unit.id,
         title: "Host bắt đầu tiếp đón",
-        body: `Host ${hostById(b.hostId)?.name} đang đón bạn ở sảnh và sẽ quẹt thẻ cư dân để lên căn ${unitAddress(unit)}.`,
+        body: `Host ${host.name} đang đón bạn ở sảnh và sẽ quẹt thẻ cư dân để lên căn ${unitAddress(unit)}.`,
+      }),
+      zaloToLandlord(unit.landlordId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Host bắt đầu tiếp đón khách",
+        body: `Host bắt đầu dẫn khách xem căn ${unit.code} lúc ${fmtTime(now)}.`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        title: "Ghi nhận lượt xem",
+        body: `${host.name} đón ${b.tenant.name} tại sảnh ${unit.building} lúc ${fmtTime(now)}.`,
       }),
     ),
   );
@@ -413,9 +490,10 @@ export function hostNotInterested(id: string, reason: string) {
   const b = requireBooking(id);
   const unit = unitById(b.unitId)!;
   const similar = similarUnits(getMockState(), unit, 2);
+  const now = Date.now();
   setMockState((s) =>
     withNotices(
-      patchBooking(s, id, { status: "completed", closedReason: reason }),
+      patchBooking(s, id, { status: "completed", closedReason: reason, viewEndedAt: iso(now) }),
       zaloToTenant(b.tenant.phone, {
         bookingId: id,
         unitId: unit.id,
@@ -457,21 +535,44 @@ export function hostStartDeposit(id: string) {
   const b = requireBooking(id);
   if (b.status !== "viewing") return;
   const unit = unitById(b.unitId)!;
+  const now = Date.now();
   setMockState((s) =>
-    patchBooking(s, id, {
-      status: "closing",
-      deposit: {
-        amount: RATES.holdingDeposit,
-        content: `COC ${unit.code} ${b.tenant.phone}`,
-        qrRef: `VQ-${digits(4)}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`,
-        createdAt: iso(Date.now()),
-      },
-    }),
+    withNotices(
+      patchBooking(s, id, {
+        status: "closing",
+        viewEndedAt: iso(now),
+        deposit: {
+          amount: RATES.holdingDeposit,
+          content: `COC ${unit.code} ${b.tenant.phone}`,
+          qrRef: `VQ-${digits(4)}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`,
+          createdAt: iso(now),
+        },
+      }),
+      zaloToTenant(b.tenant.phone, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Khách chốt phòng — Vui lòng quét VietQR giữ căn",
+        body: `Mở lịch hẹn ${b.ref} để đồng ý điều khoản và quét VietQR giữ căn ${HOLD_DAYS} ngày.`,
+      }),
+    ),
   );
 }
 
+export function tenantAcceptDepositTerms(id: string): DealResult {
+  const state = getMockState();
+  const b = state.bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "closing" || !b.deposit) {
+    return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái chờ cọc" };
+  }
+  if (b.depositConsentAt) return { ok: true };
+  setMockState((s) => patchBooking(s, id, { depositConsentAt: iso(Date.now()) }));
+  return { ok: true };
+}
+
 /**
- * Webhook ngân hàng báo có (hoặc Host đối soát UNC): khoá căn `holding` 24h, tự huỷ các lịch xem còn lại của căn
+ * Webhook ngân hàng báo có (hoặc Host đối soát UNC): khoá căn `holding` 7 ngày (HOLD_DAYS), tự huỷ các lịch xem còn lại của căn
  * và Zalo xin lỗi kèm 2 căn tương đương (AI Conflict Resolver — PRD §3.5).
  */
 export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt" = "webhook") {
@@ -495,8 +596,11 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
     return;
   }
 
+  // Thêm điều kiện: có depositConsentAt, nếu thiếu thì không làm gì (SPEC-P01 §2)
+  if (!b.depositConsentAt) return;
+
   const paidAt = iso(now);
-  const expiresAt = iso(now + 24 * 3_600_000);
+  const expiresAt = iso(now + HOLD_MS);
   const state = getMockState();
   const victims = state.bookings.filter((x) => x.id !== id && x.unitId === unit.id && ["pending", "confirmed", "lobby"].includes(x.status));
   const alternatives = similarUnits(state, unit, 2);
@@ -509,17 +613,17 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
         bookingId: id,
         unitId: unit.id,
         tone: "success",
-        title: "Đã nhận cọc giữ chỗ 24 giờ",
-        body: `Thanh toán thành công ${vnd(dep.amount)}đ! Căn ${unitAddress(unit)} đã được khoá giữ chỗ cho bạn tới ${fmtTime(expiresAt)} ${dayLabel(expiresAt, now).toLowerCase()}. Khoản cọc này chuyển 100% thành Tiền cọc bảo đảm khi ký hợp đồng thuê, không trừ vào tiền thuê tháng đầu. Bước tiếp theo: xác minh CCCD và ký thỏa thuận cọc.`,
+        title: `Đã nhận cọc giữ chỗ ${HOLD_DAYS} ngày`,
+        body: `Thanh toán thành công ${vnd(dep.amount)}đ! Căn ${unitAddress(unit)} đã được khoá giữ chỗ cho bạn tới ${fmtTime(expiresAt)} ${dayLabel(expiresAt, now).toLowerCase()}. Khoản cọc này chuyển 100% thành Tiền cọc bảo đảm khi ký hợp đồng thuê, không trừ vào tiền thuê tháng đầu. Bước tiếp theo: ký thỏa thuận cọc trên lịch hẹn.`,
       }),
       zaloToLandlord(unit.landlordId, {
         bookingId: id,
         unitId: unit.id,
         tone: "success",
         title: "Nhận cọc giữ chỗ 2.000.000đ",
-        body: `Chúc mừng! Căn ${unit.code} vừa nhận cọc giữ chỗ 24h qua VietQR từ khách ${b.tenant.name}. Các lịch xem còn lại của căn đã được huỷ tự động.`,
+        body: `Chúc mừng! Căn ${unit.code} vừa nhận cọc giữ chỗ ${HOLD_DAYS} ngày qua VietQR từ khách ${b.tenant.name}. Các lịch xem còn lại của căn đã được huỷ tự động.`,
       }),
-      toAdmin({ bookingId: id, unitId: unit.id, tone: "success", title: "Cọc 2.000.000đ đã gạch nợ", body: `${unit.code} chuyển holding 24h. Hủy tự động ${victims.length} lịch xem trùng căn.` }),
+      toAdmin({ bookingId: id, unitId: unit.id, tone: "success", title: "Cọc 2.000.000đ đã gạch nợ", body: `${unit.code} chuyển holding ${HOLD_DAYS} ngày. Hủy tự động ${victims.length} lịch xem trùng căn.` }),
     ];
     for (const v of victims) {
       next = patchBooking(next, v.id, { status: "cancelled", closedReason: "auto_cancelled_due_to_deposit" });
@@ -529,7 +633,7 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
           unitId: unit.id,
           tone: "warning",
           title: "Căn bạn đặt lịch vừa có người cọc",
-          body: `VinStay AI xin thông báo: căn ${unitAddress(unit)} bạn vừa đặt lịch đã được một khách khác hoàn tất cọc giữ chỗ 24h. Để không làm mất thời gian của bạn, mình đã tìm được ${alternatives.length} căn tương đương trong cùng khu: ${alternatives.map((u) => `${unitAddress(u)} (${vnd(u.rent)}đ)`).join(", ")}. Bấm vào lịch hẹn để đổi sang căn khác miễn phí, không cần xác thực lại OTP.`,
+          body: `VinStay AI xin thông báo: căn ${unitAddress(unit)} bạn vừa đặt lịch đã được một khách khác hoàn tất cọc giữ chỗ ${HOLD_DAYS} ngày. Để không làm mất thời gian của bạn, mình đã tìm được ${alternatives.length} căn tương đương trong cùng khu: ${alternatives.map((u) => `${unitAddress(u)} (${vnd(u.rent)}đ)`).join(", ")}. Bấm vào lịch hẹn để đổi sang căn khác miễn phí, không cần xác thực lại OTP.`,
         }),
       );
     }
@@ -539,31 +643,49 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
 
 // ─── eKYC CCCD → thỏa thuận cọc → hợp đồng thuê ────────────────────────────────────────────
 
-export function saveKyc(id: string, data: Omit<IdCardData, "verifiedAt" | "consentAt">) {
-  const b = requireBooking(id);
-  const unit = unitById(b.unitId)!;
-  const now = iso(Date.now());
-  setMockState((s) =>
-    withNotices(
-      patchBooking(s, id, { kyc: { ...data, consentAt: now, verifiedAt: now } }),
-      zaloToTenant(b.tenant.phone, {
-        bookingId: id,
-        unitId: unit.id,
-        tone: "success",
-        title: "Đã xác minh CCCD",
-        body: "VinStay AI đã xác minh CCCD của bạn một lần duy nhất và mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP. Ảnh gốc không được chia sẻ với môi giới hay chủ nhà.",
-      }),
-    ),
-  );
-}
+export function tenantSignAgreement(id: string, party: AgreementParty, signature?: string): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "holding") return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái giữ căn" };
+  if (!b.depositConsentAt) return { ok: false, code: "no_consent", reason: "Chưa đồng ý điều khoản cọc" };
 
-export function signAgreement(id: string) {
-  const b = requireBooking(id);
+  const endAt = holdEndsAt(b);
+  if (endAt !== undefined && Date.now() >= endAt) {
+    return { ok: false, code: "expired", reason: "Thời hạn giữ căn đã hết" };
+  }
+
+  // Validate party (SPEC-P05 §3.2)
+  const name = party.fullName.trim();
+  const idNum = party.idNumber.replace(/\s+/g, "");
+  const phone = normalizePhone(party.phone);
+  const address = party.address.trim();
+
+  const validName = name.length >= 2 && name.length <= 60 && name.split(/\s+/).filter(Boolean).length >= 2 && /^[\p{L}\s]+$/u.test(name);
+  const validId = /^\d{12}$/.test(idNum);
+  const validPhone = isValidVnPhone(party.phone);
+  const validAddr = address.length >= 10 && address.length <= 160;
+
+  if (!validName || !validId || !validPhone || !validAddr) {
+    return { ok: false, code: "invalid_party", reason: "Thông tin bên thuê không hợp lệ" };
+  }
+
+  const normalizedParty: AgreementParty = {
+    fullName: name.replace(/\s+/g, " ").toUpperCase(),
+    idNumber: idNum,
+    phone,
+    address,
+  };
+
   const unit = unitById(b.unitId)!;
   const docId = `TT-${new Date().getFullYear()}-${digits(4)}`;
+  const now = iso(Date.now());
+
   setMockState((s) =>
     withNotices(
-      patchBooking(s, id, { status: "signed", agreement: { signedAt: iso(Date.now()), docId } }),
+      patchBooking(s, id, {
+        status: "signed",
+        agreement: { signedAt: now, docId, party: normalizedParty, signature },
+      }),
       zaloToTenant(b.tenant.phone, {
         bookingId: id,
         unitId: unit.id,
@@ -577,19 +699,99 @@ export function signAgreement(id: string) {
         title: "Khách đã ký thỏa thuận đặt cọc",
         body: `Khách ${b.tenant.name} đã ký Thỏa thuận đặt cọc cho căn ${unit.code}. Bước tiếp theo là ký hợp đồng thuê chính thức.`,
       }),
+      pushToHost(b.hostId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Khách đã ký thỏa thuận cọc",
+        body: `Khách đã ký thỏa thuận cọc ${docId}`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        title: "Khách đã ký thỏa thuận cọc",
+        body: `${b.ref} · ${docId} · ${normalizedParty.fullName}.`,
+      }),
     ),
   );
+
+  return { ok: true };
 }
 
-export function signLease(id: string, opts: { startDate: string; months: number }) {
-  const b = requireBooking(id);
+export function saveKyc(id: string, data: Omit<IdCardData, "verifiedAt" | "consentAt" | "mismatch">): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "signed") return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái đã ký thỏa thuận cọc" };
+
+  const endAt = holdEndsAt(b);
+  if (endAt !== undefined && Date.now() >= endAt) {
+    return { ok: false, code: "expired", reason: "Thời hạn giữ căn đã hết" };
+  }
+
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+  const mismatch: ("fullName" | "idNumber")[] = [];
+  if (b.agreement?.party) {
+    if (norm(data.fullName) !== norm(b.agreement.party.fullName)) mismatch.push("fullName");
+    if (data.idNumber.replace(/\s+/g, "") !== b.agreement.party.idNumber.replace(/\s+/g, "")) mismatch.push("idNumber");
+  }
+
+  const now = iso(Date.now());
+  const extraNotices: Notice[] = [
+    zaloToTenant(b.tenant.phone, {
+      bookingId: id,
+      unitId: b.unitId,
+      tone: "success",
+      title: "Đã xác minh CCCD",
+      body: "VinStay AI đã xác minh CCCD của bạn một lần duy nhất và mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP. Ảnh gốc không được chia sẻ với môi giới hay chủ nhà.",
+    }),
+  ];
+
+  if (mismatch.length > 0) {
+    extraNotices.push(
+      toAdmin({
+        bookingId: id,
+        unitId: b.unitId,
+        tone: "warning",
+        title: "Cảnh báo sai lệch CCCD với Thỏa thuận cọc",
+        body: `${b.ref}: CCCD có trường (${mismatch.join(", ")}) không khớp với thỏa thuận cọc.`,
+      }),
+    );
+  }
+
+  setMockState((s) =>
+    withNotices(
+      patchBooking(s, id, {
+        kyc: { ...data, consentAt: now, verifiedAt: now, mismatch: mismatch.length ? mismatch : undefined },
+      }),
+      ...extraNotices,
+    ),
+  );
+
+  return { ok: true };
+}
+
+export function signLease(id: string, opts: { startDate: string; months: number; signature?: string }): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "signed") return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái đã ký thỏa thuận cọc" };
+  if (!b.kyc) return { ok: false, code: "no_kyc", reason: "Cần xác minh CCCD trước khi ký hợp đồng thuê" };
+
+  const endAt = holdEndsAt(b);
+  if (endAt !== undefined && Date.now() >= endAt) {
+    return { ok: false, code: "expired", reason: "Thời hạn giữ căn đã hết" };
+  }
+
   const unit = unitById(b.unitId)!;
   const docId = `HD-${new Date().getFullYear()}-${digits(4)}`;
   const now = iso(Date.now());
+
   setMockState((s) =>
     withNotices(
       {
-        ...patchBooking(s, id, { status: "leased", lease: { signedAt: now, startDate: opts.startDate, months: opts.months, rent: unit.rent, docId } }),
+        ...patchBooking(s, id, {
+          status: "leased",
+          lease: { signedAt: now, startDate: opts.startDate, months: opts.months, rent: unit.rent, docId, signature: opts.signature },
+        }),
         unitState: { ...s.unitState, [unit.id]: { status: "rented" } },
       },
       zaloToTenant(b.tenant.phone, {
@@ -606,9 +808,104 @@ export function signLease(id: string, opts: { startDate: string; months: number 
         title: "Căn hộ đã có người thuê",
         body: `Hợp đồng thuê ${opts.months} tháng căn ${unit.code} (${vnd(unit.rent)}đ/tháng) đã được ký số. Bạn không cần đi lại — Field Host sẽ lo bàn giao và lập Hộ chiếu số.`,
       }),
-      toAdmin({ bookingId: id, unitId: unit.id, tone: "success", title: "Hợp đồng thuê đã ký", body: `${unit.code} → rented. Ghi nhận hoa hồng cho ${hostById(b.hostId)?.name}.` }),
+      pushToHost(b.hostId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Hợp đồng thuê đã ký",
+        body: `${unit.code} đã ký hợp đồng ${docId}.`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Hợp đồng thuê đã ký",
+        body: `${unit.code} → rented. Ghi nhận hoa hồng cho ${hostById(b.hostId)?.name}.`,
+      }),
     ),
   );
+
+  return { ok: true };
+}
+
+export function demoExpireHold(id: string): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (!["holding", "signed"].includes(b.status)) {
+    return { ok: false, code: "bad_status", reason: "Chỉ tua hạn khi lịch đang giữ căn hoặc đã ký cọc" };
+  }
+  const unit = unitById(b.unitId)!;
+  const pastIso = iso(Date.now() - 1000);
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...patchBooking(s, id, {
+          deposit: b.deposit ? { ...b.deposit, expiresAt: pastIso } : undefined,
+        }),
+        unitState: { ...s.unitState, [unit.id]: { status: "available" } },
+      },
+      zaloToTenant(b.tenant.phone, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "warning",
+        title: "Hết hạn giữ căn hộ",
+        body: "Hết hạn giữ căn, khoản cọc không được hoàn theo thỏa thuận",
+      }),
+      zaloToLandlord(unit.landlordId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Căn hộ đã mở lại đón khách",
+        body: `Căn ${unit.code} hết hạn giữ chỗ mà khách không hoàn tất thủ tục, đã mở lại đón khách.`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Hết hạn giữ căn",
+        body: `Căn ${unit.code} hết hạn giữ chỗ — cọc không hoàn lại.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+// ─── Phân quyền & Vai trò Field Host ────────────────────────────────────────────────────────
+
+export function setHostRoles(hostId: string, roles: HostRole[], by: string): { ok: true } | { ok: false; reason: string } {
+  if (!Array.isArray(roles) || roles.length < 1 || roles.length > 2) {
+    return { ok: false, reason: "Vai trò phải có từ 1 đến 2 phần tử." };
+  }
+  const validRoles: HostRole[] = ["sale", "inspector"];
+  if (!roles.every((r) => validRoles.includes(r))) {
+    return { ok: false, reason: "Vai trò không hợp lệ." };
+  }
+  const unique = Array.from(new Set(roles));
+  if (unique.length !== roles.length) {
+    return { ok: false, reason: "Vai trò bị trùng lặp." };
+  }
+  const sortedRoles = validRoles.filter((r) => unique.includes(r));
+  const host = hostById(hostId);
+  const hostName = host?.name ?? hostId;
+
+  setMockState((s) => ({
+    ...s,
+    hostRoles: {
+      ...s.hostRoles,
+      [hostId]: sortedRoles,
+    },
+    notices: [
+      toAdmin({
+        tone: "info",
+        title: "Thay đổi vai trò Host",
+        body: `${by} đổi vai ${hostName}: ${sortedRoles.map((r) => (r === "sale" ? "Sale" : "Thẩm định")).join(", ")}.`,
+      }),
+      ...s.notices,
+    ],
+  }));
+  return { ok: true };
 }
 
 // ─── Chủ nhà & Admin ─────────────────────────────────────────────────────────────────────────
@@ -627,7 +924,7 @@ export type ConsignResult =
   | { ok: true }
   | { ok: false; code: ConsignError; reason: string };
 
-export type ConsignInput = Omit<Consignment, "id" | "status" | "createdAt">;
+export type { ConsignInput } from "./types";
 
 export function submitConsignment(input: ConsignInput, asDraft = false): Consignment {
   const zone = zoneOfBuilding(input.building);
@@ -635,11 +932,39 @@ export function submitConsignment(input: ConsignInput, asDraft = false): Consign
     throw new Error("Tòa nhà không thuộc phân khu hỗ trợ.");
   }
 
+  // Validate Đ10 khi không phải bản nháp
+  if (!asDraft) {
+    if (typeof input.floor !== "number" || input.floor < 1 || input.floor > 60) {
+      throw new Error("Tầng phải từ 1 đến 60.");
+    }
+    if (!input.door || !input.door.trim()) {
+      throw new Error("Số căn là bắt buộc.");
+    }
+    if (typeof input.areaM2 !== "number" || input.areaM2 < 20 || input.areaM2 > 300) {
+      throw new Error("Diện tích tim tường phải từ 20 đến 300 m².");
+    }
+    if (typeof input.askRent !== "number" || input.askRent < 3_000_000) {
+      throw new Error("Giá thuê tối thiểu 3.000.000đ.");
+    }
+    const deposit = input.suggestedDeposit ?? input.askRent;
+    if (deposit < 2_000_000 || deposit > 3 * input.askRent) {
+      throw new Error("Tiền cọc đề xuất phải từ 2.000.000đ đến 3 lần giá thuê.");
+    }
+    if (input.locks && (!Array.isArray(input.locks) || input.locks.length < 1 || input.locks.length > 2)) {
+      throw new Error("Chọn ít nhất một hình thức khoá cửa.");
+    }
+  }
+
   const nowMs = Date.now();
   const csId = uid("cs");
-  const hostId = zone?.hostId;
+  const state = getMockState();
+  const picked = zone ? pickHostFor(state, zone.id, "inspector") : undefined;
+  const hostId = picked?.hostId ?? zone?.hostId;
   const signedAt = asDraft ? undefined : iso(nowMs);
   const inspectDueAt = asDraft ? undefined : iso(nowMs + INSPECT_SLA_MS);
+
+  const furnished = input.furnished ?? (input.furnishing !== "empty");
+  const locks = input.locks ?? (input.lock ? [input.lock] : ["smart"]);
 
   const cs: Consignment = {
     ...input,
@@ -649,6 +974,14 @@ export function submitConsignment(input: ConsignInput, asDraft = false): Consign
     signedAt,
     hostId,
     inspectDueAt,
+    suggestedDeposit: input.suggestedDeposit ?? input.askRent,
+    leaseTerm: input.leaseTerm ?? "long",
+    furnished,
+    locks,
+    auditByHost: input.auditByHost ?? true,
+    furnishing: input.furnishing ?? (furnished ? "full" : "basic"),
+    lock: locks[0] ?? "smart",
+    items: input.items ?? [],
   };
 
   const extraNotices: Notice[] = [];
@@ -659,7 +992,7 @@ export function submitConsignment(input: ConsignInput, asDraft = false): Consign
       zaloToLandlord(cs.landlordId, {
         tone: "info",
         title: "Đã gửi yêu cầu thẩm định",
-        body: `${can} đã chuyển Field Host ${hostName}; kiểm tra thực tế trong 48 giờ, chi phí 0đ.`,
+        body: `Chuyên viên thẩm định ${hostName} sẽ liên hệ hỗ trợ bạn trong 48 giờ`,
       }),
       pushToHost(hostId, {
         tone: "info",
@@ -672,6 +1005,16 @@ export function submitConsignment(input: ConsignInput, asDraft = false): Consign
         body: `${can} giao ${hostName}.`,
       }),
     );
+
+    if (picked?.fallback && zone) {
+      extraNotices.push(
+        toAdmin({
+          tone: "warning",
+          title: "Phân khu chưa có Thẩm định",
+          body: `Phân khu ${zone.id} không có Thẩm định đang có vai — giao tạm Host mặc định.`,
+        }),
+      );
+    }
   }
 
   setMockState((s) =>
@@ -702,9 +1045,38 @@ export function signConsignment(id: string): ConsignResult {
   const nowMs = Date.now();
   const signedAt = iso(nowMs);
   const inspectDueAt = iso(nowMs + INSPECT_SLA_MS);
-  const hostId = zone.hostId;
+  const picked = pickHostFor(state, zone.id, "inspector");
+  const hostId = picked.hostId;
   const hostName = hostById(hostId)?.name ?? hostId;
   const can = `${cs.building} · Tầng ${cs.floor} · Căn ${cs.door}`;
+
+  const extraNotices: Notice[] = [
+    zaloToLandlord(cs.landlordId, {
+      tone: "info",
+      title: "Đã gửi yêu cầu thẩm định",
+      body: `Chuyên viên thẩm định ${hostName} sẽ liên hệ hỗ trợ bạn trong 48 giờ`,
+    }),
+    pushToHost(hostId, {
+      tone: "info",
+      title: "Ticket thẩm định ký gửi mới",
+      body: `${can} (${cs.layout}, ${cs.areaM2} m²), hạn 48h.`,
+    }),
+    toAdmin({
+      tone: "info",
+      title: "Yêu cầu ký gửi mới",
+      body: `${can} giao ${hostName}.`,
+    }),
+  ];
+
+  if (picked.fallback) {
+    extraNotices.push(
+      toAdmin({
+        tone: "warning",
+        title: "Phân khu chưa có Thẩm định",
+        body: `Phân khu ${zone.id} không có Thẩm định đang có vai — giao tạm Host mặc định.`,
+      }),
+    );
+  }
 
   setMockState((s) =>
     withNotices(
@@ -716,21 +1088,7 @@ export function signConsignment(id: string): ConsignResult {
             : c,
         ),
       },
-      zaloToLandlord(cs.landlordId, {
-        tone: "info",
-        title: "Đã gửi yêu cầu thẩm định",
-        body: `${can} đã chuyển Field Host ${hostName}; kiểm tra thực tế trong 48 giờ, chi phí 0đ.`,
-      }),
-      pushToHost(hostId, {
-        tone: "info",
-        title: "Ticket thẩm định ký gửi mới",
-        body: `${can} (${cs.layout}, ${cs.areaM2} m²), hạn 48h.`,
-      }),
-      toAdmin({
-        tone: "info",
-        title: "Yêu cầu ký gửi mới",
-        body: `${can} giao ${hostName}.`,
-      }),
+      ...extraNotices,
     ),
   );
 
@@ -810,33 +1168,79 @@ export function submitInspection(id: string, hostId: string, draft: InspectionDr
     }
   }
 
-  // 2. items không khớp tập + thứ tự Consignment.items
-  if (
-    draft.items.length !== cs.items.length ||
-    !draft.items.every((it, idx) => it.key === cs.items[idx])
-  ) {
-    return { ok: false, code: "invalid_report", reason: "Danh sách đồ dùng không khớp với thông tin đã kê khai." };
+  // 2. Validate inventory (SPEC-P03 §3) hoặc fallback items/equipment
+  const inventory = draft.inventory;
+  if (inventory) {
+    if (inventory.length < 32) {
+      return { ok: false, code: "invalid_report", reason: "Danh mục kiểm định phải đủ 32 hạng mục chuẩn Điều 5." };
+    }
+    // 32 dòng catalog liên tục code "1".."32"
+    for (let i = 0; i < 32; i++) {
+      if (inventory[i].code !== String(i + 1)) {
+        return { ok: false, code: "invalid_report", reason: `Hạng mục thứ ${i + 1} phải có mã ${i + 1}.` };
+      }
+    }
+    const extraLines = inventory.slice(32);
+    if (extraLines.length > 10) {
+      return { ok: false, code: "invalid_report", reason: "Chỉ được thêm tối đa 10 hạng mục phát sinh." };
+    }
+    for (const ex of extraLines) {
+      if (!ex.name || !ex.name.trim() || ex.name.length > 60) {
+        return { ok: false, code: "invalid_report", reason: "Tên hạng mục thêm phải từ 1 đến 60 ký tự." };
+      }
+    }
+    for (const line of inventory) {
+      if (line.present) {
+        if (
+          typeof line.condition !== "number" ||
+          line.condition < 0 ||
+          line.condition > 100 ||
+          line.condition % 10 !== 0
+        ) {
+          return { ok: false, code: "invalid_report", reason: "Độ mới mỗi hạng mục phải là bội số của 10 (0% - 100%)." };
+        }
+        if (!line.photoAt || !line.photoAt.trim()) {
+          return { ok: false, code: "invalid_report", reason: "Các hạng mục hiện diện bắt buộc phải chụp ảnh xác thực." };
+        }
+        if (typeof line.qty !== "number" || line.qty < 1) {
+          return { ok: false, code: "invalid_report", reason: "Số lượng hạng mục phải từ 1 trở lên." };
+        }
+      }
+      if (line.spec && line.spec.length > 80) {
+        return { ok: false, code: "invalid_report", reason: "Quy cách hạng mục tối đa 80 ký tự." };
+      }
+      if (line.note && line.note.length > 120) {
+        return { ok: false, code: "invalid_report", reason: "Ghi chú hạng mục tối đa 120 ký tự." };
+      }
+    }
+  } else if (draft.equipment) {
+    // Backward compatibility cho tests hoặc forms cũ còn dùng equipment
+    if (draft.equipment.length !== 10) {
+      return { ok: false, code: "invalid_report", reason: "Báo cáo phải đủ 10 hạng mục theo chuẩn Hộ chiếu số." };
+    }
+    for (const eq of draft.equipment) {
+      if (
+        typeof eq.condition !== "number" ||
+        eq.condition < 0 ||
+        eq.condition > 100 ||
+        eq.condition % 10 !== 0
+      ) {
+        return { ok: false, code: "invalid_report", reason: "Độ mới mỗi hạng mục phải là bội số của 10 (0% - 100%)." };
+      }
+      if (!eq.photoAt || !eq.photoAt.trim()) {
+        return { ok: false, code: "invalid_report", reason: "Tất cả 10 hạng mục bắt buộc phải chụp ảnh xác thực." };
+      }
+    }
   }
 
-  // 3. equipment.length !== 10 hoặc sai thứ tự PASSPORT_ITEMS, condition không phải bội 10 trong [0,100], photoAt rỗng
-  if (
-    draft.equipment.length !== 10 ||
-    !draft.equipment.every((eq, idx) => eq.item === PASSPORT_ITEMS[idx])
-  ) {
-    return { ok: false, code: "invalid_report", reason: "Báo cáo phải đủ 10 hạng mục theo chuẩn Hộ chiếu số." };
+  // 3. netAreaM2 và furnishing
+  const netArea = draft.netAreaM2 ?? cs.areaM2;
+  if (netArea <= 0 || netArea > cs.areaM2) {
+    return { ok: false, code: "invalid_report", reason: "Diện tích thông thuỷ phải lớn hơn 0 và không vượt quá diện tích tim tường." };
   }
-  for (const eq of draft.equipment) {
-    if (
-      typeof eq.condition !== "number" ||
-      eq.condition < 0 ||
-      eq.condition > 100 ||
-      eq.condition % 10 !== 0
-    ) {
-      return { ok: false, code: "invalid_report", reason: "Độ mới mỗi hạng mục phải là bội số của 10 (0% - 100%)." };
-    }
-    if (!eq.photoAt || !eq.photoAt.trim()) {
-      return { ok: false, code: "invalid_report", reason: "Tất cả 10 hạng mục bắt buộc phải chụp ảnh xác thực." };
-    }
+  const furnishing = draft.furnishing ?? (cs.furnished ? "full" : "empty");
+  if (!["full", "basic", "empty"].includes(furnishing)) {
+    return { ok: false, code: "invalid_report", reason: "Hiện trạng nội thất thực tế không hợp lệ." };
   }
 
   // 4. recommendation === "reject" mà note rỗng
@@ -844,10 +1248,24 @@ export function submitInspection(id: string, hostId: string, draft: InspectionDr
     return { ok: false, code: "invalid_report", reason: "Vui lòng nhập lý do ghi chú khi đề xuất không duyệt." };
   }
 
+  // Tự động thêm sai lệch nội thất nếu kê khai không nội thất mà thực tế có
+  const declared = [...draft.declared];
+  if (cs.furnished === false && furnishing !== "empty") {
+    const fIdx = declared.findIndex((d) => d.field === "furnishing");
+    const actualLabel = furnishing === "full" ? "Full nội thất" : "Nội thất cơ bản";
+    if (fIdx >= 0) {
+      declared[fIdx] = { field: "furnishing", ok: false, actual: actualLabel };
+    }
+  }
+
   const nowMs = Date.now();
   const submittedAt = iso(nowMs);
   const report: InspectionReport = {
     ...draft,
+    declared,
+    inventory: inventory ?? [],
+    netAreaM2: netArea,
+    furnishing,
     hostId,
     submittedAt,
   };
@@ -993,7 +1411,7 @@ export function requestMandateExit(unit: Unit): ExitResult {
   const state = getMockState();
   const status = unitStatus(state, unit);
   if (status === "holding")
-    return { ok: false, reason: "Căn đang giữ cọc 24h. Bạn có thể gửi lại sau khi hết hạn giữ chỗ hoặc khi hợp đồng thuê chính thức được ký." };
+    return { ok: false, reason: `Căn đang giữ cọc ${HOLD_DAYS} ngày. Bạn có thể gửi lại sau khi hết hạn giữ chỗ hoặc khi hợp đồng thuê chính thức được ký.` };
   if (status === "rented")
     return { ok: false, reason: "Căn đang có hợp đồng thuê hiệu lực. Chỉ thoát ủy quyền được khi căn ở trạng thái trống." };
   const now = Date.now();

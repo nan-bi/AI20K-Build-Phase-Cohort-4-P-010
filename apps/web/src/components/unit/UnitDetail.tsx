@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Star } from "lucide-react";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { toast } from "@/components/ui/Toast";
-import { allInCost, DEFAULT_HOUSEHOLD, isBargain, RATES, savingsPct, type Household } from "@/lib/mock/cost";
+import { allInCost, DEFAULT_HOUSEHOLD, HOLD_DAYS, isBargain, RATES, savingsPct, type Household } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
 import { similarUnits, unitStatus } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
@@ -213,11 +213,11 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
               </div>
               <div>
                 <dt>Cọc giữ chỗ</dt>
-                <dd>{vnd(RATES.holdingDeposit)}đ, khoá căn 24 giờ, chuyển 100% vào tiền cọc bảo đảm, không trừ vào tiền thuê tháng đầu</dd>
+                <dd>{vnd(RATES.holdingDeposit)}đ, khoá căn {HOLD_DAYS} ngày, chuyển 100% vào tiền cọc bảo đảm, không trừ vào tiền thuê tháng đầu</dd>
               </div>
               <div>
                 <dt>Nếu không ký hợp đồng</dt>
-                <dd>Không ký trong 24 giờ vì lý do cá nhân thì cọc giữ chỗ không được hoàn. Nếu chủ nhà từ chối hoặc căn sai thông tin đã xác minh, VinStay hoàn 100% trong 02 giờ làm việc</dd>
+                <dd>Không ký trong {HOLD_DAYS} ngày vì lý do cá nhân thì cọc giữ chỗ không được hoàn. Nếu chủ nhà từ chối hoặc căn sai thông tin đã xác minh, VinStay hoàn 100% trong 02 giờ làm việc</dd>
               </div>
               <div>
                 <dt>Nội quy BQL</dt>
@@ -276,7 +276,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
               <div className={styles.taken}>
                 <LockKeyhole size={20} />
                 <div>
-                  <b>{status === "holding" ? "Căn đang được giữ chỗ 24 giờ" : "Căn đã cho thuê"}</b>
+                  <b>{status === "holding" ? `Căn đang được giữ chỗ (${HOLD_DAYS} ngày)` : "Căn đã cho thuê"}</b>
                   <p className="muted small">Không nhận thêm lịch xem. Xem các căn tương đương bên dưới hoặc hỏi VinStay AI để được gợi ý.</p>
                 </div>
               </div>

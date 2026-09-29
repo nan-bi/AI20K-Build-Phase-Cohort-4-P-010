@@ -19,8 +19,8 @@ import type { Consignment, InspectionReport } from "@/lib/mock/types";
 import {
   FURNISHING_LABEL,
   hostById,
-  ITEM_LABEL,
   LAYOUT_LABEL,
+  LEASE_TERM_LABEL,
 } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
 import styles from "./Landlord.module.css";
@@ -44,11 +44,6 @@ export function LandlordConsignment({ id }: { id: string }) {
   const meta = CONSIGN_STATUS_META[c.status];
   const host = c.hostId ? hostById(c.hostId) : undefined;
   const can = `${c.building} · Tầng ${c.floor} · Căn ${c.door}`;
-
-  const itemsText =
-    c.items.length > 0
-      ? c.items.map((k) => ITEM_LABEL[k] ?? k).join(", ")
-      : "Không kê khai đồ dùng rời";
 
   return (
     <div className={styles.page}>
@@ -147,14 +142,34 @@ export function LandlordConsignment({ id }: { id: string }) {
           items={[
             { label: "Căn hộ", value: can },
             { label: "Loại căn", value: LAYOUT_LABEL[c.layout] },
-            { label: "Diện tích", value: `${c.areaM2} m²` },
-            { label: "Giá chào thuê", value: `${vnd(c.askRent)}đ/tháng` },
-            { label: "Tình trạng nội thất", value: FURNISHING_LABEL[c.furnishing] },
+            {
+              label: "Diện tích",
+              value: `${c.areaM2} m² tim tường${c.report?.netAreaM2 ? ` · thông thuỷ ${c.report.netAreaM2} m²` : ""}`,
+            },
+            { label: "Giá thuê", value: `${vnd(c.askRent)}đ/tháng` },
+            {
+              label: "Tiền cọc đề xuất",
+              value: `${vnd(c.suggestedDeposit ?? c.askRent)}đ`,
+            },
+            {
+              label: "Thời gian thuê",
+              value: c.leaseTerm ? (LEASE_TERM_LABEL[c.leaseTerm] ?? c.leaseTerm) : "Dài hạn: 12 tháng",
+            },
+            {
+              label: "Tình trạng nội thất",
+              value: `${c.furnished ? "Có nội thất" : "Không nội thất"}${
+                c.report?.furnishing ? ` (thực tế: ${FURNISHING_LABEL[c.report.furnishing]})` : ""
+              }`,
+            },
             {
               label: "Loại khoá cửa",
-              value: c.lock === "smart" ? "Khoá thông minh" : "Khoá cơ",
+              value:
+                c.locks && c.locks.includes("smart") && c.locks.includes("physical")
+                  ? "Khoá điện tử + chìa cơ"
+                  : c.locks?.includes("physical") || (c as unknown as { lock?: string }).lock === "key"
+                  ? "Khoá cơ (chìa khoá)"
+                  : "Khoá điện tử (có mã số)",
             },
-            { label: "Đồ dùng kê khai", value: itemsText },
           ]}
         />
       </Section>

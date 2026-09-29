@@ -96,7 +96,7 @@ export function LandlordFinance() {
                     <b>{unitAddress(r.u)}</b>
                   </td>
                   <td>
-                    <span className={`badge ${r.s === "rented" ? "badge-ink" : r.s === "holding" ? "badge-amber-soft" : "badge-kelp"}`}>{{ rented: "Đang cho thuê", holding: "Giữ chỗ 24h", available: "Đang trống" }[r.s]}</span>
+                    <span className={`badge ${r.s === "rented" ? "badge-ink" : r.s === "holding" ? "badge-amber-soft" : "badge-kelp"}`}>{{ rented: "Đang cho thuê", holding: "Đang giữ căn", available: "Đang trống" }[r.s]}</span>
                   </td>
                   <td className={`${styles.r} tnum`}>{r.rent ? vnd(r.rent) : "—"}</td>
                   <td className={`${styles.r} tnum`}>{r.fee ? `−${vnd(r.fee)}` : "—"}</td>

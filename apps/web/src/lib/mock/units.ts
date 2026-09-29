@@ -7,7 +7,18 @@ export type ZoneId = "sapphire1" | "sapphire2" | "zenpark" | "pavilion" | "maste
 export type LayoutKind = "Studio" | "1PN" | "2PN" | "3PN";
 export type Furnishing = "full" | "basic" | "empty";
 export type UnitStatus = "available" | "holding" | "rented";
+export type UnitDisplayStatus = UnitStatus | "viewing"; // + chỉ để hiển thị (Đ9)
 export type LockType = "smart" | "physical";
+
+export type HostRole = "sale" | "inspector"; // +
+export const HOST_ROLE_LABEL: Record<HostRole, string> = { sale: "Sale", inspector: "Thẩm định" }; // +
+
+export type LeaseTermPref = "mid" | "long" | "fixed"; // + Đ10
+export const LEASE_TERM_LABEL: Record<LeaseTermPref, string> = {
+  mid: "Trung hạn: 1–6 tháng",
+  long: "Dài hạn: 12 tháng",
+  fixed: "Cố định: 12 tháng",
+};
 export type ItemKey =
   | "ac"
   | "fridge"
@@ -763,6 +774,7 @@ export interface FieldHost {
   phone: string;
   zones: ZoneId[];
   rfid: string;
+  roles: HostRole[];
   status: HostStatus;
   rating: number;
   joined: string;
@@ -774,14 +786,14 @@ export interface FieldHost {
 }
 
 export const HOSTS: FieldHost[] = [
-  { id: "H01", name: "Lê Quốc Bảo", phone: "0934 556 201", zones: ["sapphire1", "sapphire2"], rfid: "RF-S1S2-0142", status: "active", rating: 4.9, joined: "2026-04-15", weekTickets: 21, weekDeals: 4, avgAcceptSec: 74, noShowRate: 0.05 },
-  { id: "H02", name: "Nguyễn Thị Lan", phone: "0942 118 730", zones: ["sapphire2"], rfid: "RF-S2-0089", status: "active", rating: 4.8, joined: "2026-05-02", weekTickets: 17, weekDeals: 3, avgAcceptSec: 92, noShowRate: 0.06 },
-  { id: "H03", name: "Trần Minh Khoa", phone: "0965 302 418", zones: ["zenpark"], rfid: "RF-ZEN-0031", status: "active", rating: 4.7, joined: "2026-05-20", weekTickets: 13, weekDeals: 2, avgAcceptSec: 118, noShowRate: 0.08 },
-  { id: "H04", name: "Phạm Hồng Nhung", phone: "0918 774 052", zones: ["masteri"], rfid: "RF-MAS-0117", status: "busy", rating: 4.9, joined: "2026-06-01", weekTickets: 19, weekDeals: 5, avgAcceptSec: 66, noShowRate: 0.04 },
-  { id: "H05", name: "Đỗ Văn Tùng", phone: "0983 640 559", zones: ["pavilion"], rfid: "RF-PAV-0064", status: "busy", rating: 4.5, joined: "2026-06-14", weekTickets: 9, weekDeals: 1, avgAcceptSec: 171, noShowRate: 0.11 },
-  { id: "H06", name: "Hoàng Gia Huy", phone: "0902 913 667", zones: ["sapphire1"], rfid: "RF-S1-0203", status: "off_duty", rating: 4.6, joined: "2026-07-03", weekTickets: 6, weekDeals: 1, avgAcceptSec: 131, noShowRate: 0.09 },
-  { id: "H07", name: "Vũ Ngọc Ánh", phone: "0975 226 843", zones: ["masteri"], rfid: "RF-MAS-0158", status: "active", rating: 4.8, joined: "2026-07-19", weekTickets: 15, weekDeals: 3, avgAcceptSec: 85, noShowRate: 0.05 },
-  { id: "H08", name: "Bùi Thanh Sơn", phone: "0936 815 290", zones: ["zenpark", "pavilion"], rfid: "RF-ZEN-0212", status: "active", rating: 4.3, joined: "2026-08-08", weekTickets: 8, weekDeals: 0, avgAcceptSec: 204, noShowRate: 0.14 },
+  { id: "H01", name: "Lê Quốc Bảo", phone: "0934 556 201", zones: ["sapphire1", "sapphire2"], rfid: "RF-S1S2-0142", roles: ["sale", "inspector"], status: "active", rating: 4.9, joined: "2026-04-15", weekTickets: 21, weekDeals: 4, avgAcceptSec: 74, noShowRate: 0.05 },
+  { id: "H02", name: "Nguyễn Thị Lan", phone: "0942 118 730", zones: ["sapphire2"], rfid: "RF-S2-0089", roles: ["sale"], status: "active", rating: 4.8, joined: "2026-05-02", weekTickets: 17, weekDeals: 3, avgAcceptSec: 92, noShowRate: 0.06 },
+  { id: "H03", name: "Trần Minh Khoa", phone: "0965 302 418", zones: ["zenpark"], rfid: "RF-ZEN-0031", roles: ["sale", "inspector"], status: "active", rating: 4.7, joined: "2026-05-20", weekTickets: 13, weekDeals: 2, avgAcceptSec: 118, noShowRate: 0.08 },
+  { id: "H04", name: "Phạm Hồng Nhung", phone: "0918 774 052", zones: ["masteri"], rfid: "RF-MAS-0117", roles: ["sale", "inspector"], status: "busy", rating: 4.9, joined: "2026-06-01", weekTickets: 19, weekDeals: 5, avgAcceptSec: 66, noShowRate: 0.04 },
+  { id: "H05", name: "Đỗ Văn Tùng", phone: "0983 640 559", zones: ["pavilion"], rfid: "RF-PAV-0064", roles: ["sale", "inspector"], status: "busy", rating: 4.5, joined: "2026-06-14", weekTickets: 9, weekDeals: 1, avgAcceptSec: 171, noShowRate: 0.11 },
+  { id: "H06", name: "Hoàng Gia Huy", phone: "0902 913 667", zones: ["sapphire1"], rfid: "RF-S1-0203", roles: ["inspector"], status: "off_duty", rating: 4.6, joined: "2026-07-03", weekTickets: 6, weekDeals: 1, avgAcceptSec: 131, noShowRate: 0.09 },
+  { id: "H07", name: "Vũ Ngọc Ánh", phone: "0975 226 843", zones: ["masteri"], rfid: "RF-MAS-0158", roles: ["sale"], status: "active", rating: 4.8, joined: "2026-07-19", weekTickets: 15, weekDeals: 3, avgAcceptSec: 85, noShowRate: 0.05 },
+  { id: "H08", name: "Bùi Thanh Sơn", phone: "0936 815 290", zones: ["zenpark", "pavilion"], rfid: "RF-ZEN-0212", roles: ["sale"], status: "active", rating: 4.3, joined: "2026-08-08", weekTickets: 8, weekDeals: 0, avgAcceptSec: 204, noShowRate: 0.14 },
 ];
 
 export const hostById = (id: string) => HOSTS.find((h) => h.id === id);

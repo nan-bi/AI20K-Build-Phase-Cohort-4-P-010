@@ -23,13 +23,11 @@ export function declaredValue(c: Consignment, f: DeclaredField): string {
     case "layout":
       return c.layout;
     case "areaM2":
-      return `${c.areaM2} m²`;
+      return `${c.areaM2} m² tim tường`;
     case "furnishing":
-      if (c.furnishing === "full") return "Full nội thất";
-      if (c.furnishing === "basic") return "Nội thất cơ bản";
-      return "Nhà trống";
+      return c.furnished ? "Có nội thất" : "Không nội thất";
     case "lock":
-      return c.lock === "smart" ? "Khoá thông minh" : "Khoá cơ";
+      return (c.locks || []).map((l) => (l === "smart" ? "Khoá thông minh" : "Khoá cơ")).join(" + ");
     default:
       return "";
   }
@@ -63,17 +61,39 @@ export interface InspectionSummary {
   avgCondition: number;
   lowItems: PassportItem[];
   mismatches: DeclaredField[];
-  missingItems: ItemKey[];
+  missingItems?: ItemKey[];
+  missingCount?: number;
 }
 
 export function inspectionSummary(r: InspectionReport): InspectionSummary {
-  const sum = r.equipment.reduce((acc, eq) => acc + eq.condition, 0);
-  const avgCondition = r.equipment.length > 0 ? Math.round(sum / r.equipment.length) : 0;
-  const lowItems = r.equipment
+  const mismatches = r.declared.filter((d) => !d.ok).map((d) => d.field);
+
+  if (r.inventory && r.inventory.some((l) => l.present)) {
+    const presentLines = r.inventory.filter((l) => l.present && typeof l.condition === "number");
+    const sum = presentLines.reduce((acc, l) => acc + (l.condition ?? 0), 0);
+    const avgCondition = presentLines.length > 0 ? Math.round(sum / presentLines.length) : 0;
+    const lowItems = Array.from(
+      new Set(presentLines.filter((l) => (l.condition ?? 0) < LOW_CONDITION).map((l) => l.passport))
+    );
+    const missingCount = r.inventory.filter((l) => !l.present).length;
+
+    return {
+      avgCondition,
+      lowItems,
+      mismatches,
+      missingItems: [],
+      missingCount,
+    };
+  }
+
+  // Fallback nếu dữ liệu cũ còn equipment
+  const eqList = r.equipment || [];
+  const sum = eqList.reduce((acc, eq) => acc + eq.condition, 0);
+  const avgCondition = eqList.length > 0 ? Math.round(sum / eqList.length) : 0;
+  const lowItems = eqList
     .filter((eq) => eq.condition < LOW_CONDITION)
     .map((eq) => eq.item);
-  const mismatches = r.declared.filter((d) => !d.ok).map((d) => d.field);
-  const missingItems = r.items.filter((it) => !it.present).map((it) => it.key);
+  const missingItems = (r.items || []).filter((it) => !it.present).map((it) => it.key);
 
   return {
     avgCondition,

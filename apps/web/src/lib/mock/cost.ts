@@ -2,12 +2,16 @@
  * Công thức All-in Cost của VinStay AI (PRD §3.1):
  *   All-in = tiền thuê + phí quản lý (diện tích × 9.500đ) + phí gửi xe + dự toán điện nước (300k/người)
  */
+export const HOLD_DAYS = 7; // + Đ1
+export const HOLD_MS = HOLD_DAYS * 86_400_000; // +
+export const TENANT_MODIFY_LEAD_MS = 2 * 3_600_000; // + Đ13 — đổi/huỷ lịch trước ≥ 2 giờ
+
 export const RATES = {
   mgmtPerM2: 9_500,
   motorbike: 150_000,
   car: 1_250_000,
   utilityPerPerson: 300_000,
-  /** Cọc giữ chỗ 24h — chuyển 100% thành Security Deposit khi ký HĐ, KHÔNG trừ vào tiền thuê tháng đầu. */
+  /** Cọc giữ chỗ chuyển 100% thành Security Deposit khi ký HĐ, KHÔNG trừ vào tiền thuê tháng đầu. */
   holdingDeposit: 2_000_000,
   /** Căn hời phân khu: rẻ hơn giá trung bình toà ≥ 10%. */
   bargainThreshold: 0.1,

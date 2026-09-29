@@ -10,13 +10,22 @@ import { STATUS_META } from "@/components/booking/status";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { cancelMandateExit, requestMandateExit } from "@/lib/mock/actions";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
-import { fmtDate, fmtDateTime, maskPhone, vnd } from "@/lib/mock/format";
-import { activeLease, unitStatus } from "@/lib/mock/selectors";
+import { fmtDate, fmtDateTime, fmtTime, maskPhone, vnd } from "@/lib/mock/format";
+import { activeLease, holdDaysLeft, isOpenBooking, unitDisplayStatus } from "@/lib/mock/selectors";
+import { viewingLog, type ViewingLogEntry } from "@/lib/mock/selectors-viewing";
 import { SERVICE_FEE_RATE } from "@/lib/mock/stats";
 import { useMock } from "@/lib/mock/store";
-import { PASSPORT_ITEMS, hostForUnit, unitAddress, unitById, zoneById } from "@/lib/mock/units";
+import { PASSPORT_ITEMS, hostById, hostForUnit, unitAddress, unitById, zoneById } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
 import styles from "./Landlord.module.css";
+
+const OUTCOME_LABEL: Record<ViewingLogEntry["outcome"], { label: string; badge: string }> = {
+  in_progress: { label: "Đang xem", badge: "badge-amber-soft" },
+  deposit: { label: "Khách cọc", badge: "badge-kelp" },
+  not_decided: { label: "Chưa quyết định", badge: "badge-plain" },
+  no_show: { label: "Bỏ hẹn", badge: "badge-coral-soft" },
+  cancelled: { label: "Đã huỷ", badge: "badge-plain" },
+};
 
 export function LandlordUnit({ id }: { id: string }) {
   const state = useMock();
@@ -38,16 +47,30 @@ export function LandlordUnit({ id }: { id: string }) {
     );
   }
 
-  const s = unitStatus(state, unit);
+  const s = unitDisplayStatus(state, unit);
   const m = state.mandates[unit.id];
   const host = hostForUnit(unit);
   const lease = activeLease(state, unit.id);
   const days = m?.exitEffectiveAt ? Math.max(0, Math.ceil((new Date(m.exitEffectiveAt).getTime() - now) / 86_400_000)) : 0;
   const elapsed = m?.exitRequestedAt && m.exitEffectiveAt ? (now - new Date(m.exitRequestedAt).getTime()) / (new Date(m.exitEffectiveAt).getTime() - new Date(m.exitRequestedAt).getTime()) : 0;
   const bookings = state.bookings.filter((b) => b.unitId === unit.id).sort((a, b) => b.slot.localeCompare(a.slot));
+  const openCount = state.bookings.filter((b) => b.unitId === unit.id && isOpenBooking(b)).length;
+  const holdingBooking = state.bookings.find(
+    (b) => b.unitId === unit.id && (b.status === "holding" || b.deposit?.paidAt)
+  );
+  const holdDays = holdingBooking ? holdDaysLeft(holdingBooking, now) : 7;
+  const logs = viewingLog(state, { unitId: unit.id });
   const audit = state.notices.filter((n) => n.unitId === unit.id && (n.audience === "landlord" || n.audience === "admin")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   const rent = lease?.lease?.rent ?? unit.rent;
-  const statusLabel = { available: "Đang mở đón khách", holding: "Giữ chỗ 24h", rented: "Đang cho thuê" }[s];
+
+  let statusBadgeEl = <span className="badge badge-kelp">Đang mở đón khách</span>;
+  if (s === "viewing") {
+    statusBadgeEl = <span className="badge badge-amber-soft">Có khách xem · {openCount} lịch</span>;
+  } else if (s === "holding") {
+    statusBadgeEl = <span className="badge badge-amber-soft">Đang giữ căn · còn {holdDays} ngày</span>;
+  } else if (s === "rented") {
+    statusBadgeEl = <span className="badge badge-ink">Đang cho thuê</span>;
+  }
 
   return (
     <div className={styles.page}>
@@ -57,7 +80,7 @@ export function LandlordUnit({ id }: { id: string }) {
         <VerifiedPhoto unit={unit} sizes="220px" stamp="compact" className={styles.heroPhoto} />
         <div className={styles.heroBody}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <span className={`badge ${s === "available" ? "badge-kelp" : s === "holding" ? "badge-amber-soft" : "badge-ink"}`}>{statusLabel}</span>
+            {statusBadgeEl}
             <span className="badge badge-plain">{unit.lock === "smart" ? "Khoá điện tử" : "Chìa cơ tại quầy phân khu"}</span>
           </div>
           <p className="muted">
@@ -135,6 +158,56 @@ export function LandlordUnit({ id }: { id: string }) {
           </ul>
         </section>
       </div>
+
+      <section className={`card ${styles.padCard}`}>
+        <h2 className={styles.h2}>Nhật ký xem phòng ({logs.length})</h2>
+        <div className={styles.tableScroll}>
+          <table className={styles.finRows} style={{ minWidth: 720 }}>
+            <thead>
+              <tr>
+                <th scope="col">Bắt đầu</th>
+                <th scope="col">Mở cửa</th>
+                <th scope="col">Kết thúc</th>
+                <th scope="col">Thời lượng</th>
+                <th scope="col">Khách</th>
+                <th scope="col">Field Host</th>
+                <th scope="col">Kết quả</th>
+                <th scope="col">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr key={log.bookingId}>
+                  <td className="tnum">{fmtDateTime(log.startedAt)}</td>
+                  <td className="tnum">{log.doorOpenedAt ? fmtTime(log.doorOpenedAt) : "—"}</td>
+                  <td className="tnum">{log.endedAt ? fmtTime(log.endedAt) : "—"}</td>
+                  <td>{log.durationMin !== undefined ? `${log.durationMin} phút` : "—"}</td>
+                  <td>
+                    {log.tenantName}
+                    <span className="muted xs" style={{ display: "block" }}>
+                      {log.tenantPhoneMasked}
+                    </span>
+                  </td>
+                  <td>{hostById(log.hostId)?.name ?? host.name}</td>
+                  <td>
+                    <span className={`badge ${OUTCOME_LABEL[log.outcome]?.badge ?? "badge-plain"}`}>
+                      {OUTCOME_LABEL[log.outcome]?.label ?? log.outcome}
+                    </span>
+                  </td>
+                  <td className="small muted">{log.note || "—"}</td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="muted" style={{ textAlign: "center", padding: 28 }}>
+                    Chưa có lượt dẫn khách nào.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className={`card ${styles.padCard}`}>
         <h2 className={styles.h2}>Lịch xem phòng ({bookings.length})</h2>

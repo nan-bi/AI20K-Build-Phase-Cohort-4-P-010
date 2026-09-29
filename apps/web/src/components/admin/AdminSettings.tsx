@@ -26,7 +26,7 @@ export function AdminSettings() {
         <KeyValue
           items={[
             { label: "Tiền giữ chỗ", value: "2.000.000 đ" },
-            { label: "Thời gian giữ chỗ", value: "24 giờ" },
+            { label: "Thời gian giữ chỗ", value: "7 ngày" },
             { label: "SLA nhận ca", value: "3 phút" },
             { label: "Open Pool bán kính", value: "500 m" },
             { label: "Báo trước thoát uỷ quyền", value: "15 ngày" },

@@ -32,7 +32,7 @@ export function UnitsBrowser() {
       <header className={styles.head}>
         <h1 className={styles.h1}>Tất cả căn đang mở tại Ocean Park 1</h1>
         <p className="muted">
-          {all.length} căn đã xác minh, giá hiển thị là All-in Cost mỗi tháng.{holding > 0 ? ` ${holding} căn khác đang được giữ chỗ 24 giờ.` : ""}
+          {all.length} căn đã xác minh, giá hiển thị là All-in Cost mỗi tháng.{holding > 0 ? ` ${holding} căn khác đang được giữ căn.` : ""}
         </p>
       </header>
 

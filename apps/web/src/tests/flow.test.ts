@@ -90,11 +90,12 @@ describe("mở cửa, cọc, ký số", () => {
     actions.hostStartReceiving(b.id);
     expect(actions.hostConfirmViewing(b.id)).toBeUndefined();
   });
-  it("cọc thành công → holding 24h và tự huỷ lịch xem trùng căn kèm Zalo xin lỗi + căn tương đương", () => {
+  it("cọc thành công → holding 7 ngày và tự huỷ lịch xem trùng căn kèm Zalo xin lỗi + căn tương đương", () => {
     const { b } = toViewing();
     const other = book("s2-02-1004", "Trần Thị B", "0966555444", 15);
     actions.hostAccept(other.id);
     actions.hostStartDeposit(b.id);
+    actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id, "webhook");
     const s = getMockState();
     expect(unitStatus(s, unitById("s2-02-1004")!)).toBe("holding");
@@ -118,10 +119,16 @@ describe("mở cửa, cọc, ký số", () => {
   it("đi hết chuỗi eKYC → ký cọc → ký hợp đồng thì căn chuyển rented", () => {
     const { b } = toViewing();
     actions.hostStartDeposit(b.id);
+    actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id);
-    actions.saveKyc(b.id, { fullName: "NGUYỄN THU HÀ", idNumber: "001912345678", dob: "12/04/2001", issuedDate: "18/08/2021", address: "Gia Lâm, Hà Nội", confidence: { fullName: 0.99, idNumber: 0.98, issuedDate: 0.94, address: 0.78 }, manuallyEdited: true, faceMatch: 0.96 });
-    actions.signAgreement(b.id);
+    actions.tenantSignAgreement(b.id, {
+      fullName: "Nguyễn Thu Hà",
+      idNumber: "001912345678",
+      phone: b.tenant.phone,
+      address: "Gia Lâm, Hà Nội",
+    });
     expect(bookingById(getMockState(), b.id)!.status).toBe("signed");
+    actions.saveKyc(b.id, { fullName: "NGUYỄN THU HÀ", idNumber: "001912345678", dob: "12/04/2001", issuedDate: "18/08/2021", address: "Gia Lâm, Hà Nội", confidence: { fullName: 0.99, idNumber: 0.98, issuedDate: 0.94, address: 0.78 }, manuallyEdited: true, faceMatch: 0.96 });
     actions.signLease(b.id, { startDate: new Date().toISOString(), months: 12 });
     const s = getMockState();
     expect(bookingById(s, b.id)!.status).toBe("leased");
