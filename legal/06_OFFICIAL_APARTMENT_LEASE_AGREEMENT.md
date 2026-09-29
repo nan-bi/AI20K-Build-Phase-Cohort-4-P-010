@@ -90,7 +90,7 @@ Hai Bên cùng thống nhất ký kết Hợp đồng Thuê Căn hộ Chung cư 
 > **ĐIỀU KHOẢN BẢO VỆ TÀI SẢN CHỦ NHÀ — KHÔNG KHẤU TRỪ VÀO TIỀN THUÊ:**
 
 1. **Tổng mức Tiền Cọc Bảo Đảm Tài Sản:** **[...] VNĐ** (Tương đương [01 hoặc 02] tháng tiền thuê cơ bản).
-2. **Chuyển đổi 100% từ tiền cọc giữ chỗ 24h:**
+2. **Chuyển đổi 100% từ tiền cọc giữ chỗ:**
    * Khoản tiền cọc giữ chỗ **[...] VNĐ** Bên B đã chuyển khoản qua VietQR theo Thỏa thuận số VSA-HOLD-[MÃ CĂN] (căn cứ theo mức thiết lập đầu vào của căn hộ trên hệ thống) được **chuyển đổi 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất**.
    * **TUYỆT ĐỐI KHÔNG KHẤU TRỪ số tiền cọc giữ chỗ này vào tiền thuê nhà tháng đầu tiên.**
 

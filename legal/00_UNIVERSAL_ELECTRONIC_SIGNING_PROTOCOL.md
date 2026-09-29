@@ -89,7 +89,7 @@ Toàn bộ hợp đồng và thỏa thuận trên nền tảng VinStay AI đư�
 | Tên Hợp Đồng / Thỏa Thuận | Chủ Thể Ký Kết | Phương Thức Ký Số | Tính Chất Pháp Lý Đặc Thù |
 | :--- | :--- | :---: | :--- |
 | **1. Hợp Đồng Ký Gửi Quản Lý Độc Quyền** *(Exclusive Mandate)* | **Chủ Nhà $\leftrightarrow$ VinStay AI** | Ký tay cảm ứng + **Zalo OTP của Chủ Nhà** | Hợp đồng dịch vụ ủy quyền quản lý giỏ hàng; thẩm định 0đ; thoát linh hoạt 15 ngày khi nhà trống. **Không cần công chứng.** |
-| **2. Thỏa Thuận Đặt Cọc Giữ Chỗ 24h** *(Holding & Security Deposit)* | **Khách Thuê $\leftrightarrow$ VinStay AI $\leftrightarrow$ Chủ Nhà** | Quét VietQR 2M + **Zalo OTP của Khách** | Đặt cọc theo Điều 328 BLDS 2015. Chuyển đổi 100% thành Tiền Cọc Bảo Đảm Tài Sản giữ nguyên suốt kỳ thuê khi ký HĐ chính thức. |
+| **2. Thỏa Thuận Đặt Cọc Giữ Chỗ Linh Hoạt** *(Holding & Security Deposit)* | **Khách Thuê $\leftrightarrow$ VinStay AI $\leftrightarrow$ Chủ Nhà** | Quét VietQR cọc + **Zalo OTP của Khách** | Đặt cọc theo Điều 328 BLDS 2015; thời hạn giữ chỗ tùy chỉnh linh hoạt từ Admin Portal. Chuyển đổi 100% thành Tiền Cọc Bảo Đảm Tài Sản giữ nguyên suốt kỳ thuê khi ký HĐ chính thức. |
 | **3. Hợp Đồng Thuê Căn Hộ Chung Cư** *(Official Digital Lease)* | **Chủ Nhà $\leftrightarrow$ Khách Thuê** *(VinStay AI làm chứng)* | Ký số từ xa 2 đầu: **Zalo OTP Khách** & **Zalo OTP Chủ Nhà** | Hợp đồng thuê nhà ở theo Luật Nhà ở 2023. Chủ nhà và Khách ký trực tiếp với nhau từ xa; VinStay AI bảo lãnh ký quỹ & đối soát EVN. |
 
 ---
