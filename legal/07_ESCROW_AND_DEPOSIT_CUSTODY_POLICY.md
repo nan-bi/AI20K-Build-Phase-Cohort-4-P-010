@@ -89,17 +89,25 @@ Khi Hợp đồng thuê căn hộ kết thúc thời hạn hoặc Các Bên th�
   - *Hao mòn tự nhiên (Chủ nhà chịu trách nhiệm):* Các dấu hiệu phai màu sơn tự nhiên, hao mòn sử dụng thông thường theo thời gian $\rightarrow$ **Nghiêm cấm khấu trừ tiền cọc của khách thuê**.
   - *Hư hại do lỗi bất cẩn hoặc sử dụng sai quy cách (Khách thuê bồi thường):* Rách nệm, hỏng sofa, vỡ mặt kính bếp, nứt vỡ sứ vệ sinh, trầy xước sâu sàn gỗ $\rightarrow$ Xác định chính xác chi phí sửa chữa hoặc thay mới theo thực tế.
 
-### Điều kiện 2: Đối soát dứt điểm Hóa đơn tiền điện, nước sinh hoạt và phí dịch vụ
+### Điều kiện 2: Đối soát dứt điểm Hóa đơn tiền điện, nước sinh hoạt, phí dịch vụ & Tiền phạt BQL
 * Chụp ảnh chỉ số công tơ điện và đồng hồ nước sinh hoạt có gắn dấu thời gian điện tử tại thời điểm khách thuê bàn giao lại chìa khóa.
 * Đối soát dứt điểm hóa đơn tiền điện sinh hoạt bậc thang EVN, tiền nước và phí gửi phương tiện phát sinh trong kỳ sử dụng cuối cùng.
-* Trường hợp Khách thuê chưa thanh toán, các khoản cước phí dịch vụ này sẽ được khấu trừ trực tiếp từ quỹ tiền cọc ký quỹ để thanh toán dứt điểm cho đơn vị cung cấp, bảo đảm **Chủ nhà hoàn toàn không bị nợ cước tồn đọng (0% nợ đọng)**.
+* Đối soát các khoản phạt vi phạm nội quy BQL Tòa nhà (tiếng ồn sau 22h, thú cưng không rọ mõm, lấn chiếm hành lang) hoặc vi phạm an toàn PCCC (mang pin xe điện vào căn hộ, đốt vàng mã trái quy định) do lỗi của Khách thuê.
+* Toàn bộ các khoản cước phí dịch vụ và tiền phạt nêu trên sẽ được khấu trừ trực tiếp từ quỹ tiền cọc ký quỹ để thanh toán dứt điểm cho đơn vị cung cấp và BQL, bảo đảm **Chủ nhà hoàn toàn không bị nợ cước tồn đọng (0% nợ đọng)**.
 
 ### Điều kiện 3: Xác thực Chữ ký điện tử hai bên bằng mã xác thực một lần (OTP)
 * Hệ thống tự động tạo lập **Bảng tổng hợp quyết toán và thanh lý tiền cọc**.
 * Cả Chủ nhà và Khách thuê cùng kiểm tra nội dung, bấm xác nhận và nhập mã xác thực một lần (OTP) gửi về số điện thoại chính chủ.
 * Hệ thống tự động gửi lệnh giải tỏa đến ngân hàng đối tác thực hiện chuyển khoản tự động trong vòng **60 giây**:
   - Số tiền cọc còn lại được chuyển hoàn trả thẳng về tài khoản ngân hàng của Khách thuê.
-  - Số tiền bồi thường hư hại hoặc cấn trừ tiền cước dịch vụ (nếu có) được chuyển thẳng vào tài khoản của Chủ nhà hoặc đơn vị cung cấp dịch vụ.
+  - Số tiền bồi thường hư hại hoặc cấn trừ tiền cước dịch vụ/tiền phạt BQL (nếu có) được chuyển thẳng vào tài khoản của Chủ nhà hoặc đơn vị cung cấp dịch vụ.
+
+### 4.4. Cơ chế Giải tỏa đặc biệt khi Cố ý phá hoại, Lãng phí điện nước & Bỏ trốn
+1. **Giải tỏa tức thì cho Chủ nhà:** Trường hợp Khách thuê có hành vi cố ý phá hoại tài sản, lãng phí năng lượng điện nước hoặc bỏ trốn (căn cứ theo Điều 13 Hợp đồng thuê và biên bản hiện trường có xác nhận của BQL/An ninh tòa nhà), toàn bộ 100% số tiền cọc bảo đảm trong tài khoản ký quỹ được lập tức giải tỏa chuyển cho Chủ nhà để bù đắp tổn thất.
+2. **Xác lập quyền truy đòi phần thiếu hụt vượt cọc (Deficiency Claim):**
+   * Trường hợp tổng chi phí khắc phục thiệt hại + tiền điện nước + tiền phạt BQL **vượt quá số tiền cọc ký quỹ**, hệ thống VinStay AI tự động phát hành **Biên bản xác nhận nghĩa vụ nợ tồn đọng**.
+   * Biên bản này là chứng cứ pháp lý xác nhận Khách thuê có nghĩa vụ bồi hoàn vô điều kiện 100% phần chi phí thiếu hụt trong vòng **05 ngày làm việc** (quá hạn chịu lãi **0,05%/ngày**), đồng thời là căn cứ để Chủ nhà nộp Đơn tố giác tội phạm theo **Điều 178 Bộ luật Hình sự (Tội hủy hoại hoặc cố ý làm hư hỏng tài sản)**.
+3. **Chế tài Blacklist:** Tài khoản của Khách thuê bị đình chỉ vĩnh viễn trên toàn hệ thống và số định danh CCCD được đưa vào danh sách đen (Blacklist) gửi cảnh báo tới mạng lưới quản lý bất động sản toàn quốc.
 
 ---
 
