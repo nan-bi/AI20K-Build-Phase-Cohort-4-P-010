@@ -57,14 +57,31 @@ Hai Bên cùng thống nhất ký kết Hợp đồng Thuê Căn hộ Chung cư 
 
 ---
 
-### ĐIỀU 3: GIÁ THUÊ, KỲ HẠN THANH TOÁN & BÓC TÁCH ALL-IN COST
-1. **Giá thuê căn hộ cơ bản:** **[...] VNĐ/tháng (Bằng chữ: [...])**. Giá này cố định suốt thời hạn hợp đồng.
-2. **Kỳ hạn thanh toán:** Thanh toán **[01 / 03 / 06] tháng/lần** vào ngày [...] của tháng đầu kỳ thanh toán.
-3. **Bóc tách chi phí dịch vụ phụ trợ (Minh bạch All-in Cost):**
-   * **Phí Quản lý vận hành BQL Vinhomes:** [Bên A chi trả / Bên B chi trả theo đơn giá 9.500 đ/m² thông thủy/tháng].
-   * **Tiền điện sinh hoạt:** Bên B thanh toán trực tiếp theo hóa đơn công tơ điện tử của EVN Hà Nội.
-   * **Tiền nước sinh hoạt & Dịch vụ môi trường:** Bên B thanh toán theo thông báo thực tế của BQL Vinhomes.
-   * **Phí gửi xe máy / ô tô:** Bên B trực tiếp đăng ký và thanh toán với BQL hầm gửi xe tòa nhà.
+### ĐIỀU 3: GIÁ THUÊ, PHƯƠNG THỨC VÀ KỲ HẠN THANH TOÁN (ALL-IN COST)
+1. **Giá thuê căn hộ cơ bản:** **[...] VNĐ/tháng (Bằng chữ: [...])**. Giá thuê này cố định suốt thời hạn hợp đồng và không thay đổi trừ khi có thỏa thuận bằng văn bản của Hai Bên.
+2. **Kỳ hạn thanh toán:** Thanh toán **[01 / 03 / 06] tháng/lần**.
+   * Thời điểm thanh toán: Vào ngày **[...]** của tháng đầu tiên trong mỗi kỳ thanh toán (hoặc thanh toán trước ít nhất **[...] ngày** trước khi bắt đầu kỳ thuê tiếp theo).
+3. **Phương thức thanh toán tiền thuê:**
+   * **Hình thức thanh toán:** Chuyển khoản ngân hàng thông qua mã thanh toán VietQR động gạch nợ tự động trên ứng dụng VinStay AI hoặc chuyển khoản trực tiếp vào tài khoản ngân hàng thụ hưởng của Bên A.
+   * **Thông tin tài khoản thụ hưởng của Bên A (Chủ nhà):**
+     * **Chủ tài khoản:** [TÊN CHỦ TÀI KHOẢN]
+     * **Số tài khoản:** [SỐ TÀI KHOẢN]
+     * **Ngân hàng thụ hưởng:** [TÊN NGÂN HÀNG] • Chi nhánh: [CHI NHÁNH]
+     * **Cú pháp chuyển khoản chuẩn:** `VSA [MÃ CĂN] THANH TOAN TIEN THUE KY [SỐ KỲ]`
+   * **Chứng từ hoàn tất thanh toán:** Biên nhận điện tử được hệ thống VinStay AI gạch nợ tự động hoặc ủy nhiệm chi / biên lai chuyển khoản ngân hàng thành công là căn cứ pháp lý xác nhận Bên B đã hoàn thành nghĩa vụ thanh toán của kỳ tương ứng.
+4. **Quy định về thời gian ân hạn và chế tài chậm thanh toán:**
+   * **Thời gian ân hạn thanh toán:** Bên B được áp dụng thời gian ân hạn tối đa **[...] ngày làm việc** kể từ ngày đến hạn thanh toán nêu trên.
+   * **Lãi chậm thanh toán:** Trường hợp Bên B thanh toán chậm quá thời gian ân hạn mà không có sự đồng thuận bằng văn bản của Bên A, Bên B phải chịu lãi phạt chậm trả với mức **[...]%/ngày** tính trên tổng số tiền chậm thanh toán cho mỗi ngày quá hạn căn cứ theo quy định của Bộ luật Dân sự 2015.
+   * **Xử lý vi phạm quá hạn:** Nếu Bên B chậm thanh toán tiền thuê vượt quá **[...] ngày** kể từ ngày hết hạn thanh toán, Bên A (thông qua đơn vị vận hành VinStay AI) có quyền:
+     * Tạm dừng cấp quyền mã khóa mở cửa căn hộ;
+     * Đơn phương chấm dứt Hợp đồng thuê trước hạn, thu hồi căn hộ;
+     * Toàn bộ các khoản nợ tiền thuê, tiền dịch vụ phụ trợ và chi phí phạt phát sinh sẽ được tự động cấn trừ trực tiếp vào Tiền Cọc Bảo Đảm Tài Sản của Bên B.
+5. **Bóc tách chi phí dịch vụ phụ trợ (Minh bạch All-in Cost):**
+   * **Phí Quản lý vận hành BQL Tòa nhà:** [Bên A chi trả / Bên B chi trả theo đơn giá [...] đ/m² thông thủy/tháng theo thông báo của Ban Quản lý].
+   * **Tiền điện sinh hoạt:** Bên B thanh toán trực tiếp theo hóa đơn công tơ điện tử thực tế của EVN Hà Nội.
+   * **Tiền nước sinh hoạt & Dịch vụ môi trường:** Bên B thanh toán theo thông báo thực tế của Ban Quản lý / Công ty Cấp nước.
+   * **Phí gửi xe máy / ô tô:** Bên B trực tiếp đăng ký chỉ tiêu và thanh toán chi phí cho Ban Quản lý tòa nhà.
+
 
 ---
 
