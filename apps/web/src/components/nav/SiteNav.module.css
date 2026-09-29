@@ -66,6 +66,23 @@
   color: var(--lagoon);
 }
 
+.roleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border-radius: var(--r-control);
+}
+
+@media (max-width: 640px) {
+  .roleName {
+    display: none;
+  }
+}
+
 .account {
   position: relative;
 }

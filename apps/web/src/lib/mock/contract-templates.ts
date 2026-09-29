@@ -446,9 +446,9 @@ export const TEMPLATE_STEPS: TemplateStep[] = [
   {
     id: "S05",
     actor: "tenant",
-    step: "Ký thoả thuận đặt cọc bằng OTP",
+    step: "Chấp thuận điều khoản cọc trước VietQR (hồ sơ 10)",
     route: "/booking/[ref]",
-    action: "tenantSignAgreement",
+    action: "tenantAcceptDepositTerms",
     primary: "CORE-02",
     attached: ["CORE-00", "TN-02"],
     produces: "holding",

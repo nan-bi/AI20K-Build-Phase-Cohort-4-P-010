@@ -5,6 +5,21 @@
 export type Role = "tenant" | "landlord" | "host" | "admin";
 
 export const ROLE_COOKIE = "vs_role";
+export const ROLE_COOKIE_VERSION = "v2";
+
+export function encodeRoleCookie(role: Role): string {
+  return `${ROLE_COOKIE_VERSION}.${role}`;
+}
+
+export function parseRoleCookie(v: string | null | undefined): Role | null {
+  if (!v) return null;
+  const dotIndex = v.indexOf(".");
+  if (dotIndex === -1) return null;
+  const prefix = v.slice(0, dotIndex);
+  if (prefix !== ROLE_COOKIE_VERSION) return null;
+  const rawRole = v.slice(dotIndex + 1);
+  return isRole(rawRole) ? rawRole : null;
+}
 
 export interface DemoUser {
   role: Role;
@@ -64,6 +79,7 @@ export function requiredRole(pathname: string): Role | null {
   if (pathname.startsWith("/landlord")) return "landlord";
   if (pathname.startsWith("/host")) return "host";
   if (pathname.startsWith("/account")) return "tenant";
+  if (pathname === "/booking" || pathname.startsWith("/booking/")) return "tenant";
   return null;
 }
 
@@ -77,6 +93,15 @@ export function loginUrl(role: Role, next?: string): string {
 /** Chỉ cho phép chuyển hướng nội bộ, tránh open-redirect qua `next`. */
 export const safeNext = (next: string | null | undefined): string | undefined =>
   next && next.startsWith("/") && !next.startsWith("//") ? next : undefined;
+
+export function postLoginTarget(role: Role, next?: string): string {
+  const n = safeNext(next);
+  if (!n) return DEMO_USERS[role].home;
+  const req = requiredRole(n);
+  if (req === role) return n;
+  if (req === null && role === "tenant") return n; // trang công khai, khách thuê
+  return DEMO_USERS[role].home;
+}
 
 /* ── Xác thực demo (SPEC-P02 / 01-CONTRACTS §3) ──────────────────────────────────────────── */
 

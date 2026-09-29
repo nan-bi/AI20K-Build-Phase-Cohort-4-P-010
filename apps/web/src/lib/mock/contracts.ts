@@ -212,7 +212,7 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
   for (const b of state.bookings) {
     if (!b.deposit?.paidAt) continue;
 
-    let status: ContractStatus = "awaiting_sign";
+    let status: ContractStatus = "holding";
     if (b.lease) {
       status = "converted";
     } else if (
@@ -220,8 +220,6 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
       (b.deposit.expiresAt && now >= Date.parse(b.deposit.expiresAt))
     ) {
       status = "expired";
-    } else if (b.agreement) {
-      status = "holding";
     }
 
     const unit = unitById(b.unitId);
@@ -246,7 +244,7 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
     rows.push({
       key: `holding.${b.id}`,
       kind: "holding",
-      docId: b.agreement?.docId ?? `COC-${b.ref}`,
+      docId: `COC-${b.ref}`,
       status,
       unitLabel: unit ? unitAddress(unit) : b.unitId,
       unitId: b.unitId,
@@ -254,7 +252,7 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
       landlordId: unit?.landlordId,
       hostId: b.hostId,
       parties,
-      signedAt: b.agreement?.signedAt ?? b.deposit.paidAt,
+      signedAt: b.deposit.paidAt,
       startAt: b.deposit.paidAt,
       endAt: b.deposit.expiresAt,
       amount: b.deposit.amount,
@@ -401,11 +399,11 @@ export function contractEvents(state: MockState, row: ContractRow, now: number):
   } else if (row.kind === "holding") {
     const b = state.bookings.find((bk) => bk.id === row.bookingId);
     if (b) {
+      if (b.depositConsentAt) {
+        events.push({ label: "Đồng ý điều khoản cọc", at: b.depositConsentAt, done: Date.parse(b.depositConsentAt) <= now });
+      }
       if (b.deposit?.paidAt) {
         events.push({ label: "Nhận cọc 2.000.000đ", at: b.deposit.paidAt, done: Date.parse(b.deposit.paidAt) <= now });
-      }
-      if (b.agreement?.signedAt) {
-        events.push({ label: "Ký thoả thuận cọc", at: b.agreement.signedAt, done: Date.parse(b.agreement.signedAt) <= now });
       }
       if (b.lease?.signedAt) {
         events.push({ label: "Chuyển vào cọc bảo đảm", at: b.lease.signedAt, done: Date.parse(b.lease.signedAt) <= now });

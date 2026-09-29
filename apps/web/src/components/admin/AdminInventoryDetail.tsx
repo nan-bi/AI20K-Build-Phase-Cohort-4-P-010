@@ -140,6 +140,21 @@ export function AdminInventoryDetail({ id }: { id: string }) {
               [
                 { key: "slot", header: "Giờ hẹn", render: (b) => fmtDateTime(b.slot) },
                 { key: "tenant", header: "Khách", render: (b) => b.tenant.name },
+                {
+                  key: "host",
+                  header: "Field Host",
+                  render: (b) => {
+                    if (b.status === "pending" && b.dispatch?.state === "open") {
+                      const n = b.dispatch.offeredTo.length;
+                      return (
+                        <span className="badge badge-coral">
+                          Đang mở cho {n} Sale{b.dispatch.escalated ? " · Cần điều phối tay" : ""}
+                        </span>
+                      );
+                    }
+                    return hostById(b.hostId)?.name ?? "—";
+                  },
+                },
                 { key: "status", header: "Trạng thái", render: (b) => <span className={`badge ${STATUS_META[b.status].badge}`}>{STATUS_META[b.status].label}</span> },
               ] satisfies DataTableColumn<Booking>[]
             }

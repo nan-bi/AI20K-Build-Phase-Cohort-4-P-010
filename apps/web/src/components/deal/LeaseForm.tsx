@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { FileSignature } from "lucide-react";
-import { OtpSign } from "@/components/booking/OtpSign";
 import { SignaturePad } from "@/components/ui/SignaturePad";
 import { signLease } from "@/lib/mock/actions";
 import { RATES } from "@/lib/mock/cost";
@@ -22,7 +21,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 /**
  * Form ký kết Hợp đồng thuê căn hộ chính thức.
- * Điền sẵn thông tin khách từ eKYC, cấu hình kỳ hạn, tính toán tiền cọc bảo đảm và ký số bằng OTP Zalo.
+ * Điền sẵn thông tin khách từ eKYC, cấu hình kỳ hạn, tính toán tiền cọc bảo đảm, ký tay và tick đồng ý ký điện tử (không OTP).
  */
 export function LeaseForm({ booking, unit, now, onSigned }: LeaseFormProps) {
   const minStart = new Date(now);
@@ -30,11 +29,11 @@ export function LeaseForm({ booking, unit, now, onSigned }: LeaseFormProps) {
   const [months, setMonths] = useState(Math.max(12, unit.minMonths));
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [consentElectronicSign, setConsentElectronicSign] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tenantName =
-    booking.kyc?.fullName || booking.agreement?.party?.fullName || booking.tenant.name;
-  const idNumber = booking.kyc?.idNumber || booking.agreement?.party?.idNumber || "—";
+  const tenantName = booking.kyc?.fullName || booking.tenant.name;
+  const idNumber = booking.kyc?.idNumber || "—";
   const zone = zoneById(unit.zoneId);
 
   // Tiền cọc bảo đảm tài sản = 1 tháng tiền thuê (hoặc cấu hình)
@@ -48,7 +47,7 @@ export function LeaseForm({ booking, unit, now, onSigned }: LeaseFormProps) {
   // Tổng thanh toán đợt đầu lúc nhận nhà
   const totalDueAtMoveIn = firstMonthRent + topUpDeposit;
 
-  const handleVerified = () => {
+  const handleSubmit = () => {
     setError(null);
     const res = signLease(booking.id, {
       startDate,
@@ -71,7 +70,7 @@ export function LeaseForm({ booking, unit, now, onSigned }: LeaseFormProps) {
           Hợp đồng thuê căn hộ (Ký số)
         </h3>
         <p className="muted small" style={{ margin: 0 }}>
-          Kiểm tra thông tin thuê, ký tay xác thực và nhập mã OTP Zalo để tạo chữ ký số hợp đồng thuê căn hộ.
+          Kiểm tra thông tin thuê, ký tay xác thực và tích đồng ý để ký kết hợp đồng thuê căn hộ.
         </p>
       </header>
 
@@ -159,13 +158,25 @@ export function LeaseForm({ booking, unit, now, onSigned }: LeaseFormProps) {
         />
       </div>
 
-      <OtpSign
-        phone={booking.tenant.phone}
-        purpose="lease"
-        sendLabel="Gửi mã OTP Zalo để ký số Hợp đồng"
-        disabled={!hasSignature}
-        onVerified={handleVerified}
-      />
+      <label className="check" style={{ fontSize: 13, marginBottom: 16, display: "flex" }}>
+        <input
+          type="checkbox"
+          checked={consentElectronicSign}
+          onChange={(e) => setConsentElectronicSign(e.target.checked)}
+        />
+        <span>
+          Tôi đồng ý sử dụng chữ ký điện tử và ký kết Hợp đồng thuê căn hộ này theo quy định pháp luật và Nghị định 13/2023/NĐ-CP.
+        </span>
+      </label>
+
+      <button
+        type="button"
+        className="btn btn-primary btn-lg btn-block"
+        disabled={!hasSignature || !consentElectronicSign}
+        onClick={handleSubmit}
+      >
+        Ký kết hợp đồng thuê căn hộ
+      </button>
     </div>
   );
 }

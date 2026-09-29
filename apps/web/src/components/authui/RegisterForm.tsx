@@ -5,21 +5,26 @@ import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-import { DEMO_USERS, type Role } from "@/lib/mock/auth";
+import { postLoginTarget, type Role } from "@/lib/mock/auth";
+import { fmtPhone } from "@/lib/mock/format";
+import { useMock } from "@/lib/mock/store";
 import { signInAs, useRole } from "@/lib/mock/useRole";
 import styles from "./authui.module.css";
 
 interface RegisterFormProps {
   initialRole?: "landlord" | "tenant";
+  next?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function RegisterForm({ initialRole }: RegisterFormProps) {
+export function RegisterForm({ initialRole, next }: RegisterFormProps) {
   const router = useRouter();
   const currentRole = useRole();
+  const state = useMock();
   const [role, setRole] = useState<Extract<Role, "tenant" | "landlord">>(initialRole ?? "tenant");
-  const [name, setName] = useState("");
+  const [typedName, setTypedName] = useState<string | null>(null);
+  const name = typedName ?? (role === "tenant" ? (state.tenantProfile?.name ?? "") : "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
@@ -27,15 +32,15 @@ export function RegisterForm({ initialRole }: RegisterFormProps) {
 
   useEffect(() => {
     if (currentRole) {
-      router.replace(DEMO_USERS[currentRole].home);
+      router.replace(postLoginTarget(currentRole, next));
     }
-  }, [currentRole, router]);
+  }, [currentRole, next, router]);
 
   if (currentRole) return null;
 
   const goHome = (r: Role) => {
     signInAs(r);
-    router.push(DEMO_USERS[r].home);
+    router.push(postLoginTarget(r, next));
     router.refresh();
   };
 
@@ -83,7 +88,7 @@ export function RegisterForm({ initialRole }: RegisterFormProps) {
         </button>
       </div>
       <Field label="Họ tên" error={errors.name}>
-        <input className="input" autoComplete="name" value={name} aria-invalid={!!errors.name} onChange={(e) => setName(e.target.value)} />
+        <input className="input" autoComplete="name" value={name} aria-invalid={!!errors.name} onChange={(e) => setTypedName(e.target.value)} />
       </Field>
       <Field label="Email" error={errors.email}>
         <input
@@ -95,6 +100,17 @@ export function RegisterForm({ initialRole }: RegisterFormProps) {
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
+      {role === "tenant" && state.tenantProfile?.phone && (
+        <Field label="Số điện thoại" hint="Đã xác thực qua Zalo">
+          <input
+            className="input"
+            readOnly
+            disabled
+            value={fmtPhone(state.tenantProfile.phone)}
+            style={{ background: "var(--surface-hover, #f8fafc)", cursor: "not-allowed" }}
+          />
+        </Field>
+      )}
       <Field label="Mật khẩu" hint={errors.password ? undefined : "Ít nhất 8 ký tự."} error={errors.password}>
         <PasswordInput autoComplete="new-password" value={password} aria-invalid={!!errors.password} onChange={(e) => setPassword(e.target.value)} />
       </Field>

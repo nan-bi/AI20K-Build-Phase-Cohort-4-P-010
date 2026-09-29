@@ -1,18 +1,18 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { DEMO_USERS, ROLE_COOKIE, isRole, type DemoUser, type Role } from "./auth";
+import { DEMO_USERS, ROLE_COOKIE, encodeRoleCookie, parseRoleCookie, type DemoUser, type Role } from "./auth";
 
 const listeners = new Set<() => void>();
 
 function readRole(): Role | null {
   const m = document.cookie.match(new RegExp(`(?:^|; )${ROLE_COOKIE}=([^;]*)`));
   const v = m ? decodeURIComponent(m[1]) : null;
-  return isRole(v) ? v : null;
+  return parseRoleCookie(v);
 }
 
 export function signInAs(role: Role) {
-  document.cookie = `${ROLE_COOKIE}=${role}; path=/; max-age=${7 * 86400}; samesite=lax`;
+  document.cookie = `${ROLE_COOKIE}=${encodeRoleCookie(role)}; path=/; samesite=lax`;
   for (const l of listeners) l();
 }
 

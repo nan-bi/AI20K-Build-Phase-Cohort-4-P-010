@@ -11,11 +11,11 @@ import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
 import { STATUS_META } from "@/components/booking/status";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
-import { hostAccept, hostReject, sendReminder } from "@/lib/mock/actions";
+import { hostAccept, hostClaimBooking, hostReject, sendReminder } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { dayLabel, fmtPhone, fmtTime, vnd } from "@/lib/mock/format";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
-import { hostBookings, isOpenBooking } from "@/lib/mock/selectors";
+import { hostBookings, isOpenBooking, openTicketsFor } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
 import { hostById, unitAddress, unitById, zoneById } from "@/lib/mock/units";
@@ -63,8 +63,9 @@ export function DispatchBoard() {
   }
 
   const mineAll = hostBookings(state, HOST_ID);
+  const openTickets = openTicketsFor(state, HOST_ID);
   const pending = mineAll.filter((b) => b.status === "pending").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const active = mineAll.filter((b) => (isOpenBooking(b) && b.status !== "pending") || ["holding", "signed"].includes(b.status)).sort((a, b) => a.slot.localeCompare(b.slot));
+  const active = mineAll.filter((b) => (isOpenBooking(b) && b.status !== "pending") || b.status === "holding").sort((a, b) => a.slot.localeCompare(b.slot));
   const history = mineAll.filter((b) => ["leased", "completed", "no_show", "cancelled", "rejected"].includes(b.status)).sort((a, b) => b.slot.localeCompare(a.slot));
   const today = active.filter((b) => new Date(b.slot).toDateString() === new Date(now).toDateString());
   const lobbyNow = active.find((b) => b.status === "lobby");
@@ -143,8 +144,7 @@ export function DispatchBoard() {
           confirmed: soon ? "Xuống sảnh đón khách" : "Xem chi tiết & chuẩn bị",
           lobby: "Đón khách ngay",
           closing: "Chờ khách cọc",
-          holding: "Chờ khách ký cọc",
-          signed: "Chờ khách làm HĐ",
+          holding: "Chờ khách làm HĐ",
         };
         return <span className="small">{cta[b.status] ?? ""}</span>;
       },
@@ -189,8 +189,8 @@ export function DispatchBoard() {
       <div className={styles.kpis}>
         <StatTile
           label="Chờ nhận"
-          value={String(pending.length)}
-          delta={pending.length > 0 ? { text: "Cần nhận ca", tone: "bad" } : { text: "Đã xử lý hết", tone: "good" }}
+          value={String(pending.length + openTickets.length)}
+          delta={pending.length + openTickets.length > 0 ? { text: "Cần nhận ca", tone: "bad" } : { text: "Đã xử lý hết", tone: "good" }}
         />
         <StatTile label="Lịch hôm nay" value={String(today.length)} delta={{ text: "Trong ca trực", tone: "flat" }} />
         <StatTile
@@ -203,7 +203,7 @@ export function DispatchBoard() {
 
       <div className={styles.tabs} role="tablist" aria-label="Danh sách">
         <button type="button" role="tab" aria-selected={tab === "new"} onClick={() => setTab("new")}>
-          Yêu cầu mới {pending.length > 0 && <i>{pending.length}</i>}
+          Yêu cầu mới {pending.length + openTickets.length > 0 && <i>{pending.length + openTickets.length}</i>}
         </button>
         <button type="button" role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>
           Lịch của tôi
@@ -215,7 +215,80 @@ export function DispatchBoard() {
 
       {tab === "new" && (
         <div className={styles.ticketGrid}>
-          {pending.length === 0 && (
+          {openTickets.length > 0 && (
+            <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "0.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="badge badge-coral">Ticket mở ({openTickets.length})</span>
+                <span className="small muted">Ai nhận trước được giao</span>
+              </div>
+              <div className={styles.ticketGrid}>
+                {openTickets.map((b) => {
+                  const u = unitById(b.unitId)!;
+                  const cost = allInCost(u, { ...DEFAULT_HOUSEHOLD, persons: b.tenant.persons });
+                  const offeredCount = b.dispatch?.offeredTo.length ?? 0;
+                  return (
+                    <article key={b.id} className={styles.ticket} style={{ borderColor: "var(--coral-400, #fb923c)" }}>
+                      <div className={styles.ticketHead}>
+                        <div className={styles.ticketUnit}>
+                          <VerifiedPhoto unit={u} sizes="56px" stamp="none" className={styles.thumb} />
+                          <div className={styles.ticketUnitText}>
+                            <b className={styles.unitAddress}>{unitAddress(u)}</b>
+                            <p className="muted small">
+                              {zoneById(u.zoneId).short} · All-in {vnd(cost.total)}đ
+                            </p>
+                          </div>
+                        </div>
+                        <span className="badge badge-coral">Mở cho {offeredCount} Sale</span>
+                      </div>
+
+                      <div className={styles.ticketBody}>
+                        <dl className={styles.meta}>
+                          <div>
+                            <dt>Khách</dt>
+                            <dd>
+                              {b.tenant.name} · {b.tenant.persons} người
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Giờ hẹn</dt>
+                            <dd>
+                              {fmtTime(b.slot)} · {dayLabel(b.slot, now)}
+                            </dd>
+                          </div>
+                        </dl>
+                        {b.tenant.note && <p className={styles.note}>“{b.tenant.note}”</p>}
+                        <p className={styles.otpStatus}>
+                          <Check size={13} /> SĐT đã xác thực OTP Zalo · {fmtPhone(b.tenant.phone)}
+                        </p>
+                      </div>
+
+                      <div className={styles.ticketActions}>
+                        <button
+                          type="button"
+                          className="btn btn-success"
+                          style={{ width: "100%" }}
+                          onClick={() => {
+                            const res = hostClaimBooking(b.id, HOST_ID);
+                            if (res.ok) {
+                              toast(`Đã nhận ca. Zalo xác nhận đã gửi cho ${b.tenant.name}`, "success");
+                            } else if (res.code === "taken") {
+                              toast("Đã có Sale khác nhận trước");
+                            } else {
+                              toast(res.reason || "Không thể nhận ticket");
+                            }
+                          }}
+                        >
+                          <Check size={17} /> Nhận ticket
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {pending.length === 0 && openTickets.length === 0 && (
             <div className={styles.empty}>
               <MessageSquareText size={28} />
               <b>Chưa có yêu cầu mới</b>

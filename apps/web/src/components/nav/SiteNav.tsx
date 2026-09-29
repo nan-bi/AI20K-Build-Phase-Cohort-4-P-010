@@ -111,20 +111,23 @@ export function SiteNav({ variant = "solid" }: { variant?: "solid" | "clear" }) 
             </div>
           ) : role ? (
             <>
+              <span className={`${styles.roleChip} ${styles.who}`}>
+                Đang đăng nhập: {ROLE_LABEL[role]}
+                <span className={styles.roleName}> · {DEMO_USERS[role].name}</span>
+              </span>
               <Link href={DEMO_USERS[role].home} className={`btn btn-quiet btn-sm ${styles.who}`}>
-                Vào cổng {ROLE_LABEL[role].toLowerCase()}
+                Vào cổng
               </Link>
               <button
                 type="button"
-                className="icon-btn"
-                aria-label="Đăng xuất"
+                className="btn btn-quiet btn-sm"
                 onClick={() => {
                   signOut();
                   router.push("/");
                   router.refresh();
                 }}
               >
-                <LogOut size={19} />
+                <LogOut size={15} /> Đăng xuất
               </button>
             </>
           ) : (

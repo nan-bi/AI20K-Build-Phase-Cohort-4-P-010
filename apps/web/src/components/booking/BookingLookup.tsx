@@ -5,35 +5,33 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarSearch, ChevronRight } from "lucide-react";
 import { STATUS_META } from "./status";
-import { dayLabel, fmtPhone, fmtTime, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
-import { bookingByRef, bookingsOfPhone } from "@/lib/mock/selectors";
+import { dayLabel, fmtTime } from "@/lib/mock/format";
+import { bookingByRef } from "@/lib/mock/selectors";
+import { accountPhone, ownsBooking, tenantBookings } from "@/lib/mock/selectors-tenant";
 import { useMock } from "@/lib/mock/store";
-import { TENANT_DEMO } from "@/lib/mock/seed";
 import { unitAddress, unitById } from "@/lib/mock/units";
-import { useDemoUser } from "@/lib/mock/useRole";
 import { useNow } from "@/lib/useNow";
 import styles from "./Booking.module.css";
 
 export function BookingLookup() {
   const router = useRouter();
   const state = useMock();
-  const user = useDemoUser();
   const now = useNow(60_000);
   const [ref, setRef] = useState("");
-  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
 
-  const myPhone = state.tenantProfile?.phone ?? (user?.role === "tenant" ? user.phone : undefined);
-  const mine = myPhone ? bookingsOfPhone(state, normalizePhone(myPhone)).sort((a, b) => b.slot.localeCompare(a.slot)) : [];
+  const phone = accountPhone(state);
+  const mine = tenantBookings(state, phone);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const b = bookingByRef(state, ref);
-    if (!isValidVnPhone(phone) || !b || b.tenant.phone !== normalizePhone(phone)) {
-      setError("Không tìm thấy lịch hẹn khớp mã và số điện thoại này. Kiểm tra lại tin Zalo xác nhận của bạn.");
+    const cleanRef = ref.trim().toUpperCase();
+    const b = bookingByRef(state, cleanRef);
+    if (!b || !ownsBooking(state, b)) {
+      setError("Không tìm thấy lịch hẹn này trong tài khoản của bạn.");
       return;
     }
-    router.push(`/booking/${b.ref}?phone=${b.tenant.phone}`);
+    router.push(`/booking/${b.ref}`);
   };
 
   return (
@@ -43,34 +41,36 @@ export function BookingLookup() {
           <CalendarSearch size={26} />
         </span>
         <h1 className={styles.h1}>Kiểm tra lịch xem phòng</h1>
-        <p className="muted">Nhập mã lịch hẹn trong tin Zalo và số điện thoại đã đặt. Không cần tài khoản.</p>
+        <p className="muted">Xem danh sách lịch hẹn của bạn hoặc mở nhanh bằng mã lịch hẹn.</p>
 
         <form className={`card ${styles.form}`} onSubmit={submit} noValidate>
           <label className="field">
             <span className="label">Mã lịch hẹn</span>
-            <input className="input" placeholder="VS-XXXXX" value={ref} onChange={(e) => setRef(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" />
-          </label>
-          <label className="field">
-            <span className="label">Số điện thoại đã đặt lịch</span>
-            <input className="input" type="tel" inputMode="tel" placeholder="0912 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input
+              className="input"
+              placeholder="VS-XXXXX"
+              value={ref}
+              onChange={(e) => {
+                setRef(e.target.value.toUpperCase());
+                if (error) setError("");
+              }}
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
           </label>
           {error && <p className="field-error" role="alert">{error}</p>}
           <button type="submit" className="btn btn-primary btn-lg btn-block">
-            Xem trạng thái
+            Mở lịch hẹn
           </button>
-          <p className="muted xs">
-            Thử nhanh với lịch mẫu:{" "}
-            <button type="button" className="link" onClick={() => { setRef("VS-4F7K2"); setPhone(TENANT_DEMO.phone); setError(""); }}>
-              VS-4F7K2 · {fmtPhone(TENANT_DEMO.phone)}
-            </button>
-          </p>
         </form>
       </div>
 
-      <section className={styles.mine} aria-label="Lịch hẹn trên thiết bị này">
-        <h2>Lịch hẹn trên thiết bị này</h2>
+      <section className={styles.mine} aria-label="Lịch xem của tôi">
+        <h2>Lịch xem của tôi</h2>
         {mine.length === 0 ? (
-          <p className="muted">Bạn chưa đặt lịch nào. <Link href="/units" className="link">Tìm căn để xem</Link></p>
+          <p className="muted">
+            Bạn chưa có lịch xem nào trong tài khoản. <Link href="/units" className="link">Tìm căn để xem</Link>
+          </p>
         ) : (
           <ul className={styles.list}>
             {mine.map((b) => {

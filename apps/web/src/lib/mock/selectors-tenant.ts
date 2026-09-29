@@ -1,5 +1,7 @@
 import { isOpenBooking } from "./selectors";
 import type { Booking, MockState } from "./types";
+import { normalizePhone } from "./format";
+import { DEMO_USERS, type Role } from "./auth";
 
 /** Lịch xem của một khách thuê, mới nhất trước — dùng cho `/account/bookings`. */
 export function tenantBookings(state: MockState, phone: string): Booking[] {
@@ -15,12 +17,33 @@ export const tenantUpcomingBookings = (state: MockState, phone: string): Booking
 export const tenantPastBookings = (state: MockState, phone: string): Booking[] =>
   tenantBookings(state, phone).filter((b) => !isOpenBooking(b));
 
-/** Lịch có ít nhất một khoản cọc/thoả thuận/hợp đồng — dùng cho `/account/contracts`. */
+/** Lịch có ít nhất một khoản cọc/hợp đồng — dùng cho `/account/contracts`. */
 export function tenantContracts(state: MockState, phone: string): Booking[] {
-  return tenantBookings(state, phone).filter((b) => b.deposit || b.agreement || b.lease);
+  return tenantBookings(state, phone).filter((b) => b.deposit || b.lease);
 }
 
 /** Trạng thái eKYC mới nhất của khách (nếu có), dùng cho Section "Xác minh danh tính" ở `/account`. */
 export function tenantLatestKyc(state: MockState, phone: string) {
   return tenantBookings(state, phone).find((b) => b.kyc)?.kyc;
+}
+
+export function accountPhone(state: MockState): string {
+  return normalizePhone(state.tenantProfile?.phone ?? DEMO_USERS.tenant.phone!);
+}
+
+export function ownsBooking(state: MockState, b: Booking): boolean {
+  return normalizePhone(b.tenant.phone) === accountPhone(state);
+}
+
+export function isPhoneVerified(state: MockState, phone: string): boolean {
+  const norm = normalizePhone(phone);
+  return (state.verifiedPhones ?? []).includes(norm);
+}
+
+export function canSkipBookingOtp(state: MockState, role: Role | null, phone: string): boolean {
+  return (
+    role === "tenant" &&
+    normalizePhone(phone) === accountPhone(state) &&
+    isPhoneVerified(state, phone)
+  );
 }

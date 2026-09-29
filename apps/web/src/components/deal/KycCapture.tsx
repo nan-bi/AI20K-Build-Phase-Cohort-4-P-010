@@ -29,16 +29,15 @@ function sampleImage(slot: Slot, name: string): string {
 }
 
 function mockOcr(b: Booking): { fields: Fields; confidence: IdCardData["confidence"]; face: number } {
-  const party = b.agreement?.party;
   const digits = b.tenant.phone.replace(/\D/g, "").padEnd(9, "7").slice(-9);
 
   return {
     fields: {
-      fullName: (party?.fullName || b.tenant.name).toUpperCase(),
-      idNumber: party?.idNumber || `001${digits}`,
+      fullName: b.tenant.name.toUpperCase(),
+      idNumber: `001${digits}`,
       dob: "12/04/2001",
       issuedDate: "18/08/2021",
-      address: party?.address || "Thôn Kiêu Kỵ, Xã Kiêu Kỵ, Huyện Gia Lâm, Thành phố Hà Nội",
+      address: "Thôn Kiêu Kỵ, Xã Kiêu Kỵ, Huyện Gia Lâm, Thành phố Hà Nội",
     },
     confidence: { fullName: 0.99, idNumber: 0.98, issuedDate: 0.94, address: 0.78 },
     face: 0.96,
@@ -134,11 +133,8 @@ export function KycCapture({ booking, onDone }: KycCaptureProps) {
     (k) => conf[k] < LOW && !touched.has(k)
   );
 
-  const party = booking.agreement?.party;
-  const isNameMismatch =
-    party && fields.fullName.trim().toUpperCase() !== party.fullName.trim().toUpperCase();
-  const isIdMismatch = party && fields.idNumber.trim() !== party.idNumber.trim();
-  const hasMismatch = isNameMismatch || isIdMismatch;
+  const isNameMismatch = fields.fullName.trim().toUpperCase() !== booking.tenant.name.trim().toUpperCase();
+  const hasMismatch = isNameMismatch;
 
   const handleEdit = (k: keyof Fields, v: string) => {
     setFields((prev) => ({ ...prev, [k]: v }));
@@ -177,7 +173,7 @@ export function KycCapture({ booking, onDone }: KycCaptureProps) {
           Xác minh CCCD &amp; Khuôn mặt (eKYC)
         </h3>
         <p className="muted small" style={{ margin: 0 }}>
-          Hệ thống AI bóc tách thông tin tự động trong 3 giây và đối chiếu với Thỏa thuận cọc đã ký để chuẩn bị ký Hợp đồng thuê.
+          Hệ thống AI bóc tách thông tin tự động trong 3 giây và đối chiếu với thông tin đặt lịch để chuẩn bị ký Hợp đồng thuê.
         </p>
       </header>
 
@@ -237,15 +233,15 @@ export function KycCapture({ booking, onDone }: KycCaptureProps) {
             <b className="num">{Math.round(ocr.face * 100)}%</b>
           </div>
 
-          {/* Cảnh báo mismatch nếu có lệch thông tin với thỏa thuận cọc */}
+          {/* Cảnh báo mismatch nếu có lệch thông tin với lúc đặt lịch */}
           {hasMismatch && (
             <div className={styles.mismatchCard}>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6 }}>
                 <TriangleAlert size={18} style={{ color: "var(--danger)", flex: "none", marginTop: 2 }} />
                 <div>
-                  <b style={{ color: "var(--danger)" }}>Phát hiện sai lệch với Thỏa thuận cọc đã ký</b>
+                  <b style={{ color: "var(--danger)" }}>Họ tên trên CCCD khác họ tên lúc đặt lịch</b>
                   <p className="small" style={{ margin: "2px 0 0" }}>
-                    Thông tin trên thẻ CCCD vừa quét khác với thông tin bạn đã điền lúc ký Thỏa thuận đặt cọc.
+                    Thông tin họ tên trên thẻ CCCD vừa quét khác với thông tin bạn đã cung cấp khi đặt lịch hẹn.
                   </p>
                 </div>
               </div>
@@ -254,23 +250,16 @@ export function KycCapture({ booking, onDone }: KycCaptureProps) {
                 <thead>
                   <tr>
                     <th>Trường dữ liệu</th>
-                    <th>Thỏa thuận cọc</th>
+                    <th>Lúc đặt lịch</th>
                     <th>CCCD vừa bóc tách</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td>Họ và tên</td>
-                    <td><b>{party?.fullName}</b></td>
+                    <td><b>{booking.tenant.name}</b></td>
                     <td style={{ color: isNameMismatch ? "var(--danger)" : "inherit" }}>
                       <b>{fields.fullName}</b>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Số CCCD</td>
-                    <td><b>{party?.idNumber}</b></td>
-                    <td style={{ color: isIdMismatch ? "var(--danger)" : "inherit" }}>
-                      <b>{fields.idNumber}</b>
                     </td>
                   </tr>
                 </tbody>
@@ -350,7 +339,7 @@ export function KycCapture({ booking, onDone }: KycCaptureProps) {
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={handleSimulateMismatch}
-              title="Demo: Giả lập trường hợp khách quét thẻ có tên khác với lúc ký cọc"
+              title="Demo: Giả lập trường hợp khách quét thẻ có tên khác với lúc đặt lịch"
             >
               <RefreshCw size={14} /> Demo lệch tên
             </button>

@@ -200,17 +200,15 @@ export function getNextDayIdx(
 /** Tìm slot khả dụng sớm nhất trong khoảng từ hôm nay đến hết tháng sau */
 export function findEarliestInBounds(
   state: MockState,
-  hostId: string,
   startOfToday: Date,
   endOfMaxMonth: Date,
-  now: number,
-  ignoreBookingId?: string
+  now: number
 ): { date: Date; slot: SlotOption } | null {
   const start = startOfToday.getTime();
   const end = endOfMaxMonth.getTime();
   for (let t = start; t <= end; t += 86_400_000) {
     const d = new Date(t);
-    const slots = slotsForDay(state, hostId, d, now, ignoreBookingId);
+    const slots = slotsForDay(state, d, now);
     const avail = slots.find((s) => s.available);
     if (avail) {
       return { date: d, slot: avail };

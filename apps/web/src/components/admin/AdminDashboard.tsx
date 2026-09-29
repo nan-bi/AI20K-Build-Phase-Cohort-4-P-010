@@ -28,6 +28,7 @@ export function AdminDashboard() {
 
   const occ = occupancyOverall(state);
   const overSla = state.bookings.filter((b) => b.status === "pending" && now - new Date(b.createdAt).getTime() > SLA * 1000);
+  const escalated = state.bookings.filter((b) => b.status === "pending" && b.dispatch?.escalated);
   const pendingCs = state.consignments.filter((c) => c.status === "reviewing").length;
   const exiting = Object.values(state.mandates).filter((m) => m.status === "exiting");
   const nsr = noShowRate(state);
@@ -44,6 +45,15 @@ export function AdminDashboard() {
   const expiringCount = cRows.filter((r) => r.status === "expiring" && r.needsAction).length;
 
   const workItems = [
+    escalated.length > 0 && {
+      key: "escalated",
+      icon: AlertTriangle,
+      bad: true,
+      title: `${escalated.length} ticket cần điều phối tay`,
+      body: "Đã mở toàn phân khu nhưng chưa có Sale nhận ca.",
+      href: "/admin/bookings",
+      cta: "Điều phối",
+    },
     overSla.length > 0 && {
       key: "sla",
       icon: AlertTriangle,

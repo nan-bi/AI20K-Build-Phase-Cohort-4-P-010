@@ -20,7 +20,7 @@ const FIXED_NOW = new Date("2026-09-28T12:00:00.000Z").getTime();
 
 beforeEach(() => {
   mem.clear();
-  resetMockState();
+  resetMockState(FIXED_NOW);
 });
 
 describe("Contract Parties & Partnership - P1-P10 (WP2)", () => {

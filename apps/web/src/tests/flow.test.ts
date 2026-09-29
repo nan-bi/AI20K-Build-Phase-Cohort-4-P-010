@@ -12,6 +12,8 @@ const { getMockState, resetMockState } = await import("@/lib/mock/store");
 const { unitStatus, noticesFor, bookingById } = await import("@/lib/mock/selectors");
 const { unitById } = await import("@/lib/mock/units");
 const { upcomingSlots } = await import("@/lib/mock/slots");
+const { isPhoneVerified, canSkipBookingOtp, ownsBooking } = await import("@/lib/mock/selectors-tenant");
+const { DEMO_USERS } = await import("@/lib/mock/auth");
 
 const slot = (i: number) => upcomingSlots(Date.now(), 30)[i];
 
@@ -40,7 +42,7 @@ describe("OTP Zalo", () => {
 
 describe("đặt lịch → Host → Zalo", () => {
   it("tạo ticket pending, báo Host và Admin, cảm ơn khách qua Zalo", () => {
-    const b = book("s2-02-1004", "Nguyễn Thu Hà", "0988123456", 12);
+    const b = book("s1-01-0806", "Nguyễn Thu Hà", "0988123456", 12);
     const s = getMockState();
     expect(b.status).toBe("pending");
     expect(b.ref).toMatch(/^VS-[2-9A-HJ-NP-Z]{5}$/);
@@ -49,14 +51,14 @@ describe("đặt lịch → Host → Zalo", () => {
     expect(noticesFor(s, "tenant", "0988123456").some((n) => n.title.includes("Đã nhận yêu cầu"))).toBe(true);
   });
   it("Host nhận ca → confirmed và gửi Zalo có tên + SĐT Host", () => {
-    const b = book("s2-02-1004", "Nguyễn Thu Hà", "0988123456", 12);
+    const b = book("s1-01-0806", "Nguyễn Thu Hà", "0988123456", 12);
     actions.hostAccept(b.id);
     expect(bookingById(getMockState(), b.id)!.status).toBe("confirmed");
     const zalo = noticesFor(getMockState(), "tenant", "0988123456").find((n) => n.title.includes("Host đã xác nhận"))!;
     expect(zalo.body).toContain("Lê Quốc Bảo");
   });
   it("nhắc hẹn T-10 có nút 1-chạm; khách bấm → lobby và Host được push", () => {
-    const b = book("s2-02-1004", "Nguyễn Thu Hà", "0988123456", 12);
+    const b = book("s1-01-0806", "Nguyễn Thu Hà", "0988123456", 12);
     actions.hostAccept(b.id);
     actions.sendReminder(b.id);
     const notice = noticesFor(getMockState(), "tenant", "0988123456").find((n) => n.actions)!;
@@ -116,18 +118,12 @@ describe("mở cửa, cọc, ký số", () => {
     expect(until).toBeGreaterThan(29 * 60_000);
     expect(until).toBeLessThanOrEqual(30 * 60_000);
   });
-  it("đi hết chuỗi eKYC → ký cọc → ký hợp đồng thì căn chuyển rented", () => {
+  it("đi hết chuỗi giữ cọc → eKYC → ký hợp đồng thì căn chuyển rented", () => {
     const { b } = toViewing();
     actions.hostStartDeposit(b.id);
     actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id);
-    actions.tenantSignAgreement(b.id, {
-      fullName: "Nguyễn Thu Hà",
-      idNumber: "001912345678",
-      phone: b.tenant.phone,
-      address: "Gia Lâm, Hà Nội",
-    });
-    expect(bookingById(getMockState(), b.id)!.status).toBe("signed");
+    expect(bookingById(getMockState(), b.id)!.status).toBe("holding");
     actions.saveKyc(b.id, { fullName: "NGUYỄN THU HÀ", idNumber: "001912345678", dob: "12/04/2001", issuedDate: "18/08/2021", address: "Gia Lâm, Hà Nội", confidence: { fullName: 0.99, idNumber: 0.98, issuedDate: 0.94, address: 0.78 }, manuallyEdited: true, faceMatch: 0.96 });
     actions.signLease(b.id, { startDate: new Date().toISOString(), months: 12 });
     const s = getMockState();
@@ -173,5 +169,63 @@ describe("Admin", () => {
     const s = getMockState();
     expect(s.consignments.find((c) => c.id === "cs-4")!.status).toBe("approved");
     expect(noticesFor(s, "landlord", "L5")[0].title).toContain("nhận ký gửi");
+  });
+});
+
+describe("OTP một lần cho mỗi SĐT khách thuê - SPEC-P06 §6", () => {
+  it("1. Seed: isPhoneVerified(state, DEMO_USERS.tenant.phone) === true; SĐT lạ ⇒ false", () => {
+    const state = getMockState();
+    expect(isPhoneVerified(state, DEMO_USERS.tenant.phone!)).toBe(true);
+    expect(isPhoneVerified(state, "0999888999")).toBe(false);
+  });
+
+  it("2. requestOtp + verifyOtp(đúng mã) ⇒ vào verifiedPhones, không nhân đôi; sai mã ⇒ không thêm", () => {
+    const phoneTest = "0981122334";
+    actions.requestOtp(phoneTest, "booking");
+    const otpCode = getMockState().otp?.code;
+    expect(otpCode).toBeDefined();
+
+    // Sai mã
+    const failRes = actions.verifyOtp("0000");
+    expect(failRes).toBe(false);
+    expect(isPhoneVerified(getMockState(), phoneTest)).toBe(false);
+
+    // Đúng mã
+    const okRes = actions.verifyOtp(otpCode!);
+    expect(okRes).toBe(true);
+    expect(isPhoneVerified(getMockState(), phoneTest)).toBe(true);
+
+    // Gọi lần 2 không nhân đôi
+    actions.requestOtp(phoneTest, "booking");
+    const otpCode2 = getMockState().otp!.code;
+    actions.verifyOtp(otpCode2);
+    const count = getMockState().verifiedPhones.filter((p) => p === "0981122334").length;
+    expect(count).toBe(1);
+  });
+
+  it("3. canSkipBookingOtp kiểm tra đúng vai trò và SĐT", () => {
+    const state = getMockState();
+    const verifiedPhone = DEMO_USERS.tenant.phone!;
+    expect(canSkipBookingOtp(state, "tenant", verifiedPhone)).toBe(true);
+    expect(canSkipBookingOtp(state, null, verifiedPhone)).toBe(false);
+    expect(canSkipBookingOtp(state, "tenant", "0999000111")).toBe(false);
+    expect(canSkipBookingOtp(state, "landlord", verifiedPhone)).toBe(false);
+  });
+
+  it("4. ownsBooking: booking tạo bởi createBooking với SĐT X ⇒ true khi tenantProfile.phone = X, false khi khác", () => {
+    resetMockState();
+    const b = actions.createBooking({
+      unitId: "s1-01-0806",
+      slot: "2026-10-01T09:00:00.000Z",
+      name: "Khách Mới",
+      phone: "0911223344",
+      persons: 2,
+    });
+    const state = getMockState();
+    expect(ownsBooking(state, b)).toBe(true);
+
+    // Khi tenantProfile có SĐT khác
+    const otherState = { ...state, tenantProfile: { name: "Khác", phone: "0988776655" } };
+    expect(ownsBooking(otherState, b)).toBe(false);
   });
 });

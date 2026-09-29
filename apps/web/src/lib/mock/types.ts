@@ -4,16 +4,20 @@ export { PASSPORT_ITEMS, type PassportItem } from "./units";
 
 // ─── Lịch xem nhà ───────────────────────────────────────────────────────────────────────────
 
-export interface AgreementParty {
-  fullName: string;
-  idNumber: string;
-  phone: string;
-  address: string;
+export type DispatchTier = "top" | "zone_pool" | "wide_pool";
+
+export interface BookingDispatch {
+  state: "assigned" | "open";
+  tier: DispatchTier;
+  offeredTo: string[];
+  openedAt: string;
+  claimedAt?: string;
+  escalated?: boolean;
 }
 
 /**
  * Vòng đời một lịch xem (PRD §3.2–3.4):
- * pending → confirmed → lobby → receiving → viewing → closing → holding → signed → leased
+ * pending → confirmed → lobby → receiving → viewing → closing → holding → leased
  * Nhánh phụ: completed (xem xong, chưa thuê), no_show, cancelled, rejected.
  */
 export type BookingStatus =
@@ -24,7 +28,6 @@ export type BookingStatus =
   | "viewing"
   | "closing"
   | "holding"
-  | "signed"
   | "leased"
   | "completed"
   | "no_show"
@@ -88,12 +91,7 @@ export interface Booking {
   depositConsentAt?: string; // + khách tick điều khoản cọc trước khi hiện QR
   deposit?: DepositInfo;
   kyc?: IdCardData;
-  agreement?: {
-    signedAt: string;
-    docId: string;
-    party: AgreementParty; // + 4 trường khách tự điền
-    signature?: string; // + data URL PNG ≤ 40 KB
-  };
+  dispatch?: BookingDispatch;
   lease?: {
     signedAt: string;
     startDate: string;
@@ -270,7 +268,7 @@ export interface OtpChallenge {
   phone: string;
   code: string;
   expiresAt: number;
-  purpose: "booking" | "kyc" | "agreement" | "lease";
+  purpose: "booking" | "kyc" | "agreement";
 }
 
 export interface CriteriaState {
@@ -330,4 +328,6 @@ export interface MockState {
   tenantProfile?: { name: string; phone: string };
   /** Vai của Field Host khi bị Admin sửa (mặc định lấy từ HOSTS). */
   hostRoles: Record<string, HostRole[]>;
+  /** Danh sách SĐT khách thuê đã xác thực qua OTP Zalo (SPEC-P06 §2) */
+  verifiedPhones: string[];
 }
