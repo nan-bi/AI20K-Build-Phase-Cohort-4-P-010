@@ -130,8 +130,19 @@ def main():
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            print(f"[ai-log] Submitted {len(entries)} entries → {resp.status}", file=sys.stderr)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[ai-log] Submitted {len(entries)} entries → {resp.status}", file=sys.stderr)
+        except urllib.error.URLError as ssl_err:
+            if "CERTIFICATE_VERIFY_FAILED" in str(ssl_err):
+                import ssl
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+                    print(f"[ai-log] Submitted {len(entries)} entries (SSL fallback) → {resp.status}", file=sys.stderr)
+            else:
+                raise ssl_err
     except urllib.error.URLError as e:
         # Failure: restore the whole pending (including leftover) for next push.
         _restore_pending(pending)
