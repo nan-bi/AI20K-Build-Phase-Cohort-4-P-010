@@ -16,12 +16,9 @@ import {
   LoaderCircle,
   Lock,
   ShieldAlert,
-  ShieldCheck,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "@/components/ui/Toast";
-import { DepositAgreementDoc } from "@/components/deal/DepositAgreementDoc";
-import { PrintDocButton } from "@/components/deal/PrintDocButton";
 import {
   confirmDepositPaid,
   hostConfirmViewing,
@@ -424,46 +421,9 @@ export function AwaitDepositStep({ booking }: StepProps) {
 
 // ─── 4. Chờ ký thỏa thuận cọc (AwaitAgreementStep - holding) ────────────────────────────────────
 
-export function AwaitAgreementStep({ booking, now }: StepProps) {
-  const daysLeft = holdDaysLeft(booking, now);
+// ─── 5. Chờ hợp đồng thuê (AwaitLeaseStep - holding) ───────────────────────────────────────────
 
-  return (
-    <section className={`card ${styles.step}`}>
-      <StepHead
-        icon={<ShieldCheck size={22} />}
-        title="Căn đã khoá giữ chỗ"
-        hint={`Căn đã khoá ${HOLD_DAYS} ngày cho khách ${booking.tenant.name}.`}
-      />
-
-      <div className={styles.presence} role="status">
-        <CheckCircle2 size={22} />
-        <div>
-          <b>Căn đã khoá · còn {daysLeft} ngày</b>
-          <p className="small">
-            Khách đang điền thông tin và ký Thỏa thuận đặt cọc trên app của khách.
-          </p>
-        </div>
-      </div>
-
-      <ul className={styles.checklist}>
-        <li className={styles.ok}>
-          <CheckCircle2 size={16} /> Đã nhận tiền cọc giữ chỗ 2.000.000đ
-        </li>
-        <li>
-          <Clock size={16} /> Đang chờ khách hoàn tất chữ ký điện tử trên điện thoại
-        </li>
-      </ul>
-
-      <p className="muted small">
-        Host không cần ký hộ. Hệ thống sẽ tự động cập nhật ngay khi khách ký xong thỏa thuận cọc.
-      </p>
-    </section>
-  );
-}
-
-// ─── 5. Chờ hợp đồng thuê (AwaitLeaseStep - signed) ───────────────────────────────────────────
-
-export function AwaitLeaseStep({ booking, unit, now }: StepProps) {
+export function AwaitLeaseStep({ booking, now }: StepProps) {
   const forfeited = isHoldForfeited(booking, now);
   const daysLeft = holdDaysLeft(booking, now);
   const hasKyc = Boolean(booking.kyc);
@@ -473,17 +433,9 @@ export function AwaitLeaseStep({ booking, unit, now }: StepProps) {
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<FileText size={22} />}
-        title="Thỏa thuận đặt cọc đã ký"
-        hint={`Khách đã ký thỏa thuận cọc mã ${booking.agreement?.docId ?? booking.ref}.`}
+        title="Đã cọc giữ chỗ 7 ngày"
+        hint={`Khách đã thanh toán cọc giữ chỗ 2.000.000đ qua VietQR (mã COC-${booking.ref}).`}
       />
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <PrintDocButton />
-      </div>
-
-      <div style={{ maxHeight: 420, overflowY: "auto", border: "1px solid var(--line)", borderRadius: "var(--r)" }}>
-        <DepositAgreementDoc booking={booking} unit={unit} />
-      </div>
 
       {forfeited ? (
         <div className={styles.warn} role="alert">
@@ -533,7 +485,6 @@ export function AwaitLeaseStep({ booking, unit, now }: StepProps) {
 
 export function DoneStep({ booking, unit }: StepProps) {
   const state = useMock();
-  const [showDoc, setShowDoc] = useState(false);
   const host = hostById(booking.hostId)!;
   const e = hostEarnings(state, host, state.fees);
   const commission = Math.round(state.fees.dealCommission * e.multiplier);
@@ -547,17 +498,6 @@ export function DoneStep({ booking, unit }: StepProps) {
       <p className="muted">
         Hợp đồng {booking.lease?.docId} đã ký số. Căn {unit.code} chuyển sang “đã cho thuê”; chủ nhà và Admin đã nhận thông báo.
       </p>
-
-      {booking.agreement && (
-        <button
-          type="button"
-          className="btn btn-quiet btn-sm"
-          style={{ alignSelf: "center" }}
-          onClick={() => setShowDoc(true)}
-        >
-          <FileText size={15} /> Xem thỏa thuận cọc
-        </button>
-      )}
 
       <dl className={styles.payout}>
         <div>
@@ -583,18 +523,6 @@ export function DoneStep({ booking, unit }: StepProps) {
           Xem thu nhập
         </Link>
       </div>
-
-      <Modal
-        open={showDoc}
-        onClose={() => setShowDoc(false)}
-        variant="wide"
-        title="Thỏa thuận đặt cọc"
-        footer={<PrintDocButton />}
-      >
-        <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
-          <DepositAgreementDoc booking={booking} unit={unit} />
-        </div>
-      </Modal>
     </section>
   );
 }

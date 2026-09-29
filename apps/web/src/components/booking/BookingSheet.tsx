@@ -18,7 +18,6 @@ import {
   Phone,
   ShieldCheck,
   Sparkles,
-  Star,
   User,
   Users,
 } from "lucide-react";
@@ -29,8 +28,9 @@ import { createBooking, requestOtp, verifyOtp } from "@/lib/mock/actions";
 import { fmtDateTime, fmtPhone, fmtTime, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
-import { hostForUnit, unitAddress, type Unit } from "@/lib/mock/units";
-import { useDemoUser } from "@/lib/mock/useRole";
+import { unitAddress, type Unit } from "@/lib/mock/units";
+import { useDemoUser, useRole } from "@/lib/mock/useRole";
+import { canSkipBookingOtp } from "@/lib/mock/selectors-tenant";
 import { useNow } from "@/lib/useNow";
 import { SlotPicker } from "./SlotPicker";
 import styles from "./BookingSheet.module.css";
@@ -60,21 +60,25 @@ export function BookingSheet({ unit, open, onClose }: BookingSheetProps) {
 function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const state = useMock();
   const demoUser = useDemoUser();
+  const role = useRole();
+  const isTenant = role === "tenant";
   const now = useNow(30_000);
-  const host = hostForUnit(unit);
 
   const [step, setStep] = useState<Step>("slot");
   const [slot, setSlot] = useState<string | null>(null);
-  const [name, setName] = useState(state.tenantProfile?.name ?? (demoUser?.role === "tenant" ? demoUser.name : ""));
-  const [phone, setPhone] = useState(state.tenantProfile?.phone ?? (demoUser?.role === "tenant" ? (demoUser.phone ?? "") : ""));
+  const [name, setName] = useState(state.tenantProfile?.name ?? (isTenant ? demoUser?.name ?? "" : ""));
+  const [phone, setPhone] = useState(state.tenantProfile?.phone ?? (isTenant ? (demoUser?.phone ?? "") : ""));
   const [persons, setPersons] = useState(1);
   const [note, setNote] = useState("");
   const [consent, setConsent] = useState(false);
+  const [editingTenant, setEditingTenant] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; phone?: string; consent?: string }>({});
   const [code, setCode] = useState("");
   const [otpError, setOtpError] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [booking, setBooking] = useState<Booking | null>(null);
+
+  const canSkip = canSkipBookingOtp(state, role, phone);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -90,7 +94,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     const next: typeof errors = {};
     if (name.trim().length < 2) next.name = "Vui lòng nhập họ và tên để Field Host biết xưng hô khi đón bạn.";
     if (!isValidVnPhone(phone)) next.phone = "Số điện thoại chưa hợp lệ. Ví dụ đúng: 0912 345 678.";
-    if (!consent) next.consent = "Vui lòng đồng ý điều khoản xác thực để tiếp tục.";
+    if (!isTenant && !consent) next.consent = "Vui lòng đồng ý điều khoản xác thực để tiếp tục.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -128,7 +132,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
             Đặt lịch xem nhà thành công!
           </h3>
           <p className={styles.doneSub}>
-            Field Host <strong>{host.name}</strong> sẽ xác nhận trong vòng 3 phút. VinStay AI sẽ nhắn thông báo và nút 1-chạm xác nhận có mặt qua Zalo <strong>{fmtPhone(booking.tenant.phone)}</strong>.
+            Field Host nội khu sẽ nhận ca trong vòng 3 phút. VinStay AI sẽ nhắn thông báo và nút 1-chạm xác nhận có mặt qua Zalo <strong>{fmtPhone(booking.tenant.phone)}</strong>.
           </p>
         </div>
 
@@ -167,10 +171,10 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
             <div className={styles.ticketItem}>
               <div className={styles.ticketItemLabel}>
                 <User size={14} />
-                <span>Field Host phụ trách</span>
+                <span>Field Host tiếp đón</span>
               </div>
               <div className={styles.ticketItemVal}>
-                {host.name}
+                Field Host nội khu
                 <span className={styles.hostBadgeVerified}>
                   <Check size={11} /> Thẻ cư dân sẵn sàng
                 </span>
@@ -209,9 +213,29 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         </div>
 
         <div className={styles.doneActions}>
-          <Link href={`/booking/${booking.ref}`} className="btn btn-primary btn-lg btn-block">
-            Theo dõi trạng thái lịch hẹn
-          </Link>
+          {isTenant ? (
+            <Link href={`/booking/${booking.ref}`} className="btn btn-primary btn-lg btn-block">
+              Xem lịch hẹn
+            </Link>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+              <Link
+                href={`/register?role=tenant&next=/booking/${booking.ref}`}
+                className="btn btn-primary btn-lg btn-block"
+              >
+                Tạo tài khoản
+              </Link>
+              <Link
+                href={`/login?next=/booking/${booking.ref}`}
+                className="btn btn-quiet btn-block"
+              >
+                Đăng nhập
+              </Link>
+              <p className="xs muted" style={{ textAlign: "center", lineHeight: 1.4, margin: "4px 0" }}>
+                Mã lịch hẹn {booking.ref} đã gửi qua Zalo. Cọc, CCCD và hợp đồng chỉ làm được trong tài khoản để bảo vệ dữ liệu của bạn (NĐ 13/2023).
+              </p>
+            </div>
+          )}
           <button type="button" className="btn btn-quiet btn-block" onClick={onClose}>
             Tiếp tục xem các căn khác
           </button>
@@ -223,7 +247,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   return (
     <div className={styles.flow}>
       <ol className={styles.progress} aria-label="Các bước đặt lịch">
-        {STEPS.map((s, i) => {
+        {(canSkip ? [{ key: "slot", label: "Chọn giờ" }, { key: "info", label: "Thông tin" }] : STEPS).map((s, i) => {
           const statusClass = i === stepIndex ? styles.active : i < stepIndex ? styles.completed : "";
           return (
             <li key={s.key} className={`${styles.stepItem} ${statusClass}`} aria-current={i === stepIndex ? "step" : undefined}>
@@ -242,17 +266,15 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
       {step === "slot" && (
         <>
           <div className={styles.hostRow}>
-            <span className={styles.hostAvatar}>{host.name.split(" ").slice(-1)[0][0]}</span>
+            <span className={styles.hostAvatar}>
+              <Sparkles size={18} />
+            </span>
             <div className={styles.hostInfo}>
               <div className={styles.hostInfoTitle}>
-                <span>{host.name} đón bạn tại sảnh toà {unit.building}</span>
-                <span className={styles.hostRating}>
-                  <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />
-                  {String(host.rating).replace(".", ",")}
-                </span>
+                <span>Field Host nội khu đón bạn tại sảnh toà {unit.building}</span>
               </div>
               <div className={styles.hostSub}>
-                Có thẻ cư dân thang máy, quẹt thẻ đưa bạn lên phòng trong 60 giây.
+                Field Host nội khu có thẻ thang máy sẽ được giao ngay sau khi bạn đặt.
               </div>
             </div>
           </div>
@@ -260,7 +282,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           {now > 0 && (
             <>
               <h4 style={{ margin: "14px 0 6px", fontSize: 15, fontWeight: 700 }}>Chọn ngày bạn muốn xem</h4>
-              <SlotPicker hostId={host.id} now={now} value={slot} onChange={setSlot} />
+              <SlotPicker now={now} value={slot} onChange={setSlot} />
             </>
           )}
 
@@ -282,7 +304,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
                   {chosen ? fmtDateTime(chosen) : "Chưa chọn giờ"}
                 </div>
                 <div className={styles.slotRecapLocation}>
-                  Sảnh toà {unit.building} · Host {host.name} đón
+                  Sảnh toà {unit.building} · Field Host nội khu đón
                 </div>
               </div>
             </div>
@@ -299,104 +321,138 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
 
           <h4 style={{ margin: "10px 0 2px", fontSize: 15, fontWeight: 700 }}>Thông tin người đặt lịch</h4>
 
-          <div className={styles.formBody}>
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel} htmlFor="booking-name">
-                <User size={15} className={styles.labelIcon} />
-                <span>Họ tên khách đặt</span>
-                <span className={styles.requiredStar}>*</span>
-              </label>
-              <input
-                id="booking-name"
-                className={`input ${styles.formInput} ${errors.name ? styles.inputError : ""}`}
-                autoComplete="name"
-                autoFocus
-                placeholder="Ví dụ: Nguyễn Văn An"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-                }}
-                aria-invalid={!!errors.name}
-              />
-              {errors.name && <span className="field-error">{errors.name}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <div className={styles.labelRow}>
-                <label className={styles.formLabel} htmlFor="booking-phone">
-                  <Phone size={15} className={styles.labelIcon} />
-                  <span>Số điện thoại (nhận Zalo OTP)</span>
-                  <span className={styles.requiredStar}>*</span>
-                </label>
-                <span className={styles.zaloBadge}>Xác thực Zalo</span>
+          {isTenant && !editingTenant ? (
+            <div style={{ background: "var(--surface-hover, #f8fafc)", padding: "12px 14px", borderRadius: 8, border: "1px solid var(--border)", margin: "10px 0 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <b style={{ fontSize: 15 }}>{name}</b>
+                  <span className="muted" style={{ margin: "0 6px" }}>·</span>
+                  <span className="tnum" style={{ fontSize: 14 }}>{fmtPhone(phone)}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-quiet btn-sm"
+                  onClick={() => setEditingTenant(true)}
+                  style={{ gap: 4 }}
+                >
+                  <Pencil size={12} /> Sửa
+                </button>
               </div>
-              <input
-                id="booking-phone"
-                className={`input ${styles.formInput} ${errors.phone ? styles.inputError : ""}`}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="0912 345 678"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
-                }}
-                aria-invalid={!!errors.phone}
-              />
-              {errors.phone ? (
-                <span className="field-error">{errors.phone}</span>
-              ) : (
-                <span className={styles.fieldHint}>
-                  Field Host sẽ liên hệ qua Zalo trước 10 phút để đón bạn tại sảnh.
+              {canSkip && (
+                <span className="badge badge-success xs" style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <Check size={11} /> SĐT đã xác thực qua Zalo
                 </span>
               )}
             </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel}>
-                <Users size={15} className={styles.labelIcon} />
-                <span>Số người đi xem cùng</span>
-              </label>
-              <div className={styles.segmentedGroup} role="radiogroup" aria-label="Số người đi xem">
-                {[1, 2, 3, 4].map((n) => {
-                  const label = n === 4 ? "4+ người" : `${n} người`;
-                  const isSelected = persons === n;
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      className={`${styles.segmentedBtn} ${isSelected ? styles.segmentedBtnActive : ""}`}
-                      onClick={() => setPersons(n)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <div className={styles.labelRow}>
-                <label className={styles.formLabel} htmlFor="booking-note">
-                  <FileText size={15} className={styles.labelIcon} />
-                  <span>Ghi chú cho Host</span>
+          ) : (
+            <div className={styles.formBody}>
+              {isTenant && editingTenant && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="button" className="btn btn-quiet btn-sm" onClick={() => setEditingTenant(false)}>
+                    Xong
+                  </button>
+                </div>
+              )}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel} htmlFor="booking-name">
+                  <User size={15} className={styles.labelIcon} />
+                  <span>Họ tên khách đặt</span>
+                  <span className={styles.requiredStar}>*</span>
                 </label>
-                <span className={styles.optionalBadge}>Không bắt buộc</span>
+                <input
+                  id="booking-name"
+                  className={`input ${styles.formInput} ${errors.name ? styles.inputError : ""}`}
+                  autoComplete="name"
+                  autoFocus
+                  placeholder="Ví dụ: Nguyễn Văn An"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                  }}
+                  aria-invalid={!!errors.name}
+                />
+                {errors.name && <span className="field-error">{errors.name}</span>}
               </div>
-              <textarea
-                id="booking-note"
-                className={`textarea ${styles.formTextarea}`}
-                rows={2}
-                placeholder="Ví dụ: muốn xem kỹ ban công, hướng nắng, mang theo thú cưng..."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </div>
 
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label className={styles.formLabel} htmlFor="booking-phone">
+                    <Phone size={15} className={styles.labelIcon} />
+                    <span>Số điện thoại (nhận Zalo OTP)</span>
+                    <span className={styles.requiredStar}>*</span>
+                  </label>
+                  <span className={styles.zaloBadge}>Xác thực Zalo</span>
+                </div>
+                <input
+                  id="booking-phone"
+                  className={`input ${styles.formInput} ${errors.phone ? styles.inputError : ""}`}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="0912 345 678"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
+                  aria-invalid={!!errors.phone}
+                />
+                {errors.phone ? (
+                  <span className="field-error">{errors.phone}</span>
+                ) : (
+                  <span className={styles.fieldHint}>
+                    Field Host sẽ liên hệ qua Zalo trước 10 phút để đón bạn tại sảnh.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>
+              <Users size={15} className={styles.labelIcon} />
+              <span>Số người đi xem cùng</span>
+            </label>
+            <div className={styles.segmentedGroup} role="radiogroup" aria-label="Số người đi xem">
+              {[1, 2, 3, 4].map((n) => {
+                const label = n === 4 ? "4+ người" : `${n} người`;
+                const isSelected = persons === n;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    className={`${styles.segmentedBtn} ${isSelected ? styles.segmentedBtnActive : ""}`}
+                    onClick={() => setPersons(n)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={styles.formGroup}>
+            <div className={styles.labelRow}>
+              <label className={styles.formLabel} htmlFor="booking-note">
+                <FileText size={15} className={styles.labelIcon} />
+                <span>Ghi chú cho Host</span>
+              </label>
+              <span className={styles.optionalBadge}>Không bắt buộc</span>
+            </div>
+            <textarea
+              id="booking-note"
+              className={`textarea ${styles.formTextarea}`}
+              rows={2}
+              placeholder="Ví dụ: muốn xem kỹ ban công, hướng nắng, mang theo thú cưng..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+
+          {!isTenant && (
             <div className={`${styles.securityCard} ${errors.consent ? styles.securityCardError : ""}`}>
               <div className={styles.securityHeader}>
                 <ShieldCheck size={18} className={styles.securityIcon} />
@@ -421,12 +477,32 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
               </label>
               {errors.consent && <span className="field-error">{errors.consent}</span>}
             </div>
+          )}
 
+          {canSkip ? (
+            <button
+              type="button"
+              className={`btn btn-primary btn-lg btn-block ${styles.submitBtn}`}
+              onClick={() => {
+                const next: typeof errors = {};
+                if (name.trim().length < 2) next.name = "Vui lòng nhập họ và tên để Field Host biết xưng hô khi đón bạn.";
+                if (!isValidVnPhone(phone)) next.phone = "Số điện thoại chưa hợp lệ. Ví dụ đúng: 0912 345 678.";
+                setErrors(next);
+                if (Object.keys(next).length || !slot) return;
+
+                setBooking(createBooking({ unitId: unit.id, slot, name, phone: p, persons, note }));
+                setStep("done");
+              }}
+            >
+              <CheckCircle2 size={18} />
+              <span>Xác nhận đặt lịch</span>
+            </button>
+          ) : (
             <button type="button" className={`btn btn-primary btn-lg btn-block ${styles.submitBtn}`} onClick={sendOtp}>
               <MessageCircleMore size={18} />
               <span>Tiếp tục xác thực Zalo OTP</span>
             </button>
-          </div>
+          )}
         </>
       )}
 

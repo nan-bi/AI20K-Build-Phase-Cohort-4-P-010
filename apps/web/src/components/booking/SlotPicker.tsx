@@ -19,14 +19,12 @@ import {
 import styles from "./SlotPicker.module.css";
 
 export interface SlotPickerProps {
-  hostId: string;
   now: number;                 // > 0; caller tự chặn khi useNow() chưa có giá trị
   value: string | null;        // ISO slot đang chọn
   onChange: (iso: string | null) => void;  // đổi ngày ⇒ onChange(null)
-  ignoreBookingId?: string;    // truyền cho slotsForDay khi đổi giờ lịch hiện có
 }
 
-export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: SlotPickerProps) {
+export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
   const state = useMock();
   const bounds = useMemo(() => getMonthBounds(now), [now]);
 
@@ -83,17 +81,17 @@ export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: Sl
     const map = new Map<string, boolean>();
     for (const cell of matrix) {
       if (cell.isCurrentMonth && !cell.isDisabled) {
-        const slots = slotsForDay(state, hostId, cell.date, now, ignoreBookingId);
+        const slots = slotsForDay(state, cell.date, now);
         const hasAvail = slots.some((s) => s.available);
         const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}-${cell.date.getDate()}`;
         map.set(key, hasAvail);
       }
     }
     return map;
-  }, [matrix, state, hostId, now, ignoreBookingId]);
+  }, [matrix, state, now]);
 
   // Tìm slot trống sớm nhất trong toàn bộ cửa sổ (từ hôm nay đến hết tháng sau)
-  const earliest = findEarliestInBounds(state, hostId, bounds.startOfToday, bounds.endOfMaxMonth, now, ignoreBookingId);
+  const earliest = findEarliestInBounds(state, bounds.startOfToday, bounds.endOfMaxMonth, now);
 
   const handleEarliestClick = () => {
     if (!earliest) return;
@@ -110,8 +108,8 @@ export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: Sl
 
   // Danh sách slot cho ngày đang chọn
   const currentSlots = useMemo(() => {
-    return slotsForDay(state, hostId, activeSelectedDate, now, ignoreBookingId);
-  }, [state, hostId, activeSelectedDate, now, ignoreBookingId]);
+    return slotsForDay(state, activeSelectedDate, now);
+  }, [state, activeSelectedDate, now]);
 
   const availableCount = currentSlots.filter((s) => s.available).length;
 
@@ -200,7 +198,7 @@ export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: Sl
             {formatSelectedDateLong(activeSelectedDate, now)}
           </span>
           <span className={styles.availBadge}>
-            {availableCount > 0 ? `Còn ${availableCount} giờ trống` : "Đã kín lịch"}
+            {availableCount > 0 ? `Còn ${availableCount} giờ` : "Hết giờ hôm nay"}
           </span>
         </div>
 
@@ -227,7 +225,7 @@ export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: Sl
                     <b className="tnum">{o.time}</b>
                     {!o.available && (
                       <span className="xs">
-                        {o.reason === "taken" ? "Đã kín" : "Quá gần giờ"}
+                        Quá gần giờ
                       </span>
                     )}
                   </button>
@@ -238,7 +236,7 @@ export function SlotPicker({ hostId, now, value, onChange, ignoreBookingId }: Sl
         })}
 
         <p className={styles.hint}>
-          Khung giờ khớp ca trực của Host: sáng 08:30–11:30, chiều 14:00–18:00. Mỗi Host chỉ nhận một lịch trong 45 phút để luôn đón bạn đúng giờ.
+          Khung giờ xem phòng: sáng 08:30–11:30, chiều 14:00–18:00. Field Host nội khu có thẻ thang máy sẽ đón bạn đúng giờ tại sảnh.
         </p>
       </div>
     </div>

@@ -787,7 +787,7 @@ export interface FieldHost {
 
 export const HOSTS: FieldHost[] = [
   { id: "H01", name: "Lê Quốc Bảo", phone: "0934 556 201", zones: ["sapphire1", "sapphire2"], rfid: "RF-S1S2-0142", roles: ["sale", "inspector"], status: "active", rating: 4.9, joined: "2026-04-15", weekTickets: 21, weekDeals: 4, avgAcceptSec: 74, noShowRate: 0.05 },
-  { id: "H02", name: "Nguyễn Thị Lan", phone: "0942 118 730", zones: ["sapphire2"], rfid: "RF-S2-0089", roles: ["sale"], status: "active", rating: 4.8, joined: "2026-05-02", weekTickets: 17, weekDeals: 3, avgAcceptSec: 92, noShowRate: 0.06 },
+  { id: "H02", name: "Nguyễn Thị Lan", phone: "0942 118 730", zones: ["sapphire2"], rfid: "RF-S2-0089", roles: ["sale"], status: "active", rating: 4.95, joined: "2026-05-02", weekTickets: 17, weekDeals: 3, avgAcceptSec: 92, noShowRate: 0.06 },
   { id: "H03", name: "Trần Minh Khoa", phone: "0965 302 418", zones: ["zenpark"], rfid: "RF-ZEN-0031", roles: ["sale", "inspector"], status: "active", rating: 4.7, joined: "2026-05-20", weekTickets: 13, weekDeals: 2, avgAcceptSec: 118, noShowRate: 0.08 },
   { id: "H04", name: "Phạm Hồng Nhung", phone: "0918 774 052", zones: ["masteri"], rfid: "RF-MAS-0117", roles: ["sale", "inspector"], status: "busy", rating: 4.9, joined: "2026-06-01", weekTickets: 19, weekDeals: 5, avgAcceptSec: 66, noShowRate: 0.04 },
   { id: "H05", name: "Đỗ Văn Tùng", phone: "0983 640 559", zones: ["pavilion"], rfid: "RF-PAV-0064", roles: ["sale", "inspector"], status: "busy", rating: 4.5, joined: "2026-06-14", weekTickets: 9, weekDeals: 1, avgAcceptSec: 171, noShowRate: 0.11 },

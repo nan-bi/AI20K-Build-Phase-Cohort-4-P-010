@@ -1,12 +1,13 @@
 import { allInCost, TENANT_MODIFY_LEAD_MS } from "./cost";
 import { ALL_SLOT_TIMES, MIN_LEAD_MS, slotDate } from "./slots";
-import type { Booking, BookingStatus, FeeConfig, MockState, Notice } from "./types";
+import type { Booking, BookingDispatch, BookingStatus, FeeConfig, MockState, Notice } from "./types";
 import {
   HOSTS,
   UNITS,
   unitById,
   hostById,
   zoneById,
+  zoneOfBuilding,
   type FieldHost,
   type HostRole,
   type Unit,
@@ -128,7 +129,7 @@ export const bookingById = (state: MockState, id: string) => state.bookings.find
 export const bookingsOfPhone = (state: MockState, phone: string) => state.bookings.filter((b) => b.tenant.phone === phone);
 
 export function hostBookings(state: MockState, hostId: string): Booking[] {
-  return state.bookings.filter((b) => b.hostId === hostId);
+  return state.bookings.filter((b) => b.hostId === hostId && b.dispatch?.state !== "open");
 }
 
 /** Khung giờ đã có lịch khác của cùng Host trong cửa sổ 45 phút (quy tắc chống ôm lead). */
@@ -138,8 +139,100 @@ export function slotTaken(state: MockState, hostId: string, slotIso: string, ign
     (b) =>
       b.hostId === hostId &&
       b.id !== ignoreId &&
+      b.dispatch?.state !== "open" &&
       BUSY_SLOT_STATUSES.includes(b.status) &&
       Math.abs(new Date(b.slot).getTime() - t) < 45 * 60_000,
+  );
+}
+
+export function freeAt(state: MockState, hostId: string, slotIso: string, ignoreId?: string): boolean {
+  return !slotTaken(state, hostId, slotIso, ignoreId);
+}
+
+export function saleCandidates(state: MockState, zoneId: ZoneId | null): FieldHost[] {
+  return HOSTS.filter((h) => {
+    if (h.status === "off_duty") return false;
+    if (!hostRoles(state, h.id).includes("sale")) return false;
+    if (zoneId !== null && !h.zones.includes(zoneId)) return false;
+    return true;
+  }).sort((a, b) => {
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    if (a.avgAcceptSec !== b.avgAcceptSec) return a.avgAcceptSec - b.avgAcceptSec;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+export function dispatchSale(
+  state: MockState,
+  unit: Unit,
+  slotIso: string,
+  ignoreId?: string
+): BookingDispatch & { hostId: string } {
+  const zone = zoneOfBuilding(unit.building);
+  const zoneList = saleCandidates(state, zone?.id ?? null);
+  const top = zoneList[0];
+  const openedAt = new Date().toISOString();
+
+  // 1. top tồn tại && freeAt(top, slot) ⇒ { hostId: top.id, state:"assigned", tier:"top", offeredTo:[top.id] }
+  if (top && freeAt(state, top.id, slotIso, ignoreId)) {
+    return {
+      hostId: top.id,
+      state: "assigned",
+      tier: "top",
+      offeredTo: [top.id],
+      openedAt,
+    };
+  }
+
+  // 2. free = zoneList.filter(h ≠ top && freeAt(h, slot))
+  //    free.length > 0 ⇒ { hostId: free[0].id, state:"open", tier:"zone_pool", offeredTo: free.map(id) }
+  const free = zoneList.filter((h) => h.id !== top?.id && freeAt(state, h.id, slotIso, ignoreId));
+  if (free.length > 0) {
+    return {
+      hostId: free[0].id,
+      state: "open",
+      tier: "zone_pool",
+      offeredTo: free.map((h) => h.id),
+      openedAt,
+    };
+  }
+
+  // 3. wide = saleCandidates(state, null).filter(h ∉ zoneList && freeAt(h, slot))
+  //    wide.length > 0 ⇒ { hostId: wide[0].id, state:"open", tier:"wide_pool", offeredTo: wide.map(id), escalated:true }
+  const zoneIds = new Set(zoneList.map((h) => h.id));
+  const wide = saleCandidates(state, null).filter((h) => !zoneIds.has(h.id) && freeAt(state, h.id, slotIso, ignoreId));
+  if (wide.length > 0) {
+    return {
+      hostId: wide[0].id,
+      state: "open",
+      tier: "wide_pool",
+      offeredTo: wide.map((h) => h.id),
+      escalated: true,
+      openedAt,
+    };
+  }
+
+  // 4. không ai ⇒ { hostId: top?.id ?? zone?.hostId ?? "H01", state:"open", tier:"wide_pool", offeredTo:[], escalated:true }
+  return {
+    hostId: top?.id ?? zone?.hostId ?? "H01",
+    state: "open",
+    tier: "wide_pool",
+    offeredTo: [],
+    escalated: true,
+    openedAt,
+  };
+}
+
+export function isOpenTicket(b: Booking): boolean {
+  return b.dispatch?.state === "open";
+}
+
+export function openTicketsFor(state: MockState, hostId: string): Booking[] {
+  return state.bookings.filter(
+    (b) =>
+      b.dispatch?.state === "open" &&
+      b.dispatch.offeredTo.includes(hostId) &&
+      b.status === "pending"
   );
 }
 
@@ -147,15 +240,14 @@ export interface SlotOption {
   time: string;
   iso: string;
   available: boolean;
-  reason?: "past" | "taken";
+  reason?: "past";
 }
 
-export function slotsForDay(state: MockState, hostId: string, day: Date, now: number, ignoreId?: string): SlotOption[] {
+export function slotsForDay(_state: MockState, day: Date, now: number): SlotOption[] {
   return ALL_SLOT_TIMES.map((time) => {
     const d = slotDate(day, time);
     const iso = d.toISOString();
     if (d.getTime() < now + MIN_LEAD_MS) return { time, iso, available: false, reason: "past" as const };
-    if (slotTaken(state, hostId, iso, ignoreId)) return { time, iso, available: false, reason: "taken" as const };
     return { time, iso, available: true };
   });
 }
@@ -189,8 +281,8 @@ export interface Earnings {
 export function hostEarnings(state: MockState, host: FieldHost, fees: FeeConfig): Earnings {
   const mine = hostBookings(state, host.id);
   const viewings =
-    host.weekTickets + mine.filter((b) => ["viewing", "closing", "holding", "signed", "leased", "completed"].includes(b.status)).length;
-  const deals = host.weekDeals + mine.filter((b) => ["holding", "signed", "leased"].includes(b.status)).length;
+    host.weekTickets + mine.filter((b) => ["viewing", "closing", "holding", "leased", "completed"].includes(b.status)).length;
+  const deals = host.weekDeals + mine.filter((b) => ["holding", "leased"].includes(b.status)).length;
   const multiplier = host.rating >= 4.8 ? fees.ratingMultiplier : 1;
   const viewingFee = viewings * fees.baseViewingFee;
   const commission = Math.round(deals * fees.dealCommission * multiplier);
@@ -211,9 +303,9 @@ export function funnel(state: MockState): FunnelStep[] {
   const bk = state.bookings;
   const count = (fn: (b: Booking) => boolean) => bk.filter(fn).length;
   const booked = 384 + count((b) => !["rejected"].includes(b.status));
-  const checkedIn = 301 + count((b) => !!b.lobbyAt || ["receiving", "viewing", "closing", "holding", "signed", "leased", "completed"].includes(b.status));
+  const checkedIn = 301 + count((b) => !!b.lobbyAt || ["receiving", "viewing", "closing", "holding", "leased", "completed"].includes(b.status));
   const deposit = 132 + count((b) => !!b.deposit?.paidAt);
-  const signed = 118 + count((b) => ["signed", "leased"].includes(b.status));
+  const signed = 118 + count((b) => ["leased"].includes(b.status));
   return [
     { key: "visit", label: "Lượt truy cập web", value: 4820 },
     { key: "chat", label: "Chat AI Matchmaker", value: 1930 + state.chat.messages.filter((m) => m.role === "user").length },
@@ -226,7 +318,7 @@ export function funnel(state: MockState): FunnelStep[] {
 
 /** Tỷ lệ bỏ hẹn = số nền của tuần (2/38) cộng các ca phát sinh trong phiên demo. */
 export function noShowRate(state: MockState): number {
-  const done = state.bookings.filter((b) => ["completed", "no_show", "leased", "holding", "signed"].includes(b.status)).length;
+  const done = state.bookings.filter((b) => ["completed", "no_show", "leased", "holding"].includes(b.status)).length;
   const noShow = state.bookings.filter((b) => b.status === "no_show").length;
   return (2 + noShow) / (38 + done);
 }

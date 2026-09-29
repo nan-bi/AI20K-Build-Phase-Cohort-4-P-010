@@ -64,4 +64,33 @@ describe("WP8 — Chặn tái phát chuỗi 24h và kiểm tra vùng cấm", () 
 
     expect(violations, "Tìm thấy <VietQR trong components/host/").toEqual([]);
   });
+
+  it("(3) Hồ sơ 10: Chặn tái phát Đã kín, Ký thỏa thuận cọc, Ký Thỏa thuận, tenantSignAgreement trong src/", () => {
+    const files = readDirRecursive(srcDir).filter((f) => !f.endsWith("copy.test.ts"));
+    const forbidden = ["Đã kín", "Ký thỏa thuận cọc", "Ký Thỏa thuận", "tenantSignAgreement"];
+    const violations: { file: string; line: number; text: string; term: string }[] = [];
+
+    for (const file of files) {
+      const content = fs.readFileSync(file, "utf-8");
+      const lines = content.split("\n");
+      lines.forEach((line, idx) => {
+        for (const term of forbidden) {
+          if (line.includes(term)) {
+            violations.push({
+              file: path.relative(srcDir, file),
+              line: idx + 1,
+              text: line.trim(),
+              term,
+            });
+          }
+        }
+      });
+    }
+
+    if (violations.length > 0) {
+      const details = violations.map((v) => `  ${v.file}:${v.line} (${v.term}) -> ${v.text}`).join("\n");
+      expect.fail(`Tìm thấy ${violations.length} vị trí vi phạm từ ngữ cấm hồ sơ 10:\n${details}`);
+    }
+  });
 });
+

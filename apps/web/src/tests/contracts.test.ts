@@ -16,13 +16,14 @@ const actions = await import("@/lib/mock/actions");
 const { noticesFor, landlordUnits } = await import("@/lib/mock/selectors");
 const contracts = await import("@/lib/mock/contracts");
 
+const FIXED_NOW = new Date("2026-09-28T12:00:00.000Z").getTime();
+
 beforeEach(() => {
   mem.clear();
-  resetMockState();
+  resetMockState(FIXED_NOW);
 });
 
 describe("Admin Contracts - WP1", () => {
-  const FIXED_NOW = new Date("2026-09-28T12:00:00.000Z").getTime();
 
   // T1: contractRows(seed, now) có đủ 3 kind, mọi key duy nhất, mọi docId khác rỗng
   it("T1: contractRows(seed, now) có đủ 3 kind, mọi key duy nhất, mọi docId khác rỗng", () => {
@@ -106,20 +107,20 @@ describe("Admin Contracts - WP1", () => {
     expect(zr2After?.needsAction).toBe(true);
   });
 
-  // T4: holding seed: bk-108 => awaiting_sign, docId === "COC-VS-X5NA1"; bk-109 => converted, docId === "TT-2026-0418"
-  it("T4: holding seed: bk-108 => awaiting_sign, docId === 'COC-VS-X5NA1'; bk-109 => converted, docId === 'TT-2026-0418'", () => {
+  // T4: holding seed: bk-108 => holding, docId === "COC-VS-X5NA1"; bk-109 => converted, docId === "COC-VS-J7PD4"
+  it("T4: holding seed: bk-108 => holding, docId === 'COC-VS-X5NA1'; bk-109 => converted, docId === 'COC-VS-J7PD4'", () => {
     const state = getMockState();
     const rows = contracts.contractRows(state, FIXED_NOW);
 
     const bk108Holding = rows.find((r) => r.key === "holding.bk-108");
     expect(bk108Holding).toBeDefined();
-    expect(bk108Holding?.status).toBe("awaiting_sign");
+    expect(bk108Holding?.status).toBe("holding");
     expect(bk108Holding?.docId).toBe("COC-VS-X5NA1");
 
     const bk109Holding = rows.find((r) => r.key === "holding.bk-109");
     expect(bk109Holding).toBeDefined();
     expect(bk109Holding?.status).toBe("converted");
-    expect(bk109Holding?.docId).toBe("TT-2026-0418");
+    expect(bk109Holding?.docId).toBe("COC-VS-J7PD4");
   });
 
   // T5: holding hết hạn: cùng bk-108, now = expiresAt + 1 => expired; booking cancelled có deposit => expired

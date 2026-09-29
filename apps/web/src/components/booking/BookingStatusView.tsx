@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
   Check,
   Clock,
-  Eye,
   FileCheck,
   FileText,
   MapPin,
@@ -17,17 +16,13 @@ import {
   Wrench,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { SignaturePad } from "@/components/ui/SignaturePad";
 import { toast } from "@/components/ui/Toast";
 import { VietQR } from "@/components/payment/VietQR";
 import { ZaloThread } from "@/components/zalo/ZaloThread";
 import { UnitCard } from "@/components/unit/UnitCard";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
-import { DepositAgreementDoc } from "@/components/deal/DepositAgreementDoc";
 import { KycCapture } from "@/components/deal/KycCapture";
 import { LeaseForm } from "@/components/deal/LeaseForm";
-import { PrintDocButton } from "@/components/deal/PrintDocButton";
-import { OtpSign } from "./OtpSign";
 import {
   cancelBooking,
   confirmDepositPaid,
@@ -38,7 +33,6 @@ import {
   tenantAcceptDepositTerms,
   tenantCheckIn,
   tenantRunningLate,
-  tenantSignAgreement,
 } from "@/lib/mock/actions";
 import { DEFAULT_HOUSEHOLD, HOLD_DAYS, HOLD_MS, allInCost } from "@/lib/mock/cost";
 import {
@@ -46,7 +40,6 @@ import {
   fmtDateTime,
   fmtPhone,
   fmtTime,
-  isValidVnPhone,
   normalizePhone,
   vnd,
   weekday,
@@ -55,13 +48,14 @@ import {
   bookingByRef,
   canTenantModify,
   isHoldForfeited,
+  isOpenTicket,
   noticesFor,
   similarUnits,
 } from "@/lib/mock/selectors";
+import { ownsBooking } from "@/lib/mock/selectors-tenant";
 import { useMock } from "@/lib/mock/store";
-import type { AgreementParty, Booking } from "@/lib/mock/types";
+import type { Booking } from "@/lib/mock/types";
 import { hostById, unitAddress, unitById, zoneById, type Unit } from "@/lib/mock/units";
-import { useDemoUser } from "@/lib/mock/useRole";
 import { useNow } from "@/lib/useNow";
 import { SlotPicker } from "./SlotPicker";
 import { STATUS_META, TERMINAL, buildTimeline } from "./status";
@@ -80,11 +74,10 @@ const HANDYMEN = [
   { trade: "Khoá cửa", name: "Khoá cửa 24h nội khu", note: "Mở khoá, thay ổ" },
 ];
 
-export function BookingStatusView({ refCode, phoneParam }: { refCode: string; phoneParam?: string }) {
+export function BookingStatusView({ refCode }: { refCode: string }) {
   const state = useMock();
-  const user = useDemoUser();
   const now = useNow(1000);
-  const [modal, setModal] = useState<"cancel" | "reschedule" | "expireConfirm" | "leaseWizard" | "viewDoc" | null>(null);
+  const [modal, setModal] = useState<"cancel" | "reschedule" | "expireConfirm" | "leaseWizard" | null>(null);
 
   if (!state.ready || !now) {
     return (
@@ -95,22 +88,30 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
   }
 
   const booking = bookingByRef(state, refCode);
-  const known = [phoneParam, state.tenantProfile?.phone, user?.role === "tenant" ? user.phone : undefined]
-    .filter(Boolean)
-    .map((p) => normalizePhone(p!));
-  const allowed = !!booking && known.includes(booking.tenant.phone);
 
-  if (!booking || !allowed) {
+  if (!booking) {
     return (
       <div className={`wrap ${styles.notFound}`}>
-        <h1 className={styles.h1}>{booking ? "Cần xác nhận số điện thoại" : "Không tìm thấy lịch hẹn"}</h1>
+        <h1 className={styles.h1}>Không tìm thấy lịch hẹn</h1>
         <p className="muted">
-          {booking
-            ? `Để xem lịch ${booking.ref}, hãy nhập mã và số điện thoại đã đặt ở trang kiểm tra.`
-            : `Không có lịch hẹn nào mang mã ${refCode}. Kiểm tra lại mã trong tin Zalo của bạn.`}
+          Không có lịch hẹn nào mang mã {refCode}. Kiểm tra lại mã trong tin Zalo của bạn.
         </p>
         <Link href="/booking" className="btn btn-primary">
           Kiểm tra lịch xem
+        </Link>
+      </div>
+    );
+  }
+
+  if (!ownsBooking(state, booking)) {
+    return (
+      <div className={`wrap ${styles.notFound}`}>
+        <h1 className={styles.h1}>Lịch hẹn không thuộc tài khoản này</h1>
+        <p className="muted">
+          Vui lòng đăng nhập bằng số điện thoại đã dùng để đặt lịch, hoặc kiểm tra lại mã lịch hẹn.
+        </p>
+        <Link href="/booking" className="btn btn-primary">
+          Về lịch của tôi
         </Link>
       </div>
     );
@@ -160,9 +161,11 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
             {booking.status === "pending" && (
               <p className={styles.clock}>
                 <Clock size={16} />
-                {slaLeft > 0
-                  ? `Host sẽ xác nhận trong khoảng ${Math.ceil(slaLeft / 60_000)} phút nữa`
-                  : "Đã quá 3 phút: yêu cầu đang được chuyển cho Host lân cận trong bán kính 500m"}
+                {isOpenTicket(booking)
+                  ? `Đang tìm Field Host rảnh lúc ${fmtTime(booking.slot)}`
+                  : slaLeft > 0
+                    ? `Host sẽ xác nhận trong khoảng ${Math.ceil(slaLeft / 60_000)} phút nữa`
+                    : "Đã quá 3 phút: yêu cầu đang được chuyển cho Host lân cận trong bán kính 500m"}
               </p>
             )}
 
@@ -209,7 +212,7 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
               </div>
             )}
 
-            {/* 3. holding & chưa forfeited: Countdown + AgreementForm */}
+            {/* 3. holding & chưa forfeited: Countdown + Action làm HĐ */}
             {booking.status === "holding" && !forfeited && (
               <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
                 <CountdownBanner
@@ -217,30 +220,12 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
                   now={now}
                   onExpireDemo={() => setModal("expireConfirm")}
                 />
-                <AgreementFormSection booking={booking} unit={unit} />
-              </div>
-            )}
-
-            {/* 4. signed & chưa forfeited: Countdown + Doc + Nút làm HĐ */}
-            {booking.status === "signed" && !forfeited && (
-              <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
-                <CountdownBanner
-                  expiresAt={booking.deposit?.expiresAt}
-                  now={now}
-                  onExpireDemo={() => setModal("expireConfirm")}
-                />
                 <div className="card" style={{ padding: 16, background: "var(--surface)", marginTop: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div>
-                      <b style={{ fontSize: 16 }}>Thỏa thuận đặt cọc đã ký số</b>
-                      <p className="muted xs">
-                        Mã {booking.agreement?.docId} · {booking.agreement?.signedAt ? fmtDateTime(booking.agreement.signedAt) : ""}
-                      </p>
-                    </div>
-                    <PrintDocButton />
-                  </div>
-                  <div style={{ maxHeight: 280, overflowY: "auto", border: "1px solid var(--line)", borderRadius: "var(--r)", marginBottom: 16 }}>
-                    <DepositAgreementDoc booking={booking} unit={unit} />
+                  <div style={{ marginBottom: 12 }}>
+                    <b style={{ fontSize: 16 }}>Căn hộ đang được giữ chỗ cho bạn</b>
+                    <p className="muted xs" style={{ margin: "4px 0 0" }}>
+                      Khoản cọc 2.000.000đ đã nhận. Bạn có thể tiến hành xác minh CCCD (eKYC) và ký Hợp đồng thuê căn hộ.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -253,7 +238,7 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
               </div>
             )}
 
-            {/* 5. Forfeited: Hết hạn giữ căn */}
+            {/* 4. Forfeited: Hết hạn giữ căn */}
             {forfeited && (
               <div className="card" style={{ padding: 16, background: "var(--coral-50, #fff5f5)", border: "1px solid var(--coral-200, #fed7d7)" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--coral-800, #9b2c2c)" }}>
@@ -261,7 +246,7 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
                   <div>
                     <b style={{ fontSize: 16 }}>Đã hết hạn giữ căn</b>
                     <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
-                      Thời hạn giữ chỗ {HOLD_DAYS} ngày đã kết thúc. Khoản cọc 2.000.000đ không được hoàn lại theo Thỏa thuận đặt cọc (Điều 328 Bộ luật Dân sự 2015). Căn hộ đã được mở lại cho khách khác.
+                      Thời hạn giữ chỗ {HOLD_DAYS} ngày đã kết thúc. Khoản cọc 2.000.000đ không được hoàn lại theo quy định đặt cọc (Điều 328 Bộ luật Dân sự 2015). Căn hộ đã được mở lại cho khách khác.
                     </p>
                     <Link href={`/units/${unit.id}?book=1`} className="btn btn-amber btn-sm">
                       Đặt lịch căn khác
@@ -291,12 +276,21 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
                 </div>
                 <div>
                   <dt>Field Host</dt>
-                  <dd>{host.name}</dd>
-                  <dd className="muted small">
-                    <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}
-                    {String(host.rating).replace(".", ",")}
-                    {booking.confirmedAt && ` · ${fmtPhone(host.phone)}`}
-                  </dd>
+                  {isOpenTicket(booking) ? (
+                    <>
+                      <dd className="muted">Đang phân bổ...</dd>
+                      <dd className="muted small">Tự động chọn Host gần nhất</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dd>{host.name}</dd>
+                      <dd className="muted small">
+                        <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}
+                        {String(host.rating).replace(".", ",")}
+                        {booking.confirmedAt && ` · ${fmtPhone(host.phone)}`}
+                      </dd>
+                    </>
+                  )}
                 </div>
               </dl>
             </div>
@@ -384,27 +378,11 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
             )}
           </section>
 
-          {/* HỒ SƠ CỦA BẠN (KHI ĐÃ KÝ THỎA THUẬN HOẶC HỢP ĐỒNG) */}
-          {(booking.agreement || booking.lease) && (
+          {/* HỒ SƠ CỦA BẠN (KHI ĐÃ KÝ HỢP ĐỒNG HOẶC eKYC) */}
+          {(booking.lease || booking.kyc) && (
             <section className={`card ${styles.block}`}>
               <h2>Hồ sơ của bạn</h2>
               <ul className={styles.docs}>
-                {booking.agreement && (
-                  <li>
-                    <FileText size={18} />
-                    <div>
-                      <b>Thỏa thuận đặt cọc {booking.agreement.docId}</b>
-                      <p className="muted small">Ký số OTP · {fmtDateTime(booking.agreement.signedAt)}</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-quiet btn-sm"
-                      onClick={() => setModal("viewDoc")}
-                    >
-                      <Eye size={15} /> Xem & In PDF
-                    </button>
-                  </li>
-                )}
                 {booking.lease && (
                   <li>
                     <FileText size={18} />
@@ -428,7 +406,7 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
                     <Check size={18} />
                     <div>
                       <b>CCCD đã xác minh (eKYC)</b>
-                      <p className="muted small">Mã hoá AES-256, đối soát khớp với Thỏa thuận cọc</p>
+                      <p className="muted small">Mã hoá AES-256, đối soát khớp với thông tin đặt lịch</p>
                     </div>
                   </li>
                 )}
@@ -461,7 +439,7 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
 
           {/* ĐÁNH GIÁ FIELD HOST */}
           {!booking.rating &&
-            ["viewing", "closing", "holding", "signed", "leased", "completed"].includes(booking.status) && (
+            ["viewing", "closing", "holding", "leased", "completed"].includes(booking.status) && (
               <section className={`card ${styles.block}`}>
                 <h2>Đánh giá Field Host {host.name}</h2>
                 <div className={styles.stars} role="radiogroup" aria-label="Chấm sao">
@@ -550,8 +528,6 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
       <RescheduleModal
         open={modal === "reschedule"}
         onClose={() => setModal(null)}
-        hostId={booking.hostId}
-        bookingId={booking.id}
         now={now}
         onConfirm={(slot) => {
           const res = rescheduleBooking(booking.id, slot);
@@ -602,19 +578,6 @@ export function BookingStatusView({ refCode, phoneParam }: { refCode: string; ph
         description={`Ký hợp đồng thuê chính thức căn ${unitAddress(unit)}`}
       >
         <LeaseWizardFlow booking={booking} unit={unit} now={now} onDone={() => setModal(null)} />
-      </Modal>
-
-      {/* MODAL XEM THỎA THUẬN CỌC ĐÃ KÝ */}
-      <Modal
-        open={modal === "viewDoc"}
-        onClose={() => setModal(null)}
-        variant="wide"
-        title="Thỏa thuận đặt cọc giữ chỗ"
-        footer={<PrintDocButton />}
-      >
-        <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
-          <DepositAgreementDoc booking={booking} unit={unit} />
-        </div>
       </Modal>
     </div>
   );
@@ -669,7 +632,7 @@ function DepositTermsBox({ bookingId }: { bookingId: string }) {
           style={{ marginTop: 2 }}
         />
         <span>
-          Tôi đồng ý Thỏa thuận đặt cọc giữ căn theo <b>Điều 328 Bộ luật Dân sự 2015</b> và cho phép VinStay AI xử lý dữ liệu cá nhân theo <b>Nghị định 13/2023/NĐ-CP</b>.
+          Tôi đồng ý điều khoản đặt cọc giữ căn theo <b>Điều 328 Bộ luật Dân sự 2015</b> và cho phép VinStay AI xử lý dữ liệu cá nhân theo <b>Nghị định 13/2023/NĐ-CP</b>.
         </span>
       </label>
 
@@ -747,171 +710,6 @@ function CountdownBanner({
       <p className="xs muted" style={{ margin: 0 }}>
         Giữ căn tới <b>{fmtDateTime(expiresAt)}</b>. Quá thời hạn này mà chưa hoàn tất ký Hợp đồng thuê thì căn hộ tự động mở lại.
       </p>
-    </div>
-  );
-}
-
-// ─── COMPONENT CON: FORM KÝ THỎA THUẬN CỌC ───────────────────────────────────────────────────
-
-function AgreementFormSection({ booking, unit }: { booking: Booking; unit: Unit }) {
-  const [fullName, setFullName] = useState(booking.tenant.name);
-  const [idNumber, setIdNumber] = useState("");
-  const [phone, setPhone] = useState(booking.tenant.phone);
-  const [address, setAddress] = useState("");
-  const [hasInk, setHasInk] = useState(false);
-  const [signature, setSignature] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [formErrors, setFormErrors] = useState<{ fullName?: string; idNumber?: string; phone?: string; address?: string }>({});
-
-  const party: AgreementParty = {
-    fullName: fullName.trim().toUpperCase(),
-    idNumber: idNumber.replace(/\s+/g, ""),
-    phone: normalizePhone(phone),
-    address: address.trim(),
-  };
-
-  const validate = (): boolean => {
-    const errs: typeof formErrors = {};
-    const n = fullName.trim();
-    if (n.length < 2 || n.length > 60 || n.split(/\s+/).filter(Boolean).length < 2 || !/^[\p{L}\s]+$/u.test(n)) {
-      errs.fullName = "Họ tên phải từ 2–60 ký tự, gồm ít nhất 2 từ và chỉ chứa chữ cái tiếng Việt.";
-    }
-    const id = idNumber.replace(/\s+/g, "");
-    if (!/^\d{12}$/.test(id)) {
-      errs.idNumber = "Số CCCD phải gồm đúng 12 chữ số.";
-    }
-    if (!isValidVnPhone(phone)) {
-      errs.phone = "Số điện thoại không hợp lệ (10 số, đầu số Việt Nam).";
-    }
-    const a = address.trim();
-    if (a.length < 10 || a.length > 160) {
-      errs.address = "Địa chỉ thường trú phải từ 10 đến 160 ký tự.";
-    }
-    setFormErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const canSign = Boolean(hasInk && signature && fullName && idNumber && phone && address);
-
-  return (
-    <div className="card" style={{ padding: 18, background: "var(--surface)", border: "1px solid var(--line-strong)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Điền thông tin & Ký Thỏa thuận đặt cọc</h3>
-          <p className="muted xs">Thông tin trên sẽ được đưa vào văn bản pháp lý Thỏa thuận đặt cọc giữ căn.</p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-quiet btn-sm"
-          onClick={() => setPreviewOpen(true)}
-        >
-          <Eye size={15} /> Xem bản nháp
-        </button>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-        <div>
-          <label className="label xs" htmlFor="party-name">Họ và tên <span style={{ color: "var(--coral)" }}>*</span></label>
-          <input
-            id="party-name"
-            className={`input ${formErrors.fullName ? "input-error" : ""}`}
-            value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              setFormErrors((prev) => ({ ...prev, fullName: undefined }));
-            }}
-            placeholder="NGUYỄN VĂN A"
-          />
-          {formErrors.fullName && <span className="field-error xs" style={{ color: "var(--coral)", display: "block" }}>{formErrors.fullName}</span>}
-        </div>
-
-        <div>
-          <label className="label xs" htmlFor="party-id">Số CCCD (12 số) <span style={{ color: "var(--coral)" }}>*</span></label>
-          <input
-            id="party-id"
-            className={`input ${formErrors.idNumber ? "input-error" : ""}`}
-            value={idNumber}
-            maxLength={12}
-            onChange={(e) => {
-              setIdNumber(e.target.value.replace(/\D/g, ""));
-              setFormErrors((prev) => ({ ...prev, idNumber: undefined }));
-            }}
-            placeholder="001200000000"
-          />
-          {formErrors.idNumber && <span className="field-error xs" style={{ color: "var(--coral)", display: "block" }}>{formErrors.idNumber}</span>}
-        </div>
-
-        <div>
-          <label className="label xs" htmlFor="party-phone">Số điện thoại nhận OTP <span style={{ color: "var(--coral)" }}>*</span></label>
-          <input
-            id="party-phone"
-            className={`input ${formErrors.phone ? "input-error" : ""}`}
-            value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              setFormErrors((prev) => ({ ...prev, phone: undefined }));
-            }}
-            placeholder="0912345678"
-          />
-          {formErrors.phone && <span className="field-error xs" style={{ color: "var(--coral)", display: "block" }}>{formErrors.phone}</span>}
-        </div>
-
-        <div>
-          <label className="label xs" htmlFor="party-address">Địa chỉ thường trú <span style={{ color: "var(--coral)" }}>*</span></label>
-          <input
-            id="party-address"
-            className={`input ${formErrors.address ? "input-error" : ""}`}
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              setFormErrors((prev) => ({ ...prev, address: undefined }));
-            }}
-            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-          />
-          {formErrors.address && <span className="field-error xs" style={{ color: "var(--coral)", display: "block" }}>{formErrors.address}</span>}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label className="label xs" style={{ marginBottom: 6, display: "block" }}>
-          Chữ ký tay điện tử <span style={{ color: "var(--coral)" }}>*</span>
-        </label>
-        <SignaturePad onChange={setHasInk} onCapture={setSignature} />
-      </div>
-
-      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 14 }}>
-        <OtpSign
-          phone={party.phone}
-          purpose="agreement"
-          sendLabel="Gửi mã OTP qua Zalo để ký thỏa thuận"
-          disabled={!canSign}
-          onVerified={() => {
-            if (!validate()) {
-              toast("Vui lòng kiểm tra lại các trường thông tin");
-              return;
-            }
-            const res = tenantSignAgreement(booking.id, party, signature ?? undefined);
-            if (!res.ok) {
-              toast(res.reason);
-            } else {
-              toast("Ký thỏa thuận đặt cọc thành công!", "success");
-            }
-          }}
-        />
-      </div>
-
-      {/* Modal bản nháp thỏa thuận cọc */}
-      <Modal
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        variant="wide"
-        title="Bản nháp Thỏa thuận đặt cọc"
-        description="Xem trước nội dung thỏa thuận với thông tin bạn vừa điền."
-      >
-        <div style={{ maxHeight: "65vh", overflowY: "auto" }}>
-          <DepositAgreementDoc booking={booking} unit={unit} party={party} draft={true} />
-        </div>
-      </Modal>
     </div>
   );
 }
@@ -1021,15 +819,11 @@ function CancelModal({
 function RescheduleModal({
   open,
   onClose,
-  hostId,
-  bookingId,
   now,
   onConfirm,
 }: {
   open: boolean;
   onClose: () => void;
-  hostId: string;
-  bookingId: string;
   now: number;
   onConfirm: (slot: string) => void;
 }) {
@@ -1052,11 +846,9 @@ function RescheduleModal({
       }
     >
       <SlotPicker
-        hostId={hostId}
         now={now}
         value={slot}
         onChange={setSlot}
-        ignoreBookingId={bookingId}
       />
     </Modal>
   );

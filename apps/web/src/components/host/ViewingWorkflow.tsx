@@ -16,7 +16,6 @@ import type { Booking, Notice } from "@/lib/mock/types";
 import { unitAddress, unitById, zoneById } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
 import {
-  AwaitAgreementStep,
   AwaitDepositStep,
   AwaitLeaseStep,
   ClosedStep,
@@ -26,7 +25,7 @@ import {
 } from "./WorkflowSteps";
 import styles from "./Workflow.module.css";
 
-const RAIL = ["Đón khách", "Xem phòng", "Chờ cọc", "Ký cọc", "Hợp đồng"] as const;
+const RAIL = ["Đón khách", "Xem phòng", "Chờ cọc", "Hợp đồng"] as const;
 
 function railIndex(b: Booking): number {
   switch (b.status) {
@@ -40,10 +39,8 @@ function railIndex(b: Booking): number {
       return 2;
     case "holding":
       return 3;
-    case "signed":
-      return 4;
     case "leased":
-      return 5;
+      return 4;
     default:
       return -1;
   }
@@ -148,8 +145,7 @@ export function ViewingWorkflow({ id }: { id: string }) {
           {(booking.status === "confirmed" || booking.status === "lobby") && <GreetStep {...props} />}
           {(booking.status === "receiving" || booking.status === "viewing") && <ViewStep {...props} />}
           {booking.status === "closing" && <AwaitDepositStep {...props} />}
-          {booking.status === "holding" && <AwaitAgreementStep {...props} />}
-          {booking.status === "signed" && <AwaitLeaseStep {...props} />}
+          {booking.status === "holding" && <AwaitLeaseStep {...props} />}
           {booking.status === "leased" && <DoneStep {...props} />}
           {["completed", "no_show", "cancelled", "rejected"].includes(booking.status) && <ClosedStep {...props} />}
         </div>

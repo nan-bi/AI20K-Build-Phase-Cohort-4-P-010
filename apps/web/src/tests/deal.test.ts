@@ -20,7 +20,6 @@ import {
   unitStatus,
 } from "@/lib/mock/selectors";
 import { viewingLog } from "@/lib/mock/selectors-viewing";
-import type { AgreementParty } from "@/lib/mock/types";
 
 beforeEach(() => {
   mem.clear();
@@ -86,7 +85,7 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     expect(HOLD_DAYS).toBe(7);
   });
 
-  it("(3) ký cọc với CCCD 11 số => invalid_party", () => {
+  it("(3) saveKyc khi closing => bad_status", () => {
     const b = actions.createBooking({
       unitId: "s2-02-1004",
       slot: "09:00 - 09:45 30/10/2026",
@@ -98,24 +97,27 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     actions.hostStartReceiving(b.id);
     actions.hostConfirmViewing(b.id);
     actions.hostStartDeposit(b.id);
-    actions.tenantAcceptDepositTerms(b.id);
-    actions.confirmDepositPaid(b.id, "webhook");
 
-    const invalidParty: AgreementParty = {
+    const res = actions.saveKyc(b.id, {
       fullName: "Trần Văn Nam",
-      idNumber: "00123456789", // 11 chữ số thay vì 12
-      phone: "0912345678",
+      idNumber: "001095012345",
+      dob: "1995-01-01",
+      gender: "Nam",
+      homeTown: "Hà Nội",
       address: "123 Cầu Giấy, Hà Nội",
-    };
-
-    const res = actions.tenantSignAgreement(b.id, invalidParty);
+      issuedDate: "2021-01-01",
+      frontUrl: "mock",
+      backUrl: "mock",
+      selfieUrl: "mock",
+      confidence: 0.95,
+    });
     expect(res.ok).toBe(false);
     if (!res.ok) {
-      expect(res.code).toBe("invalid_party");
+      expect(res.code).toBe("bad_status");
     }
   });
 
-  it("(4) ký cọc hợp lệ => signed, party được chuẩn hoá", () => {
+  it("(4) luồng hoàn chỉnh: closing -> consent -> paid -> holding -> saveKyc -> signLease -> leased", () => {
     const b = actions.createBooking({
       unitId: "s2-02-1004",
       slot: "09:00 - 09:45 30/10/2026",
@@ -130,23 +132,33 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id, "webhook");
 
-    const validParty: AgreementParty = {
-      fullName: "  trần   văn nam  ",
+    const held = bookingById(getMockState(), b.id)!;
+    expect(held.status).toBe("holding");
+
+    const kycRes = actions.saveKyc(b.id, {
+      fullName: "Trần Văn Nam",
       idNumber: "001095012345",
-      phone: "0912 345 678",
-      address: "   Tòa S2.02 Vinhomes Ocean Park, Gia Lâm, Hà Nội   ",
-    };
+      dob: "1995-01-01",
+      gender: "Nam",
+      homeTown: "Hà Nội",
+      address: "Tòa S2.02 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
+      issuedDate: "2021-01-01",
+      frontUrl: "mock",
+      backUrl: "mock",
+      selfieUrl: "mock",
+      confidence: 0.95,
+    });
+    expect(kycRes.ok).toBe(true);
 
-    const res = actions.tenantSignAgreement(b.id, validParty, "data:image/png;base64,mock");
-    expect(res.ok).toBe(true);
+    const leaseRes = actions.signLease(b.id, {
+      startDate: "2026-11-01",
+      months: 12,
+    });
+    expect(leaseRes.ok).toBe(true);
 
-    const signedBooking = bookingById(getMockState(), b.id)!;
-    expect(signedBooking.status).toBe("signed");
-    expect(signedBooking.agreement).toBeDefined();
-    expect(signedBooking.agreement?.party.fullName).toBe("TRẦN VĂN NAM");
-    expect(signedBooking.agreement?.party.idNumber).toBe("001095012345");
-    expect(signedBooking.agreement?.party.phone).toBe("0912345678");
-    expect(signedBooking.agreement?.party.address).toBe("Tòa S2.02 Vinhomes Ocean Park, Gia Lâm, Hà Nội");
+    const leasedBooking = bookingById(getMockState(), b.id)!;
+    expect(leasedBooking.status).toBe("leased");
+    expect(leasedBooking.lease).toBeDefined();
   });
 
   it("(5) signLease chưa kyc => no_kyc", () => {
@@ -163,12 +175,6 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     actions.hostStartDeposit(b.id);
     actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id, "webhook");
-    actions.tenantSignAgreement(b.id, {
-      fullName: "Trần Văn Nam",
-      idNumber: "001095012345",
-      phone: "0912345678",
-      address: "123 Cầu Giấy, Hà Nội",
-    });
 
     const res = actions.signLease(b.id, {
       startDate: "2026-11-01",
@@ -180,7 +186,7 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     }
   });
 
-  it("(6) saveKyc sai tên => mismatch = ['fullName']", () => {
+  it("(6) saveKyc sai tên so với đặt lịch => mismatch = ['fullName']", () => {
     const b = actions.createBooking({
       unitId: "s2-02-1004",
       slot: "09:00 - 09:45 30/10/2026",
@@ -194,15 +200,9 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     actions.hostStartDeposit(b.id);
     actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id, "webhook");
-    actions.tenantSignAgreement(b.id, {
-      fullName: "Trần Văn Nam",
-      idNumber: "001095012345",
-      phone: "0912345678",
-      address: "123 Cầu Giấy, Hà Nội",
-    });
 
     const res = actions.saveKyc(b.id, {
-      fullName: "Nguyễn Văn Nam", // Khác tên với thỏa thuận
+      fullName: "Nguyễn Văn Nam", // Khác tên lúc đặt lịch
       idNumber: "001095012345",
       dob: "1995-01-01",
       gender: "Nam",
@@ -220,7 +220,7 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     expect(afterKyc.kyc?.mismatch).toEqual(["fullName"]);
   });
 
-  it("(7) demoExpireHold => isHoldForfeited true, unitStatus = available, và tenantSignAgreement => expired", () => {
+  it("(7) demoExpireHold => isHoldForfeited true, unitStatus = available, và signLease => expired", () => {
     const b = actions.createBooking({
       unitId: "s2-02-1004",
       slot: "09:00 - 09:45 30/10/2026",
@@ -244,12 +244,10 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     expect(isHoldForfeited(held, now)).toBe(true);
     expect(unitStatus(getMockState(), "s2-02-1004")).toBe("available");
 
-    // Thử ký thỏa thuận sau khi đã hết hạn giữ căn
-    const signRes = actions.tenantSignAgreement(b.id, {
-      fullName: "Trần Văn Nam",
-      idNumber: "001095012345",
-      phone: "0912345678",
-      address: "123 Cầu Giấy, Hà Nội",
+    // Thử ký hợp đồng sau khi đã hết hạn giữ căn
+    const signRes = actions.signLease(b.id, {
+      startDate: "2026-11-01",
+      months: 12,
     });
     expect(signRes.ok).toBe(false);
     if (!signRes.ok) {

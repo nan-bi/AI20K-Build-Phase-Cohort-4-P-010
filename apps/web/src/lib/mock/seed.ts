@@ -1,4 +1,5 @@
 import { DEFAULT_HOUSEHOLD, HOLD_MS } from "./cost";
+import { normalizePhone } from "./format";
 import { upcomingSlots } from "./slots";
 import type { Booking, ChatState, Consignment, FeeAudit, FeeConfig, Mandate, MockState, Notice } from "./types";
 import { UNITS } from "./units";
@@ -38,6 +39,7 @@ export const EMPTY_STATE: MockState = {
   otp: null,
   guestSent: 0,
   chat: emptyChat(),
+  verifiedPhones: [],
 };
 
 export const todayKey = (now: number) => {
@@ -96,27 +98,17 @@ export function seedState(now: number): MockState {
       tenant: t("Lê Hoài Nam", "0903111222"),
       slot: at(2), status: "pending", createdAt: iso(now - 20_000),
     },
-    // Đã ký thỏa thuận cọc còn hạn (cho demo luồng HĐ thuê của khách TENANT_DEMO — SPEC-P01 §6)
+    // Đã cọc giữ căn còn hạn (cho demo luồng HĐ thuê của khách TENANT_DEMO — SPEC-P01 §6, SPEC-P04)
     {
       id: "bk-103", ref: "VS-4F7K2", unitId: "s2-12-1608", hostId: "H01",
       tenant: t(TENANT_DEMO.name, TENANT_DEMO.phone, 1, "Sinh viên VinUni, dọn vào đầu tháng."),
-      slot: iso(now - 1 * DAY), status: "signed", createdAt: iso(now - 2 * DAY), confirmedAt: iso(now - 2 * DAY + 70_000),
+      slot: iso(now - 1 * DAY), status: "holding", createdAt: iso(now - 2 * DAY), confirmedAt: iso(now - 2 * DAY + 70_000),
       lobbyAt: iso(now - 1 * DAY - 5 * MIN), receivingAt: iso(now - 1 * DAY), viewingAt: iso(now - 1 * DAY + 5 * MIN), viewEndedAt: iso(now - 1 * DAY + 25 * MIN),
       depositConsentAt: iso(now - 1 * DAY + 26 * MIN),
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S2.12-1608 0912345678", qrRef: "VQ-4F7K-22AA",
         createdAt: iso(now - 1 * DAY + 27 * MIN), paidAt: iso(now - 1 * DAY + 28 * MIN),
         expiresAt: iso(now - 1 * DAY + 28 * MIN + HOLD_MS), method: "webhook",
-      },
-      agreement: {
-        signedAt: iso(now - 1 * DAY + 35 * MIN),
-        docId: "TT-2026-0420",
-        party: {
-          fullName: "TRẦN MINH ANH",
-          idNumber: "001095012345",
-          phone: "0912345678",
-          address: "Tòa S2.12 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
-        },
       },
     },
     {
@@ -178,16 +170,6 @@ export function seedState(now: number): MockState {
         createdAt: iso(now - 9 * DAY + 20 * MIN), paidAt: iso(now - 9 * DAY + 22 * MIN),
         expiresAt: iso(now - 9 * DAY + 22 * MIN + HOLD_MS), method: "webhook",
       },
-      agreement: {
-        signedAt: iso(now - 9 * DAY + 45 * MIN),
-        docId: "TT-2026-0418",
-        party: {
-          fullName: "TRẦN QUANG VINH",
-          idNumber: "001091900077",
-          phone: "0919000777",
-          address: "Tòa S1.03 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
-        },
-      },
       lease: { signedAt: iso(now - 8 * DAY - 2 * HOUR), startDate: iso(now - 6 * DAY), months: 12, rent: 6_000_000, docId: "HD-2026-0091" },
       rating: 5,
     },
@@ -238,16 +220,6 @@ export function seedState(now: number): MockState {
         createdAt: iso(now - 12 * DAY + 20 * MIN), paidAt: iso(now - 12 * DAY + 21 * MIN),
         expiresAt: iso(now - 12 * DAY + 21 * MIN + HOLD_MS), method: "webhook",
       },
-      agreement: {
-        signedAt: iso(now - 12 * DAY + 40 * MIN),
-        docId: "TT-2026-0377",
-        party: {
-          fullName: "KIỀU MINH QUÂN",
-          idNumber: "001091370707",
-          phone: "0913707070",
-          address: "Tòa ZR1 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
-        },
-      },
       lease: { signedAt: iso(now - 11 * DAY - 4 * HOUR), startDate: iso(now - 10 * DAY), months: 12, rent: 5_500_000, docId: "HD-2026-0074" },
       rating: 5,
     },
@@ -272,16 +244,6 @@ export function seedState(now: number): MockState {
         expiresAt: iso(now - 347 * DAY + 15 * MIN + HOLD_MS),
         method: "webhook",
       },
-      agreement: {
-        signedAt: iso(now - 346 * DAY - 2 * HOUR),
-        docId: "TT-2025-0907",
-        party: {
-          fullName: "ĐẶNG HOÀNG NAM",
-          idNumber: "001090123456",
-          phone: "0901234567",
-          address: "Tòa S1.09 Vinhomes Ocean Park, Gia Lâm, Hà Nội",
-        },
-      },
       lease: {
         signedAt: iso(now - 346 * DAY),
         startDate: iso(now - 345 * DAY),
@@ -290,6 +252,24 @@ export function seedState(now: number): MockState {
         docId: "HD-2025-0412",
       },
       rating: 5,
+    },
+    // Host H02 bận ở slot 4 Sapphire 2 (Hồ sơ 10 WP2)
+    {
+      id: "bk-118", ref: "VS-H2S4B", unitId: "s2-19-1907", hostId: "H02",
+      tenant: t("Dương Minh Châu", "0915666777"),
+      slot: at(4), status: "confirmed", createdAt: iso(now - 3 * HOUR), confirmedAt: iso(now - 3 * HOUR + 45_000),
+    },
+    // Ticket mở cho H01 (Sapphire 2) khi primary H02 bận (Hồ sơ 10 WP2)
+    {
+      id: "bk-119", ref: "VS-OPEN1", unitId: "s2-02-1004", hostId: "H02",
+      tenant: t("Vũ Hải Đăng", "0981999888", 1, "Muốn xem căn vào buổi chiều."),
+      slot: at(4), status: "pending", createdAt: iso(now - 5 * MIN),
+      dispatch: {
+        state: "open",
+        tier: "zone_pool",
+        offeredTo: ["H01"],
+        openedAt: iso(now - 2 * MIN),
+      },
     },
   ];
 
@@ -540,6 +520,7 @@ export function seedState(now: number): MockState {
     otp: null,
     guestSent: 0,
     chat: emptyChat(),
+    verifiedPhones: [normalizePhone(TENANT_DEMO.phone)],
   };
 }
 

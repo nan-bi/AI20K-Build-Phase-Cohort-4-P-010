@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authenticate, loginUrl, requiredRole } from "@/lib/mock/auth";
+import { authenticate, encodeRoleCookie, loginUrl, parseRoleCookie, postLoginTarget, requiredRole } from "@/lib/mock/auth";
 
 describe("authenticate", () => {
   it("đăng nhập đúng cho cả 4 vai trò", () => {
@@ -45,6 +45,22 @@ describe("requiredRole", () => {
     expect(requiredRole("/admin/dashboard")).toBe("admin");
     expect(requiredRole("/landlord/units")).toBe("landlord");
     expect(requiredRole("/host/dispatch")).toBe("host");
+    expect(requiredRole("/booking")).toBe("tenant");
+    expect(requiredRole("/booking/VS-4F7K2")).toBe("tenant");
+  });
+});
+
+describe("encodeRoleCookie & parseRoleCookie (SPEC-P01 §4)", () => {
+  it("mã hoá và giải mã cookie vai trò có phiên bản v2", () => {
+    expect(encodeRoleCookie("host")).toBe("v2.host");
+    expect(encodeRoleCookie("landlord")).toBe("v2.landlord");
+    expect(parseRoleCookie("v2.landlord")).toBe("landlord");
+    expect(parseRoleCookie("landlord")).toBeNull();
+    expect(parseRoleCookie("v1.admin")).toBeNull();
+    expect(parseRoleCookie(undefined)).toBeNull();
+    expect(parseRoleCookie(null)).toBeNull();
+    expect(parseRoleCookie("v2.")).toBeNull();
+    expect(parseRoleCookie("v2.xyz")).toBeNull();
   });
 });
 
@@ -60,3 +76,13 @@ describe("loginUrl", () => {
     expect(loginUrl("tenant", "/account")).toBe("/login?next=%2Faccount");
   });
 });
+
+describe("postLoginTarget (SPEC-P03 §4, §7)", () => {
+  it("đưa về đúng trang sau khi đăng nhập", () => {
+    expect(postLoginTarget("tenant", "/booking/VS-1")).toBe("/booking/VS-1");
+    expect(postLoginTarget("tenant", "/units")).toBe("/units");
+    expect(postLoginTarget("landlord", "/booking/VS-1")).toBe("/landlord/dashboard");
+    expect(postLoginTarget("tenant", "//evil.com")).toBe("/");
+  });
+});
+

@@ -26,7 +26,7 @@
 * **Giải pháp VinStay AI cam kết giải quyết:**
   * **Hộ chiếu bàn giao số (Digital Handover Passport):** Chụp ảnh kiểm định hiện trạng 10 hạng mục nội thất trọng yếu (tường, sàn, sofa, điều hòa, tủ lạnh, bếp...) lúc giao nhà nhúng Timestamp + Geofence bảo mật; phân định rõ ranh giới hao mòn tự nhiên (chủ nhà chịu) và hư hỏng bất cẩn (khách đền bù).
   * **Chuẩn hóa Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit):** Khoản cọc 2 triệu ban đầu khi ký Hợp đồng chính thức sẽ chuyển đổi 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản (tương đương 1–2 tháng tiền thuê) và giữ nguyên suốt kỳ hạn thuê; tuyệt đối KHÔNG khấu trừ vào tiền thuê tháng đầu tiên; bảo vệ trọn vẹn tài sản và dự phòng nợ cước cho chủ nhà.
-  * **Ký số Thỏa thuận cọc & AI OCR CCCD:** Tự động bóc tách CCCD gắn chip 2 mặt, sinh hợp đồng cọc số ký OTP bảo mật AES-256 theo Nghị định 13/2023/NĐ-CP, ràng buộc pháp lý bồi thường tài sản trước khi giao nhà.
+  * **Chấp thuận điều khoản cọc & AI OCR CCCD khi ký Hợp đồng thuê:** Khách tick đồng ý điều khoản cọc (Điều 328 BLDS 2015) ngay trước khi quét VietQR — không ký thỏa thuận cọc riêng. Khi làm Hợp đồng thuê chính thức, AI tự động bóc tách CCCD gắn chip 2 mặt và khách ký điện tử bằng chữ ký tay trên SĐT đã xác thực OTP Zalo một lần, dữ liệu mã hóa AES-256 theo Nghị định 13/2023/NĐ-CP, ràng buộc pháp lý bồi thường tài sản trước khi giao nhà.
 
 ### 4. Khủng Hoảng Bảo Trì Vặt & Rủi Ro Bị BQL Phạt / Bùng Tiền Dịch Vụ (Operations & Rules)
 * **Khó khăn thực tế:** Máy lạnh rỉ nước, chập điện, vòi nước hỏng lúc nửa đêm khách gọi đòi chủ nhà xử lý ngay; thợ ngoài chặt chém giá cao; khách vi phạm nội quy ồn ào/thú cưng bị BQL phạt tiền trực tiếp chủ hộ; khách chuyển đi đột ngột để lại hóa đơn nợ tiền điện nước EVN và phí xe tồn đọng.
@@ -53,7 +53,7 @@
 
 ### 4. Rủi Ro Lừa Tiền Cọc & Hợp Đồng Bất Lợi (Deposit Scams & Legal Exposure)
 * **Khó khăn thực tế:** Môi giới tự do thu cọc rồi chặn số; hợp đồng tải mạng gài bẫy thiệt thòi; rủi ro lộ lọt ảnh CCCD cá nhân cho bên thứ ba.
-* **Giải pháp VinStay AI:** Cọc giữ chỗ 24h (2.000.000 VNĐ) qua mã VietQR động gạch nợ tự động vào tài khoản định danh nền tảng; khi ký Hợp đồng thuê chính thức, số tiền này được chuyển đổi 100% thành một phần của **Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit)** giữ nguyên suốt kỳ thuê để bảo vệ tài sản chủ nhà và hoàn lại khi hết hạn; AI OCR CCCD và ký số OTP bảo mật AES-256 theo Nghị định 13/2023/NĐ-CP.
+* **Giải pháp VinStay AI:** Cọc giữ chỗ 24h (2.000.000 VNĐ) qua mã VietQR động gạch nợ tự động vào tài khoản định danh nền tảng; khi ký Hợp đồng thuê chính thức, số tiền này được chuyển đổi 100% thành một phần của **Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit)** giữ nguyên suốt kỳ thuê để bảo vệ tài sản chủ nhà và hoàn lại khi hết hạn; khách chấp thuận điều khoản cọc bằng ô tick trước khi quét VietQR (không ký thỏa thuận cọc riêng); AI OCR CCCD và ký điện tử Hợp đồng thuê trên SĐT đã xác thực OTP một lần, mã hóa AES-256 theo Nghị định 13/2023/NĐ-CP.
 
 ### 5. "Bị Bỏ Rơi" Khi Ở & Tranh Chấp Trả Phòng (Post-Move Abandonment)
 * **Khó khăn thực tế:** Môi giới nhận hoa hồng xong là biến mất; sự cố hỏng hóc vặt chủ nhà ở xa không ngó ngàng; lúc trả phòng bị chủ nhà trừ cọc oan do không có ảnh đối soát ban đầu.

@@ -141,8 +141,8 @@ export function AdminContractDetail({ contractKey }: Props) {
       value: row.endAt ? fmtDateTime(row.endAt) : "7 ngày kể từ lúc thanh toán",
     });
     termItems.push({
-      label: "Thoả thuận cọc số",
-      value: booking?.agreement ? booking.agreement.docId : "Chờ ký qua OTP Zalo",
+      label: "Chấp thuận điều khoản",
+      value: booking?.depositConsentAt ? fmtDateTime(booking.depositConsentAt) : "Đã xác nhận",
     });
     termItems.push({
       label: "Quy tắc cọc bảo đảm",
@@ -187,16 +187,6 @@ export function AdminContractDetail({ contractKey }: Props) {
       label: "Tiền thuê tháng đầu",
       value: `${vnd(row.amount ?? 0)}đ (nguyên tiền thuê, không trừ 2.000.000đ cọc giữ chỗ)`,
     });
-    if (row.bookingId) {
-      termItems.push({
-        label: "Cọc giữ chỗ ban đầu",
-        value: (
-          <Link href={`/admin/contracts/holding.${row.bookingId}`} className="link">
-            Xem thỏa thuận cọc ({booking?.agreement?.docId ?? `COC-${booking?.ref}`}) →
-          </Link>
-        ),
-      });
-    }
   } else if (row.kind === "partnership") {
     termItems.push({
       label: "Phân khu phụ trách",

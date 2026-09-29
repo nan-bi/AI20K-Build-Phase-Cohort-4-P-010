@@ -69,7 +69,7 @@ export function AccountContracts() {
                       "Chưa phát sinh"
                     ),
                   },
-                  { label: "Thoả thuận cọc", value: b.agreement ? `Đã ký ngày ${fmtDate(b.agreement.signedAt)}` : "Chưa ký" },
+                  { label: "Điều khoản cọc", value: b.depositConsentAt ? `Đã đồng ý ngày ${fmtDate(b.depositConsentAt)}` : "Chưa xác nhận" },
                   {
                     label: "Hợp đồng thuê",
                     value: b.lease ? `Từ ${fmtDate(b.lease.startDate)} · ${b.lease.months} tháng · ${vnd(b.lease.rent)}đ/tháng` : "Chưa ký",

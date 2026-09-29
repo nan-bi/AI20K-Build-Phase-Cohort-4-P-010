@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-import { AUTH_ERROR_TEXT, DEMO_USERS, ROLE_LABEL, authenticate, loginUrl, requiredRole, type AuthError, type Role } from "@/lib/mock/auth";
+import { AUTH_ERROR_TEXT, ROLE_LABEL, authenticate, loginUrl, postLoginTarget, type AuthError, type Role } from "@/lib/mock/auth";
 import { signInAs, useRole } from "@/lib/mock/useRole";
 import { PortalTabs } from "./PortalTabs";
 import styles from "./authui.module.css";
@@ -43,8 +43,7 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
   const redirectingToOtherPortal = as === "host" || as === "admin";
 
   const goHome = (role: Role) => {
-    const req = next ? requiredRole(next) : null;
-    router.push(next && req === role ? next : DEMO_USERS[role].home);
+    router.push(postLoginTarget(role, next));
     router.refresh();
   };
 

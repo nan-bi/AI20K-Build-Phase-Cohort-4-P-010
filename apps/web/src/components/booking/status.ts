@@ -51,14 +51,7 @@ export const STATUS_META: Record<BookingStatus, { label: string; tone: Tone; bad
     tone: "success",
     badge: "badge-kelp",
     headline: "Căn đã được giữ chỗ cho bạn",
-    body: "Điền thông tin và ký Thỏa thuận đặt cọc trên thiết bị của bạn trong thời hạn giữ chỗ.",
-  },
-  signed: {
-    label: "Đã ký thỏa thuận cọc",
-    tone: "success",
-    badge: "badge-kelp",
-    headline: "Thỏa thuận đặt cọc đã có chữ ký số",
-    body: `Bước cuối là ký hợp đồng thuê chính thức trong vòng ${HOLD_DAYS} ngày. Khoản cọc 2.000.000đ sẽ chuyển 100% thành một phần Tiền cọc bảo đảm tài sản.`,
+    body: `Căn hộ được khoá ${HOLD_DAYS} ngày để bạn hoàn tất eKYC và ký hợp đồng thuê chính thức. Khoản cọc 2.000.000đ sẽ chuyển 100% thành Tiền cọc bảo đảm tài sản.`,
   },
   leased: {
     label: "Đã ký hợp đồng thuê",
@@ -115,8 +108,7 @@ const RANK: Record<BookingStatus, number> = {
   viewing: 4,
   closing: 5,
   holding: 6,
-  signed: 7,
-  leased: 8,
+  leased: 7,
   completed: 4,
   no_show: 1,
   cancelled: 0,
@@ -132,7 +124,6 @@ export function buildTimeline(b: Booking): TimelineStep[] {
     { key: "lobby", label: "Có mặt tại sảnh", hint: "Bấm “Tôi đã tới sảnh”", at: b.lobbyAt ?? b.receivingAt, done: lobbyDone },
     { key: "view", label: "Xem phòng", hint: "Host mở cửa bằng mã trong app", at: b.viewingAt, done: !!b.viewingAt },
     { key: "deposit", label: `Cọc giữ căn ${HOLD_DAYS} ngày`, hint: "VietQR 2.000.000đ", at: b.deposit?.paidAt, done: !!b.deposit?.paidAt },
-    { key: "agree", label: "Ký thỏa thuận cọc", hint: "Điền thông tin + ký tay + OTP", at: b.agreement?.signedAt, done: !!b.agreement },
     { key: "kyc", label: "Xác minh CCCD (eKYC)", hint: "Khi làm hợp đồng thuê", at: b.kyc?.verifiedAt, done: !!b.kyc },
     { key: "lease", label: "Ký hợp đồng thuê", hint: "Hợp đồng ký số", at: b.lease?.signedAt, done: !!b.lease },
   ];

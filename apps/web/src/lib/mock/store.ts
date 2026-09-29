@@ -8,7 +8,7 @@ import type { MockState } from "./types";
  * Store mock dùng chung cho cả 4 vai trò. Không có backend: toàn bộ dữ liệu nằm trong localStorage của
  * trình duyệt nên khi đổi vai trò (khách → Host → chủ nhà → Admin) vẫn thấy cùng một dòng sự kiện.
  */
-const KEY = "vinstay.mock.v5";
+const KEY = "vinstay.mock.v6";
 
 let state: MockState = EMPTY_STATE;
 let loaded = false;
@@ -47,6 +47,7 @@ function ensureLoaded(): MockState {
   try {
     window.localStorage.removeItem("vinstay.mock.v3");
     window.localStorage.removeItem("vinstay.mock.v4");
+    window.localStorage.removeItem("vinstay.mock.v5");
   } catch {
     // Trình duyệt chặn storage
   }
@@ -79,8 +80,8 @@ export function setMockState(updater: (prev: MockState) => MockState) {
   emit();
 }
 
-export function resetMockState() {
-  setMockState(() => seedState(Date.now()));
+export function resetMockState(now?: number) {
+  setMockState(() => seedState(now ?? Date.now()));
 }
 
 function subscribe(cb: () => void) {

@@ -21,7 +21,7 @@ export function EarningsView() {
   if (!state.ready) return <div className="skeleton" style={{ height: 280 }} />;
   const { fees } = state;
   const e = hostEarnings(state, host, fees);
-  const deals = hostBookings(state, host.id).filter((b) => ["holding", "signed", "leased"].includes(b.status));
+  const deals = hostBookings(state, host.id).filter((b) => ["holding", "leased"].includes(b.status));
   const perDeal = Math.round(fees.dealCommission * e.multiplier);
 
   const dealColumns: DataTableColumn<Booking>[] = [

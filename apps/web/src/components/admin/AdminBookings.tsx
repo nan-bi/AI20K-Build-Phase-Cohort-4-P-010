@@ -90,7 +90,26 @@ export function AdminBookings() {
                 </>
               ),
             },
-            { key: "host", header: "Field Host", render: (b) => hostById(b.hostId)?.name },
+            {
+              key: "host",
+              header: "Field Host",
+              render: (b) => {
+                if (b.status === "pending" && b.dispatch?.state === "open") {
+                  const n = b.dispatch.offeredTo.length;
+                  return (
+                    <div>
+                      <span className="badge badge-coral">Đang mở cho {n} Sale</span>
+                      {b.dispatch.escalated && (
+                        <span className="badge badge-coral-soft xs" style={{ display: "block", marginTop: 4 }}>
+                          Cần điều phối tay
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                return hostById(b.hostId)?.name;
+              },
+            },
             { key: "status", header: "Trạng thái", render: (b) => <span className={`badge ${STATUS_META[b.status].badge}`}>{STATUS_META[b.status].label}</span> },
             {
               key: "sla",
