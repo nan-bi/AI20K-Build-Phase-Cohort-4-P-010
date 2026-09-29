@@ -75,7 +75,7 @@ export function InspectionList() {
             {
               key: "layout",
               header: "Loại · Diện tích",
-              render: (c) => `${c.layout} · ${c.areaM2} m²`,
+              render: (c: Consignment) => `${c.layout} · ${c.areaM2} m² tim tường`,
             },
             {
               key: "landlord",
@@ -166,7 +166,7 @@ export function InspectionList() {
             {
               key: "layout",
               header: "Loại · Diện tích",
-              render: (c) => `${c.layout} · ${c.areaM2} m²`,
+              render: (c: Consignment) => `${c.layout} · ${c.areaM2} m² tim tường`,
             },
             {
               key: "landlord",

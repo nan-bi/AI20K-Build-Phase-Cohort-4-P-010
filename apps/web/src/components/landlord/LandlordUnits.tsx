@@ -10,19 +10,15 @@ import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { vnd } from "@/lib/mock/format";
+import { holdDaysLeft, isOpenBooking, unitDisplayStatus } from "@/lib/mock/selectors";
 import { landlordConsignments, landlordUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";
 import { useMock } from "@/lib/mock/store";
 import type { Consignment } from "@/lib/mock/types";
-import { LAYOUT_LABEL, unitAddress } from "@/lib/mock/units";
+import { LAYOUT_LABEL, LEASE_TERM_LABEL, type UnitDisplayStatus, unitAddress } from "@/lib/mock/units";
+import { useNow } from "@/lib/useNow";
 import styles from "./Landlord.module.css";
 
 const LID = DEMO_USERS.landlord.refId!;
-
-const UNIT_STATUS_META: Record<LandlordUnitRow["status"], { label: string; tone: StatusTone }> = {
-  available: { label: "Đang trống", tone: "neutral" },
-  holding: { label: "Đang giữ chỗ 24h", tone: "warn" },
-  rented: { label: "Đang cho thuê", tone: "ok" },
-};
 
 const MANDATE_STATUS_META: Record<LandlordUnitRow["mandateStatus"], { label: string; tone: StatusTone }> = {
   active: { label: "Hiệu lực", tone: "ok" },
@@ -30,21 +26,26 @@ const MANDATE_STATUS_META: Record<LandlordUnitRow["mandateStatus"], { label: str
   ended: { label: "Đã kết thúc", tone: "neutral" },
 };
 
-type Filter = "all" | LandlordUnitRow["status"];
+type Filter = "all" | UnitDisplayStatus;
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "available", label: "Đang trống" },
-  { key: "holding", label: "Đang giữ chỗ 24h" },
+  { key: "viewing", label: "Có khách xem" },
+  { key: "holding", label: "Đang giữ căn" },
   { key: "rented", label: "Đang cho thuê" },
 ];
 
 export function LandlordUnits() {
   const state = useMock();
+  const now = useNow(10_000);
   const [filter, setFilter] = useState<Filter>("all");
-  if (!state.ready) return <div className="skeleton" style={{ height: 480 }} />;
+  if (!state.ready || !now) return <div className="skeleton" style={{ height: 480 }} />;
 
   const rows = landlordUnitRows(state, LID);
-  const shown = filter === "all" ? rows : rows.filter((r) => r.status === filter);
+  const shown =
+    filter === "all"
+      ? rows
+      : rows.filter((r) => unitDisplayStatus(state, r.unit) === filter);
   const consignments = landlordConsignments(state, LID).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
@@ -86,7 +87,28 @@ export function LandlordUnits() {
             {
               key: "status",
               header: "Trạng thái căn",
-              render: (r: LandlordUnitRow) => <StatusBadge tone={UNIT_STATUS_META[r.status].tone}>{UNIT_STATUS_META[r.status].label}</StatusBadge>,
+              render: (r: LandlordUnitRow) => {
+                const ds = unitDisplayStatus(state, r.unit);
+                if (ds === "viewing") {
+                  const openCount = state.bookings.filter((b) => b.unitId === r.unit.id && isOpenBooking(b)).length;
+                  return (
+                    <span className="badge badge-amber-soft">
+                      Có khách xem · {openCount} lịch
+                    </span>
+                  );
+                }
+                if (ds === "holding") {
+                  const holdingBooking = state.bookings.find(
+                    (b) => b.unitId === r.unit.id && (b.status === "holding" || b.deposit?.paidAt)
+                  );
+                  const days = holdingBooking ? holdDaysLeft(holdingBooking, now) : 7;
+                  return <StatusBadge tone="warn">{`Đang giữ căn · còn ${days} ngày`}</StatusBadge>;
+                }
+                if (ds === "rented") {
+                  return <StatusBadge tone="ok">Đang cho thuê</StatusBadge>;
+                }
+                return <StatusBadge tone="neutral">Đang trống</StatusBadge>;
+              },
             },
             {
               key: "mandate",
@@ -113,9 +135,30 @@ export function LandlordUnits() {
       <Section title="Hồ sơ ký gửi" description="Các căn bạn đã đăng ký ủy quyền trên VinStay." flush>
         <DataTable<Consignment>
           columns={[
-            { key: "unit", header: "Căn", render: (c: Consignment) => `${c.building} · Tầng ${c.floor} · Căn ${c.door}` },
+            {
+              key: "unit",
+              header: "Căn",
+              render: (c: Consignment) => `${c.building} · Tầng ${c.floor} · Căn ${c.door} (${c.areaM2} m²)`,
+            },
             { key: "layout", header: "Loại căn", render: (c: Consignment) => LAYOUT_LABEL[c.layout] },
-            { key: "rent", header: "Giá chào thuê", align: "right", render: (c: Consignment) => <span className="tnum">{vnd(c.askRent)}đ</span> },
+            {
+              key: "rent",
+              header: "Giá thuê",
+              align: "right",
+              render: (c: Consignment) => <span className="tnum">{vnd(c.askRent)}đ</span>,
+            },
+            {
+              key: "deposit",
+              header: "Tiền cọc đề xuất",
+              align: "right",
+              render: (c: Consignment) => <span className="tnum">{vnd(c.suggestedDeposit ?? c.askRent)}đ</span>,
+            },
+            {
+              key: "leaseTerm",
+              header: "Thời gian thuê",
+              render: (c: Consignment) =>
+                c.leaseTerm ? (LEASE_TERM_LABEL[c.leaseTerm] ?? c.leaseTerm) : "Dài hạn: 12 tháng",
+            },
             {
               key: "status",
               header: "Trạng thái",

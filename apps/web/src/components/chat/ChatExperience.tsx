@@ -21,7 +21,7 @@ const TRUST = [
   { icon: BadgeCheck, text: "Ảnh thật, có mốc thời gian" },
   { icon: ReceiptText, text: "All-in Cost, không phí ẩn" },
   { icon: Footprints, text: "Host đón tại sảnh" },
-  { icon: CalendarClock, text: "Giữ chỗ 24h qua VietQR" },
+  { icon: CalendarClock, text: "Giữ căn 7 ngày qua VietQR" },
 ];
 
 /** Trang chủ khách thuê: ban đầu là hero + khung chat; khi bắt đầu tìm căn, chat thu về cột trái và mở màn kết quả. */

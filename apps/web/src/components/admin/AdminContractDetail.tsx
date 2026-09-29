@@ -137,8 +137,8 @@ export function AdminContractDetail({ contractKey }: Props) {
       value: "2.000.000đ (VietQR động)",
     });
     termItems.push({
-      label: "Hạn giữ chỗ 24h",
-      value: row.endAt ? fmtDateTime(row.endAt) : "24 giờ kể từ lúc thanh toán",
+      label: "Hạn giữ chỗ (7 ngày)",
+      value: row.endAt ? fmtDateTime(row.endAt) : "7 ngày kể từ lúc thanh toán",
     });
     termItems.push({
       label: "Thoả thuận cọc số",

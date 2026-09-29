@@ -1,7 +1,19 @@
-import { allInCost } from "./cost";
+import { allInCost, TENANT_MODIFY_LEAD_MS } from "./cost";
 import { ALL_SLOT_TIMES, MIN_LEAD_MS, slotDate } from "./slots";
 import type { Booking, BookingStatus, FeeConfig, MockState, Notice } from "./types";
-import { HOSTS, UNITS, unitById, type FieldHost, type Unit, type UnitStatus } from "./units";
+import {
+  HOSTS,
+  UNITS,
+  unitById,
+  hostById,
+  zoneById,
+  type FieldHost,
+  type HostRole,
+  type Unit,
+  type UnitDisplayStatus,
+  type UnitStatus,
+  type ZoneId,
+} from "./units";
 
 /** Lịch chưa có quyết định cuối (khách còn cơ hội xem hoặc đang xem). */
 export const OPEN_STATUSES: BookingStatus[] = ["pending", "confirmed", "lobby", "receiving", "viewing", "closing"];
@@ -10,8 +22,92 @@ const BUSY_SLOT_STATUSES: BookingStatus[] = ["pending", "confirmed", "lobby", "r
 
 export const isOpenBooking = (b: Booking) => OPEN_STATUSES.includes(b.status);
 
-export function unitStatus(state: MockState, unit: Unit): UnitStatus {
-  return state.unitState[unit.id]?.status ?? unit.baseStatus;
+export function unitStatus(state: MockState, unitOrId: Unit | string): UnitStatus {
+  const id = typeof unitOrId === "string" ? unitOrId : unitOrId.id;
+  const base = typeof unitOrId === "string" ? (unitById(unitOrId)?.baseStatus ?? "available") : unitOrId.baseStatus;
+  const override = state.unitState[id];
+  if (!override) return base;
+
+  // Unit rảnh lại khi hết hạn thật (SPEC-P01 §2)
+  if (override.status === "holding" && override.holdingUntil) {
+    if (Date.parse(override.holdingUntil) <= Date.now()) {
+      const isLeased = state.bookings.some((b) => b.unitId === id && b.status === "leased");
+      if (!isLeased) {
+        return "available";
+      }
+    }
+  }
+
+  return override.status;
+}
+
+export function holdEndsAt(b: Booking): number | undefined {
+  return b.deposit?.expiresAt ? Date.parse(b.deposit.expiresAt) : undefined;
+}
+
+export function isHoldForfeited(b: Booking, now: number): boolean {
+  const ends = holdEndsAt(b);
+  return Boolean(b.deposit?.paidAt && !b.lease && ends !== undefined && now >= ends);
+}
+
+export function holdDaysLeft(b: Booking, now: number): number {
+  const ends = holdEndsAt(b);
+  if (ends === undefined) return 0;
+  return Math.max(0, Math.ceil((ends - now) / 86_400_000));
+}
+
+export function canTenantModify(b: Booking, now: number): boolean {
+  if (b.status !== "pending" && b.status !== "confirmed") return false;
+  const slotTime = new Date(b.slot).getTime();
+  return slotTime - now >= TENANT_MODIFY_LEAD_MS;
+}
+
+export function unitDisplayStatus(state: MockState, unit: Unit): UnitDisplayStatus {
+  const st = unitStatus(state, unit);
+  if (st !== "available") return st;
+  const hasOpen = state.bookings.some((b) => b.unitId === unit.id && isOpenBooking(b));
+  return hasOpen ? "viewing" : "available";
+}
+
+export function hostRoles(state: MockState, hostId: string): HostRole[] {
+  if (state.hostRoles && state.hostRoles[hostId]) {
+    return state.hostRoles[hostId];
+  }
+  const host = hostById(hostId);
+  return host?.roles ?? ["sale"];
+}
+
+export function pickHostFor(
+  state: MockState,
+  zoneId: ZoneId,
+  role: HostRole
+): { hostId: string; fallback: boolean } {
+  const z = zoneById(zoneId);
+  if (z && hostRoles(state, z.hostId).includes(role)) {
+    return { hostId: z.hostId, fallback: false };
+  }
+
+  // Lấy Host đầu tiên trong HOSTS có zones chứa zoneId, có role và status !== "off_duty"
+  const candidateOnDuty = HOSTS.find(
+    (h) =>
+      h.zones.includes(zoneId) &&
+      hostRoles(state, h.id).includes(role) &&
+      h.status !== "off_duty"
+  );
+  if (candidateOnDuty) {
+    return { hostId: candidateOnDuty.id, fallback: false };
+  }
+
+  // Bỏ điều kiện status
+  const candidateAny = HOSTS.find(
+    (h) => h.zones.includes(zoneId) && hostRoles(state, h.id).includes(role)
+  );
+  if (candidateAny) {
+    return { hostId: candidateAny.id, fallback: false };
+  }
+
+  // Không có ai => fallback Host mặc định
+  return { hostId: z ? z.hostId : "H01", fallback: true };
 }
 
 /** Số khách đang quan tâm căn (≥3 → gắn cờ HOT). */

@@ -1,7 +1,15 @@
 import type { Household } from "./cost";
-import type { Furnishing, ItemKey, LayoutKind, PassportItem, UnitStatus, ZoneId } from "./units";
+import type { Furnishing, HostRole, ItemKey, LayoutKind, LeaseTermPref, LockType, PassportItem, UnitStatus, ZoneId } from "./units";
+export { PASSPORT_ITEMS, type PassportItem } from "./units";
 
 // ─── Lịch xem nhà ───────────────────────────────────────────────────────────────────────────
+
+export interface AgreementParty {
+  fullName: string;
+  idNumber: string;
+  phone: string;
+  address: string;
+}
 
 /**
  * Vòng đời một lịch xem (PRD §3.2–3.4):
@@ -27,15 +35,22 @@ export interface IdCardData {
   fullName: string;
   idNumber: string;
   dob: string;
-  issuedDate: string;
+  issuedDate?: string;
+  issueDate?: string;
+  gender?: string;
+  homeTown?: string;
   address: string;
-  /** Độ tin cậy OCR từng trường (0–1). < 0.85 → bắt đối chiếu tay. */
-  confidence: { fullName: number; idNumber: number; issuedDate: number; address: number };
-  manuallyEdited: boolean;
+  frontUrl?: string;
+  backUrl?: string;
+  selfieUrl?: string;
+  /** Độ tin cậy OCR từng trường (0–1). < 0.85 → bắt đối chiếu tay. Hoặc số điểm chung. */
+  confidence: number | { fullName: number; idNumber: number; issuedDate: number; address: number };
+  manuallyEdited?: boolean;
   /** Điểm khớp khuôn mặt giữa ảnh chân dung và ảnh trên CCCD (0–1). */
-  faceMatch: number;
-  consentAt: string;
+  faceMatch?: number;
+  consentAt?: string;
   verifiedAt: string;
+  mismatch?: ("fullName" | "idNumber")[]; // + Đ4
 }
 
 export interface DepositInfo {
@@ -45,7 +60,7 @@ export interface DepositInfo {
   qrRef: string;
   createdAt: string;
   paidAt?: string;
-  /** Hết hạn giữ chỗ 24h kể từ lúc thanh toán. */
+  /** Hết hạn giữ chỗ 7 ngày kể từ lúc thanh toán. */
   expiresAt?: string;
   method?: "webhook" | "host_receipt";
   /** Host tải UNC lên khi webhook chậm — giữ tạm 30 phút. */
@@ -67,12 +82,27 @@ export interface Booking {
   lobbyAt?: string;
   receivingAt?: string;
   viewingAt?: string;
+  viewEndedAt?: string; // + lúc Host kết thúc buổi xem (khách chốt / chưa quyết định)
   doorCode?: string;
   doorCodeExpiresAt?: string;
+  depositConsentAt?: string; // + khách tick điều khoản cọc trước khi hiện QR
   deposit?: DepositInfo;
   kyc?: IdCardData;
-  agreement?: { signedAt: string; docId: string };
-  lease?: { signedAt: string; startDate: string; months: number; rent: number; docId: string; renewalRemindedAt?: string };
+  agreement?: {
+    signedAt: string;
+    docId: string;
+    party: AgreementParty; // + 4 trường khách tự điền
+    signature?: string; // + data URL PNG ≤ 40 KB
+  };
+  lease?: {
+    signedAt: string;
+    startDate: string;
+    months: number;
+    rent: number;
+    docId: string;
+    signature?: string; // +
+    renewalRemindedAt?: string;
+  };
   closedReason?: string;
   rating?: number;
   reminderSentAt?: string;
@@ -124,25 +154,67 @@ export type ConsignmentStatus =
   | "approved"       // Admin duyệt — ký gửi hiệu lực
   | "rejected";      // Admin không duyệt (kèm note)
 
+// Thẩm định (Đ11)
+export type InventoryGroup = "I" | "II" | "III" | "IV" | "V" | "VI" | "VII" | "VIII";
+export type Liability = "misuse" | "wear_or_misuse"; // “Hỏng do lỗi dùng” | “Hao mòn / Lỗi dùng”
+
+export interface InventoryLine {
+  code: string; // "1".."32" cho catalog, "X1".. cho dòng Host thêm
+  group: InventoryGroup;
+  name: string; // tên hạng mục (catalog: nguyên văn Điều 5)
+  passport: PassportItem; // nhóm 1/10 để tóm tắt
+  present: boolean;
+  spec?: string; // Nhãn hiệu / Model / Quy cách, ≤ 80 ký tự
+  qty?: number; // ≥ 1 khi present
+  condition?: number; // % độ mới, bội số 10, [0,100], bắt buộc khi present
+  photoAt?: string; // ISO, bắt buộc khi present
+  note?: string; // ≤ 120
+  liability: Liability;
+  compensation?: number; // VNĐ, tuỳ chọn
+}
+
 export type DeclaredField = "identity" | "layout" | "areaM2" | "furnishing" | "lock";
 export interface DeclaredCheck { field: DeclaredField; ok: boolean; /** bắt buộc khi ok=false, ≤80 ký tự */ actual?: string }
-export interface ItemPresence { key: ItemKey; present: boolean }
-export interface EquipmentCondition {
-  item: PassportItem;          // `(typeof PASSPORT_ITEMS)[number]`, export từ units.ts
-  condition: number;           // % độ mới, bội số 10 trong [0,100]
-  photoAt: string;             // ISO — mock “ảnh chụp trong app có timestamp”
-  note?: string;               // ≤120 ký tự
-}
+
 export interface InspectionReport {
   hostId: string;
   submittedAt: string;
-  declared: DeclaredCheck[];        // đúng 5 phần tử, mỗi DeclaredField 1 lần
-  items: ItemPresence[];            // đúng các key trong Consignment.items, cùng thứ tự
-  equipment: EquipmentCondition[];  // đúng 10, thứ tự PASSPORT_ITEMS
+  declared: DeclaredCheck[]; // đúng 5 phần tử
+  inventory: InventoryLine[]; // đủ 32 dòng catalog theo thứ tự + 0..10 dòng thêm
+  netAreaM2: number; // diện tích thông thuỷ Host đo, > 0 và ≤ areaM2
+  furnishing: Furnishing; // nội thất thực tế: full | basic | empty
   recommendation: "approve" | "reject";
-  note?: string;                    // ≤300 ký tự
+  note?: string; // ≤300 ký tự
+  // Compatibility fields for un-refactored UI components (WP3/4/7)
+  items?: { key: ItemKey; present: boolean }[];
+  equipment?: { item: PassportItem; condition: number; photoAt: string; note?: string }[];
 }
-export type InspectionDraft = Omit<InspectionReport, "hostId" | "submittedAt">;
+export type InspectionDraft = Omit<InspectionReport, "hostId" | "submittedAt" | "inventory" | "netAreaM2" | "furnishing"> & {
+  inventory?: InventoryLine[];
+  netAreaM2?: number;
+  furnishing?: Furnishing;
+};
+
+export interface ConsignInput {
+  landlordId: string;
+  building: string;
+  floor: number;
+  door: string;
+  layout: LayoutKind;
+  areaM2: number;
+  askRent: number;
+  suggestedDeposit?: number;
+  leaseTerm?: LeaseTermPref;
+  furnished?: boolean;
+  locks?: LockType[];
+  auditByHost?: boolean;
+  doorCode?: string;
+  note?: string;
+  // Compatibility fields for un-refactored UI components (WP3)
+  furnishing?: Furnishing;
+  lock?: LockType;
+  items?: ItemKey[];
+}
 
 export interface Consignment {
   id: string;
@@ -151,22 +223,27 @@ export interface Consignment {
   floor: number;
   door: string;
   layout: LayoutKind;
-  areaM2: number;
-  askRent: number;
-  furnishing: Furnishing;
-  lock: "smart" | "physical";
+  areaM2: number; // diện tích TIM TƯỜNG chủ nhà khai
+  askRent: number; // nhãn UI "Giá thuê"
+  suggestedDeposit: number; // + VNĐ
+  leaseTerm: LeaseTermPref; // +
+  furnished: boolean; // ~ thay furnishing: Furnishing
+  locks: LockType[]; // ~ thay lock; 1–2 phần tử
   auditByHost: boolean;
-  items: ItemKey[];
   status: ConsignmentStatus;
   createdAt: string;
   note?: string;
-  signedAt?: string;       // lúc ký OTP (vào awaiting_host)
-  hostId?: string;         // gán lúc ký = zoneOfBuilding(building).hostId
-  inspectDueAt?: string;   // signedAt + 48h
+  signedAt?: string; // lúc ký OTP (vào awaiting_host)
+  hostId?: string; // gán lúc ký = zoneOfBuilding(building).hostId
+  inspectDueAt?: string; // signedAt + 48h
   hostAcceptedAt?: string;
   report?: InspectionReport;
   decidedAt?: string;
-  decidedBy?: string;      // tên Admin
+  decidedBy?: string; // tên Admin
+  // Compatibility fields for un-refactored UI components (WP3/4/7)
+  furnishing: Furnishing;
+  lock: LockType;
+  items: ItemKey[];
 }
 
 // ─── Cấu hình biến phí (Admin) ───────────────────────────────────────────────────────────────
@@ -251,4 +328,6 @@ export interface MockState {
   chat: ChatState;
   /** Thông tin khách đã dùng để điền sẵn form đặt lịch. */
   tenantProfile?: { name: string; phone: string };
+  /** Vai của Field Host khi bị Admin sửa (mặc định lấy từ HOSTS). */
+  hostRoles: Record<string, HostRole[]>;
 }

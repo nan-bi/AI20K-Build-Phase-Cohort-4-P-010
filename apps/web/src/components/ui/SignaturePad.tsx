@@ -6,11 +6,34 @@ import styles from "./SignaturePad.module.css";
 
 interface SignaturePadProps {
   onChange: (hasInk: boolean) => void;
+  onCapture?: (dataUrl: string | null) => void;
   label?: string;
 }
 
+/** Xuất thumbnail PNG 320px, trả null nếu kích thước > 40KB hoặc có lỗi */
+function exportThumbnail(canvas: HTMLCanvasElement, maxWidth = 320): string | null {
+  try {
+    const ratio = maxWidth / canvas.width;
+    const targetWidth = maxWidth;
+    const targetHeight = Math.max(1, Math.round(canvas.height * ratio));
+    const offscreen = document.createElement("canvas");
+    offscreen.width = targetWidth;
+    offscreen.height = targetHeight;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+    const dataUrl = offscreen.toDataURL("image/png");
+    // Ước tính byteSize từ chuỗi base64
+    const byteSize = Math.round((dataUrl.length * 3) / 4);
+    if (byteSize > 40 * 1024) return null;
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
 /** Khung ký tay bằng chuột/cảm ứng. Chữ ký này đi kèm OTP để tạo chữ ký số (mô phỏng). */
-export function SignaturePad({ onChange, label = "Ký tên của bạn ở đây" }: SignaturePadProps) {
+export function SignaturePad({ onChange, onCapture, label = "Ký tên của bạn ở đây" }: SignaturePadProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const inked = useRef(false);
@@ -35,6 +58,15 @@ export function SignaturePad({ onChange, label = "Ký tên của bạn ở đây
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  const handleStrokeEnd = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    if (inked.current && onCapture && canvas.current) {
+      const thumb = exportThumbnail(canvas.current);
+      onCapture(thumb);
+    }
+  };
+
   const clear = () => {
     const c = canvas.current!;
     const ctx = c.getContext("2d")!;
@@ -44,6 +76,7 @@ export function SignaturePad({ onChange, label = "Ký tên của bạn ở đây
     ctx.restore();
     inked.current = false;
     onChange(false);
+    onCapture?.(null);
   };
 
   return (
@@ -74,12 +107,8 @@ export function SignaturePad({ onChange, label = "Ký tên của bạn ở đây
               onChange(true);
             }
           }}
-          onPointerUp={() => {
-            drawing.current = false;
-          }}
-          onPointerLeave={() => {
-            drawing.current = false;
-          }}
+          onPointerUp={handleStrokeEnd}
+          onPointerLeave={handleStrokeEnd}
         />
         <span className={styles.hint}>{label}</span>
       </div>

@@ -15,12 +15,18 @@ import { useMock } from "@/lib/mock/store";
 import type { Booking, Notice } from "@/lib/mock/types";
 import { unitAddress, unitById, zoneById } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
-import { KycStep } from "./KycStep";
-import { AgreementStep, LeaseStep } from "./SignSteps";
-import { ClosedStep, DepositStep, DoneStep, GreetStep, LiftStep, ViewStep } from "./WorkflowSteps";
+import {
+  AwaitAgreementStep,
+  AwaitDepositStep,
+  AwaitLeaseStep,
+  ClosedStep,
+  DoneStep,
+  GreetStep,
+  ViewStep,
+} from "./WorkflowSteps";
 import styles from "./Workflow.module.css";
 
-const RAIL = ["Đón khách", "Lên phòng", "Xem phòng", "Cọc VietQR", "eKYC CCCD", "Ký cọc", "Hợp đồng"] as const;
+const RAIL = ["Đón khách", "Xem phòng", "Chờ cọc", "Ký cọc", "Hợp đồng"] as const;
 
 function railIndex(b: Booking): number {
   switch (b.status) {
@@ -28,17 +34,16 @@ function railIndex(b: Booking): number {
     case "lobby":
       return 0;
     case "receiving":
-      return 1;
     case "viewing":
-      return 2;
+      return 1;
     case "closing":
-      return 3;
+      return 2;
     case "holding":
-      return b.kyc ? 5 : 4;
+      return 3;
     case "signed":
-      return 6;
+      return 4;
     case "leased":
-      return 7;
+      return 5;
     default:
       return -1;
   }
@@ -141,12 +146,10 @@ export function ViewingWorkflow({ id }: { id: string }) {
             </section>
           )}
           {(booking.status === "confirmed" || booking.status === "lobby") && <GreetStep {...props} />}
-          {booking.status === "receiving" && <LiftStep {...props} />}
-          {booking.status === "viewing" && <ViewStep {...props} />}
-          {booking.status === "closing" && booking.deposit && <DepositStep {...props} />}
-          {booking.status === "holding" && !booking.kyc && <KycStep booking={booking} unit={unit} />}
-          {booking.status === "holding" && booking.kyc && <AgreementStep booking={booking} unit={unit} />}
-          {booking.status === "signed" && <LeaseStep {...props} />}
+          {(booking.status === "receiving" || booking.status === "viewing") && <ViewStep {...props} />}
+          {booking.status === "closing" && <AwaitDepositStep {...props} />}
+          {booking.status === "holding" && <AwaitAgreementStep {...props} />}
+          {booking.status === "signed" && <AwaitLeaseStep {...props} />}
           {booking.status === "leased" && <DoneStep {...props} />}
           {["completed", "no_show", "cancelled", "rejected"].includes(booking.status) && <ClosedStep {...props} />}
         </div>

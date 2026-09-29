@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtTime, relTime, vnd, vndShort } from "@/lib/mock/format";
-import { monthlyRent, noticesFor, occupancy } from "@/lib/mock/selectors";
+import { holdDaysLeft, isOpenBooking, monthlyRent, noticesFor, occupancy, unitDisplayStatus } from "@/lib/mock/selectors";
 import { landlordConsignments, landlordUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";
 import { LANDLORD_HISTORY, SERVICE_FEE_RATE } from "@/lib/mock/stats";
 import { useMock } from "@/lib/mock/store";
@@ -20,11 +20,6 @@ import { useNow } from "@/lib/useNow";
 import styles from "./Landlord.module.css";
 
 const LID = DEMO_USERS.landlord.refId!;
-const UNIT_STATUS_META: Record<LandlordUnitRow["status"], { label: string; tone: "neutral" | "warn" | "ok" }> = {
-  available: { label: "Đang trống", tone: "neutral" },
-  holding: { label: "Đang giữ chỗ 24h", tone: "warn" },
-  rented: { label: "Đang cho thuê", tone: "ok" },
-};
 
 const monthLabels = (now: number, n: number) =>
   Array.from({ length: n }, (_, i) => {
@@ -94,8 +89,8 @@ export function LandlordDashboard() {
 
       <div className={styles.kpis}>
         <StatTile hero label="Thu tiền thuê tháng này" value={vndShort(Math.round(rent * (1 - SERVICE_FEE_RATE)))} delta={{ text: "sau phí dịch vụ ký gửi", tone: "flat" }} spark={series.slice(-6).map((s) => s.value)} />
-        <StatTile label="Đang cho thuê" value={String(occ.rented)} unit={`/ ${rows.length}`} delta={{ text: `${occ.holding} đang giữ chỗ 24h`, tone: "flat" }} />
-        <StatTile label="Đang giữ chỗ 24h" value={String(occ.holding)} delta={{ text: "khách đã chuyển cọc, chờ ký hợp đồng", tone: "flat" }} />
+        <StatTile label="Đang cho thuê" value={String(occ.rented)} unit={`/ ${rows.length}`} delta={{ text: `${occ.holding} đang giữ căn`, tone: "flat" }} />
+        <StatTile label="Đang giữ căn" value={String(occ.holding)} delta={{ text: "khách đã chuyển cọc, chờ ký hợp đồng", tone: "flat" }} />
         <StatTile label="Còn trống, đang mở khách" value={String(occ.available)} delta={{ text: "Host đón khách thay bạn", tone: "good", dir: "up" }} />
       </div>
 
@@ -138,7 +133,28 @@ export function LandlordDashboard() {
             {
               key: "status",
               header: "Trạng thái",
-              render: (r: LandlordUnitRow) => <StatusBadge tone={UNIT_STATUS_META[r.status].tone}>{UNIT_STATUS_META[r.status].label}</StatusBadge>,
+              render: (r: LandlordUnitRow) => {
+                const ds = unitDisplayStatus(state, r.unit);
+                if (ds === "viewing") {
+                  const openCount = state.bookings.filter((b) => b.unitId === r.unit.id && isOpenBooking(b)).length;
+                  return (
+                    <span className="badge badge-amber-soft">
+                      Có khách xem · {openCount} lịch
+                    </span>
+                  );
+                }
+                if (ds === "holding") {
+                  const holdingBooking = state.bookings.find(
+                    (b) => b.unitId === r.unit.id && (b.status === "holding" || b.deposit?.paidAt)
+                  );
+                  const days = holdingBooking ? holdDaysLeft(holdingBooking, now) : 7;
+                  return <StatusBadge tone="warn">{`Đang giữ căn · còn ${days} ngày`}</StatusBadge>;
+                }
+                if (ds === "rented") {
+                  return <StatusBadge tone="ok">Đang cho thuê</StatusBadge>;
+                }
+                return <StatusBadge tone="neutral">Đang trống</StatusBadge>;
+              },
             },
           ]}
           rows={rows.slice(0, 5)}

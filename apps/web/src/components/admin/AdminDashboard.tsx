@@ -121,7 +121,7 @@ export function AdminDashboard() {
         <Heatmap rows={heatRows(state)} />
         <div className={styles.stackCol}>
           <div className={`card ${styles.padCard}`}>
-            <StackBar title={`Rổ hàng ký gửi ${occ.total} căn`} segments={[{ label: "Đã cho thuê", value: counts.rented }, { label: "Đang giữ chỗ 24h", value: counts.holding }, { label: "Còn trống", value: counts.available }]} />
+            <StackBar title={`Rổ hàng ký gửi ${occ.total} căn`} segments={[{ label: "Đã cho thuê", value: counts.rented }, { label: "Đang giữ căn", value: counts.holding }, { label: "Còn trống", value: counts.available }]} />
           </div>
           <div className={`card ${styles.padCard}`}>
             <h3 className={styles.feedTitle}>

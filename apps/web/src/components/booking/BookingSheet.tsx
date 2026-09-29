@@ -5,10 +5,13 @@ import { useEffect, useState } from "react";
 import {
   Calendar,
   CalendarCheck,
+  CalendarX,
   Check,
   CheckCircle2,
   ChevronLeft,
+  Clock,
   FileText,
+  IdCard,
   MapPin,
   MessageCircleMore,
   Pencil,
@@ -183,11 +186,25 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
             </div>
           </div>
 
-          <div className={styles.ticketNotice}>
-            <ShieldCheck size={16} className={styles.ticketNoticeIcon} />
-            <p className={styles.ticketNoticeText}>
-              <strong>Quy chuẩn tiếp đón VinStay AI:</strong> Field Host có mặt tại sảnh toà trước 10 phút, hỗ trợ quẹt thẻ thang máy dẫn lên xem căn trong 60 giây. Tuyệt đối không để bạn phải chờ đợi.
-            </p>
+          <div className={styles.ticketNotice} style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <Clock size={16} style={{ flexShrink: 0, marginTop: 2, color: "var(--kelp)" }} />
+              <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                <strong>Đến đúng giờ hẹn</strong> — Vui lòng đến đúng giờ để không ảnh hưởng lịch của người khác.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <IdCard size={16} style={{ flexShrink: 0, marginTop: 2, color: "var(--lagoon)" }} />
+              <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                <strong>Mang theo giấy tờ</strong> — Mang theo CMND/CCCD để đối chiếu khi cần thiết.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <CalendarX size={16} style={{ flexShrink: 0, marginTop: 2, color: "var(--coral)" }} />
+              <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                <strong>Huỷ lịch trước 2 giờ</strong> — Vui lòng huỷ hoặc đổi lịch trước ít nhất 2 giờ.
+              </div>
+            </div>
           </div>
         </div>
 
@@ -241,7 +258,10 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           </div>
 
           {now > 0 && (
-            <SlotPicker hostId={host.id} now={now} value={slot} onChange={setSlot} />
+            <>
+              <h4 style={{ margin: "14px 0 6px", fontSize: 15, fontWeight: 700 }}>Chọn ngày bạn muốn xem</h4>
+              <SlotPicker hostId={host.id} now={now} value={slot} onChange={setSlot} />
+            </>
           )}
 
           <button type="button" className="btn btn-primary btn-lg btn-block" disabled={!slot} onClick={() => setStep("info")}>
@@ -277,11 +297,13 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
             </button>
           </div>
 
+          <h4 style={{ margin: "10px 0 2px", fontSize: 15, fontWeight: 700 }}>Thông tin người đặt lịch</h4>
+
           <div className={styles.formBody}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel} htmlFor="booking-name">
                 <User size={15} className={styles.labelIcon} />
-                <span>Họ và tên người xem</span>
+                <span>Họ tên khách đặt</span>
                 <span className={styles.requiredStar}>*</span>
               </label>
               <input

@@ -220,15 +220,15 @@ describe("Admin Contracts - WP1", () => {
     }
   });
 
-  // T9: KPI trên seed: activeLeases 3, expiringLeases 1, heldDeposits 2_000_000, exitingMandates 2, needsAction 2; 2 row đầu có needsAction
-  it("T9: KPI trên seed chuẩn: activeLeases 3, expiringLeases 1, heldDeposits 2_000_000, exitingMandates 2, needsAction 2", () => {
+  // T9: KPI trên seed: activeLeases 3, expiringLeases 1, heldDeposits 4_000_000 (bk-108 & bk-103), exitingMandates 2, needsAction 2; 2 row đầu có needsAction
+  it("T9: KPI trên seed chuẩn: activeLeases 3, expiringLeases 1, heldDeposits 4_000_000, exitingMandates 2, needsAction 2", () => {
     const state = getMockState();
     const rows = contracts.contractRows(state, FIXED_NOW);
     const kpis = contracts.contractKpis(rows);
 
     expect(kpis.activeLeases).toBe(3);
     expect(kpis.expiringLeases).toBe(1);
-    expect(kpis.heldDeposits).toBe(2_000_000);
+    expect(kpis.heldDeposits).toBe(4_000_000);
     expect(kpis.exitingMandates).toBe(2);
     expect(kpis.needsAction).toBe(2);
 

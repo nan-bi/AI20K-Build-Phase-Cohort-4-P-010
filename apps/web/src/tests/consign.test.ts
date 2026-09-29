@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PASSPORT_ITEMS, LANDLORDS } from "@/lib/mock/units";
-import type { InspectionDraft } from "@/lib/mock/types";
+import { PASSPORT_ITEMS, LANDLORDS, type ItemKey } from "@/lib/mock/units";
+import type { DeclaredCheck } from "@/lib/mock/types";
 
 // Store chạy trên localStorage của trình duyệt; dựng một window tối giản cho môi trường node.
 const mem = new Map<string, string>();
@@ -23,17 +23,16 @@ beforeEach(() => {
   resetMockState();
 });
 
-import type { ItemKey } from "@/lib/mock/units";
-
-function validDraft(items: ItemKey[] = ["ac", "fridge"]): InspectionDraft {
+function validDraft(items: ItemKey[] = ["ac", "fridge"]) {
+  const declared: DeclaredCheck[] = [
+    { field: "identity", ok: true },
+    { field: "layout", ok: true },
+    { field: "areaM2", ok: false, actual: "75 m²" },
+    { field: "furnishing", ok: true },
+    { field: "lock", ok: true },
+  ];
   return {
-    declared: [
-      { field: "identity", ok: true },
-      { field: "layout", ok: true },
-      { field: "areaM2", ok: false, actual: "75 m²" },
-      { field: "furnishing", ok: true },
-      { field: "lock", ok: true },
-    ],
+    declared,
     items: items.map((key, i) => ({ key, present: i !== 1 })),
     equipment: PASSPORT_ITEMS.map((item, idx) => ({
       item,
@@ -41,7 +40,7 @@ function validDraft(items: ItemKey[] = ["ac", "fridge"]): InspectionDraft {
       photoAt: new Date().toISOString(),
       note: idx === 0 ? "Tường hơi ố nhẹ" : undefined,
     })),
-    recommendation: "approve",
+    recommendation: "approve" as const,
     note: "Đủ điều kiện tiếp nhận ký gửi",
   };
 }
@@ -226,6 +225,9 @@ describe("Consign & Inspection - WP1", () => {
 
     const report = {
       ...draft,
+      inventory: [],
+      netAreaM2: 50,
+      furnishing: "full" as const,
       hostId: "H01",
       submittedAt: new Date().toISOString(),
     };

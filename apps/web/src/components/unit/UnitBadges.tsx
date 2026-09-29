@@ -15,7 +15,7 @@ export function UnitBadges({ unit }: { unit: Unit }) {
     <>
       {status === "holding" && (
         <span className="badge badge-ink">
-          <Lock size={12} /> Đang giữ chỗ 24h
+          <Lock size={12} /> Đang giữ căn
         </span>
       )}
       {status === "rented" && <span className="badge badge-ink">Đã cho thuê</span>}

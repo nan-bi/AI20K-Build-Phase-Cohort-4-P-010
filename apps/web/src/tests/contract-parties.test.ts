@@ -47,12 +47,12 @@ describe("Contract Parties & Partnership - P1-P10 (WP2)", () => {
   });
 
   // P2: KPI không đổi
-  it("P2: KPI không đổi (contractKpis trên seed cùng số với hồ sơ 07: 3 · 1 · 2.000.000 · 2 · needsAction 2)", () => {
+  it("P2: KPI trên seed v5 (contractKpis: 3 · 1 · 4.000.000 · 2 · needsAction 2)", () => {
     const state = getMockState();
     const kpis = contracts.contractKpis(state, FIXED_NOW);
     expect(kpis.activeLeases).toBe(3);
     expect(kpis.expiringLeases).toBe(1);
-    expect(kpis.heldDeposits).toBe(2_000_000);
+    expect(kpis.heldDeposits).toBe(4_000_000);
     expect(kpis.exitingMandates).toBe(2);
     expect(kpis.needsAction).toBe(2);
   });
