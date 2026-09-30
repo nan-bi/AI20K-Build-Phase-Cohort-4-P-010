@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Minimal localStorage mock for Node environment
 const mem = new Map<string, string>();
@@ -31,8 +31,14 @@ import type { Booking, Mandate, Occupant } from "@/lib/mock/types";
 const FIXED_NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXED_NOW);
   mem.clear();
   resetMockState(FIXED_NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("Hồ sơ 11 — Legal Sync (TESTING §1)", () => {
