@@ -66,8 +66,18 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
 
   const [step, setStep] = useState<Step>("slot");
   const [slot, setSlot] = useState<string | null>(null);
-  const [name, setName] = useState(state.tenantProfile?.name ?? (isTenant ? demoUser?.name ?? "" : ""));
-  const [phone, setPhone] = useState(state.tenantProfile?.phone ?? (isTenant ? (demoUser?.phone ?? "") : ""));
+  // Mặc định họ tên/SĐT: ưu tiên hồ sơ khách đã lưu, rồi tới tài khoản demo đang đăng nhập.
+  // Dùng `||` để chuỗi rỗng cũng rơi xuống fallback; effect bên dưới lấp lại khi `role`
+  // hydrate xong (useSyncExternalStore trả null ở lần render đầu ⇒ initializer có thể chạy khi chưa biết vai).
+  // Mặc định họ tên/SĐT tính LẠI mỗi lần render từ hồ sơ khách đã lưu, rồi tới tài khoản demo
+  // đang đăng nhập — nên không phụ thuộc thời điểm `role` hydrate (useSyncExternalStore trả null
+  // ở render đầu). `*Input === null` nghĩa là khách chưa tự gõ ⇒ hiển thị giá trị mặc định.
+  const defaultName = state.tenantProfile?.name || (isTenant ? demoUser?.name ?? "" : "");
+  const defaultPhone = state.tenantProfile?.phone || (isTenant ? demoUser?.phone ?? "" : "");
+  const [nameInput, setNameInput] = useState<string | null>(null);
+  const [phoneInput, setPhoneInput] = useState<string | null>(null);
+  const name = nameInput ?? defaultName;
+  const phone = phoneInput ?? defaultPhone;
   const [persons, setPersons] = useState(1);
   const [note, setNote] = useState("");
   const [consent, setConsent] = useState(false);
@@ -367,7 +377,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
                   placeholder="Ví dụ: Nguyễn Văn An"
                   value={name}
                   onChange={(e) => {
-                    setName(e.target.value);
+                    setNameInput(e.target.value);
                     if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
                   }}
                   aria-invalid={!!errors.name}
@@ -393,7 +403,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
                   placeholder="0912 345 678"
                   value={phone}
                   onChange={(e) => {
-                    setPhone(e.target.value);
+                    setPhoneInput(e.target.value);
                     if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
                   }}
                   aria-invalid={!!errors.phone}
