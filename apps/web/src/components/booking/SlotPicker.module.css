@@ -144,6 +144,13 @@
   border-color: transparent;
 }
 
+/* Ngày thuộc tháng liền kề nhưng vẫn chọn được: mờ nhẹ để phân biệt tháng đang xem,
+   nhưng đủ rõ và có con trỏ bấm được (khác hẳn ô :disabled). */
+.dayBtn.dayOtherMonth:not(:disabled) {
+  color: var(--ink-2);
+  opacity: 0.72;
+}
+
 .dayDot {
   width: 4px;
   height: 4px;
