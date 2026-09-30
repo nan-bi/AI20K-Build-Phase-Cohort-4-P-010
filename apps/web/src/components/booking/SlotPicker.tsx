@@ -80,7 +80,7 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
   const availabilityMap = useMemo(() => {
     const map = new Map<string, boolean>();
     for (const cell of matrix) {
-      if (cell.isCurrentMonth && !cell.isDisabled) {
+      if (!cell.isDisabled) {
         const slots = slotsForDay(state, cell.date, now);
         const hasAvail = slots.some((s) => s.available);
         const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}-${cell.date.getDate()}`;
@@ -102,6 +102,12 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
   };
 
   const handleSelectCell = (d: Date) => {
+    // Ngày thuộc tháng liền kề (ô đệm) ⇒ tự nhảy lịch sang đúng tháng của ngày đó,
+    // để khách bấm được ngày tháng sau ngay khi đang xem tháng hiện tại.
+    if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) {
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+    }
     setSelectedDate(d);
     onChange(null);
   };
@@ -167,7 +173,7 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
 
         <div className={styles.daysGrid}>
           {matrix.map((cell, idx) => {
-            const isSelected = cell.isCurrentMonth && isSameDay(cell.date, activeSelectedDate);
+            const isSelected = isSameDay(cell.date, activeSelectedDate);
             const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}-${cell.date.getDate()}`;
             const hasAvail = availabilityMap.get(key);
 
@@ -178,13 +184,11 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
                 disabled={cell.isDisabled}
                 className={`${styles.dayBtn} ${isSelected ? styles.daySelected : ""} ${
                   cell.isToday ? styles.dayToday : ""
-                }`}
+                } ${!cell.isCurrentMonth ? styles.dayOtherMonth : ""}`}
                 onClick={() => handleSelectCell(cell.date)}
               >
                 <span>{cell.dayNumber}</span>
-                {cell.isCurrentMonth && !cell.isDisabled && hasAvail && (
-                  <span className={styles.dayDot} />
-                )}
+                {!cell.isDisabled && hasAvail && <span className={styles.dayDot} />}
               </button>
             );
           })}

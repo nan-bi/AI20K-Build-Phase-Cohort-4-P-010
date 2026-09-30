@@ -81,6 +81,12 @@ export function getCalendarMatrix(
   const totalDays = new Date(year, month + 1, 0).getDate();
   const prevMonthTotalDays = new Date(year, month, 0).getDate();
 
+  // Ô ngày bị vô hiệu khi ở quá khứ hoặc vượt tháng tối đa cho phép — áp cho MỌI ô
+  // (kể cả ngày đệm của tháng liền kề) để ngày tháng sau vẫn chọn được ngay khi
+  // đang xem tháng hiện tại (bấm ⇒ SlotPicker tự nhảy sang tháng đó).
+  const disabledByBounds = (date: Date) =>
+    date.getTime() < bounds.startOfToday.getTime() || date.getTime() > bounds.endOfMaxMonth.getTime();
+
   // Các ngày đệm từ tháng trước
   for (let i = startWeekday - 1; i >= 0; i--) {
     const date = new Date(year, month - 1, prevMonthTotalDays - i);
@@ -88,7 +94,7 @@ export function getCalendarMatrix(
       date,
       isCurrentMonth: false,
       isToday: false,
-      isDisabled: true,
+      isDisabled: disabledByBounds(date),
       dayNumber: date.getDate(),
     });
   }
@@ -97,15 +103,12 @@ export function getCalendarMatrix(
   for (let day = 1; day <= totalDays; day++) {
     const date = new Date(year, month, day);
     const isToday = isSameDay(date, bounds.startOfToday);
-    const isPast = date.getTime() < bounds.startOfToday.getTime();
-    const isFutureBeyondMax = date.getTime() > bounds.endOfMaxMonth.getTime();
-    const isDisabled = isPast || isFutureBeyondMax;
 
     cells.push({
       date,
       isCurrentMonth: true,
       isToday,
-      isDisabled,
+      isDisabled: disabledByBounds(date),
       dayNumber: day,
     });
   }
@@ -119,7 +122,7 @@ export function getCalendarMatrix(
         date,
         isCurrentMonth: false,
         isToday: false,
-        isDisabled: true,
+        isDisabled: disabledByBounds(date),
         dayNumber: day,
       });
     }
