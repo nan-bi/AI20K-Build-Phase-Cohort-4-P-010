@@ -5,9 +5,10 @@ import { useState } from "react";
 import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Star } from "lucide-react";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { toast } from "@/components/ui/Toast";
-import { allInCost, DEFAULT_HOUSEHOLD, HOLD_DAYS, isBargain, RATES, savingsPct, type Household } from "@/lib/mock/cost";
+import { allInCost, DEFAULT_HOUSEHOLD, isBargain, RATES, savingsPct, type Household } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
-import { similarUnits, unitStatus } from "@/lib/mock/selectors";
+import { holdHoursFor, similarUnits, unitStatus } from "@/lib/mock/selectors";
+import { HOUSE_RULES } from "@/lib/mock/house-rules";
 import { useMock } from "@/lib/mock/store";
 import {
   FURNISHING_LABEL,
@@ -55,6 +56,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
   const cost = allInCost(unit, hh);
   const sv = savingsPct(unit);
   const bookable = status === "available";
+  const holdHours = holdHoursFor(state, unit.id);
   const similar = similarUnits(state, unit, 3);
 
   const share = async () => {
@@ -213,11 +215,11 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
               </div>
               <div>
                 <dt>Cọc giữ chỗ</dt>
-                <dd>{vnd(RATES.holdingDeposit)}đ, khoá căn {HOLD_DAYS} ngày, chuyển 100% vào tiền cọc bảo đảm, không trừ vào tiền thuê tháng đầu</dd>
+                <dd>{vnd(RATES.holdingDeposit)}đ, Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có, chuyển 100% vào tiền cọc bảo đảm, không trừ vào tiền thuê tháng đầu</dd>
               </div>
               <div>
                 <dt>Nếu không ký hợp đồng</dt>
-                <dd>Không ký trong {HOLD_DAYS} ngày vì lý do cá nhân thì cọc giữ chỗ không được hoàn. Nếu chủ nhà từ chối hoặc căn sai thông tin đã xác minh, VinStay hoàn 100% trong 02 giờ làm việc</dd>
+                <dd>Không ký trong {holdHours} giờ vì lý do cá nhân thì xử lý cọc theo Điều 328 BLDS (50% bù chủ nhà, 50% phí vận hành). Nếu chủ nhà bẻ cọc đền gấp đôi, bất khả kháng hoàn 100% trong 24 giờ làm việc</dd>
               </div>
               <div>
                 <dt>Nội quy BQL</dt>
@@ -227,6 +229,18 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
                 <dt>Sửa chữa</dt>
                 <dd>VinStay chỉ giới thiệu danh bạ thợ ngoài uy tín, bạn và thợ tự thoả thuận giá</dd>
               </div>
+            </dl>
+          </section>
+
+          <section className={styles.block}>
+            <h2>Nội quy căn hộ</h2>
+            <dl className={styles.terms}>
+              {HOUSE_RULES.map((rule) => (
+                <div key={rule.id}>
+                  <dt>{rule.title}</dt>
+                  <dd>{rule.body}</dd>
+                </div>
+              ))}
             </dl>
           </section>
 
@@ -276,7 +290,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
               <div className={styles.taken}>
                 <LockKeyhole size={20} />
                 <div>
-                  <b>{status === "holding" ? `Căn đang được giữ chỗ (${HOLD_DAYS} ngày)` : "Căn đã cho thuê"}</b>
+                  <b>{status === "holding" ? `Căn đang được giữ chỗ (${holdHours} giờ)` : "Căn đã cho thuê"}</b>
                   <p className="muted small">Không nhận thêm lịch xem. Xem các căn tương đương bên dưới hoặc hỏi VinStay AI để được gợi ý.</p>
                 </div>
               </div>

@@ -88,13 +88,13 @@ describe("Consign & Inspection - WP1", () => {
   // Case 2: signConsignment draft ⇒ awaiting_host; ký lần 2 ⇒ bad_status.
   it("2. signConsignment draft sang awaiting_host; ký lần 2 trả bad_status", () => {
     // cs-1 trong seed ban đầu là draft
-    const res1 = actions.signConsignment("cs-1");
+    const res1 = actions.signConsignment("cs-1", { ownershipWarranted: true });
     expect(res1.ok).toBe(true);
 
     const c1 = getMockState().consignments.find((x) => x.id === "cs-1")!;
     expect(c1.status).toBe("awaiting_host");
 
-    const res2 = actions.signConsignment("cs-1");
+    const res2 = actions.signConsignment("cs-1", { ownershipWarranted: true });
     expect(res2.ok).toBe(false);
     if (!res2.ok) {
       expect(res2.code).toBe("bad_status");

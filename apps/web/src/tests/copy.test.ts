@@ -21,10 +21,7 @@ describe("WP8 — Chặn tái phát chuỗi 24h và kiểm tra vùng cấm", () 
   const componentsDir = path.join(srcDir, "components");
   const libDir = path.join(srcDir, "lib");
 
-  const HOLD_REGEX =
-    /(giữ chỗ|giữ căn|khoá căn|khóa căn|holding)[^\n]{0,20}24 ?(giờ|h)\b|24 ?(giờ|h)[^\n]{0,20}(giữ chỗ|giữ căn)/i;
-
-  it("(1) Không còn chuỗi '24h/24 giờ' đi kèm giữ chỗ/khoá căn trong src/components và src/lib", () => {
+  it("(a) Không file nào trong src/components và src/lib chứa HOLD_DAYS hoặc HOLD_MS", () => {
     const files = [...readDirRecursive(componentsDir), ...readDirRecursive(libDir)];
     const violations: { file: string; line: number; text: string }[] = [];
 
@@ -32,9 +29,7 @@ describe("WP8 — Chặn tái phát chuỗi 24h và kiểm tra vùng cấm", () 
       const content = fs.readFileSync(file, "utf-8");
       const lines = content.split("\n");
       lines.forEach((line, idx) => {
-        // Bỏ qua chú thích liên quan tới WP9 hoặc giải thích lịch sử nếu có
-        if (line.includes("interest24h") || line.includes("Khoá cửa 24h")) return;
-        if (HOLD_REGEX.test(line)) {
+        if (/\b(HOLD_DAYS|HOLD_MS)\b/.test(line)) {
           violations.push({
             file: path.relative(srcDir, file),
             line: idx + 1,
@@ -46,7 +41,50 @@ describe("WP8 — Chặn tái phát chuỗi 24h và kiểm tra vùng cấm", () 
 
     if (violations.length > 0) {
       const details = violations.map((v) => `  ${v.file}:${v.line} -> ${v.text}`).join("\n");
-      expect.fail(`Tìm thấy ${violations.length} vị trí còn chứa chuỗi 24h giữ chỗ:\n${details}`);
+      expect.fail(`Tìm thấy ${violations.length} vị trí còn chứa HOLD_DAYS hoặc HOLD_MS:\n${details}`);
+    }
+  });
+
+  it("(b) Không dòng nào chứa 'giữ'/'khoá'/'khóa' và '7 ngày' trong cùng dòng trong src/", () => {
+    const files = readDirRecursive(srcDir).filter((f) => !f.endsWith("copy.test.ts"));
+    const HOLD_7D_REGEX = /(giữ|khoá|khóa)[^\n]*7\s*ngày|7\s*ngày[^\n]*(giữ|khoá|khóa)/i;
+    const violations: { file: string; line: number; text: string }[] = [];
+
+    for (const file of files) {
+      const content = fs.readFileSync(file, "utf-8");
+      const lines = content.split("\n");
+      lines.forEach((line, idx) => {
+        if (line.includes("trước 7 ngày") || line.includes("07 ngày làm việc")) return;
+        if (HOLD_7D_REGEX.test(line)) {
+          violations.push({
+            file: path.relative(srcDir, file),
+            line: idx + 1,
+            text: line.trim(),
+          });
+        }
+      });
+    }
+
+    if (violations.length > 0) {
+      const details = violations.map((v) => `  ${v.file}:${v.line} -> ${v.text}`).join("\n");
+      expect.fail(`Tìm thấy ${violations.length} vị trí còn chứa giữ/khoá 7 ngày:\n${details}`);
+    }
+  });
+
+  it("(c) HOUSE_RULES có đúng 6 mục và đủ 6 id chuẩn", async () => {
+    const mod = await import("@/lib/mock/house-rules");
+    expect(mod.HOUSE_RULES).toBeDefined();
+    expect(mod.HOUSE_RULES.length).toBe(6);
+    const expectedIds = ["no_sublease", "structure", "ev_charging", "fire_cooking", "quiet_pets", "bql_fines"];
+    expect(mod.HOUSE_RULES.map((r) => r.id)).toEqual(expectedIds);
+  });
+
+  it("(d) Mỗi body trong HOUSE_RULES không chứa '7 ngày' và không rỗng", async () => {
+    const mod = await import("@/lib/mock/house-rules");
+    for (const r of mod.HOUSE_RULES) {
+      expect(r.body).toBeTruthy();
+      expect(r.body.trim().length).toBeGreaterThan(0);
+      expect(r.body).not.toContain("7 ngày");
     }
   });
 

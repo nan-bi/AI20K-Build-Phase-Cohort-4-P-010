@@ -88,9 +88,10 @@ describe("lịch xem & seed", () => {
     expect(daysAfterHours[0].getDate()).toBe(27);
   });
   it("seed: căn holding/rented đúng và slot Host không trùng nhau", () => {
-    const s = seedState(new Date("2026-09-26T07:00:00+07:00").getTime());
-    expect(unitStatus(s, unitById("s2-16-2216")!)).toBe("holding");
-    expect(unitStatus(s, unitById("s1-03-1512")!)).toBe("rented");
+    const seedTime = new Date("2026-09-26T07:00:00+07:00").getTime();
+    const s = seedState(seedTime);
+    expect(unitStatus(s, unitById("s2-16-2216")!, seedTime)).toBe("holding");
+    expect(unitStatus(s, unitById("s1-03-1512")!, seedTime)).toBe("rented");
     const b = s.bookings.find((x) => x.id === "bk-101")!;
     expect(slotTaken(s, b.hostId, b.slot, b.id)).toBe(false);
   });

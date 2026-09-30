@@ -1,4 +1,3 @@
-import { HOLD_DAYS } from "@/lib/mock/cost";
 import type { Booking, BookingStatus } from "@/lib/mock/types";
 
 export type Tone = "info" | "success" | "warning" | "alert" | "muted";
@@ -37,21 +36,21 @@ export const STATUS_META: Record<BookingStatus, { label: string; tone: Tone; bad
     tone: "info",
     badge: "badge-kelp",
     headline: "Chúc bạn xem phòng vui vẻ",
-    body: `Bạn cứ xem thoải mái, không bị ép cọc. Nếu ưng ý, bấm cọc để giữ căn ${HOLD_DAYS} ngày bằng VietQR.`,
+    body: "Bạn cứ xem thoải mái, không bị ép cọc. Nếu ưng ý, bấm cọc để giữ căn bằng VietQR.",
   },
   closing: {
     label: "Chờ thanh toán cọc",
     tone: "warning",
     badge: "badge-amber-soft",
-    headline: `Quét VietQR để giữ chỗ ${HOLD_DAYS} ngày`,
+    headline: "Quét VietQR để giữ chỗ",
     body: "Cọc 2.000.000đ vào tài khoản định danh của nền tảng. Căn được khoá ngay khi tiền về.",
   },
   holding: {
-    label: `Đã cọc giữ chỗ ${HOLD_DAYS} ngày`,
+    label: "Đã cọc giữ chỗ",
     tone: "success",
     badge: "badge-kelp",
     headline: "Căn đã được giữ chỗ cho bạn",
-    body: `Căn hộ được khoá ${HOLD_DAYS} ngày để bạn hoàn tất eKYC và ký hợp đồng thuê chính thức. Khoản cọc 2.000.000đ sẽ chuyển 100% thành Tiền cọc bảo đảm tài sản.`,
+    body: "Căn hộ được khoá giữ chỗ để bạn hoàn tất eKYC và ký hợp đồng thuê chính thức. Khoản cọc 2.000.000đ sẽ chuyển 100% thành Tiền cọc bảo đảm tài sản.",
   },
   leased: {
     label: "Đã ký hợp đồng thuê",
@@ -123,7 +122,7 @@ export function buildTimeline(b: Booking): TimelineStep[] {
     { key: "host", label: "Host xác nhận lịch", hint: "Trong vòng 3 phút", at: b.confirmedAt, done: !!b.confirmedAt },
     { key: "lobby", label: "Có mặt tại sảnh", hint: "Bấm “Tôi đã tới sảnh”", at: b.lobbyAt ?? b.receivingAt, done: lobbyDone },
     { key: "view", label: "Xem phòng", hint: "Host mở cửa bằng mã trong app", at: b.viewingAt, done: !!b.viewingAt },
-    { key: "deposit", label: `Cọc giữ căn ${HOLD_DAYS} ngày`, hint: "VietQR 2.000.000đ", at: b.deposit?.paidAt, done: !!b.deposit?.paidAt },
+    { key: "deposit", label: "Cọc giữ căn", hint: "VietQR 2.000.000đ", at: b.deposit?.paidAt, done: !!b.deposit?.paidAt },
     { key: "kyc", label: "Xác minh CCCD (eKYC)", hint: "Khi làm hợp đồng thuê", at: b.kyc?.verifiedAt, done: !!b.kyc },
     { key: "lease", label: "Ký hợp đồng thuê", hint: "Hợp đồng ký số", at: b.lease?.signedAt, done: !!b.lease },
   ];

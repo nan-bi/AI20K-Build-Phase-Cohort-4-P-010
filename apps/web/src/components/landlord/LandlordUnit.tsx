@@ -11,7 +11,7 @@ import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { cancelMandateExit, requestMandateExit } from "@/lib/mock/actions";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { fmtDate, fmtDateTime, fmtTime, maskPhone, vnd } from "@/lib/mock/format";
-import { activeLease, holdDaysLeft, isOpenBooking, unitDisplayStatus } from "@/lib/mock/selectors";
+import { activeLease, holdMsLeft, holdOutcome, isOpenBooking, mandateRenewsAt, unitDisplayStatus } from "@/lib/mock/selectors";
 import { viewingLog, type ViewingLogEntry } from "@/lib/mock/selectors-viewing";
 import { SERVICE_FEE_RATE } from "@/lib/mock/stats";
 import { useMock } from "@/lib/mock/store";
@@ -58,7 +58,9 @@ export function LandlordUnit({ id }: { id: string }) {
   const holdingBooking = state.bookings.find(
     (b) => b.unitId === unit.id && (b.status === "holding" || b.deposit?.paidAt)
   );
-  const holdDays = holdingBooking ? holdDaysLeft(holdingBooking, now) : 7;
+  const holdHoursLeft = holdingBooking ? Math.max(0, Math.ceil(holdMsLeft(holdingBooking, now) / 3_600_000)) : 48;
+  const depositBooking = bookings.find((b) => b.deposit?.paidAt);
+  const depositOutcome = depositBooking ? holdOutcome(depositBooking, now) : undefined;
   const logs = viewingLog(state, { unitId: unit.id });
   const audit = state.notices.filter((n) => n.unitId === unit.id && (n.audience === "landlord" || n.audience === "admin")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   const rent = lease?.lease?.rent ?? unit.rent;
@@ -67,7 +69,7 @@ export function LandlordUnit({ id }: { id: string }) {
   if (s === "viewing") {
     statusBadgeEl = <span className="badge badge-amber-soft">Có khách xem · {openCount} lịch</span>;
   } else if (s === "holding") {
-    statusBadgeEl = <span className="badge badge-amber-soft">Đang giữ căn · còn {holdDays} ngày</span>;
+    statusBadgeEl = <span className="badge badge-amber-soft">Đang giữ căn · còn {holdHoursLeft} giờ</span>;
   } else if (s === "rented") {
     statusBadgeEl = <span className="badge badge-ink">Đang cho thuê</span>;
   }
@@ -125,6 +127,11 @@ export function LandlordUnit({ id }: { id: string }) {
               <p style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <ShieldCheck size={18} style={{ color: "var(--kelp)" }} /> Đang hiệu lực từ {m ? fmtDate(m.signedAt) : "—"}
               </p>
+              {m && (
+                <p className="small muted">
+                  Kỳ uỷ quyền 12 tháng · tự gia hạn ngày {fmtDate(mandateRenewsAt(m, now))}. Chống cắt cầu: tới hết HĐ + 06 tháng.
+                </p>
+              )}
               <p className="small muted">VinStay AI điều phối lịch xem, Field Host đón khách và mở cửa. Bạn có thể thoát ủy quyền khi căn đang trống, báo trước 15 ngày.</p>
               <button
                 type="button"
@@ -252,6 +259,17 @@ export function LandlordUnit({ id }: { id: string }) {
         </p>
       </section>
 
+      {depositOutcome?.kind === "forfeited" && (
+        <section className="card" role="status">
+          <p className="small"><b>Bù trống phòng từ cọc khách bỏ: +{vnd(depositOutcome.toLandlord)}đ</b> — khách quá hạn giữ chỗ không ký hợp đồng (Điều 6.1 Thỏa thuận cọc).</p>
+        </section>
+      )}
+      {depositOutcome?.kind === "refunded_double" && (
+        <section className="card" role="status">
+          <p className="small"><b>Phạt cọc (Điều 6.2): −2.000.000đ</b> — do không giữ cam kết với khách; VinStay đã hoàn khách gấp đôi cọc.</p>
+        </section>
+      )}
+
       <div className={styles.grid2}>
         <section className={`card ${styles.padCard}`}>
           <h2 className={styles.h2}>Hợp đồng thuê hiện hành</h2>
@@ -281,6 +299,20 @@ export function LandlordUnit({ id }: { id: string }) {
                 <dt>Cọc bảo đảm</dt>
                 <dd>{vnd(lease.lease.rent)}đ (đã gồm 2.000.000đ)</dd>
               </div>
+              <div>
+                <dt>Thanh toán kỳ đầu</dt>
+                <dd>{lease.lease.firstPayment?.paidAt ? `Đã thanh toán · ${fmtDate(lease.lease.firstPayment.paidAt)}` : "Chờ thanh toán kỳ đầu"}</dd>
+              </div>
+              <div>
+                <dt>Người cùng ở</dt>
+                <dd>{lease.lease.occupants?.length ? `${lease.lease.occupants.length} người` : "Ở một mình"}</dd>
+              </div>
+              {lease.lease.refundAccount && (
+                <div>
+                  <dt>TK hoàn cọc</dt>
+                  <dd>{lease.lease.refundAccount.bankName} ···· {lease.lease.refundAccount.accountNo.slice(-4)}</dd>
+                </div>
+              )}
             </dl>
           ) : (
             <p className="muted">Căn đang trống, chưa có hợp đồng thuê.</p>

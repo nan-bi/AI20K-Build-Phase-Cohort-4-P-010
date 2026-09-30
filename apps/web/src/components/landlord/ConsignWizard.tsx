@@ -94,6 +94,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [warranted, setWarranted] = useState(false);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((prev) => ({ ...prev, [k]: v }));
 
@@ -173,7 +174,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
 
   const finish = () => {
     if (draft) {
-      const res = signConsignment(draft.id);
+      const res = signConsignment(draft.id, { ownershipWarranted: warranted });
       if (!res.ok) {
         setErr(res.reason);
         return;
@@ -564,15 +565,38 @@ function Wizard({ draft }: { draft?: Consignment }) {
               </div>
             </div>
 
+            <div className="card" style={{ background: "var(--surface-2)", padding: "14px 16px", margin: "14px 0" }}>
+              <b style={{ color: "var(--ink-950)", fontSize: 14 }}>Điểm chính của Hợp đồng ký gửi</b>
+              <ul className="small muted" style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
+                <li><b>Điều 2</b> · Bạn cam đoan là chủ sở hữu hợp pháp (hoặc người được uỷ quyền hợp pháp duy nhất); căn không tranh chấp, không bị kê biên; nếu đang thế chấp thì việc cho thuê không vi phạm nghĩa vụ thế chấp.</li>
+                <li><b>Điều 3</b> · VinStay được uỷ quyền lại cho Field Host nội khu đón khách, dẫn xem, kiểm kê 10 hạng mục và chốt công tơ; VinStay chịu trách nhiệm về đội ngũ này.</li>
+                <li><b>Điều 5</b> · Khách cọc 2.000.000đ, căn khoá giữ chỗ mặc định 48 giờ (Admin cấu hình 12–72 giờ); khi ký HĐ thuê cọc chuyển 100% vào cọc bảo đảm, không trừ tiền thuê tháng đầu.</li>
+                <li><b>Điều 6</b> · Phí dịch vụ chỉ thu khi khách đã ký HĐ và thanh toán đủ kỳ đầu + cọc. Tự giao dịch ngoài nền tảng với khách VinStay đã giới thiệu trong thời hạn HĐ và 06 tháng sau: vẫn trả 100% phí + phạt 01 tháng tiền thuê.</li>
+                <li><b>Điều 8</b> · Thời hạn 12 tháng, tự gia hạn từng kỳ 12 tháng nếu không báo dừng trước 15 ngày. Dừng ký gửi bất kỳ lúc nào: báo trước 15 ngày và căn đang trống, không trong thời gian giữ chỗ.</li>
+                <li><b>Điều 7</b> · VinStay không bảo lãnh tài chính thay khách ngoài quỹ cọc bảo đảm; miễn trừ lỗi kết cấu toà nhà và bất khả kháng.</li>
+              </ul>
+            </div>
+
+            <label className="small" style={{ display: "flex", gap: 10, alignItems: "flex-start", margin: "10px 0", cursor: "pointer" }}>
+              <input type="checkbox" checked={warranted} onChange={(e) => { setWarranted(e.target.checked); setErr(""); }} style={{ marginTop: 3, flex: "none" }} />
+              <span>Tôi cam đoan quyền sở hữu/uỷ quyền hợp pháp đối với căn hộ theo Điều 2.</span>
+            </label>
+
             <div style={{ margin: "14px 0 6px" }}>
-              <OtpSign
-                phone={PHONE}
-                purpose="agreement"
-                sendLabel="Gửi mã OTP để ký ủy quyền"
-                onVerified={finish}
-              />
+              {warranted ? (
+                <OtpSign
+                  phone={PHONE}
+                  purpose="agreement"
+                  sendLabel="Gửi mã OTP để ký ủy quyền"
+                  onVerified={finish}
+                />
+              ) : (
+                <button type="button" className="btn btn-primary btn-block" disabled>
+                  Gửi mã OTP để ký ủy quyền
+                </button>
+              )}
               <p className="muted xs" style={{ textAlign: "center", marginTop: 8 }}>
-                Nhập OTP nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền (ký điện tử theo Luật Giao dịch điện tử 2023).
+                Nhập OTP nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn), ký điện tử theo Luật Giao dịch điện tử 2023.
               </p>
             </div>
 

@@ -12,7 +12,7 @@
 * **Giải pháp VinStay AI cam kết giải quyết:**
   * **AI Matchmaker theo All-in Cost:** Tự động lọc và khớp nhu cầu khách thuê trong 30 giây theo ngân sách trần All-in, giảm thời gian tìm khách từ 30 ngày xuống dưới 7 ngày.
   * **Thuật toán Dynamic Deal & Badge "Căn hời phân khu":** Tự động nhận diện căn có giá tốt (tiết kiệm $\ge 10\%$ so với layout cùng phân khu), ưu tiên hiển thị Top đầu, tăng gấp 3 lần lượt xem mà chủ nhà không bị môi giới ép dìm giá.
-  * **Khóa căn giữ chỗ 24h qua VietQR động (2.000.000 VNĐ):** Khách ưng ý chuyển cọc $\rightarrow$ Căn hộ khóa trạng thái `holding` 24h, tạo áp lực chốt sớm, triệt tiêu tình trạng khách do dự so đo nhiều nơi.
+  * **Khóa căn giữ chỗ qua VietQR động (2.000.000 VNĐ), thời hạn do Admin cài đặt:** Khách ưng ý chuyển cọc $\rightarrow$ Căn hộ khóa trạng thái `holding` trong thời hạn Admin cài đặt trên Admin Portal (mặc định 48h, cho phép 12–72h, chỉnh riêng từng căn), tạo áp lực chốt sớm, triệt tiêu tình trạng khách do dự so đo nhiều nơi.
 
 ### 2. Cực Hình Đi Xa 20-30km Mở Cửa & Môi Giới Làm Phiền (Distance & Broker Chaos)
 * **Khó khăn thực tế:** Chủ nhà đa số ở nội thành Hà Nội (Cầu Giấy, Đống Đa, Ba Đình...) phải đi 20–30km sang Ocean Park để mở cửa nhưng thường xuyên bị khách "bỏ bom" (no-show); bị môi giới tự do spam cuộc gọi dồn dập, ăn cắp ảnh đăng "tin mồi" dìm giá thị trường.
@@ -53,7 +53,7 @@
 
 ### 4. Rủi Ro Lừa Tiền Cọc & Hợp Đồng Bất Lợi (Deposit Scams & Legal Exposure)
 * **Khó khăn thực tế:** Môi giới tự do thu cọc rồi chặn số; hợp đồng tải mạng gài bẫy thiệt thòi; rủi ro lộ lọt ảnh CCCD cá nhân cho bên thứ ba.
-* **Giải pháp VinStay AI:** Cọc giữ chỗ 24h (2.000.000 VNĐ) qua mã VietQR động gạch nợ tự động vào tài khoản định danh nền tảng; khi ký Hợp đồng thuê chính thức, số tiền này được chuyển đổi 100% thành một phần của **Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit)** giữ nguyên suốt kỳ thuê để bảo vệ tài sản chủ nhà và hoàn lại khi hết hạn; khách chấp thuận điều khoản cọc bằng ô tick trước khi quét VietQR (không ký thỏa thuận cọc riêng); AI OCR CCCD và ký điện tử Hợp đồng thuê trên SĐT đã xác thực OTP một lần, mã hóa AES-256 theo Nghị định 13/2023/NĐ-CP.
+* **Giải pháp VinStay AI:** Cọc giữ chỗ (2.000.000 VNĐ, khóa căn mặc định 48h do Admin cài đặt) qua mã VietQR động gạch nợ tự động vào tài khoản định danh nền tảng; khi ký Hợp đồng thuê chính thức, số tiền này được chuyển đổi 100% thành một phần của **Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit)** giữ nguyên suốt kỳ thuê để bảo vệ tài sản chủ nhà và hoàn lại khi hết hạn; khách chấp thuận điều khoản cọc bằng ô tick trước khi quét VietQR (không ký thỏa thuận cọc riêng); AI OCR CCCD và ký điện tử Hợp đồng thuê trên SĐT đã xác thực OTP một lần, mã hóa AES-256 theo Nghị định 13/2023/NĐ-CP.
 
 ### 5. "Bị Bỏ Rơi" Khi Ở & Tranh Chấp Trả Phòng (Post-Move Abandonment)
 * **Khó khăn thực tế:** Môi giới nhận hoa hồng xong là biến mất; sự cố hỏng hóc vặt chủ nhà ở xa không ngó ngàng; lúc trả phòng bị chủ nhà trừ cọc oan do không có ảnh đối soát ban đầu.
@@ -69,7 +69,7 @@
 
 ### 2. Nguy Cơ Bị "Cắt Cầu" Giao Dịch Ngoài Nền Tảng (Platform Leakage / Disintermediation)
 * **Khó khăn thực tế:** Sau khi dẫn xem phòng, khách và chủ nhà tự xin số thỏa thuận ngầm ký riêng để trốn phí nền tảng, khiến nền tảng thất thoát doanh thu.
-* **Giải pháp VinStay AI:** Ràng buộc pháp lý từ Hợp đồng Quản lý Độc quyền; cọc giữ chỗ 24h qua VietQR động gạch nợ trực tiếp vào tài khoản định danh nền tảng; quyền lợi Hộ chiếu bàn giao số 10 hạng mục nội thất chỉ có hiệu lực khi giao dịch trên nền tảng, triệt tiêu 100% động cơ cắt cầu.
+* **Giải pháp VinStay AI:** Ràng buộc pháp lý từ Hợp đồng Quản lý Độc quyền; cọc giữ chỗ (mặc định 48h, Admin cài đặt) qua VietQR động gạch nợ trực tiếp vào tài khoản định danh nền tảng; quyền lợi Hộ chiếu bàn giao số 10 hạng mục nội thất chỉ có hiệu lực khi giao dịch trên nền tảng, triệt tiêu 100% động cơ cắt cầu.
 
 ### 3. Nỗi Ám Ảnh Khách "Bỏ Bom" (No-Show Fatigue) & Lãng Phí Thời Gian
 * **Khó khăn thực tế:** Field Host di chuyển giữa các phân khu đứng đợi ở sảnh 20–30 phút nhưng khách không đến hoặc hủy hẹn sát giờ, gây kiệt sức và mất thời gian chết.

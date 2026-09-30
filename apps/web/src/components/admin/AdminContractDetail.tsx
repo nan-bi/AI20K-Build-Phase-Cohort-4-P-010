@@ -11,11 +11,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
-import { completeMandateExit, remindLeaseRenewal } from "@/lib/mock/actions";
+import { adminVoidHold, completeMandateExit, remindLeaseRenewal } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { contractByKey, contractEvents } from "@/lib/mock/contracts";
 import { templatesForKind } from "@/lib/mock/contract-templates";
 import { fmtDate, fmtDateTime, maskPhone, vnd } from "@/lib/mock/format";
+import { holdHoursFor, holdOutcome, mandateRenewsAt } from "@/lib/mock/selectors";
 import { HOSTS } from "@/lib/mock/units";
 import { useMock } from "@/lib/mock/store";
 import { useNow } from "@/lib/useNow";
@@ -29,6 +30,10 @@ export function AdminContractDetail({ contractKey }: Props) {
   const state = useMock();
   const now = useNow(1000);
   const [modalExit, setModalExit] = useState(false);
+  const [modalVoid, setModalVoid] = useState(false);
+  const [voidReason, setVoidReason] = useState<"landlord_breach" | "force_majeure">("landlord_breach");
+  const [voidNote, setVoidNote] = useState("");
+  const [voidError, setVoidError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const row = useMemo(() => {
@@ -63,6 +68,7 @@ export function AdminContractDetail({ contractKey }: Props) {
   const statusMeta = CONTRACT_STATUS_META[row.status];
   const events = contractEvents(state, row, now);
   const booking = row.bookingId ? state.bookings.find((b) => b.id === row.bookingId) : undefined;
+  const outcome = booking ? holdOutcome(booking, now) : undefined;
 
   // Tính số ngày còn lại / quá hạn cho mandate
   const effectiveMs = row.endAt ? Date.parse(row.endAt) : 0;
@@ -98,6 +104,7 @@ export function AdminContractDetail({ contractKey }: Props) {
   // Điều khoản chính theo loại hợp đồng
   const termItems = [];
   if (row.kind === "mandate") {
+    const m = row.unitId ? state.mandates[row.unitId] : undefined;
     termItems.push({
       label: "Ngày ký uỷ quyền",
       value: row.signedAt ? fmtDateTime(row.signedAt) : "—",
@@ -105,6 +112,18 @@ export function AdminContractDetail({ contractKey }: Props) {
     termItems.push({
       label: "Trạng thái uỷ quyền",
       value: statusMeta.label,
+    });
+    termItems.push({
+      label: "Cam đoan sở hữu (Điều 2)",
+      value: row.ownershipWarrantedAt ? `Đã cam đoan lúc ${fmtDateTime(row.ownershipWarrantedAt)}` : "—",
+    });
+    termItems.push({
+      label: "Kỳ uỷ quyền & gia hạn (Điều 8)",
+      value: m ? `Kỳ 12 tháng · tự gia hạn ngày ${fmtDate(mandateRenewsAt(m, now))} nếu không có thông báo chấm dứt trước 15 ngày.` : "—",
+    });
+    termItems.push({
+      label: "Chống cắt cầu (Điều 6.3)",
+      value: "Giao dịch ngoài nền tảng trong thời hạn uỷ quyền hoặc 06 tháng sau khi chấm dứt: chủ nhà chịu phạt 01 tháng tiền thuê.",
     });
     termItems.push({
       label: "Điều khoản thoát",
@@ -132,18 +151,43 @@ export function AdminContractDetail({ contractKey }: Props) {
       });
     }
   } else if (row.kind === "holding") {
+    const holdHours = booking?.deposit?.holdHours ?? (row.unitId ? holdHoursFor(state, row.unitId) : 48);
+
     termItems.push({
       label: "Số tiền cọc giữ chỗ",
       value: "2.000.000đ (VietQR động)",
     });
     termItems.push({
-      label: "Hạn giữ chỗ (7 ngày)",
-      value: row.endAt ? fmtDateTime(row.endAt) : "7 ngày kể từ lúc thanh toán",
+      label: `Hạn giữ chỗ (${holdHours} giờ)`,
+      value: row.endAt ? fmtDateTime(row.endAt) : `${holdHours} giờ kể từ lúc thanh toán`,
     });
     termItems.push({
       label: "Chấp thuận điều khoản",
       value: booking?.depositConsentAt ? fmtDateTime(booking.depositConsentAt) : "Đã xác nhận",
     });
+
+    if (outcome) {
+      const outcomeLabels: Record<typeof outcome.kind, string> = {
+        none: "Chưa thanh toán",
+        active: "Đang giữ chỗ (hiệu lực)",
+        converted: "Đã chuyển thành cọc HĐ thuê",
+        forfeited: "Đã quá hạn giữ chỗ (Điều 6.1: 50/50)",
+        refunded_double: "Huỷ cọc — Chủ nhà vi phạm (Phạt cọc gấp đôi)",
+        refunded: "Huỷ cọc — Bất khả kháng (Hoàn 100%)",
+      };
+      termItems.push({
+        label: "Kết cục cọc giữ chỗ (Điều 328)",
+        value: (
+          <div>
+            <b>{outcomeLabels[outcome.kind]}</b>
+            <div className="small muted" style={{ marginTop: 4 }}>
+              Khách nhận: <b>{vnd(outcome.toTenant)}đ</b> · Chủ nhà: <b>{vnd(outcome.toLandlord)}đ</b> · Nền tảng: <b>{vnd(outcome.toPlatform)}đ</b>
+            </div>
+          </div>
+        ),
+      });
+    }
+
     termItems.push({
       label: "Quy tắc cọc bảo đảm",
       value: (
@@ -172,6 +216,10 @@ export function AdminContractDetail({ contractKey }: Props) {
       value: `Từ ${row.startAt ? fmtDate(row.startAt) : "—"} đến ${row.endAt ? fmtDate(row.endAt) : "—"}`,
     });
     termItems.push({
+      label: "Kỳ thanh toán",
+      value: `${booking?.lease?.paymentCycle ?? 1} tháng/lần (Điều 3.2 HĐ thuê)`,
+    });
+    termItems.push({
       label: "Tiền thuê hàng tháng",
       value: `${vnd(row.amount ?? 0)}đ/tháng`,
     });
@@ -184,8 +232,34 @@ export function AdminContractDetail({ contractKey }: Props) {
       ),
     });
     termItems.push({
-      label: "Tiền thuê tháng đầu",
-      value: `${vnd(row.amount ?? 0)}đ (nguyên tiền thuê, không trừ 2.000.000đ cọc giữ chỗ)`,
+      label: "Thanh toán kỳ đầu",
+      value: booking?.lease?.firstPayment?.paidAt ? (
+        <span className="badge badge-ok">
+          Đã thanh toán kỳ đầu · {fmtDateTime(booking.lease.firstPayment.paidAt)}
+        </span>
+      ) : booking?.lease?.firstPayment ? (
+        <span>
+          Chờ thanh toán kỳ đầu (<strong>{vnd(booking.lease.firstPayment.total)}đ</strong>)
+        </span>
+      ) : (
+        "—"
+      ),
+    });
+    termItems.push({
+      label: "Người cùng cư trú",
+      value: `${booking?.lease?.occupants?.length ?? 0} người${
+        booking?.lease?.occupants?.length ? ` (${booking.lease.occupants.map((o) => o.fullName).join(", ")})` : ""
+      }`,
+    });
+    termItems.push({
+      label: "TK nhận hoàn cọc",
+      value: booking?.lease?.refundAccount ? (
+        <span>
+          •••• {booking.lease.refundAccount.accountNo.slice(-4)} ({booking.lease.refundAccount.bankName}) · Chủ TK: {booking.lease.refundAccount.holderName}
+        </span>
+      ) : (
+        "—"
+      ),
     });
   } else if (row.kind === "partnership") {
     termItems.push({
@@ -303,6 +377,27 @@ export function AdminContractDetail({ contractKey }: Props) {
                   <Clock size={16} /> Gửi nhắc gia hạn (Zalo)
                 </button>
               )}
+            </div>
+          )}
+
+          {row.kind === "holding" && booking && outcome?.kind === "active" && (
+            <div className={`${styles.actionSection} ${styles.actionDue}`}>
+              <div className={styles.actionTitle}>Huỷ cọc giữ chỗ (Admin)</div>
+              <p className={styles.actionDesc}>
+                Xử lý sự kiện chủ nhà không giữ cam kết (phạt đền gấp đôi 4.000.000đ) hoặc sự kiện bất khả kháng (hoàn 100% 2.000.000đ) theo Điều 328 BLDS.
+              </p>
+              <button
+                type="button"
+                className="btn btn-danger btn-block"
+                onClick={() => {
+                  setModalVoid(true);
+                  setVoidReason("landlord_breach");
+                  setVoidNote("");
+                  setVoidError("");
+                }}
+              >
+                Huỷ cọc giữ chỗ...
+              </button>
             </div>
           )}
 
@@ -463,6 +558,86 @@ export function AdminContractDetail({ contractKey }: Props) {
             <li>Mã khóa điện tử sẽ được <strong>gỡ bỏ hoàn toàn</strong> khỏi mạng lưới Field Host phân khu.</li>
             <li>Hệ thống gửi Zalo mời Chủ nhà đến nhận lại chìa khóa cơ tại văn phòng phân khu Vinhomes Ocean Park.</li>
           </ul>
+        </div>
+      </Modal>
+
+      {/* Modal Huỷ cọc giữ chỗ */}
+      <Modal
+        open={modalVoid}
+        onClose={() => setModalVoid(false)}
+        title="Huỷ cọc giữ chỗ (Điều 328 BLDS)"
+        footer={
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", width: "100%" }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setModalVoid(false)}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => {
+                if (!booking) return;
+                const res = adminVoidHold(booking.id, voidReason, voidNote, DEMO_USERS.admin.name);
+                if (!res.ok) {
+                  if (res.code === "invalid_input") {
+                    setVoidError("Ghi chú bắt buộc, từ 5 đến 200 ký tự.");
+                  } else {
+                    toast(res.reason);
+                    setModalVoid(false);
+                  }
+                } else {
+                  setModalVoid(false);
+                  toast("Đã huỷ cọc giữ chỗ thành công", "success");
+                }
+              }}
+            >
+              Xác nhận huỷ cọc
+            </button>
+          </div>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <label className="field">
+            <span className="label">Lý do huỷ cọc</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="adminVoidReason"
+                  checked={voidReason === "landlord_breach"}
+                  onChange={() => setVoidReason("landlord_breach")}
+                />
+                <span>
+                  <b>Chủ nhà không giữ cam kết</b> (Phạt cọc: hoàn 4.000.000đ cho khách)
+                </span>
+              </label>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="adminVoidReason"
+                  checked={voidReason === "force_majeure"}
+                  onChange={() => setVoidReason("force_majeure")}
+                />
+                <span>
+                  <b>Sự kiện bất khả kháng</b> (Hoàn 100% cọc 2.000.000đ cho khách)
+                </span>
+              </label>
+            </div>
+          </label>
+
+          <label className="field">
+            <span className="label">Ghi chú xử lý (bắt buộc, 5 – 200 ký tự)</span>
+            <textarea
+              className="textarea"
+              value={voidNote}
+              onChange={(e) => {
+                setVoidNote(e.target.value);
+                if (voidError) setVoidError("");
+              }}
+              placeholder="Nêu rõ lý do huỷ và căn cứ chứng từ (tối thiểu 5 ký tự)..."
+              rows={3}
+            />
+            {voidError && <span className="field-error">{voidError}</span>}
+          </label>
         </div>
       </Modal>
     </div>

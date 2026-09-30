@@ -1,6 +1,7 @@
 import { maskPhone, normalizePhone } from "./format";
 import type { MockState } from "./types";
 import { HOSTS, LANDLORDS, landlordById, unitAddress, unitById, UNITS, ZONES } from "./units";
+import { type HoldOutcome, holdOutcome } from "./selectors";
 
 export type ContractKind = "mandate" | "holding" | "lease" | "partnership";
 
@@ -10,7 +11,7 @@ export type ContractStatus =
   | "exiting"            // mandate: đang đếm ngược 15 ngày
   | "exit_due"           // mandate: now ≥ exitEffectiveAt, chờ Admin hoàn tất offboard
   | "ended"              // mandate: đã offboard | lease: now ≥ endAt
-  | "void"               // mandate: hồ sơ ký gửi bị Admin từ chối
+  | "void"               // mandate bị từ chối | holding bị Admin huỷ cọc
   | "awaiting_sign"      // holding: đã nhận 2tr, chưa ký thoả thuận, còn hạn
   | "holding"            // holding: đã ký thoả thuận, chưa ký HĐ thuê, còn hạn
   | "converted"          // holding: đã chuyển 100% vào Tiền cọc bảo đảm của HĐ thuê
@@ -48,6 +49,9 @@ export interface ContractRow {
   amount?: number;          // holding: deposit.amount (2_000_000) · lease: lease.rent (tiền thuê/tháng, tháng đầu KHÔNG trừ 2tr)
   securityDeposit?: number; // chỉ lease: = lease.rent (1 tháng, ĐÃ GỒM 2_000_000 chuyển đổi)
   needsAction: boolean;     // status === "exit_due" || (status === "expiring" && !lease.renewalRemindedAt)
+  holdHours?: number;       // MỚI (SPEC-P01 §8)
+  outcome?: HoldOutcome;    // MỚI (SPEC-P01 §8)
+  ownershipWarrantedAt?: string; // MỚI mandate từ consignment (SPEC-P03 §4)
 }
 
 export const LEASE_EXPIRING_DAYS = 30;
@@ -205,6 +209,7 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
       signedAt: c.signedAt,
       startAt: c.signedAt,
       needsAction: false,
+      ownershipWarrantedAt: c.ownershipWarrantedAt,
     });
   }
 
@@ -212,14 +217,19 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
   for (const b of state.bookings) {
     if (!b.deposit?.paidAt) continue;
 
+    const outcome = holdOutcome(b, now);
     let status: ContractStatus = "holding";
-    if (b.lease) {
+    if (outcome.kind === "converted") {
       status = "converted";
+    } else if (outcome.kind === "refunded" || outcome.kind === "refunded_double") {
+      status = "void";
     } else if (
-      ["cancelled", "rejected", "completed", "no_show"].includes(b.status) ||
-      (b.deposit.expiresAt && now >= Date.parse(b.deposit.expiresAt))
+      outcome.kind === "forfeited" ||
+      (!b.deposit.voided && ["cancelled", "rejected", "completed", "no_show"].includes(b.status))
     ) {
       status = "expired";
+    } else {
+      status = "holding";
     }
 
     const unit = unitById(b.unitId);
@@ -257,6 +267,8 @@ export function contractRows(state: MockState, now: number): ContractRow[] {
       endAt: b.deposit.expiresAt,
       amount: b.deposit.amount,
       needsAction: false,
+      holdHours: b.deposit.holdHours,
+      outcome,
     });
   }
 

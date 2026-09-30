@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtTime, relTime, vnd, vndShort } from "@/lib/mock/format";
-import { holdDaysLeft, isOpenBooking, monthlyRent, noticesFor, occupancy, unitDisplayStatus } from "@/lib/mock/selectors";
+import { holdMsLeft, isOpenBooking, monthlyRent, noticesFor, occupancy, unitDisplayStatus } from "@/lib/mock/selectors";
 import { landlordConsignments, landlordUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";
 import { LANDLORD_HISTORY, SERVICE_FEE_RATE } from "@/lib/mock/stats";
 import { useMock } from "@/lib/mock/store";
@@ -147,8 +147,8 @@ export function LandlordDashboard() {
                   const holdingBooking = state.bookings.find(
                     (b) => b.unitId === r.unit.id && (b.status === "holding" || b.deposit?.paidAt)
                   );
-                  const days = holdingBooking ? holdDaysLeft(holdingBooking, now) : 7;
-                  return <StatusBadge tone="warn">{`Đang giữ căn · còn ${days} ngày`}</StatusBadge>;
+                  const hours = holdingBooking ? Math.max(0, Math.ceil(holdMsLeft(holdingBooking, now) / 3_600_000)) : 48;
+                  return <StatusBadge tone="warn">{`Đang giữ căn · còn ${hours} giờ`}</StatusBadge>;
                 }
                 if (ds === "rented") {
                   return <StatusBadge tone="ok">Đang cho thuê</StatusBadge>;
