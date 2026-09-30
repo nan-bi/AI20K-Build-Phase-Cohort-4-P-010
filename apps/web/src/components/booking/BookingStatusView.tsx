@@ -26,6 +26,7 @@ import { LeaseForm } from "@/components/deal/LeaseForm";
 import {
   cancelBooking,
   confirmDepositPaid,
+  confirmFirstPayment,
   demoExpireHold,
   rateHost,
   rescheduleBooking,
@@ -34,7 +35,7 @@ import {
   tenantCheckIn,
   tenantRunningLate,
 } from "@/lib/mock/actions";
-import { DEFAULT_HOUSEHOLD, HOLD_DAYS, HOLD_MS, allInCost } from "@/lib/mock/cost";
+import { DEFAULT_HOUSEHOLD, allInCost } from "@/lib/mock/cost";
 import {
   dayLabel,
   fmtDateTime,
@@ -47,11 +48,14 @@ import {
 import {
   bookingByRef,
   canTenantModify,
-  isHoldForfeited,
+  holdHoursFor,
+  holdMsLeft,
+  holdOutcome,
   isOpenTicket,
   noticesFor,
   similarUnits,
 } from "@/lib/mock/selectors";
+import { HOUSE_RULES } from "@/lib/mock/house-rules";
 import { ownsBooking } from "@/lib/mock/selectors-tenant";
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
@@ -130,7 +134,8 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
   const editable = canTenantModify(booking, now);
   const similar = terminal ? similarUnits(state, unit, 2) : [];
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Sảnh toà ${unit.building} Vinhomes Ocean Park`)}`;
-  const forfeited = isHoldForfeited(booking, now);
+  const holdHours = holdHoursFor(state, unit.id);
+  const outcome = holdOutcome(booking, now);
 
   return (
     <div className={`wrap ${styles.page}`}>
@@ -176,11 +181,11 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               </p>
             )}
 
-            {/* ─── KHỐI VIỆC CẦN LÀM (THEO SPEC-P05 §2.3) ─── */}
+            {/* ─── KHỐI VIỆC CẦN LÀM (THEO SPEC-P05 §2.3 & 01-CONTRACTS §6) ─── */}
 
             {/* 1. closing & chưa đồng ý điều khoản: DepositTerms */}
             {booking.status === "closing" && !booking.depositConsentAt && (
-              <DepositTermsBox bookingId={booking.id} />
+              <DepositTermsBox bookingId={booking.id} unitId={unit.id} />
             )}
 
             {/* 2. closing & đã đồng ý: VietQR */}
@@ -194,7 +199,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                 <div style={{ textAlign: "center", marginTop: 8 }}>
                   <b style={{ color: "var(--ink)" }}>Đang chờ thanh toán cọc...</b>
                   <p className="muted xs" style={{ maxWidth: 480, margin: "4px auto 0" }}>
-                    Chuyển khoản 2.000.000đ vào tài khoản định danh nền tảng. Căn tự động khoá {HOLD_DAYS} ngày ngay khi ngân hàng báo có.
+                    Chuyển khoản 2.000.000đ vào tài khoản định danh nền tảng. Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có.
                   </p>
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
@@ -203,7 +208,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                     className={styles.demoBtn}
                     onClick={() => {
                       confirmDepositPaid(booking.id, "webhook");
-                      toast(`Ngân hàng báo có: căn đã khoá ${HOLD_DAYS} ngày`, "success");
+                      toast(`Ngân hàng báo có: căn đã khoá ${holdHours} giờ`, "success");
                     }}
                   >
                     Demo: Giả lập ngân hàng báo có
@@ -212,17 +217,18 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               </div>
             )}
 
-            {/* 3. holding & chưa forfeited: Countdown + Action làm HĐ */}
-            {booking.status === "holding" && !forfeited && (
+            {/* 3. holding & active: Countdown + Action làm HĐ */}
+            {booking.status === "holding" && outcome.kind === "active" && (
               <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
                 <CountdownBanner
-                  expiresAt={booking.deposit?.expiresAt}
+                  booking={booking}
+                  holdHours={holdHours}
                   now={now}
                   onExpireDemo={() => setModal("expireConfirm")}
                 />
                 <div className="card" style={{ padding: 16, background: "var(--surface)", marginTop: 12 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <b style={{ fontSize: 16 }}>Căn hộ đang được giữ chỗ cho bạn</b>
+                    <b style={{ fontSize: 16 }}>Căn hộ đang được giữ chỗ cho bạn ({holdHours} giờ)</b>
                     <p className="muted xs" style={{ margin: "4px 0 0" }}>
                       Khoản cọc 2.000.000đ đã nhận. Bạn có thể tiến hành xác minh CCCD (eKYC) và ký Hợp đồng thuê căn hộ.
                     </p>
@@ -239,20 +245,110 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             )}
 
             {/* 4. Forfeited: Hết hạn giữ căn */}
-            {forfeited && (
+            {outcome.kind === "forfeited" && (
               <div className="card" style={{ padding: 16, background: "var(--coral-50, #fff5f5)", border: "1px solid var(--coral-200, #fed7d7)" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--coral-800, #9b2c2c)" }}>
                   <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <b style={{ fontSize: 16 }}>Đã hết hạn giữ căn</b>
                     <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
-                      Thời hạn giữ chỗ {HOLD_DAYS} ngày đã kết thúc. Khoản cọc 2.000.000đ không được hoàn lại theo quy định đặt cọc (Điều 328 Bộ luật Dân sự 2015). Căn hộ đã được mở lại cho khách khác.
+                      Hết thời hạn giữ chỗ {holdHours} giờ. Khoản cọc 2.000.000đ không được hoàn (Điều 6.1 Thỏa thuận đặt cọc): 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng.
                     </p>
                     <Link href={`/units/${unit.id}?book=1`} className="btn btn-amber btn-sm">
                       Đặt lịch căn khác
                     </Link>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* 5. Refunded double: Chủ nhà bẻ cọc */}
+            {outcome.kind === "refunded_double" && (
+              <div className="card" style={{ padding: 16, background: "var(--lagoon-50, #f0fdfa)", border: "1px solid var(--lagoon-200, #99f6e4)" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--lagoon-900, #134e4a)" }}>
+                  <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <b style={{ fontSize: 16 }}>Đã huỷ cọc giữ chỗ (Bồi thường)</b>
+                    <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
+                      Chủ nhà không giữ cam kết. VinStay hoàn bạn 4.000.000đ (2.000.000đ cọc + 2.000.000đ phạt cọc, Điều 328 BLDS) trong 24 giờ làm việc.
+                    </p>
+                    <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
+                      Tìm căn khác
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 6. Refunded: Bất khả kháng */}
+            {outcome.kind === "refunded" && (
+              <div className="card" style={{ padding: 16, background: "var(--amber-50, #fef8ee)", border: "1px solid var(--amber-200, #fce1b2)" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--amber-900, #78350f)" }}>
+                  <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <b style={{ fontSize: 16 }}>Đã huỷ giữ căn</b>
+                    <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
+                      Sự kiện bất khả kháng. VinStay hoàn 100% 2.000.000đ trong 24 giờ làm việc.
+                    </p>
+                    <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
+                      Tìm căn khác
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 7. Thanh toán kỳ đầu khi đã ký HĐ (leased) */}
+            {booking.status === "leased" && booking.lease && (
+              <div className="card" style={{ padding: 18, background: "var(--surface)", border: "1px solid var(--line-strong)", marginTop: 12 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 700 }}>Thanh toán kỳ đầu trước khi nhận nhà</h3>
+                {booking.lease.firstPayment?.paidAt ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--kelp)", fontWeight: 600 }}>
+                    <Check size={18} />
+                    <span>Đã thanh toán kỳ đầu · {fmtDateTime(booking.lease.firstPayment.paidAt)}</span>
+                  </div>
+                ) : booking.lease.firstPayment ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <VietQR
+                      amount={booking.lease.firstPayment.total}
+                      content={booking.lease.firstPayment.content}
+                      qrRef={`${booking.ref}-FP`}
+                    />
+                    <div style={{ background: "var(--paper-2)", borderRadius: "var(--r)", padding: "12px 16px" }}>
+                      <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "1fr auto", gap: "8px 12px", fontSize: 13.5 }}>
+                        <dt className="muted">Tiền thuê kỳ 1 ({booking.lease.paymentCycle} tháng)</dt>
+                        <dd style={{ textAlign: "right", fontWeight: 600 }}>{vnd(booking.lease.firstPayment.rent)}đ</dd>
+
+                        <dt className="muted">Phần cọc bảo đảm còn thiếu</dt>
+                        <dd style={{ textAlign: "right", fontWeight: 600 }}>{vnd(booking.lease.firstPayment.depositTopUp)}đ</dd>
+
+                        <dt style={{ borderTop: "1px solid var(--line)", paddingTop: 8, fontWeight: 700 }}>Tổng thanh toán đợt đầu</dt>
+                        <dd style={{ borderTop: "1px solid var(--line)", paddingTop: 8, textAlign: "right", fontWeight: 700, color: "var(--primary, #0f4c81)" }}>
+                          {vnd(booking.lease.firstPayment.total)}đ
+                        </dd>
+                      </dl>
+                    </div>
+                    <p className="xs muted" style={{ margin: 0, textAlign: "center" }}>
+                      Khoản 2.000.000đ đã chuyển 100% vào cọc bảo đảm — không trừ vào tiền thuê.
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        className={styles.demoBtn}
+                        onClick={() => {
+                          const res = confirmFirstPayment(booking.id);
+                          if (res.ok) {
+                            toast("Đã thanh toán kỳ đầu thành công (demo)", "success");
+                          } else {
+                            toast(res.reason);
+                          }
+                        }}
+                      >
+                        Demo: Ngân hàng báo có kỳ đầu
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
 
@@ -585,8 +681,11 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
 
 // ─── COMPONENT CON: ĐIỀU KHOẢN CỌC ────────────────────────────────────────────────────────────
 
-function DepositTermsBox({ bookingId }: { bookingId: string }) {
+function DepositTermsBox({ bookingId, unitId }: { bookingId: string; unitId: string }) {
+  const state = useMock();
   const [consent, setConsent] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const holdHours = holdHoursFor(state, unitId);
 
   return (
     <div
@@ -606,10 +705,38 @@ function DepositTermsBox({ bookingId }: { bookingId: string }) {
 
       <ul style={{ paddingLeft: 20, margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)" }}>
         <li>Khoản tiền cọc <b>2.000.000 VNĐ</b> được nộp vào tài khoản định danh của nền tảng VinStay AI.</li>
-        <li>Căn hộ được khóa trạng thái giữ chỗ trong vòng <b>{HOLD_DAYS} ngày</b> kể từ khi nhận tiền.</li>
-        <li>Quá thời hạn {HOLD_DAYS} ngày mà khách thuê không tiến hành ký Hợp đồng thuê thì mất tiền cọc theo <b>Điều 328 Bộ luật Dân sự 2015</b>.</li>
-        <li>Khi ký Hợp đồng thuê chính thức, khoản tiền này được chuyển đổi 100% thành một phần của <b>Tiền cọc bảo đảm tài sản</b> (Security Deposit), tuyệt đối không trừ vào tiền thuê tháng đầu tiên.</li>
+        <li>Căn hộ được khóa trạng thái giữ chỗ trong vòng <b>{holdHours} giờ</b> kể từ khi nhận tiền.</li>
+        <li>
+          Quá thời hạn {holdHours} giờ mà khách thuê không tiến hành ký Hợp đồng thuê thì mất tiền cọc theo{" "}
+          <b>Điều 328 Bộ luật Dân sự 2015</b> (Điều 6.1 Thỏa thuận đặt cọc: 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng).
+        </li>
+        <li>
+          Khi ký Hợp đồng thuê chính thức, khoản tiền này được chuyển đổi 100% thành một phần của{" "}
+          <b>Tiền cọc bảo đảm tài sản</b> (Security Deposit), tuyệt đối không trừ vào tiền thuê tháng đầu tiên.
+        </li>
       </ul>
+
+      <div style={{ marginBottom: 14 }}>
+        <button
+          type="button"
+          className="btn btn-quiet btn-sm"
+          onClick={() => setShowRules((prev) => !prev)}
+          style={{ padding: "4px 8px", fontSize: 13 }}
+        >
+          {showRules ? "Ẩn nội quy căn hộ" : "Xem 6 nội quy căn hộ"}
+        </button>
+        {showRules && (
+          <div style={{ marginTop: 10, padding: 12, background: "var(--paper-2)", borderRadius: "var(--r)", fontSize: 13, lineHeight: 1.5 }}>
+            <ol style={{ paddingLeft: 18, margin: 0 }}>
+              {HOUSE_RULES.map((rule) => (
+                <li key={rule.id} style={{ marginBottom: 8 }}>
+                  <b>{rule.title}:</b> {rule.body} <span className="muted xs">({rule.source})</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
 
       <label
         style={{
@@ -632,7 +759,7 @@ function DepositTermsBox({ bookingId }: { bookingId: string }) {
           style={{ marginTop: 2 }}
         />
         <span>
-          Tôi đồng ý điều khoản đặt cọc giữ căn theo <b>Điều 328 Bộ luật Dân sự 2015</b> và cho phép VinStay AI xử lý dữ liệu cá nhân theo <b>Nghị định 13/2023/NĐ-CP</b>.
+          Tôi đồng ý điều khoản cọc giữ chỗ và nội quy căn hộ theo <b>Điều 328 Bộ luật Dân sự 2015</b> và cho phép VinStay AI xử lý dữ liệu cá nhân theo <b>Nghị định 13/2023/NĐ-CP</b>.
         </span>
       </label>
 
@@ -655,19 +782,20 @@ function DepositTermsBox({ bookingId }: { bookingId: string }) {
 // ─── COMPONENT CON: COUNTDOWN BANNER ──────────────────────────────────────────────────────────
 
 function CountdownBanner({
-  expiresAt,
+  booking,
+  holdHours,
   now,
   onExpireDemo,
 }: {
-  expiresAt?: string;
+  booking: Booking;
+  holdHours: number;
   now: number;
   onExpireDemo: () => void;
 }) {
-  if (!expiresAt) return null;
-  const target = new Date(expiresAt).getTime();
-  const diff = target - now;
+  const msLeft = holdMsLeft(booking, now);
+  const expiresAt = booking.deposit?.expiresAt;
 
-  if (diff <= 0) {
+  if (msLeft <= 0) {
     return (
       <div className="card" style={{ padding: 12, background: "var(--coral-50)", color: "var(--coral-800)" }}>
         <b>Đã hết hạn giữ căn</b>
@@ -675,13 +803,13 @@ function CountdownBanner({
     );
   }
 
-  const d = Math.floor(diff / (24 * 3600 * 1000));
-  const h = Math.floor((diff % (24 * 3600 * 1000)) / (3600 * 1000));
-  const m = Math.floor((diff % (3600 * 1000)) / (60 * 1000));
-  const s = Math.floor((diff % 60000) / 1000);
+  const h = Math.floor(msLeft / 3600_000);
+  const m = Math.floor((msLeft % 3600_000) / 60_000);
+  const s = Math.floor((msLeft % 60_000) / 1000);
 
-  const timeLeftText = d >= 1 ? `Còn ${d} ngày ${h} giờ` : `Còn ${h} giờ ${m} phút ${s} giây`;
-  const pct = Math.min(100, Math.max(0, ((HOLD_MS - diff) / HOLD_MS) * 100));
+  const timeLeftText = msLeft < 3600_000 ? `Còn ${m} phút ${s} giây` : `Còn ${h} giờ ${m} phút`;
+  const totalMs = holdHours * 3600_000;
+  const pct = Math.min(100, Math.max(0, ((totalMs - msLeft) / totalMs) * 100));
 
   return (
     <div
@@ -707,9 +835,11 @@ function CountdownBanner({
         <div style={{ width: `${pct}%`, height: "100%", background: "var(--amber-600, #d97706)", transition: "width 0.3s ease" }} />
       </div>
 
-      <p className="xs muted" style={{ margin: 0 }}>
-        Giữ căn tới <b>{fmtDateTime(expiresAt)}</b>. Quá thời hạn này mà chưa hoàn tất ký Hợp đồng thuê thì căn hộ tự động mở lại.
-      </p>
+      {expiresAt && (
+        <p className="xs muted" style={{ margin: 0 }}>
+          Giữ căn tới <b>{fmtDateTime(expiresAt)}</b>. Quá thời hạn này mà chưa hoàn tất ký Hợp đồng thuê thì căn hộ tự động mở lại.
+        </p>
+      )}
     </div>
   );
 }
@@ -737,7 +867,7 @@ function LeaseWizardFlow({
           className={`btn btn-sm ${step === "kyc" ? "btn-primary" : "btn-quiet"}`}
           onClick={() => setStep("kyc")}
         >
-          1. Xác minh CCCD (eKYC) {booking.kyc && <Check size={14} />}
+          1. Xác minh CCCD {booking.kyc && <Check size={14} />}
         </button>
         <button
           type="button"
@@ -745,7 +875,7 @@ function LeaseWizardFlow({
           disabled={!booking.kyc}
           onClick={() => setStep("lease")}
         >
-          2. Ký Hợp đồng thuê {booking.lease && <Check size={14} />}
+          2. Khai báo người cùng ở & 3. Ký hợp đồng {booking.lease && <Check size={14} />}
         </button>
       </div>
 

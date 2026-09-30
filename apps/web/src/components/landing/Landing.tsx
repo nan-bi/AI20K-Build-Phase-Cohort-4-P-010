@@ -14,13 +14,13 @@ const FLOW = [
   { time: "≤ 3 phút", title: "Đặt lịch, xác thực Zalo", body: "Chọn khung giờ khớp ca trực của Host, nhập mã 4 số gửi qua Zalo. Host của khu nhận lịch trong 3 phút." },
   { time: "T-10 phút", title: "Nhắc hẹn có nút bấm", body: "Zalo nhắn kèm nút “Tôi đã có mặt tại sảnh”. Không cần quét mã QR nào ở sảnh, không cần đứng chờ." },
   { time: "60 giây", title: "Host đón và mở cửa", body: "Host có thẻ cư dân quẹt thang máy đưa bạn lên phòng, mở cửa bằng mã trong ứng dụng. Không hộp khoá treo cửa." },
-  { time: "7 ngày", title: "Cọc giữ căn 2.000.000đ", body: "Quét VietQR ngay tại chỗ, căn được khoá 7 ngày cho riêng bạn. Không chuyển tiền qua tài khoản cá nhân." },
+  { time: "48 giờ", title: "Cọc giữ căn 2.000.000đ", body: "Quét VietQR ngay tại chỗ, căn được khoá giữ chỗ (mặc định 48 giờ, tuỳ căn 12–72 giờ) cho riêng bạn. Không chuyển tiền qua tài khoản cá nhân." },
   { time: "OTP Zalo", title: "Xác minh CCCD, ký số", body: "Chụp CCCD một lần, AI tự điền thỏa thuận. Bạn ký bằng OTP, hợp đồng thuê ký số ngay sau đó." },
 ];
 
 const FAQ = [
   { q: "All-in Cost gồm những khoản nào?", a: `Tiền thuê, phí quản lý Vinhomes (diện tích × ${vnd(RATES.mgmtPerM2)}đ/m²), phí gửi xe (${vnd(RATES.motorbike)}đ/xe máy, ${vnd(RATES.car)}đ/ô tô) và dự toán điện nước (${vnd(RATES.utilityPerPerson)}đ/người). Bốn khoản này luôn hiển thị trước khi bạn đặt lịch.` },
-  { q: "Cọc 2 triệu có bị trừ vào tiền thuê tháng đầu không?", a: "Không. Khoản 2.000.000đ khoá căn 7 ngày. Khi bạn ký hợp đồng thuê, đúng khoản này chuyển 100% thành một phần Tiền cọc bảo đảm tài sản và giữ nguyên suốt kỳ thuê. Tiền thuê tháng đầu vẫn thanh toán đủ." },
+  { q: "Cọc 2 triệu có bị trừ vào tiền thuê tháng đầu không?", a: "Không. Khoản 2.000.000đ khoá căn theo thời hạn giữ chỗ (mặc định 48 giờ). Khi bạn ký hợp đồng thuê, đúng khoản này chuyển 100% thành một phần Tiền cọc bảo đảm tài sản và giữ nguyên suốt kỳ thuê. Tiền thuê tháng đầu vẫn thanh toán đủ." },
   { q: "Tôi có cần tài khoản để đặt lịch xem?", a: "Không. Bạn chỉ cần số điện thoại và mã 4 số gửi qua Zalo. Tài khoản chỉ cần khi muốn chat không giới hạn với AI." },
   { q: "Nếu tôi đến trễ hoặc không đến được?", a: "Bấm “Đang trên đường” trong tin Zalo để xin trễ 10 phút, hoặc đổi và huỷ lịch ngay trên trang theo dõi. Quá 15 phút không phản hồi thì ca trực được giải phóng để Host phục vụ khách khác." },
   { q: "Ảnh CCCD của tôi được xử lý thế nào?", a: "AI đọc CCCD trong khoảng 5 giây để điền thỏa thuận. Dữ liệu được mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP, chỉ dùng cho giao dịch này và không gửi cho môi giới hay chủ nhà." },
@@ -153,7 +153,7 @@ export function Landing() {
           <div className={`card ${styles.money}`} role="img" aria-label="Cọc giữ chỗ 2.000.000 đồng chuyển 100 phần trăm thành Tiền cọc bảo đảm khi ký hợp đồng; tiền thuê tháng đầu không bị trừ">
             <div className={styles.moneyRow}>
               <div className={styles.chunk}>
-                <span className="muted small">Cọc giữ căn 7 ngày</span>
+                <span className="muted small">Cọc giữ chỗ</span>
                 <strong className="num">2.000.000đ</strong>
               </div>
               <span className={styles.arrow}>ký hợp đồng thuê</span>

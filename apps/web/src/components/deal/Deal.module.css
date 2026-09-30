@@ -293,3 +293,54 @@
   color: var(--ok);
   font-weight: 600;
 }
+
+.formSection {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.formSectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-950);
+  margin-bottom: 8px;
+}
+
+.radioRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.occupantCard {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.occupantInputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 540px) {
+  .occupantInputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rulesBox {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 12.5px;
+}
+

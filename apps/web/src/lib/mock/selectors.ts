@@ -1,6 +1,6 @@
-import { allInCost, TENANT_MODIFY_LEAD_MS } from "./cost";
+import { allInCost, MANDATE_TERM_MONTHS, TENANT_MODIFY_LEAD_MS } from "./cost";
 import { ALL_SLOT_TIMES, MIN_LEAD_MS, slotDate } from "./slots";
-import type { Booking, BookingDispatch, BookingStatus, FeeConfig, MockState, Notice } from "./types";
+import type { Booking, BookingDispatch, BookingStatus, FeeConfig, Mandate, MockState, Notice } from "./types";
 import {
   HOSTS,
   UNITS,
@@ -23,7 +23,7 @@ const BUSY_SLOT_STATUSES: BookingStatus[] = ["pending", "confirmed", "lobby", "r
 
 export const isOpenBooking = (b: Booking) => OPEN_STATUSES.includes(b.status);
 
-export function unitStatus(state: MockState, unitOrId: Unit | string): UnitStatus {
+export function unitStatus(state: MockState, unitOrId: Unit | string, now: number = Date.now()): UnitStatus {
   const id = typeof unitOrId === "string" ? unitOrId : unitOrId.id;
   const base = typeof unitOrId === "string" ? (unitById(unitOrId)?.baseStatus ?? "available") : unitOrId.baseStatus;
   const override = state.unitState[id];
@@ -31,7 +31,7 @@ export function unitStatus(state: MockState, unitOrId: Unit | string): UnitStatu
 
   // Unit rảnh lại khi hết hạn thật (SPEC-P01 §2)
   if (override.status === "holding" && override.holdingUntil) {
-    if (Date.parse(override.holdingUntil) <= Date.now()) {
+    if (Date.parse(override.holdingUntil) <= now) {
       const isLeased = state.bookings.some((b) => b.unitId === id && b.status === "leased");
       if (!isLeased) {
         return "available";
@@ -40,6 +40,10 @@ export function unitStatus(state: MockState, unitOrId: Unit | string): UnitStatu
   }
 
   return override.status;
+}
+
+export function holdHoursFor(state: MockState, unitId: string): number {
+  return state.holdPolicy?.byUnit?.[unitId] ?? state.holdPolicy?.defaultHours ?? 48;
 }
 
 export function holdEndsAt(b: Booking): number | undefined {
@@ -51,10 +55,59 @@ export function isHoldForfeited(b: Booking, now: number): boolean {
   return Boolean(b.deposit?.paidAt && !b.lease && ends !== undefined && now >= ends);
 }
 
-export function holdDaysLeft(b: Booking, now: number): number {
+export function holdMsLeft(b: Booking, now: number): number {
   const ends = holdEndsAt(b);
   if (ends === undefined) return 0;
-  return Math.max(0, Math.ceil((ends - now) / 86_400_000));
+  return Math.max(0, ends - now);
+}
+
+export type HoldOutcomeKind = "none" | "active" | "converted" | "forfeited" | "refunded" | "refunded_double";
+export interface HoldOutcome {
+  kind: HoldOutcomeKind;
+  toTenant: number;
+  toLandlord: number;
+  toPlatform: number;
+}
+
+export function holdOutcome(b: Booking, now: number): HoldOutcome {
+  const amount = b.deposit?.amount ?? 2_000_000;
+  if (!b.deposit?.paidAt) {
+    return { kind: "none", toTenant: 0, toLandlord: 0, toPlatform: 0 };
+  }
+  if (b.lease) {
+    return { kind: "converted", toTenant: 0, toLandlord: 0, toPlatform: 0 };
+  }
+  if (b.deposit.voided?.reason === "landlord_breach") {
+    return { kind: "refunded_double", toTenant: 2 * amount, toLandlord: 0, toPlatform: 0 };
+  }
+  if (b.deposit.voided?.reason === "force_majeure") {
+    return { kind: "refunded", toTenant: amount, toLandlord: 0, toPlatform: 0 };
+  }
+  const ends = holdEndsAt(b);
+  if (ends !== undefined && now >= ends) {
+    const half = Math.round(amount / 2);
+    return { kind: "forfeited", toTenant: 0, toLandlord: half, toPlatform: half };
+  }
+  return { kind: "active", toTenant: 0, toLandlord: 0, toPlatform: 0 };
+}
+
+function addMonthsUtc(date: Date, months: number): Date {
+  const d = new Date(date.getTime());
+  const origDay = d.getUTCDate();
+  d.setUTCMonth(d.getUTCMonth() + months);
+  if (d.getUTCDate() !== origDay) {
+    d.setUTCDate(0);
+  }
+  return d;
+}
+
+export function mandateRenewsAt(m: Mandate, now: number): string {
+  const term = m.termMonths ?? MANDATE_TERM_MONTHS;
+  let t = addMonthsUtc(new Date(m.signedAt), term);
+  while (t.getTime() <= now) {
+    t = addMonthsUtc(t, term);
+  }
+  return t.toISOString();
 }
 
 export function canTenantModify(b: Booking, now: number): boolean {

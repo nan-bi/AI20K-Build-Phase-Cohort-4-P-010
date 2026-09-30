@@ -1,4 +1,4 @@
-import { DEFAULT_HOUSEHOLD, HOLD_MS } from "./cost";
+import { DEFAULT_HOUSEHOLD } from "./cost";
 import { normalizePhone } from "./format";
 import { upcomingSlots } from "./slots";
 import type { Booking, ChatState, Consignment, FeeAudit, FeeConfig, Mandate, MockState, Notice } from "./types";
@@ -40,6 +40,8 @@ export const EMPTY_STATE: MockState = {
   guestSent: 0,
   chat: emptyChat(),
   verifiedPhones: [],
+  holdPolicy: { defaultHours: 48, byUnit: {} },
+  holdAudit: [],
 };
 
 export const todayKey = (now: number) => {
@@ -108,7 +110,7 @@ export function seedState(now: number): MockState {
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S2.12-1608 0912345678", qrRef: "VQ-4F7K-22AA",
         createdAt: iso(now - 1 * DAY + 27 * MIN), paidAt: iso(now - 1 * DAY + 28 * MIN),
-        expiresAt: iso(now - 1 * DAY + 28 * MIN + HOLD_MS), method: "webhook",
+        expiresAt: iso(now - 1 * DAY + 28 * MIN + 48 * HOUR), method: "webhook", holdHours: 48,
       },
     },
     {
@@ -144,7 +146,7 @@ export function seedState(now: number): MockState {
         createdAt: iso(now - 2 * HOUR + 36 * MIN),
       },
     },
-    // Đã cọc giữ chỗ 7 ngày (HOLD_DAYS), chờ ký thỏa thuận cọc (SPEC-P01 §6)
+    // Đã cọc giữ chỗ 24 giờ (override), chờ hoàn tất thủ tục chốt hợp đồng
     {
       id: "bk-108", ref: "VS-X5NA1", unitId: "s2-16-2216", hostId: "H01",
       tenant: t("Hoàng Thị Yến", "0945121212", 2),
@@ -155,7 +157,7 @@ export function seedState(now: number): MockState {
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S2.16-2216 0945121212", qrRef: "VQ-8842-10AF",
         createdAt: iso(now - 4 * HOUR - 30 * MIN), paidAt: iso(now - 4 * HOUR - 24 * MIN),
-        expiresAt: iso(now - 4 * HOUR - 24 * MIN + HOLD_MS), method: "webhook",
+        expiresAt: iso(now - 4 * HOUR - 24 * MIN + 24 * HOUR), method: "webhook", holdHours: 24,
       },
     },
     // Đã ký hợp đồng thuê (căn rented)
@@ -168,9 +170,26 @@ export function seedState(now: number): MockState {
       deposit: {
         amount: 2_000_000, content: "COC VHOP-S1.03-1512 0919000777", qrRef: "VQ-7710-33BC",
         createdAt: iso(now - 9 * DAY + 20 * MIN), paidAt: iso(now - 9 * DAY + 22 * MIN),
-        expiresAt: iso(now - 9 * DAY + 22 * MIN + HOLD_MS), method: "webhook",
+        expiresAt: iso(now - 9 * DAY + 22 * MIN + 48 * HOUR), method: "webhook", holdHours: 48,
       },
-      lease: { signedAt: iso(now - 8 * DAY - 2 * HOUR), startDate: iso(now - 6 * DAY), months: 12, rent: 6_000_000, docId: "HD-2026-0091" },
+      lease: {
+        signedAt: iso(now - 8 * DAY - 2 * HOUR),
+        startDate: iso(now - 6 * DAY),
+        months: 12,
+        rent: 6_000_000,
+        docId: "HD-2026-0091",
+        occupants: [{ fullName: "Trần Mai Lan", idOrDob: "1995-10-20" }],
+        refundAccount: { bankName: "Vietcombank", accountNo: "0123456789", holderName: "TRAN QUANG VINH" },
+        paymentCycle: 1,
+        securityDeposit: 6_000_000,
+        firstPayment: {
+          rent: 6_000_000,
+          depositTopUp: 4_000_000,
+          total: 10_000_000,
+          content: "VSA VHOP-S1.03-1512 THANH TOAN TIEN THUE KY 1",
+          paidAt: iso(now - 8 * DAY - 2 * HOUR + 1 * DAY),
+        },
+      },
       rating: 5,
     },
     // Xem xong, khách chưa quyết (có receivingAt và viewEndedAt cho nhật ký xem phòng)
@@ -218,9 +237,26 @@ export function seedState(now: number): MockState {
       deposit: {
         amount: 2_000_000, content: "COC VHOP-ZR1-1218 0913707070", qrRef: "VQ-6403-91DE",
         createdAt: iso(now - 12 * DAY + 20 * MIN), paidAt: iso(now - 12 * DAY + 21 * MIN),
-        expiresAt: iso(now - 12 * DAY + 21 * MIN + HOLD_MS), method: "webhook",
+        expiresAt: iso(now - 12 * DAY + 21 * MIN + 48 * HOUR), method: "webhook", holdHours: 48,
       },
-      lease: { signedAt: iso(now - 11 * DAY - 4 * HOUR), startDate: iso(now - 10 * DAY), months: 12, rent: 5_500_000, docId: "HD-2026-0074" },
+      lease: {
+        signedAt: iso(now - 11 * DAY - 4 * HOUR),
+        startDate: iso(now - 10 * DAY),
+        months: 12,
+        rent: 5_500_000,
+        docId: "HD-2026-0074",
+        occupants: [],
+        refundAccount: { bankName: "Techcombank", accountNo: "19034567890", holderName: "KIEU MINH QUAN" },
+        paymentCycle: 1,
+        securityDeposit: 5_500_000,
+        firstPayment: {
+          rent: 5_500_000,
+          depositTopUp: 3_500_000,
+          total: 9_000_000,
+          content: "VSA VHOP-ZR1-1218 THANH TOAN TIEN THUE KY 1",
+          paidAt: iso(now - 11 * DAY - 4 * HOUR + 1 * DAY),
+        },
+      },
       rating: 5,
     },
     // Hồ sơ 07 WP1: HĐ thuê sắp hết hạn trong ≤ 30 ngày (expiring lease) cho Admin quản lý
@@ -241,8 +277,9 @@ export function seedState(now: number): MockState {
         qrRef: "VQ-9921-88AA",
         createdAt: iso(now - 347 * DAY),
         paidAt: iso(now - 347 * DAY + 15 * MIN),
-        expiresAt: iso(now - 347 * DAY + 15 * MIN + HOLD_MS),
+        expiresAt: iso(now - 347 * DAY + 15 * MIN + 48 * HOUR),
         method: "webhook",
+        holdHours: 48,
       },
       lease: {
         signedAt: iso(now - 346 * DAY),
@@ -250,6 +287,17 @@ export function seedState(now: number): MockState {
         months: 12,
         rent: 6_000_000,
         docId: "HD-2025-0412",
+        occupants: [{ fullName: "Lê Thu Hà", idOrDob: "1992-03-14" }],
+        refundAccount: { bankName: "MB", accountNo: "0901234567", holderName: "DANG HOANG NAM" },
+        paymentCycle: 3,
+        securityDeposit: 6_000_000,
+        firstPayment: {
+          rent: 18_000_000,
+          depositTopUp: 4_000_000,
+          total: 22_000_000,
+          content: "VSA VHOP-S1.09-1412 THANH TOAN TIEN THUE KY 1",
+          paidAt: iso(now - 346 * DAY + 1 * DAY),
+        },
       },
       rating: 5,
     },
@@ -282,7 +330,7 @@ export function seedState(now: number): MockState {
   const notices: Notice[] = [
     zn({ audience: "landlord", toKey: "L1", at: iso(now - 4 * HOUR - 24 * MIN), unitId: "s2-16-2216", bookingId: "bk-108", tone: "success",
       title: "Nhận cọc giữ chỗ 2.000.000đ",
-      body: "Chúc mừng! Căn hộ VHOP-S2.16-2216 vừa nhận cọc giữ căn 7 ngày qua VietQR từ khách Hoàng Thị Yến." }),
+      body: "Chúc mừng! Căn hộ VHOP-S2.16-2216 vừa nhận cọc giữ căn 24 giờ qua VietQR từ khách Hoàng Thị Yến." }),
     zn({ audience: "landlord", toKey: "L1", at: iso(now - 5 * HOUR + 7 * MIN), unitId: "s2-16-2216", bookingId: "bk-108", tone: "info",
       title: "Căn hộ vừa được mở khoá đón khách",
       body: "Căn VHOP-S2.16-2216 được mở khoá lúc " + hm(now - 5 * HOUR + 7 * MIN) + " bởi Field Host Lê Quốc Bảo." }),
@@ -300,7 +348,7 @@ export function seedState(now: number): MockState {
       body: "Ticket VS-U8HS3 (Masteri Waterfront · M3 Tầng 22) chưa có Host nhận. Đã chuyển Open Pool 500m." }),
     zn({ audience: "admin", channel: "system", at: iso(now - 4 * HOUR - 24 * MIN), bookingId: "bk-108", unitId: "s2-16-2216", tone: "success",
       title: "Cọc 2.000.000đ đã gạch nợ",
-      body: "Căn VHOP-S2.16-2216 chuyển sang holding 7 ngày. Các lịch xem còn lại của căn được huỷ tự động." }),
+      body: "Căn VHOP-S2.16-2216 chuyển sang holding 24 giờ. Các lịch xem còn lại của căn được huỷ tự động." }),
     zn({ audience: "admin", channel: "system", at: iso(now - 2 * DAY), unitId: "zr2-09-0912", tone: "warning",
       title: "Chủ nhà yêu cầu thoát ủy quyền",
       body: "Căn VHOP-ZR2-0912 (Nguyễn Văn Hùng) bắt đầu đếm ngược 15 ngày." }),
@@ -380,6 +428,7 @@ export function seedState(now: number): MockState {
       status: "awaiting_host",
       createdAt: iso(now - 7 * HOUR),
       signedAt: iso(now - 6 * HOUR),
+      ownershipWarrantedAt: iso(now - 6 * HOUR),
       hostId: "H01",
       inspectDueAt: iso(now - 6 * HOUR + 48 * HOUR),
     },
@@ -403,6 +452,7 @@ export function seedState(now: number): MockState {
       status: "inspecting",
       createdAt: iso(now - 1 * DAY - 2 * HOUR),
       signedAt: iso(now - 1 * DAY),
+      ownershipWarrantedAt: iso(now - 1 * DAY),
       hostId: "H04",
       inspectDueAt: iso(now - 1 * DAY + 48 * HOUR),
       hostAcceptedAt: iso(now - 20 * HOUR),
@@ -427,6 +477,7 @@ export function seedState(now: number): MockState {
       status: "reviewing",
       createdAt: iso(now - 2 * DAY),
       signedAt: iso(now - 2 * DAY + 2 * HOUR),
+      ownershipWarrantedAt: iso(now - 2 * DAY + 2 * HOUR),
       hostId: "H01",
       inspectDueAt: iso(now - 2 * DAY + 2 * HOUR + 48 * HOUR),
       hostAcceptedAt: iso(now - 1 * DAY - 12 * HOUR),
@@ -470,6 +521,7 @@ export function seedState(now: number): MockState {
       status: "approved",
       createdAt: iso(now - 5 * DAY),
       signedAt: iso(now - 5 * DAY + 1 * HOUR),
+      ownershipWarrantedAt: iso(now - 5 * DAY + 1 * HOUR),
       hostId: "H01",
       inspectDueAt: iso(now - 5 * DAY + 1 * HOUR + 48 * HOUR),
       hostAcceptedAt: iso(now - 4 * DAY),
@@ -509,7 +561,7 @@ export function seedState(now: number): MockState {
       "s1-03-1512": { status: "rented" },
       "zr1-12-0718": { status: "rented" },
       "s1-09-1412": { status: "rented" },
-      "s2-16-2216": { status: "holding", holdingUntil: iso(now - 4 * HOUR - 24 * MIN + HOLD_MS) },
+      "s2-16-2216": { status: "holding", holdingUntil: iso(now - 4 * HOUR - 24 * MIN + 24 * HOUR) },
     },
     mandates,
     consignments,
@@ -521,6 +573,17 @@ export function seedState(now: number): MockState {
     guestSent: 0,
     chat: emptyChat(),
     verifiedPhones: [normalizePhone(TENANT_DEMO.phone)],
+    holdPolicy: { defaultHours: 48, byUnit: { "s2-16-2216": 24 } },
+    holdAudit: [
+      {
+        id: "ha-seed-01",
+        at: iso(now - 2 * DAY),
+        by: "Trưởng vận hành",
+        unitId: "s2-16-2216",
+        from: null,
+        to: 24,
+      },
+    ],
   };
 }
 

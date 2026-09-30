@@ -16,7 +16,7 @@ import { STATUS_META } from "@/components/booking/status";
 import { ConsignTimeline } from "@/components/consign/ConsignTimeline";
 import { InspectionReportView } from "@/components/consign/InspectionReportView";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { approveConsignment, rejectConsignment } from "@/lib/mock/actions";
+import { approveConsignment, rejectConsignment, setHoldHours } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { fmtDate, fmtDateTime, fmtPhone, fmtTime, vnd } from "@/lib/mock/format";
@@ -90,6 +90,8 @@ export function AdminInventoryDetail({ id }: { id: string }) {
             ]}
           />
         </Section>
+
+        <UnitHoldPolicySection unitId={unit.id} />
 
         <Section title={`Nhật ký xem phòng (${logs.length})`} flush>
           <DataTable<ViewingLogEntry>
@@ -179,6 +181,7 @@ export function AdminInventoryDetail({ id }: { id: string }) {
     { label: "Loại khoá", value: c.lock === "smart" ? "Khoá điện tử (mã hoá AES-256)" : "Chìa cơ gửi quầy phân khu" },
     { label: "Field Host phụ trách", value: host ? host.name : "Chưa gán" },
     { label: "Ký ủy quyền", value: c.signedAt ? fmtDateTime(c.signedAt) : "Chưa ký" },
+    { label: "Cam đoan sở hữu (Điều 2)", value: c.ownershipWarrantedAt ? `Đã cam đoan lúc ${fmtDateTime(c.ownershipWarrantedAt)}` : "Chưa cam đoan" },
     {
       label: "Hạn thẩm định",
       value: c.inspectDueAt ? (
@@ -344,5 +347,105 @@ export function AdminInventoryDetail({ id }: { id: string }) {
         </label>
       </Modal>
     </div>
+  );
+}
+
+function UnitHoldForm({
+  unitId,
+  initialHours,
+  isOverride,
+  adminName,
+}: {
+  unitId: string;
+  initialHours: number;
+  isOverride: boolean;
+  adminName: string;
+}) {
+  const [val, setVal] = useState<string>(String(initialHours));
+  const [error, setError] = useState<string>("");
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const num = Number(val);
+    const res = setHoldHours(unitId, num, adminName);
+    if (!res.ok) {
+      setError(res.reason);
+    } else {
+      setError("");
+      toast("Đã cập nhật thời hạn giữ chỗ riêng cho căn", "success");
+    }
+  };
+
+  const handleReset = () => {
+    const res = setHoldHours(unitId, null, adminName);
+    if (!res.ok) {
+      setError(res.reason);
+    } else {
+      setError("");
+      toast("Đã khôi phục về thời hạn giữ chỗ mặc định toàn sàn", "success");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          type="number"
+          min={12}
+          max={72}
+          step={1}
+          className="input"
+          value={val}
+          onChange={(e) => {
+            setVal(e.target.value);
+            setError("");
+          }}
+          style={{ width: 140 }}
+        />
+        <span className="small muted">giờ</span>
+        <button type="submit" className="btn btn-primary btn-sm">
+          Lưu riêng căn
+        </button>
+        {isOverride && (
+          <button type="button" className="btn btn-quiet btn-sm" onClick={handleReset}>
+            Về mặc định
+          </button>
+        )}
+      </div>
+      {error && <p className="xs" style={{ color: "var(--danger)", margin: "4px 0 0" }}>{error}</p>}
+    </form>
+  );
+}
+
+function UnitHoldPolicySection({ unitId }: { unitId: string }) {
+  const state = useMock();
+  const override = state.holdPolicy.byUnit[unitId];
+  const defaultHours = state.holdPolicy.defaultHours;
+  const currentHours = override ?? defaultHours;
+  const isOverride = override !== undefined;
+
+  return (
+    <Section title="Thời hạn giữ chỗ căn hộ (SPEC-P01)">
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 540 }}>
+        <div>
+          <span className="small muted">Mức áp dụng hiện tại: </span>
+          <b>
+            {isOverride ? (
+              <span className="badge badge-amber-soft">{currentHours} giờ (Riêng căn này)</span>
+            ) : (
+              <span className="badge badge-plain">{currentHours} giờ (Mặc định toàn sàn)</span>
+            )}
+          </b>
+        </div>
+
+        <UnitHoldForm
+          key={`${currentHours}-${isOverride}`}
+          unitId={unitId}
+          initialHours={currentHours}
+          isOverride={isOverride}
+          adminName={DEMO_USERS.admin.name}
+        />
+      </div>
+    </Section>
   );
 }

@@ -124,8 +124,26 @@ describe("mở cửa, cọc, ký số", () => {
     actions.tenantAcceptDepositTerms(b.id);
     actions.confirmDepositPaid(b.id);
     expect(bookingById(getMockState(), b.id)!.status).toBe("holding");
-    actions.saveKyc(b.id, { fullName: "NGUYỄN THU HÀ", idNumber: "001912345678", dob: "12/04/2001", issuedDate: "18/08/2021", address: "Gia Lâm, Hà Nội", confidence: { fullName: 0.99, idNumber: 0.98, issuedDate: 0.94, address: 0.78 }, manuallyEdited: true, faceMatch: 0.96 });
-    actions.signLease(b.id, { startDate: new Date().toISOString(), months: 12 });
+    actions.saveKyc(b.id, {
+      fullName: "Nguyễn Thu Hà",
+      idNumber: "001912345678",
+      dob: "12/04/2001",
+      issuedDate: "18/08/2021",
+      address: "Gia Lâm, Hà Nội",
+      confidence: 0.95,
+      gender: "Nữ",
+      homeTown: "Hà Nội",
+      frontUrl: "mock",
+      backUrl: "mock",
+      selfieUrl: "mock",
+    });
+    actions.signLease(b.id, {
+      startDate: new Date().toISOString(),
+      months: 12,
+      occupants: [{ fullName: "Nguyễn Thu Hà", idOrDob: "001912345678" }],
+      refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "Nguyễn Thu Hà" },
+      paymentCycle: 1,
+    });
     const s = getMockState();
     expect(bookingById(s, b.id)!.status).toBe("leased");
     expect(unitStatus(s, unitById("s2-02-1004")!)).toBe("rented");

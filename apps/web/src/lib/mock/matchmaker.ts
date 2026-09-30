@@ -281,7 +281,7 @@ const FAQS: Faq[] = [
   {
     test: /coc|dat coc|giu cho|2 trieu|2tr|hoan/,
     answer:
-      "Cọc giữ chỗ là 2.000.000đ, thanh toán qua VietQR sau khi bạn xem phòng và ưng ý. Căn được khoá 7 ngày cho bạn. Khi ký hợp đồng thuê, đúng 2.000.000đ này được chuyển 100% thành Tiền cọc bảo đảm tài sản, không trừ vào tiền thuê tháng đầu, và hoàn lại khi thanh lý sau khi đối soát hiện trạng.",
+      "Cọc giữ chỗ là 2.000.000đ, thanh toán qua VietQR sau khi bạn xem phòng và ưng ý. Căn được khoá giữ chỗ mặc định 48 giờ (tuỳ căn 12–72 giờ) cho bạn. Khi ký hợp đồng thuê, đúng 2.000.000đ này được chuyển 100% thành Tiền cọc bảo đảm tài sản, không trừ vào tiền thuê tháng đầu, và hoàn lại khi thanh lý sau khi đối soát hiện trạng.",
   },
   {
     test: /phi quan ly|bql|ban quan ly/,

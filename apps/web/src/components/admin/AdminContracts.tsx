@@ -152,7 +152,8 @@ export function AdminContracts({ initialKind }: AdminContractsProps) {
       header: "Trạng thái",
       render: (r) => {
         const meta = CONTRACT_STATUS_META[r.status];
-        return <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>;
+        const label = r.kind === "holding" && r.status === "void" ? "Đã huỷ cọc" : meta.label;
+        return <StatusBadge tone={meta.tone}>{label}</StatusBadge>;
       },
     },
   ];

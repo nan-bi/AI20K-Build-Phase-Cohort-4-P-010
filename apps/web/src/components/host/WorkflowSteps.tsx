@@ -30,9 +30,8 @@ import {
   sendReminder,
   tenantCheckIn,
 } from "@/lib/mock/actions";
-import { HOLD_DAYS } from "@/lib/mock/cost";
 import { dayLabel, fmtTime, vnd } from "@/lib/mock/format";
-import { holdDaysLeft, hostEarnings, isHoldForfeited } from "@/lib/mock/selectors";
+import { holdHoursFor, holdMsLeft, hostEarnings, isHoldForfeited } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
 import { hostById, zoneById, type Unit } from "@/lib/mock/units";
@@ -341,7 +340,9 @@ export function ViewStep({ booking, unit, now }: StepProps) {
 
 // ─── 3. Chờ cọc (AwaitDepositStep - KHÔNG có VietQR) ──────────────────────────────────────────
 
-export function AwaitDepositStep({ booking }: StepProps) {
+export function AwaitDepositStep({ booking, unit }: StepProps) {
+  const state = useMock();
+  const holdHours = holdHoursFor(state, unit.id);
   const consentOk = Boolean(booking.depositConsentAt);
   const paidOk = Boolean(booking.deposit?.paidAt);
 
@@ -350,7 +351,7 @@ export function AwaitDepositStep({ booking }: StepProps) {
       <StepHead
         icon={<Clock size={22} />}
         title="Đang chờ khách thanh toán cọc"
-        hint={`Khách đồng ý điều khoản và quét VietQR trên lịch hẹn ${booking.ref} của họ. Căn tự khoá ${HOLD_DAYS} ngày khi tiền về.`}
+        hint={`Khách đồng ý điều khoản và quét VietQR trên lịch hẹn ${booking.ref} của họ. Căn tự khoá ${holdHours} giờ khi tiền về.`}
       />
 
       <div className={styles.waiting} role="status">
@@ -358,7 +359,7 @@ export function AwaitDepositStep({ booking }: StepProps) {
         <div>
           <b>Đang chờ khách quét VietQR trên thiết bị của họ</b>
           <p className="small">
-            Khoản cọc 2.000.000đ sẽ chuyển vào tài khoản định danh nền tảng và giữ căn trong {HOLD_DAYS} ngày.
+            Khoản cọc 2.000.000đ sẽ chuyển vào tài khoản định danh nền tảng và giữ căn trong {holdHours} giờ.
           </p>
         </div>
       </div>
@@ -394,7 +395,7 @@ export function AwaitDepositStep({ booking }: StepProps) {
           disabled={!consentOk}
           onClick={() => {
             confirmDepositPaid(booking.id, "webhook");
-            toast(`Ngân hàng báo có: căn đã khoá ${HOLD_DAYS} ngày`, "success");
+            toast(`Ngân hàng báo có: căn đã khoá ${holdHours} giờ`, "success");
           }}
         >
           Giả lập ngân hàng báo có
@@ -425,7 +426,8 @@ export function AwaitDepositStep({ booking }: StepProps) {
 
 export function AwaitLeaseStep({ booking, now }: StepProps) {
   const forfeited = isHoldForfeited(booking, now);
-  const daysLeft = holdDaysLeft(booking, now);
+  const holdHours = booking.deposit?.holdHours ?? 48;
+  const hoursLeft = Math.max(0, Math.ceil(holdMsLeft(booking, now) / 3_600_000));
   const hasKyc = Boolean(booking.kyc);
   const hasMismatch = Boolean(booking.kyc?.mismatch);
 
@@ -433,7 +435,7 @@ export function AwaitLeaseStep({ booking, now }: StepProps) {
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<FileText size={22} />}
-        title="Đã cọc giữ chỗ 7 ngày"
+        title={`Đã cọc giữ chỗ ${holdHours} giờ`}
         hint={`Khách đã thanh toán cọc giữ chỗ 2.000.000đ qua VietQR (mã COC-${booking.ref}).`}
       />
 
@@ -442,14 +444,14 @@ export function AwaitLeaseStep({ booking, now }: StepProps) {
           <ShieldAlert size={20} />
           <div>
             <b>Hết hạn giữ căn — khách mất cọc, căn đã mở lại.</b>
-            <p className="small">Thời hạn {HOLD_DAYS} ngày đã kết thúc mà khách chưa ký Hợp đồng thuê.</p>
+            <p className="small">Thời hạn {holdHours} giờ đã kết thúc mà khách chưa ký Hợp đồng thuê.</p>
           </div>
         </div>
       ) : (
         <div className={styles.presence} role="status">
           <Clock size={20} />
           <div>
-            <b>Còn {daysLeft} ngày để khách làm hợp đồng thuê</b>
+            <b>Còn {hoursLeft} giờ để khách làm hợp đồng thuê</b>
             <p className="small">
               Khách sẽ tự thực hiện eKYC (xác minh CCCD 2 mặt) và ký số hợp đồng thuê trên app của khách. Hết hạn mà chưa ký thì khách mất cọc và căn tự mở lại.
             </p>

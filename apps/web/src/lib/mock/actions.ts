@@ -1,12 +1,13 @@
 "use client";
 
-import { HOLD_DAYS, HOLD_MS, RATES } from "./cost";
+import { HOUR_MS, OCCUPANTS_MAX, PAYMENT_CYCLES, RATES, type PaymentCycle } from "./cost";
 import { fmtTime, dayLabel, normalizePhone, vnd } from "./format";
 import {
   canTenantModify,
   dispatchSale,
   freeAt,
   holdEndsAt,
+  holdHoursFor,
   hostBookings,
   isOpenBooking,
   pickHostFor,
@@ -25,12 +26,15 @@ import type {
   CriteriaState,
   DeclaredField,
   FeeConfig,
+  FirstPayment,
   IdCardData,
   InspectionDraft,
   InspectionReport,
   MockState,
   Notice,
+  Occupant,
   OtpChallenge,
+  RefundAccount,
 } from "./types";
 import {
   hostById,
@@ -53,11 +57,22 @@ export type DealError =
   | "no_kyc"
   | "too_late"
   | "taken"
-  | "not_offered";
+  | "not_offered"
+  | "invalid_input"
+  | "holder_mismatch";
 
 export type DealResult =
   | { ok: true }
   | { ok: false; code: DealError; reason: string };
+
+const norm = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 // ─── tiện ích ─────────────────────────────────────────────────────────────────────────────────
 
@@ -785,7 +800,7 @@ export function hostStartDeposit(id: string) {
         unitId: unit.id,
         tone: "info",
         title: "Khách chốt phòng — Vui lòng quét VietQR giữ căn",
-        body: `Mở lịch hẹn ${b.ref} để đồng ý điều khoản và quét VietQR giữ căn ${HOLD_DAYS} ngày.`,
+        body: `Mở lịch hẹn ${b.ref} để đồng ý điều khoản và quét VietQR giữ căn ${holdHoursFor(getMockState(), unit.id)} giờ.`,
       }),
     ),
   );
@@ -803,8 +818,82 @@ export function tenantAcceptDepositTerms(id: string): DealResult {
   return { ok: true };
 }
 
+export function setHoldHours(unitId: string | null, hours: number | null, by: string): DealResult {
+  if (unitId === null && hours === null) {
+    return { ok: false, code: "invalid_input", reason: "Tham số không hợp lệ" };
+  }
+  if (hours !== null) {
+    if (typeof hours !== "number" || !Number.isInteger(hours) || hours < 12 || hours > 72) {
+      return { ok: false, code: "invalid_input", reason: "Số giờ giữ chỗ phải là số nguyên từ 12 đến 72" };
+    }
+  }
+  if (unitId !== null) {
+    const unit = unitById(unitId);
+    if (!unit) {
+      return { ok: false, code: "invalid_input", reason: "Căn hộ không tồn tại" };
+    }
+  }
+
+  const state = getMockState();
+  const policy = state.holdPolicy ?? { defaultHours: 48, byUnit: {} };
+
+  if (unitId === null) {
+    const from = policy.defaultHours;
+    const to = hours!;
+    if (from === to) return { ok: true };
+    const audit = {
+      id: "ha-" + Math.random().toString(36).slice(2, 8),
+      at: iso(Date.now()),
+      by,
+      unitId: null,
+      from,
+      to,
+    };
+    setMockState((s) => ({
+      ...s,
+      holdPolicy: {
+        ...(s.holdPolicy ?? { defaultHours: 48, byUnit: {} }),
+        defaultHours: to,
+      },
+      holdAudit: [audit, ...(s.holdAudit ?? [])],
+    }));
+    return { ok: true };
+  } else {
+    const from = policy.byUnit[unitId] ?? null;
+    const to = hours;
+    if (from === to) return { ok: true };
+    if (to === null && from === null) return { ok: true };
+
+    const audit = {
+      id: "ha-" + Math.random().toString(36).slice(2, 8),
+      at: iso(Date.now()),
+      by,
+      unitId,
+      from,
+      to,
+    };
+    setMockState((s) => {
+      const nextByUnit = { ...(s.holdPolicy?.byUnit ?? {}) };
+      if (to === null) {
+        delete nextByUnit[unitId];
+      } else {
+        nextByUnit[unitId] = to;
+      }
+      return {
+        ...s,
+        holdPolicy: {
+          defaultHours: s.holdPolicy?.defaultHours ?? 48,
+          byUnit: nextByUnit,
+        },
+        holdAudit: [audit, ...(s.holdAudit ?? [])],
+      };
+    });
+    return { ok: true };
+  }
+}
+
 /**
- * Webhook ngân hàng báo có (hoặc Host đối soát UNC): khoá căn `holding` 7 ngày (HOLD_DAYS), tự huỷ các lịch xem còn lại của căn
+ * Webhook ngân hàng báo có (hoặc Host đối soát UNC): khoá căn `holding` theo giờ, tự huỷ các lịch xem còn lại của căn
  * và Zalo xin lỗi kèm 2 căn tương đương (AI Conflict Resolver — PRD §3.5).
  */
 export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt" = "webhook") {
@@ -831,31 +920,32 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
   // Thêm điều kiện: có depositConsentAt, nếu thiếu thì không làm gì (SPEC-P01 §2)
   if (!b.depositConsentAt) return;
 
-  const paidAt = iso(now);
-  const expiresAt = iso(now + HOLD_MS);
   const state = getMockState();
+  const holdHours = holdHoursFor(state, unit.id);
+  const paidAt = iso(now);
+  const expiresAt = iso(now + holdHours * HOUR_MS);
   const victims = state.bookings.filter((x) => x.id !== id && x.unitId === unit.id && ["pending", "confirmed", "lobby"].includes(x.status));
   const alternatives = similarUnits(state, unit, 2);
 
   setMockState((s) => {
-    let next = patchBooking(s, id, { status: "holding", deposit: { ...dep, paidAt, expiresAt, method, tempHoldUntil: undefined } });
+    let next = patchBooking(s, id, { status: "holding", deposit: { ...dep, paidAt, expiresAt, method, holdHours, tempHoldUntil: undefined } });
     next = { ...next, unitState: { ...next.unitState, [unit.id]: { status: "holding", holdingUntil: expiresAt } } };
     const extra: Notice[] = [
       zaloToTenant(b.tenant.phone, {
         bookingId: id,
         unitId: unit.id,
         tone: "success",
-        title: `Đã nhận cọc giữ chỗ ${HOLD_DAYS} ngày`,
-        body: `Thanh toán thành công ${vnd(dep.amount)}đ! Căn ${unitAddress(unit)} đã được khoá giữ chỗ cho bạn tới ${fmtTime(expiresAt)} ${dayLabel(expiresAt, now).toLowerCase()}. Khoản cọc này chuyển 100% thành Tiền cọc bảo đảm khi ký hợp đồng thuê, không trừ vào tiền thuê tháng đầu. Bước tiếp theo: ký thỏa thuận cọc trên lịch hẹn.`,
+        title: `Đã nhận cọc — giữ căn ${holdHours} giờ`,
+        body: `Thanh toán thành công ${vnd(dep.amount)}đ! Căn ${unitAddress(unit)} đã được khoá giữ chỗ cho bạn tới ${fmtTime(expiresAt)} ${dayLabel(expiresAt, now).toLowerCase()}. Khoản cọc này chuyển 100% thành Tiền cọc bảo đảm khi ký hợp đồng thuê, không trừ vào tiền thuê tháng đầu.`,
       }),
       zaloToLandlord(unit.landlordId, {
         bookingId: id,
         unitId: unit.id,
         tone: "success",
         title: "Nhận cọc giữ chỗ 2.000.000đ",
-        body: `Chúc mừng! Căn ${unit.code} vừa nhận cọc giữ chỗ ${HOLD_DAYS} ngày qua VietQR từ khách ${b.tenant.name}. Các lịch xem còn lại của căn đã được huỷ tự động.`,
+        body: `Chúc mừng! Căn ${unit.code} vừa nhận cọc giữ chỗ ${holdHours} giờ qua VietQR từ khách ${b.tenant.name}. Các lịch xem còn lại của căn đã được huỷ tự động.`,
       }),
-      toAdmin({ bookingId: id, unitId: unit.id, tone: "success", title: "Cọc 2.000.000đ đã gạch nợ", body: `${unit.code} chuyển holding ${HOLD_DAYS} ngày. Hủy tự động ${victims.length} lịch xem trùng căn.` }),
+      toAdmin({ bookingId: id, unitId: unit.id, tone: "success", title: "Cọc 2.000.000đ đã gạch nợ", body: `${unit.code} chuyển holding ${holdHours} giờ. Hủy tự động ${victims.length} lịch xem trùng căn.` }),
     ];
     for (const v of victims) {
       next = patchBooking(next, v.id, { status: "cancelled", closedReason: "auto_cancelled_due_to_deposit" });
@@ -865,7 +955,7 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
           unitId: unit.id,
           tone: "warning",
           title: "Căn bạn đặt lịch vừa có người cọc",
-          body: `VinStay AI xin thông báo: căn ${unitAddress(unit)} bạn vừa đặt lịch đã được một khách khác hoàn tất cọc giữ chỗ ${HOLD_DAYS} ngày. Để không làm mất thời gian của bạn, mình đã tìm được ${alternatives.length} căn tương đương trong cùng khu: ${alternatives.map((u) => `${unitAddress(u)} (${vnd(u.rent)}đ)`).join(", ")}. Bấm vào lịch hẹn để đổi sang căn khác miễn phí, không cần xác thực lại OTP.`,
+          body: `VinStay AI xin thông báo: căn ${unitAddress(unit)} bạn vừa đặt lịch đã được một khách khác hoàn tất cọc giữ chỗ ${holdHours} giờ. Để không làm mất thời gian của bạn, mình đã tìm được ${alternatives.length} căn tương đương trong cùng khu: ${alternatives.map((u) => `${unitAddress(u)} (${vnd(u.rent)}đ)`).join(", ")}. Bấm vào lịch hẹn để đổi sang căn khác miễn phí, không cần xác thực lại OTP.`,
         }),
       );
     }
@@ -926,7 +1016,16 @@ export function saveKyc(id: string, data: Omit<IdCardData, "verifiedAt" | "conse
   return { ok: true };
 }
 
-export function signLease(id: string, opts: { startDate: string; months: number; signature?: string }): DealResult {
+export interface LeaseInput {
+  startDate: string;
+  months: number;
+  signature?: string;
+  paymentCycle: PaymentCycle;
+  occupants: Occupant[];
+  refundAccount: RefundAccount;
+}
+
+export function signLease(id: string, opts: LeaseInput): DealResult {
   const b = getMockState().bookings.find((x) => x.id === id);
   if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
   if (b.status !== "holding") return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái giữ căn" };
@@ -938,16 +1037,68 @@ export function signLease(id: string, opts: { startDate: string; months: number;
 
   if (!b.kyc) return { ok: false, code: "no_kyc", reason: "Cần xác minh CCCD trước khi ký hợp đồng thuê" };
 
+  if (!PAYMENT_CYCLES.includes(opts.paymentCycle)) {
+    return { ok: false, code: "invalid_input", reason: "Kỳ thanh toán phải là 1, 3 hoặc 6 tháng" };
+  }
+  if (!Array.isArray(opts.occupants) || opts.occupants.length > OCCUPANTS_MAX) {
+    return { ok: false, code: "invalid_input", reason: `Số người cùng ở tối đa là ${OCCUPANTS_MAX}` };
+  }
+  if (opts.occupants.some((o) => !o.fullName?.trim() || !o.idOrDob?.trim())) {
+    return { ok: false, code: "invalid_input", reason: "Thông tin người cùng ở phải có họ tên và CCCD/ngày sinh" };
+  }
+  if (!opts.refundAccount || !opts.refundAccount.bankName?.trim() || !opts.refundAccount.holderName?.trim()) {
+    return { ok: false, code: "invalid_input", reason: "Vui lòng điền đầy đủ tài khoản nhận hoàn cọc" };
+  }
+  if (!/^\d{6,19}$/.test(opts.refundAccount.accountNo ?? "")) {
+    return { ok: false, code: "invalid_input", reason: "Số tài khoản nhận hoàn cọc phải gồm 6-19 chữ số" };
+  }
+  if (norm(opts.refundAccount.holderName) !== norm(b.kyc.fullName)) {
+    return { ok: false, code: "holder_mismatch", reason: "Tên chủ tài khoản phải trùng họ tên trên CCCD" };
+  }
+
   const unit = unitById(b.unitId)!;
   const docId = `HD-${new Date().getFullYear()}-${digits(4)}`;
   const now = iso(Date.now());
+  const securityDeposit = unit.rent;
+  const rentAmount = unit.rent * opts.paymentCycle;
+  const depositTopUp = Math.max(0, securityDeposit - (b.deposit?.amount ?? 2_000_000));
+  const total = rentAmount + depositTopUp;
+  const content = `VSA ${unit.code} THANH TOAN TIEN THUE KY 1`;
+  const firstPayment: FirstPayment = {
+    rent: rentAmount,
+    depositTopUp,
+    total,
+    content,
+  };
+  const occupants = opts.occupants.map((o) => ({
+    fullName: o.fullName.trim(),
+    idOrDob: o.idOrDob.trim(),
+    phone: o.phone?.trim() || undefined,
+  }));
+  const refundAccount = {
+    bankName: opts.refundAccount.bankName.trim(),
+    accountNo: opts.refundAccount.accountNo.trim(),
+    holderName: opts.refundAccount.holderName.trim().toUpperCase(),
+  };
 
   setMockState((s) =>
     withNotices(
       {
         ...patchBooking(s, id, {
           status: "leased",
-          lease: { signedAt: now, startDate: opts.startDate, months: opts.months, rent: unit.rent, docId, signature: opts.signature },
+          lease: {
+            signedAt: now,
+            startDate: opts.startDate,
+            months: opts.months,
+            rent: unit.rent,
+            docId,
+            signature: opts.signature,
+            occupants,
+            refundAccount,
+            paymentCycle: opts.paymentCycle,
+            securityDeposit,
+            firstPayment,
+          },
         }),
         unitState: { ...s.unitState, [unit.id]: { status: "rented" } },
       },
@@ -956,14 +1107,14 @@ export function signLease(id: string, opts: { startDate: string; months: number;
         unitId: unit.id,
         tone: "success",
         title: "Hợp đồng thuê đã ký số",
-        body: `Hợp đồng ${docId} (${opts.months} tháng, từ ${new Date(opts.startDate).toLocaleDateString("vi-VN")}) đã có hiệu lực. Khoản cọc 2.000.000đ được chuyển 100% thành Tiền cọc bảo đảm tài sản. Field Host sẽ hẹn bạn lập Hộ chiếu bàn giao số 10 hạng mục khi nhận nhà.`,
+        body: `Hợp đồng ${docId} (${opts.months} tháng, từ ${new Date(opts.startDate).toLocaleDateString("vi-VN")}) đã có hiệu lực. Khoản cọc 2.000.000đ được chuyển 100% thành Tiền cọc bảo đảm tài sản. Thanh toán kỳ đầu ${vnd(total)}đ trước khi nhận nhà.`,
       }),
       zaloToLandlord(unit.landlordId, {
         bookingId: id,
         unitId: unit.id,
         tone: "success",
         title: "Căn hộ đã có người thuê",
-        body: `Hợp đồng thuê ${opts.months} tháng căn ${unit.code} (${vnd(unit.rent)}đ/tháng) đã được ký số. Bạn không cần đi lại — Field Host sẽ lo bàn giao và lập Hộ chiếu số.`,
+        body: `Hợp đồng thuê ${opts.months} tháng căn ${unit.code} (${vnd(unit.rent)}đ/tháng) đã được ký số. Người cùng cư trú: ${occupants.length} người. Bạn không cần đi lại — Field Host sẽ lo bàn giao và lập Hộ chiếu số.`,
       }),
       pushToHost(b.hostId, {
         bookingId: id,
@@ -985,6 +1136,61 @@ export function signLease(id: string, opts: { startDate: string; months: number;
   return { ok: true };
 }
 
+export function confirmFirstPayment(id: string): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "leased" || !b.lease || b.lease.firstPayment?.paidAt) {
+    return { ok: false, code: "bad_status", reason: "Lịch hẹn chưa ở trạng thái chờ thanh toán kỳ đầu" };
+  }
+  const unit = unitById(b.unitId)!;
+  const now = iso(Date.now());
+  const fp = b.lease.firstPayment;
+
+  setMockState((s) =>
+    withNotices(
+      patchBooking(s, id, {
+        lease: {
+          ...b.lease!,
+          firstPayment: {
+            ...fp,
+            paidAt: now,
+          },
+        },
+      }),
+      zaloToTenant(b.tenant.phone, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Đã nhận thanh toán kỳ đầu",
+        body: `Đã nhận ${vnd(fp.total)}đ kỳ đầu. Field Host sẽ hẹn bàn giao và lập Hộ chiếu số 10 hạng mục.`,
+      }),
+      zaloToLandlord(unit.landlordId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Khách đã thanh toán kỳ đầu",
+        body: "Khách đã thanh toán đủ kỳ đầu và cọc bảo đảm — đủ điều kiện bàn giao.",
+      }),
+      pushToHost(b.hostId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Khách đã thanh toán kỳ đầu",
+        body: `Căn ${unit.code}: khách đã thanh toán ${vnd(fp.total)}đ. Tiến hành liên hệ bàn giao căn.`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        tone: "success",
+        title: "Đã nhận thanh toán kỳ đầu",
+        body: `${b.ref}: Đã nhận đủ tiền kỳ đầu ${vnd(fp.total)}đ.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
 export function demoExpireHold(id: string): DealResult {
   const b = getMockState().bookings.find((x) => x.id === id);
   if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
@@ -993,6 +1199,7 @@ export function demoExpireHold(id: string): DealResult {
   }
   const unit = unitById(b.unitId)!;
   const pastIso = iso(Date.now() - 1000);
+  const holdHours = b.deposit?.holdHours ?? 48;
 
   setMockState((s) =>
     withNotices(
@@ -1006,22 +1213,108 @@ export function demoExpireHold(id: string): DealResult {
         bookingId: id,
         unitId: unit.id,
         tone: "warning",
-        title: "Hết hạn giữ căn hộ",
-        body: "Hết hạn giữ căn, khoản cọc không được hoàn theo thỏa thuận",
+        title: "Hết thời hạn giữ chỗ",
+        body: `Hết thời hạn giữ chỗ ${holdHours} giờ. Khoản cọc 2.000.000đ không được hoàn (Điều 6.1 Thỏa thuận đặt cọc): 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng.`,
       }),
       zaloToLandlord(unit.landlordId, {
         bookingId: id,
         unitId: unit.id,
         tone: "info",
         title: "Căn hộ đã mở lại đón khách",
-        body: `Căn ${unit.code} hết hạn giữ chỗ mà khách không hoàn tất thủ tục, đã mở lại đón khách.`,
+        body: `Căn ${unit.code} hết hạn giữ chỗ, bạn nhận 1.000.000đ bù trống phòng (Điều 6.1). Căn đã mở lại đón khách.`,
       }),
       toAdmin({
         bookingId: id,
         unitId: unit.id,
         tone: "info",
         title: "Hết hạn giữ căn",
-        body: `Căn ${unit.code} hết hạn giữ chỗ — cọc không hoàn lại.`,
+        body: `Căn ${unit.code} hết hạn giữ chỗ. Cọc 2.000.000đ chia 1.000.000đ chủ nhà / 1.000.000đ nền tảng.`,
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+export function adminVoidHold(
+  id: string,
+  reason: "landlord_breach" | "force_majeure",
+  note: string,
+  by: string,
+): DealResult {
+  const b = getMockState().bookings.find((x) => x.id === id);
+  if (!b) return { ok: false, code: "not_found", reason: "Không tìm thấy lịch hẹn" };
+  if (b.status !== "holding" || b.lease || b.deposit?.voided) {
+    return { ok: false, code: "bad_status", reason: "Lịch hẹn không ở trạng thái giữ chỗ có thể huỷ" };
+  }
+  const trimmedNote = note.trim();
+  if (trimmedNote.length < 5 || trimmedNote.length > 200) {
+    return { ok: false, code: "invalid_input", reason: "Ghi chú huỷ cọc phải từ 5 đến 200 ký tự" };
+  }
+  const ends = holdEndsAt(b);
+  if (ends !== undefined && Date.now() >= ends) {
+    return { ok: false, code: "expired", reason: "Cọc đã hết hạn và bị giữ theo Điều 6.1" };
+  }
+
+  const unit = unitById(b.unitId)!;
+  const now = Date.now();
+  const nowIso = iso(now);
+
+  const tenantBody =
+    reason === "landlord_breach"
+      ? "Chủ nhà không giữ cam kết. VinStay hoàn bạn 4.000.000đ (2.000.000đ cọc + 2.000.000đ phạt cọc, Điều 328 BLDS) trong 24 giờ làm việc."
+      : "Sự kiện bất khả kháng. VinStay hoàn 100% 2.000.000đ trong 24 giờ làm việc.";
+
+  const landlordBody =
+    reason === "landlord_breach"
+      ? "Theo Điều 6.2 Thỏa thuận cọc, bạn chịu phạt cọc 2.000.000đ do không giữ cam kết với khách."
+      : "Cọc của khách được hoàn 100% do bất khả kháng.";
+
+  const closedReason =
+    reason === "landlord_breach" ? "Chủ nhà không giữ cam kết cọc" : "Bất khả kháng";
+
+  setMockState((s) =>
+    withNotices(
+      {
+        ...patchBooking(s, id, {
+          status: "cancelled",
+          closedReason,
+          deposit: b.deposit
+            ? {
+                ...b.deposit,
+                voided: { at: nowIso, by, reason, note: trimmedNote },
+              }
+            : undefined,
+        }),
+        unitState: { ...s.unitState, [unit.id]: { status: "available" } },
+      },
+      zaloToTenant(b.tenant.phone, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "alert",
+        title: "Thông báo huỷ cọc giữ chỗ",
+        body: tenantBody,
+      }),
+      zaloToLandlord(unit.landlordId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "warning",
+        title: "Thông báo huỷ cọc giữ chỗ",
+        body: landlordBody,
+      }),
+      pushToHost(b.hostId, {
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Lịch cọc đã bị huỷ",
+        body: `Admin ${by} đã huỷ cọc căn ${unit.code} (${closedReason}). Căn đã mở lại đón khách.`,
+      }),
+      toAdmin({
+        bookingId: id,
+        unitId: unit.id,
+        tone: "info",
+        title: "Đã huỷ cọc giữ chỗ",
+        body: `${by} huỷ cọc ${b.ref} (${unit.code}): ${closedReason}. Ghi chú: ${trimmedNote}`,
       }),
     ),
   );
@@ -1072,6 +1365,7 @@ export const INSPECT_SLA_MS = 48 * 3_600_000;
 export type ConsignError =
   | "not_found"
   | "bad_status"
+  | "no_warranty"
   | "wrong_host"
   | "invalid_report"
   | "invalid_note"
@@ -1185,7 +1479,7 @@ export function submitConsignment(input: ConsignInput, asDraft = false): Consign
 }
 
 /** Ký uỷ quyền độc quyền cho căn đã đăng ký (draft → awaiting_host). */
-export function signConsignment(id: string): ConsignResult {
+export function signConsignment(id: string, opts?: { ownershipWarranted?: boolean }): ConsignResult {
   const state = getMockState();
   const cs = state.consignments.find((c) => c.id === id);
   if (!cs) {
@@ -1193,6 +1487,9 @@ export function signConsignment(id: string): ConsignResult {
   }
   if (cs.status !== "draft") {
     return { ok: false, code: "bad_status", reason: "Hồ sơ không ở trạng thái nháp để ký ủy quyền." };
+  }
+  if (opts?.ownershipWarranted !== true) {
+    return { ok: false, code: "no_warranty", reason: "Cần cam đoan quyền sở hữu (Điều 2) trước khi ký." };
   }
   const zone = zoneOfBuilding(cs.building);
   if (!zone) {
@@ -1241,7 +1538,7 @@ export function signConsignment(id: string): ConsignResult {
         ...s,
         consignments: s.consignments.map((c) =>
           c.id === id
-            ? { ...c, status: "awaiting_host", signedAt, hostId, inspectDueAt }
+            ? { ...c, status: "awaiting_host", signedAt, hostId, inspectDueAt, ownershipWarrantedAt: signedAt }
             : c,
         ),
       },
@@ -1568,7 +1865,7 @@ export function requestMandateExit(unit: Unit): ExitResult {
   const state = getMockState();
   const status = unitStatus(state, unit);
   if (status === "holding")
-    return { ok: false, reason: `Căn đang giữ cọc ${HOLD_DAYS} ngày. Bạn có thể gửi lại sau khi hết hạn giữ chỗ hoặc khi hợp đồng thuê chính thức được ký.` };
+    return { ok: false, reason: "Căn đang trong thời gian giữ chỗ cọc. Bạn có thể gửi lại sau khi hết hạn giữ chỗ hoặc khi hợp đồng thuê chính thức được ký." };
   if (status === "rented")
     return { ok: false, reason: "Căn đang có hợp đồng thuê hiệu lực. Chỉ thoát ủy quyền được khi căn ở trạng thái trống." };
   const now = Date.now();

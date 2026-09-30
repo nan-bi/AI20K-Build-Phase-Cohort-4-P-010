@@ -381,4 +381,41 @@ describe("Admin Contracts - WP1", () => {
       expect(serialized).not.toMatch(/\b0[0-9]{11}\b/); // số CCCD 12 chữ số
     }
   });
+
+  // T15 (ca 12): sổ HĐ: holding voided => status === 'void', forfeited => 'expired'
+  it("T15 (ca 12): sổ HĐ: holding voided => status === 'void', forfeited => status === 'expired'", () => {
+    const state = getMockState();
+    const bk108 = state.bookings.find((b) => b.id === "bk-108")!;
+
+    // 1. Voided (landlord_breach hoặc force_majeure) => void
+    const stateVoided = {
+      ...state,
+      bookings: state.bookings.map((b) =>
+        b.id === "bk-108"
+          ? {
+              ...b,
+              deposit: {
+                ...b.deposit!,
+                voided: {
+                  at: "2026-09-28T10:00:00.000Z",
+                  by: "Admin",
+                  reason: "landlord_breach" as const,
+                  note: "Huỷ cọc hoàn 2x",
+                },
+              },
+            }
+          : b,
+      ),
+    };
+    const rowsVoided = contracts.contractRows(stateVoided, FIXED_NOW);
+    const rowVoided = rowsVoided.find((r) => r.key === "holding.bk-108");
+    expect(rowVoided?.status).toBe("void");
+
+    // 2. Forfeited (quá hạn) => expired
+    const expiresAtMs = Date.parse(bk108.deposit!.expiresAt!);
+    const rowsForfeited = contracts.contractRows(state, expiresAtMs + 10_000);
+    const rowForfeited = rowsForfeited.find((r) => r.key === "holding.bk-108");
+    expect(rowForfeited?.status).toBe("expired");
+  });
 });
+

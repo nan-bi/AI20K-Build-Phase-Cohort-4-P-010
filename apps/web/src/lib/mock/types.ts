@@ -1,6 +1,20 @@
-import type { Household } from "./cost";
+import type { Household, PaymentCycle } from "./cost";
 import type { Furnishing, HostRole, ItemKey, LayoutKind, LeaseTermPref, LockType, PassportItem, UnitStatus, ZoneId } from "./units";
 export { PASSPORT_ITEMS, type PassportItem } from "./units";
+
+export interface HoldPolicy {
+  defaultHours: number;               // 12..72, số nguyên
+  byUnit: Record<string, number>;     // unitId → giờ (12..72); không có key ⇒ dùng defaultHours
+}
+
+export interface HoldAudit {
+  id: string;
+  at: string;
+  by: string;
+  unitId: string | null;              // null = đổi mặc định toàn nền tảng
+  from: number | null;                // null = trước đó chưa có override
+  to: number | null;                  // null = gỡ override về mặc định
+}
 
 // ─── Lịch xem nhà ───────────────────────────────────────────────────────────────────────────
 
@@ -63,11 +77,28 @@ export interface DepositInfo {
   qrRef: string;
   createdAt: string;
   paidAt?: string;
-  /** Hết hạn giữ chỗ 7 ngày kể từ lúc thanh toán. */
+  /** Hết hạn giữ chỗ: paidAt + holdHours giờ. */
   expiresAt?: string;
   method?: "webhook" | "host_receipt";
   /** Host tải UNC lên khi webhook chậm — giữ tạm 30 phút. */
   tempHoldUntil?: string;
+  holdHours?: number;                 // MỚI — chụp lúc báo có; expiresAt = paidAt + holdHours*HOUR_MS
+  voided?: {                          // MỚI — Admin huỷ cọc (legal/02 Điều 6.2–6.3)
+    at: string;
+    by: string;
+    reason: "landlord_breach" | "force_majeure";
+    note: string;                     // 5..200 ký tự
+  };
+}
+
+export interface Occupant { fullName: string; idOrDob: string; phone?: string }
+export interface RefundAccount { bankName: string; accountNo: string; holderName: string }
+export interface FirstPayment {
+  rent: number;                       // unit.rent * paymentCycle
+  depositTopUp: number;               // securityDeposit - deposit.amount (≥ 0)
+  total: number;                      // rent + depositTopUp
+  content: string;                    // "VSA <unit.code> THANH TOAN TIEN THUE KY 1"
+  paidAt?: string;
 }
 
 export interface Booking {
@@ -100,6 +131,11 @@ export interface Booking {
     docId: string;
     signature?: string; // +
     renewalRemindedAt?: string;
+    occupants: Occupant[];              // MỚI, 0..OCCUPANTS_MAX
+    refundAccount: RefundAccount;       // MỚI
+    paymentCycle: PaymentCycle;         // MỚI
+    securityDeposit: number;            // MỚI = unit.rent (đã gồm 2tr chuyển đổi)
+    firstPayment: FirstPayment;         // MỚI
   };
   closedReason?: string;
   rating?: number;
@@ -142,6 +178,7 @@ export interface Mandate {
   exitEffectiveAt?: string;
   endedAt?: string;   // ISO — lúc Admin hoàn tất thoát uỷ quyền
   endedBy?: string;   // tên Admin
+  termMonths?: number; // MỚI; thiếu ⇒ MANDATE_TERM_MONTHS
 }
 
 export type ConsignmentStatus =
@@ -238,6 +275,7 @@ export interface Consignment {
   report?: InspectionReport;
   decidedAt?: string;
   decidedBy?: string; // tên Admin
+  ownershipWarrantedAt?: string; // MỚI — tick cam đoan Điều 2 legal/01, set trong signConsignment
   // Compatibility fields for un-refactored UI components (WP3/4/7)
   furnishing: Furnishing;
   lock: LockType;
@@ -330,4 +368,8 @@ export interface MockState {
   hostRoles: Record<string, HostRole[]>;
   /** Danh sách SĐT khách thuê đã xác thực qua OTP Zalo (SPEC-P06 §2) */
   verifiedPhones: string[];
+  /** Cấu hình thời hạn giữ chỗ theo giờ (SPEC-P01 §1) */
+  holdPolicy: HoldPolicy;
+  /** Lịch sử thay đổi thời hạn giữ chỗ (SPEC-P01 §3) */
+  holdAudit: HoldAudit[];
 }

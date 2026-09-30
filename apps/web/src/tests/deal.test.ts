@@ -12,7 +12,7 @@ vi.stubGlobal("window", {
 });
 
 import * as actions from "@/lib/mock/actions";
-import { HOLD_MS, HOLD_DAYS } from "@/lib/mock/cost";
+import { HOLD_HOURS_DEFAULT, HOUR_MS } from "@/lib/mock/cost";
 import { getMockState, resetMockState } from "@/lib/mock/store";
 import {
   bookingById,
@@ -52,7 +52,7 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     expect(afterPaidAttempt.status).toBe("closing");
   });
 
-  it("(2) consent -> paid => holding, expiresAt - paidAt === HOLD_MS", () => {
+  it("(2) consent -> paid => holding, expiresAt - paidAt === HOLD_HOURS_DEFAULT giờ", () => {
     const b = actions.createBooking({
       unitId: "s2-02-1004",
       slot: "09:00 - 09:45 30/10/2026",
@@ -81,8 +81,8 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
 
     const paidAt = Date.parse(held.deposit!.paidAt!);
     const expiresAt = Date.parse(held.deposit!.expiresAt!);
-    expect(expiresAt - paidAt).toBe(HOLD_MS);
-    expect(HOLD_DAYS).toBe(7);
+    expect(expiresAt - paidAt).toBe(HOLD_HOURS_DEFAULT * HOUR_MS);
+    expect(held.deposit?.holdHours).toBe(HOLD_HOURS_DEFAULT);
   });
 
   it("(3) saveKyc khi closing => bad_status", () => {
@@ -153,6 +153,9 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     const leaseRes = actions.signLease(b.id, {
       startDate: "2026-11-01",
       months: 12,
+      occupants: [{ fullName: "Trần Văn Nam", idOrDob: "001095012345" }],
+      refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "Trần Văn Nam" },
+      paymentCycle: 1,
     });
     expect(leaseRes.ok).toBe(true);
 
@@ -179,6 +182,9 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     const res = actions.signLease(b.id, {
       startDate: "2026-11-01",
       months: 12,
+      occupants: [{ fullName: "Trần Văn Nam", idOrDob: "001095012345" }],
+      refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "Trần Văn Nam" },
+      paymentCycle: 1,
     });
     expect(res.ok).toBe(false);
     if (!res.ok) {
@@ -248,6 +254,9 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
     const signRes = actions.signLease(b.id, {
       startDate: "2026-11-01",
       months: 12,
+      occupants: [{ fullName: "Trần Văn Nam", idOrDob: "001095012345" }],
+      refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "Trần Văn Nam" },
+      paymentCycle: 1,
     });
     expect(signRes.ok).toBe(false);
     if (!signRes.ok) {

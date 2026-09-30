@@ -7,17 +7,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { vnd } from "@/lib/mock/format";
+import { HOUSE_RULES } from "@/lib/mock/house-rules";
 import { UNITS, ZONES, unitAddress, zoneById, type Unit } from "@/lib/mock/units";
 import styles from "./Host.module.css";
 
 const MY_ZONES = ["sapphire1", "sapphire2"] as const;
-const RULES = [
-  "Yên tĩnh sau 22:00. Ồn quá mức bị BQL phạt và trừ vào Tiền cọc bảo đảm.",
-  "Không đặt hộp khoá treo cửa hay dán mã QR ở sảnh (vi phạm quy chế BQL).",
-  "Thú cưng theo quy định chủ nhà; chó lớn phải đăng ký với BQL.",
-  "Khách vào ở phải đăng ký tạm trú với BQL toà.",
-  "Không sửa chữa: chỉ giới thiệu danh bạ thợ ngoài, khách và thợ tự thoả thuận.",
-];
 
 /** Sổ tay phân khu số: tra All-in, loại khoá và nội quy BQL chỉ với một chạm. */
 export function Handbook() {
@@ -103,10 +97,12 @@ export function Handbook() {
         />
       </Section>
 
-      <Section title="Nội quy BQL cần nhớ">
+      <Section title="Nội quy nhắc khách khi dẫn xem">
         <ul className={styles.rules}>
-          {RULES.map((r) => (
-            <li key={r}>{r}</li>
+          {HOUSE_RULES.map((r) => (
+            <li key={r.id}>
+              <b>{r.title}.</b> {r.body}
+            </li>
           ))}
         </ul>
       </Section>
