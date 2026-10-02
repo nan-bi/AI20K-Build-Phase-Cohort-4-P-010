@@ -1,0 +1,65 @@
+Tổng số file
+2535
+
+Số file theo thư mục cấp 1
+1875 tech data
+377 apps
+117 backend
+56 docs
+39 legal
+16 src
+9 scripts
+6 tests
+5 presentation
+4 .github
+3 .agents
+1 .ai-log
+1 .claude
+1 .codex
+1 .cursor
+1 .dockerignore
+1 .env.example
+1 .gemini
+1 .gitignore
+1 AGENTS.md
+1 ARCHITECTURE.md
+1 CLAUDE.md
+1 CODE_OF_CONDUCT.md
+1 CONTRIBUTING.md
+1 database
+1 docker-compose.yml
+1 Dockerfile
+1 eval
+1 GEMINI.md
+1 JOURNAL.md
+1 LICENSE
+1 Makefile
+1 P-010
+1 README.md
+1 README_boilerplate.md
+1 requirements.txt
+1 ruff.toml
+1 SECURITY.md
+1 WORKLOG.md
+
+Top 20 đuôi file
+280 .jpg
+279 .json
+212 .png
+166 .tsx
+158 .ts
+107 .md
+78 .old
+51 .css
+34 .binarypb
+30 .py
+11 .db-journal
+10 .js
+10 .tflite
+9 .html
+9 .pb
+5 .svg
+4 .pma
+3 .baf
+3 .baj
+3 .bf
