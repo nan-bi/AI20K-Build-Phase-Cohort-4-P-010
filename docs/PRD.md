@@ -187,14 +187,39 @@ Số hóa và minh bạch hóa toàn bộ chặng đầu của vòng đời thu�
    * Khi ký Hợp đồng thuê chính thức trong vòng 24 giờ, khoản 2.000.000 VNĐ này được chuyển đổi 100% thành một phần của **Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit)** của Hợp đồng.
    * Khoản tiền cọc này được giữ nguyên vẹn suốt thời hạn thuê làm tài sản bảo chứng niềm tin, ràng buộc trách nhiệm giữ gìn nội thất của khách thuê; và được hoàn trả lại 100% khi thanh lý hợp đồng sau khi đối soát hiện trạng.
 
-### 3.5. Giai đoạn 5: Cơ Chế Xử Lý Căn HOT & Double Booking (Giải quyết triệt để xung đột)
-* **Gắn cờ Căn HOT:** Nếu 1 căn hộ ghi nhận $\ge 3$ lịch hẹn xem trong vòng 24 giờ tới, hệ thống tự động cập nhật cờ `is_hot = TRUE` và hiển thị badge **🔥 CĂN HOT - Nhiều người đang xem** trên giao diện tìm kiếm.
-* **Xử lý khi có khách cọc trước:**
-  * Giả sử khách A, B, C cùng đặt xem căn hộ S1.02-12A08. Khách B xem lúc 10h và bấm chốt cọc thành công lúc 10h20.
-  * Ngay lập tức, hệ thống tự động hủy lịch xem lúc 14h của khách C.
-  * Zalo Bot tự động gửi tin nhắn cho khách C:
-    > *"VinStay AI xin thông báo: Căn hộ S1.02-12A08 bạn vừa đặt lịch vừa được một khách thuê khác hoàn tất cọc giữ chỗ 24h. Để không làm mất thời gian của bạn, VinStay AI đã tìm thấy 2 căn hộ tương đương về layout và ngân sách trong cùng phân khu. Bấm vào link dưới đây để đổi lịch xem miễn phí ngay lập tức!"*
-  * Đi kèm link xem 2 căn hộ khả dụng tương đương (cùng layout, ngân sách chênh lệch không quá 5%).
+### 3.5. Giai đoạn 5: Cơ Chế Giữ Nhiệt Rổ Hàng, Xử Lý Căn HOT & AI Conflict Resolver
+
+#### 3.5.1. Trạng Thái Hiển Thị Khi Đang Có Khách Xem: "Tiếp Tục Hiện + Gắn Nhãn Động FOMO"
+1. **Trạng thái trên hệ thống (`UnitDisplayStatus = 'viewing'`):**
+   * Căn hộ đang trong ca xem thực địa **vẫn hiển thị công khai 100% trên danh sách tìm kiếm**, nhưng được gắn nhãn trực quan màu cam: **`Đang có lịch xem thực địa`** kèm dòng thông báo: *"Căn này đang có 1 khách xem lúc [Giờ hẹn]. Nhanh tay đặt lịch dự phòng."*
+2. **Giá trị thực chiến:**
+   * **Tạo hiệu ứng tâm lý khan hiếm (FOMO):** Khách đang đứng xem trực tiếp tại phòng nếu thấy căn hộ vẫn đang "nóng" trên sàn sẽ bị thúc đẩy chốt cọc nhanh hơn để không bị người khác lấy mất.
+   * **Thu thập tệp khách dự phòng (Waitlist F2 — Zero CAC):** Nếu khách thứ hai ưng căn này, hệ thống cho phép bấm nút `[Đặt lịch xem dự phòng]` hoặc `[Nhận thông báo khi căn chưa chốt]`. Nếu khách đầu không thuê, sàn có ngay tệp khách F2 sẵn sàng thế chân ngay lập tức mà không mất chi phí tiếp thị mới.
+3. **Quy tắc duy nhất để Khóa căn (`HOLDING`):**
+   * Căn hộ **CHỈ ĐƯỢC CHUYỂN SANG TRẠNG THÁI `HOLDING`** (khóa 48h) tại thời điểm Webhook cổng thanh toán ghi nhận thành công **tiền cọc giữ chỗ 2.000.000 VNĐ qua VietQR động**. Tuyệt đối không khóa căn khi chỉ mới có lịch hẹn xem miệng.
+
+#### 3.5.2. Cơ Chế Mở Lại Trạng Thái Thường (AVAILABLE) — Grace-Period 30 Phút
+Sau khi xem phòng, căn hộ được hoàn trả trạng thái `AVAILABLE` theo 2 luồng khép kín:
+* **Luồng 1 — Kích hoạt thủ công từ Field Host (Manual Trigger):** Ngay khi kết thúc ca xem, Host bấm 1 trong 2 nút trên Host App:
+  * `[Khách chốt cọc]`: Mở màn hình tạo mã VietQR cọc 2.000.000 VNĐ giữ căn.
+  * `[Khách chưa chốt / Phân vân]`: Hệ thống lập tức gỡ nhãn `viewing`, chuyển căn sang `AVAILABLE` ("Sẵn sàng đón khách mới") ngay lập tức.
+* **Luồng 2 — Dự phòng tự động (Auto-Expire SLA 75 Phút):** Nếu Field Host quên bấm cập nhật trạng thái trên app:
+  * Thời gian ca xem nhà tiêu chuẩn là **45 phút**.
+  * Sau **45 phút ca xem + 30 phút ân hạn (tổng cộng 75 phút)** kể từ giờ bắt đầu lịch hẹn, hệ thống tự động gỡ nhãn `viewing`, hoàn trả căn hộ về trạng thái `AVAILABLE` 100%.
+  * Đồng thời, AI Engine tự động gửi tin nhắn Zalo ZNS đến các khách đang nằm trong danh sách chờ (Waitlist): *"Căn hộ [Mã căn] hiện vẫn còn trống, bạn có muốn đặt lịch xem ngay hôm nay?"*
+
+#### 3.5.3. Nguyên Tắc Tối Thượng "First-to-Pay Wins" & Xử Lý Cọc Trực Tuyến Khi Đang Có Khách Xem
+Tình huống thực tế: Khách A đang cùng Field Host đứng xem phòng tại căn hộ, trong khi Khách B ở xa lướt web thấy căn giá hời nên quét VietQR cọc 2.000.000 VNĐ trực tuyến mà không cần xem phòng:
+1. **Nguyên tắc "First-to-Pay Wins" (Ai xuống tiền cọc trước, người đó giữ căn):**
+   * Tiền cọc gạch nợ thành công qua tài khoản định danh nền tảng là căn cứ pháp lý duy nhất để khóa căn sang `HOLDING`. Hệ thống lập tức khóa căn cho Khách B.
+2. **Kích hoạt tức thì AI Conflict Resolver:**
+   * **Bắn thông báo đẩy tức thì cho Field Host:** App của Host tại phòng lập tức rung chuông và thông báo: *"Căn hộ [Mã căn] vừa được một khách hàng khác cọc giữ chỗ trực tuyến qua VietQR lúc [Giờ]."*
+   * **AI tự động gợi ý 2 căn thay thế tương đồng $\ge 90\%$:** Hệ thống tự động truy vấn và hiển thị trên màn hình của Host 2 căn hộ khả dụng cùng layout, cùng phân khu, có mức giá All-in và độ mới nội thất tương đương.
+   * **Cấp quyền truy cập JIT căn mới:** Hệ thống tự động cấp quyền/mã cửa tạm thời của 2 căn mới để Host dẫn Khách A sang xem tiếp trong vòng 3 phút đi bộ.
+3. **Kịch bản thực chiến biến nguy thành cơ hội chốt Sale kép:**
+   * Field Host thông báo minh bạch, lịch sự với Khách A về việc căn hộ vừa có giao dịch cọc trực tuyến của ngân hàng; khẳng định tính minh bạch và độ khan hiếm của giỏ hàng VinStay AI.
+   * Tận dụng tâm lý **FOMO đạt đỉnh điểm** của Khách A (vừa tận mắt chứng kiến căn hộ bị nẫng tay trên thật 100%), Host chủ động quẹt thẻ thang máy dẫn Khách A sang căn số 2 tương đương $\rightarrow$ Thúc đẩy Khách A chốt cọc ngay lập tức cho căn thứ 2.
+   * Khách A cũng nhận được tin nhắn Zalo từ VinStay AI: *"Căn hộ bạn vừa xem đã được giữ chỗ trực tuyến. AI đã giữ quyền ưu tiên cho bạn xem 2 căn tương đương tốt nhất tại cùng phân khu."*
 
 ### 3.6. Giai đoạn 6: Nhận Nhà, Hộ Chiếu Bàn Giao Số & Danh Bạ Thợ Kỹ Thuật (Post-Move & Asset-Light Referral)
 1. **Hộ chiếu bàn giao số (Digital Handover Passport):**
