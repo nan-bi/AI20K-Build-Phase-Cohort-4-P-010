@@ -143,6 +143,31 @@ Nhằm bảo đảm an ninh tài sản tuyệt đối cho Chủ nhà (thực hi�
      * Khóa chặt các van vòi nước trong khu vực vệ sinh và bếp;
      * Kéo đóng chặt toàn bộ cửa sổ, cửa ban công/logia và kéo sập khóa cửa chính an toàn.
    * Trường hợp Bên B sơ suất không khóa cửa hoặc quên tắt điện nước gây ngập sàn, chập cháy hoặc tạo điều kiện cho kẻ gian đột nhập gây mất mát tài sản của căn hộ, Bên B phải liên đới chịu trách nhiệm bồi thường toàn bộ thiệt hại thực tế phát sinh cho Chủ nhà.
+4. **Quy chuẩn thời lượng ca xem phòng & Thời gian ân hạn cập nhật kết quả (Grace-Period 30 phút):**
+   * Thời lượng một ca dẫn khách xem phòng tiêu chuẩn tối đa là **45 (bốn mươi lăm) phút** (tương ứng với thời hạn hiệu lực của mật mã mở cửa JIT).
+   * Ngay khi kết thúc ca xem phòng, Bên B có nghĩa vụ bấm cập nhật kết quả trên ứng dụng trong vòng **30 (ba mươi) phút**:
+     * Nếu khách chốt cọc: Bấm `[Khách chốt cọc]` để tạo link VietQR giữ căn;
+     * Nếu khách chưa chốt/phân vân: Bấm `[Khách chưa chốt]` để hoàn trả trạng thái căn hộ về `AVAILABLE` ("Sẵn sàng đón khách mới") cho toàn hệ thống.
+   * **Cơ chế tự động giải phóng (Auto-Expire SLA 75 phút):** Trường hợp Bên B quên không bấm cập nhật trạng thái trên ứng dụng, sau đúng **75 phút** (45 phút ca xem + 30 phút ân hạn) kể từ giờ bắt đầu lịch hẹn, hệ thống tự động gỡ bỏ nhãn `viewing`, hoàn trả căn hộ về trạng thái `AVAILABLE` công khai và kích hoạt thông báo cho các khách hàng đang nằm trong danh sách chờ (Waitlist F2).
+
+---
+
+### ĐIỀU 6: QUY TẮC TƯ VẤN MINH BẠCH ALL-IN COST, KHÔNG ÉP CỌC & HƯỚNG DẪN HỘ CHIẾU BÀN GIAO SỐ
+1. **Trung thực tuyệt đối về bảng tính All-in Cost trọn gói:**
+   * Bên B có nghĩa vụ tư vấn chính xác, công khai và minh bạch toàn bộ các cấu phần chi phí hàng tháng theo Bảng tính All-in Cost thời gian thực trên ứng dụng VinStay AI (bao gồm: Giá thuê cơ bản + Phí quản lý BQL Vinhomes từ 8.000 – 11.000 VNĐ/m² + Phí gửi xe máy/ô tô + Dự toán điện nước EVN sinh hoạt).
+   * Nghiêm cấm hành vi báo "giá mồi" thấp hơn thực tế để dụ dỗ khách, giấu giếm các khoản phí dịch vụ khiến khách bị sốc chi phí ẩn khi vào ở.
+2. **Văn hóa tiếp đón 5 sao — Tuyệt đối không ép cọc:**
+   * Định vị vai trò của Bên B là **"Đại sứ trải nghiệm & Chuyên gia thổ địa"** thân thiện, văn minh tại Ocean Park;
+   * Nghiêm cấm hành vi chèo kéo, nài ép, gây áp lực tâm lý buộc khách phải đặt cọc gấp; không tạo thông tin ảo về việc "sắp có người khác cọc mất căn" nếu không đúng thực tế hệ thống.
+3. **Giới thiệu quyền lợi Hộ chiếu bàn giao số 10 hạng mục:**
+   * Bên B chủ động giới thiệu cho khách thuê về quy trình nghiệm thu Hộ chiếu bàn giao số nhúng Timestamp + GPS Geofence của VinStay AI;
+   * Giải thích rõ cơ chế phân định minh bạch giữa hao mòn tự nhiên (Chủ nhà chịu) và hư hỏng bất cẩn (Khách bồi thường), giúp khách thuê an tâm 100% về tính công bằng, loại bỏ nỗi sợ bị trừ cọc oan khi trả phòng.
+4. **Quy chuẩn xử lý tình huống căn hộ được cọc trực tuyến trong ca dẫn (First-to-Pay Wins & AI Conflict Resolver):**
+   * Các Bên thống nhất nguyên tắc tối thượng của nền tảng: **"Tiền cọc gạch nợ thành công qua tài khoản định danh là căn cứ duy nhất để khóa căn sang `HOLDING`"**. Trường hợp có khách hàng khác hoàn tất chuyển khoản cọc 2.000.000 VNĐ trực tuyến qua VietQR trong lúc Bên B đang trực tiếp dẫn khách xem tại căn hộ:
+     * (i) Bên B có nghĩa vụ thông báo minh bạch, văn minh và lịch sự với khách đang xem phòng về giao dịch giữ chỗ tự động vừa phát sinh trên hệ thống ngân hàng; tuyệt đối không có thái độ tiêu cực, không đổ lỗi cho nền tảng;
+     * (ii) Ngay khi nhận được thông báo đẩy từ hệ thống, Bên B mở giao diện **AI Conflict Resolver** trên ứng dụng để nhận danh sách **02 (hai) căn hộ thay thế tương đồng $\ge 90\%$** (cùng layout, cùng phân khu, độ mới nội thất và giá thuê tương đương);
+     * (iii) Bên B chủ động quẹt thẻ thang máy hướng dẫn khách di chuyển sang xem ngay căn thứ 2 trong bán kính 300m để hỗ trợ khách chốt cọc;
+     * (iv) **Bảo vệ quyền lợi hoa hồng trọn vẹn:** Trường hợp khách thuê đồng ý chốt cọc căn hộ thay thế thứ 2, Bên B vẫn được **hệ thống ghi nhận và chi trả 100% thù lao lượt dẫn và 100% hoa hồng chốt cọc thành công** theo đúng cơ chế Attribution Lock quy định tại Điều 3 Hợp đồng này.
 
 ---
 
