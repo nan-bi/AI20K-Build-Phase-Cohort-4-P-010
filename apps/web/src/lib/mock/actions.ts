@@ -1,5 +1,4 @@
-"use client";
-
+import { bookingApi, depositApi, identityApi, contractApi } from "@/lib/apiClient";
 import { HOUR_MS, OCCUPANTS_MAX, PAYMENT_CYCLES, RATES, type PaymentCycle } from "./cost";
 import { fmtTime, dayLabel, normalizePhone, vnd } from "./format";
 import {
@@ -257,6 +256,7 @@ export function cancelBooking(id: string, reason: string, by: "tenant" | "host" 
   if (by === "tenant" && !canTenantModify(b, now)) {
     return { ok: false, code: "too_late", reason: "Chỉ được huỷ lịch trước giờ xem ít nhất 2 giờ" };
   }
+  bookingApi.cancel(b.ref, reason).catch(() => null);
   const unit = unitById(b.unitId)!;
   setMockState((s) =>
     withNotices(
@@ -286,6 +286,7 @@ export function rescheduleBooking(id: string, slot: string): DealResult {
   if (!canTenantModify(b, now)) {
     return { ok: false, code: "too_late", reason: "Chỉ được đổi giờ trước giờ hẹn ít nhất 2 giờ" };
   }
+  bookingApi.reschedule(b.ref, slot).catch(() => null);
   const unit = unitById(b.unitId)!;
 
   if (freeAt(getMockState(), b.hostId, slot, id)) {
@@ -378,6 +379,7 @@ export function rescheduleBooking(id: string, slot: string): DealResult {
 export function tenantCheckIn(id: string) {
   const b = requireBooking(id);
   if (!["confirmed"].includes(b.status)) return;
+  bookingApi.lobbyCheckIn(b.ref || id).catch(() => null);
   const unit = unitById(b.unitId)!;
   setMockState((s) =>
     withNotices(
@@ -431,6 +433,7 @@ function markReminderAction(state: MockState, bookingId: string, actionId: "arri
 }
 
 export function rateHost(id: string, stars: number) {
+  bookingApi.rate(id, stars).catch(() => null);
   setMockState((s) => patchBooking(s, id, { rating: stars }));
 }
 
@@ -920,6 +923,8 @@ export function confirmDepositPaid(id: string, method: "webhook" | "host_receipt
   // Thêm điều kiện: có depositConsentAt, nếu thiếu thì không làm gì (SPEC-P01 §2)
   if (!b.depositConsentAt) return;
 
+  depositApi.webhook({ depositCode: `DEP-${unit.code}`, amount: dep.amount, bankRefNumber: `FT${Date.now()}` }).catch(() => null);
+
   const state = getMockState();
   const holdHours = holdHoursFor(state, unit.id);
   const paidAt = iso(now);
@@ -974,6 +979,8 @@ export function saveKyc(id: string, data: Omit<IdCardData, "verifiedAt" | "conse
   if (endAt !== undefined && Date.now() >= endAt) {
     return { ok: false, code: "expired", reason: "Thời hạn giữ căn đã hết" };
   }
+
+  identityApi.verifyEkyc({ depositId: id, consentVersion: "v2025", hasConsent: true }).catch(() => null);
 
   const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
   const mismatch: ("fullName")[] = [];
@@ -1036,6 +1043,8 @@ export function signLease(id: string, opts: LeaseInput): DealResult {
   }
 
   if (!b.kyc) return { ok: false, code: "no_kyc", reason: "Cần xác minh CCCD trước khi ký hợp đồng thuê" };
+
+  contractApi.signDepositAgreement({ depositId: id, signatureSvg: opts.signature || "", otp: "4829" }).catch(() => null);
 
   if (!PAYMENT_CYCLES.includes(opts.paymentCycle)) {
     return { ok: false, code: "invalid_input", reason: "Kỳ thanh toán phải là 1, 3 hoặc 6 tháng" };

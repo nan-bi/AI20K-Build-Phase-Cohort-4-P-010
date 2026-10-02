@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { authApi } from "@/lib/apiClient";
 import { AUTH_ERROR_TEXT, ROLE_LABEL, authenticate, loginUrl, postLoginTarget, type AuthError, type Role } from "@/lib/mock/auth";
 import { signInAs, useRole } from "@/lib/mock/useRole";
 import { PortalTabs } from "./PortalTabs";
@@ -69,7 +70,21 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 400));
+
+    const isDemo =
+      (tab === "tenant" && (identifier === DEMO_TENANT.identifier || identifier === "0912345678") && password === DEMO_TENANT.password) ||
+      (tab === "landlord" && identifier === DEMO_LANDLORD.identifier && password === DEMO_LANDLORD.password);
+
+    try {
+      if (isDemo) {
+        await authApi.demoLogin(tab).catch(() => null);
+      } else {
+        await authApi.login({ email: identifier, password, portal: tab }).catch(() => null);
+      }
+    } catch {
+      // Backend offline or non-blocking
+    }
+
     const result = authenticate(identifier, password, "public");
     if (!result.ok) {
       setSubmitting(false);
@@ -88,7 +103,11 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
   const onGoogle = async () => {
     setError(null);
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 400));
+    try {
+      await authApi.demoLogin(tab).catch(() => null);
+    } catch {
+      // Backend offline
+    }
     signInAs(tab);
     goHome(tab);
   };

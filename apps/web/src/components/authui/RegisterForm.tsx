@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { authApi } from "@/lib/apiClient";
 import { postLoginTarget, type Role } from "@/lib/mock/auth";
 import { fmtPhone } from "@/lib/mock/format";
+import { setTenantProfile } from "@/lib/mock/actions";
 import { useMock } from "@/lib/mock/store";
 import { signInAs, useRole } from "@/lib/mock/useRole";
 import styles from "./authui.module.css";
@@ -46,21 +48,38 @@ export function RegisterForm({ initialRole, next }: RegisterFormProps) {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const next: typeof errors = {};
-    if (!name.trim()) next.name = "Nhập họ tên.";
-    if (!EMAIL_RE.test(email.trim())) next.email = "Nhập email hợp lệ.";
-    if (password.length < 8) next.password = "Mật khẩu cần ít nhất 8 ký tự.";
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    const nextErrors: typeof errors = {};
+    if (!name.trim()) nextErrors.name = "Nhập họ tên.";
+    if (!EMAIL_RE.test(email.trim())) nextErrors.email = "Nhập email hợp lệ.";
+    if (password.length < 8) nextErrors.password = "Mật khẩu cần ít nhất 8 ký tự.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 400));
+
+    try {
+      await authApi.signup({ email, password, fullName: name, portal: role }).catch(() => null);
+    } catch {
+      // Offline fallback
+    }
+
+    if (role === "tenant") {
+      setTenantProfile({ name: name.trim(), phone: state.tenantProfile?.phone || "0912345678" });
+    }
+
     setSubmitting(false);
     goHome(role);
   };
 
   const onGoogle = async () => {
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 400));
+    try {
+      await authApi.demoLogin(role).catch(() => null);
+    } catch {
+      // Offline fallback
+    }
+    if (role === "tenant" && name.trim()) {
+      setTenantProfile({ name: name.trim(), phone: state.tenantProfile?.phone || "0912345678" });
+    }
     setSubmitting(false);
     goHome(role);
   };
