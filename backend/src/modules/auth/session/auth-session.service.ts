@@ -82,7 +82,11 @@ export class AuthSessionService {
     if (!identity) return null;
 
     const profile = await withRetry(() =>
-      this.prisma.profile.findUnique({ where: { id: identity.id }, include: PROFILE_INCLUDE }),
+      this.prisma.profile.findUnique({
+        where: { id: identity.id },
+        include: PROFILE_INCLUDE,
+        relationLoadStrategy: 'join',
+      }),
     );
     // Phiên Google luôn gắn với một Profile đã tạo; Profile bị xoá thì token vô hiệu.
     if (local && !profile) return null;

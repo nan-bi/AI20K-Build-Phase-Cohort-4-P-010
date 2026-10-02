@@ -30,7 +30,7 @@ import { fmtDateTime, fmtPhone, fmtTime, isValidVnPhone, normalizePhone } from "
 import { useMock } from "@/lib/mock/store";
 import type { Booking } from "@/lib/mock/types";
 import { unitAddress, type Unit } from "@/lib/mock/units";
-import { useDemoUser, useRole } from "@/lib/mock/useRole";
+import { useRole, useSession } from "@/lib/auth/client";
 import { canSkipBookingOtp } from "@/lib/mock/selectors-tenant";
 import { useNow } from "@/lib/useNow";
 import { SlotPicker } from "./SlotPicker";
@@ -60,15 +60,15 @@ export function BookingSheet({ unit, open, onClose }: BookingSheetProps) {
 
 function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const state = useMock();
-  const demoUser = useDemoUser();
+  const { user } = useSession();
   const role = useRole();
   const isTenant = role === "tenant";
   const now = useNow(30_000);
 
   const [step, setStep] = useState<Step>("slot");
   const [slot, setSlot] = useState<string | null>(null);
-  const defaultName = state.tenantProfile?.name || (isTenant ? demoUser?.name ?? "" : "");
-  const defaultPhone = state.tenantProfile?.phone || (isTenant ? demoUser?.phone ?? "" : "");
+  const defaultName = state.tenantProfile?.name || (isTenant ? user?.fullName ?? "" : "");
+  const defaultPhone = state.tenantProfile?.phone || "";
   const [nameInput, setNameInput] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState<string | null>(null);
   const name = nameInput ?? defaultName;
@@ -234,7 +234,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
               <Link
-                href={`/register?role=tenant&next=/booking/${booking.ref}`}
+                href={`/login?next=/booking/${booking.ref}`}
                 className="btn btn-primary btn-lg btn-block"
               >
                 Tạo tài khoản
