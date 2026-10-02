@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
+import { useGoogleOneTapLogin } from "@react-oauth/google";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { authApi } from "@/lib/apiClient";
@@ -63,6 +64,23 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
   const [remember, setRemember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<ReactNode | null>(null);
+
+  useGoogleOneTapLogin({
+    onSuccess: async () => {
+      setError(null);
+      setSubmitting(true);
+      try {
+        await authApi.demoLogin(tab).catch(() => null);
+      } catch {
+        // Backend offline
+      }
+      signInAs(tab);
+      goHome(tab);
+    },
+    onError: () => {
+      setError("Đăng nhập Google thất bại, vui lòng thử lại.");
+    },
+  });
 
   if (redirectingToOtherPortal || currentRole) return null;
 
@@ -164,7 +182,9 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
           {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
         </button>
         <div className={styles.dividerRow}>hoặc</div>
-        <button type="button" className={`btn btn-quiet btn-block ${styles.googleBtn}`} onClick={onGoogle} disabled={submitting}>
+        <button type="button" className={`btn btn-quiet btn-block ${styles.googleBtn}`} onClick={() => {
+          onGoogle();
+        }} disabled={submitting}>
           <GoogleMark /> Tiếp tục với Google
         </button>
         <p className={`small ${styles.demoNote}`}>
