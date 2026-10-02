@@ -21,6 +21,8 @@ import { ContractModule } from './modules/contract/contract.module';
 import { LandlordModule } from './modules/landlord/landlord.module';
 import { HandoverModule } from './modules/handover/handover.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AccountModule } from './modules/account/account.module';
+import { HostModule } from './modules/host/host.module';
 
 // Common Filters, Guards & Interceptors
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
@@ -43,7 +45,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AuditModule,
     AuthModule,
 
-    // 10 Business Modules
+    // 12 Business Modules
     PropertyModule,
     MatchmakerModule,
     BookingModule,
@@ -54,6 +56,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     LandlordModule,
     HandoverModule,
     AdminModule,
+    AccountModule,
+    HostModule,
   ],
   providers: [
     {

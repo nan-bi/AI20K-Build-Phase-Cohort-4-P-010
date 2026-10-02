@@ -1,14 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class GenerateVietQrDto {
   @ApiProperty({ description: 'ID của lượt xem phòng (Viewing ID)' })
-  @IsUUID()
+  @IsString()
   viewingId: string;
 
   @ApiPropertyOptional({ description: 'ID của Field Host chốt cọc (Attribution Lock)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   hostId?: string;
 
   @ApiPropertyOptional({ default: 2000000, description: 'Số tiền cọc giữ chỗ (mặc định 2.000.000 VNĐ)' })
@@ -31,4 +31,16 @@ export class VietQrWebhookDto {
   @IsNotEmpty()
   @IsString()
   bankRefNumber: string;
+}
+
+export class UploadHostReceiptDto {
+  @ApiProperty({ example: 'https://storage.vinstay.vn/receipts/unc-8921.jpg', description: 'Đường dẫn ảnh ủy nhiệm chi (UNC)' })
+  @IsNotEmpty()
+  @IsString()
+  receiptUrl: string;
+
+  @ApiPropertyOptional({ example: 'Khách đã chuyển khoản 2.000.000đ tại Techcombank, webhook ngân hàng chưa báo', description: 'Ghi chú của Host' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
