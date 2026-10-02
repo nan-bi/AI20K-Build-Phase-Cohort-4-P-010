@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { toast } from "@/components/ui/Toast";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { hostAcceptInspection } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDateTime } from "@/lib/mock/format";
 import { hostInspections, isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { useMock } from "@/lib/mock/store";

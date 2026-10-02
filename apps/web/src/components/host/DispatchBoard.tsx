@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/Toast";
 import { STATUS_META } from "@/components/booking/status";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { hostAccept, hostClaimBooking, hostReject, sendReminder } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { dayLabel, fmtPhone, fmtTime, vnd } from "@/lib/mock/format";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { hostBookings, isOpenBooking, openTicketsFor } from "@/lib/mock/selectors";

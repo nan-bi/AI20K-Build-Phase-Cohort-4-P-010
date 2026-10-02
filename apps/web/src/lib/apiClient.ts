@@ -66,25 +66,6 @@ export const api = {
 
 /* ── Specific Domain Endpoints ── */
 
-export const authApi = {
-  login: (body: { email: string; password: string; portal: string }) =>
-    api.post<{ user: any; needsRfidVerification?: boolean; hostId?: string }>("/auth/login", body),
-  signup: (body: { email: string; password: string; fullName: string; portal: string }) =>
-    api.post<{ needsEmailConfirmation: boolean; user?: any }>("/auth/signup", body),
-  demoLogin: (portal: string) =>
-    api.post<{ user: any; needsRfidVerification?: boolean; hostId?: string }>("/auth/demo-login", { portal }),
-  session: () =>
-    api.get<{ user: any }>("/auth/session"),
-  refresh: () =>
-    api.post<{ expiresIn: number }>("/auth/refresh"),
-  logout: () =>
-    api.post<{ loggedOut: boolean }>("/auth/logout"),
-  sendOtp: (phone: string, purpose = "PHONE_VERIFY") =>
-    api.post<{ message: string; phone: string }>("/auth/otp/send", { phone, purpose }),
-  verifyOtp: (phone: string, code: string, purpose = "PHONE_VERIFY") =>
-    api.post<{ verified: boolean }>("/auth/otp/verify", { phone, code, purpose }),
-};
-
 export const propertyApi = {
   getBuildings: () =>
     api.get<any[]>("/properties/buildings"),

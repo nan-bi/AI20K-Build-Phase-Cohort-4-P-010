@@ -5,14 +5,13 @@ import { BadgeCheck, CalendarClock, Plus, ReceiptText, Footprints } from "lucide
 import { LogoMark } from "@/components/brand/Logo";
 import { matchmakerApi } from "@/lib/apiClient";
 import { chatAppend, chatReset, chatSetCriteria, chatSetSearch, countGuestMessage } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
 import { vndShort } from "@/lib/mock/format";
 import { interpret, searchUnits } from "@/lib/mock/matchmaker";
 import { unitStatus } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { CriteriaState } from "@/lib/mock/types";
 import { UNITS } from "@/lib/mock/units";
-import { useRole } from "@/lib/mock/useRole";
+import { useRole, useSession } from "@/lib/auth/client";
 import { Composer } from "./Composer";
 import { Messages } from "./Messages";
 import { ResultsPanel } from "./ResultsPanel";
@@ -40,7 +39,8 @@ export function ChatExperience({ below }: { below: ReactNode }) {
   const results = searchUnits(chat.criteria, statusOf);
 
   const locked = state.ready && role === null && state.guestSent >= 1 && !thinking;
-  const first = role === "tenant" ? DEMO_USERS.tenant.name.split(" ").slice(-1)[0] : null;
+  const { user } = useSession();
+  const first = role === "tenant" ? (user?.fullName?.split(" ").slice(-1)[0] ?? null) : null;
   const greeting = `Xin chào${first ? ` ${first}` : ""}! Mình là VinStay AI, trợ lý thuê căn hộ tại Vinhomes Ocean Park 1. Bạn cho mình biết ngân sách mỗi tháng và loại căn bạn cần nhé, mình lọc trong khoảng 30 giây.`;
 
   const onSend = (text: string) => {

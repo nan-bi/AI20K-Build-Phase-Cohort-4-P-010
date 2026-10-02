@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
 import { cancelMandateExit, requestMandateExit, type ExitResult } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDate } from "@/lib/mock/format";
 import { exitableUnitRows, exitingUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";
 import { useMock } from "@/lib/mock/store";

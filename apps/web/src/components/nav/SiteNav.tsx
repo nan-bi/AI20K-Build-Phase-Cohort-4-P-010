@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CalendarSearch, ChevronDown, FileText, Heart, LogIn, LogOut, Menu, User, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { authApi } from "@/lib/apiClient";
 import { initials } from "@/lib/mock/format";
-import { DEMO_USERS, ROLE_LABEL } from "@/lib/mock/auth";
-import { signOut, useRole } from "@/lib/mock/useRole";
+import { ROLE_LABEL } from "@/lib/mock/actors";
+import { PORTAL_HOME } from "@/lib/auth/portals";
+import { signOut, useRole, useSession } from "@/lib/auth/client";
 import styles from "./SiteNav.module.css";
 
 const LINKS = [
@@ -26,10 +26,10 @@ const ACCOUNT_LINKS = [
 
 /** Menu tài khoản (nút tên + avatar chữ cái) cho khách thuê đã đăng nhập. */
 function AccountMenu() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const tenant = DEMO_USERS.tenant;
+  const { user } = useSession();
+  const name = user?.fullName ?? user?.email ?? "Tài khoản";
 
   useEffect(() => {
     if (!open) return;
@@ -50,8 +50,8 @@ function AccountMenu() {
   return (
     <div className={styles.account} ref={root}>
       <button type="button" className={styles.accountBtn} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className={styles.avatar}>{initials(tenant.name)}</span>
-        <span className={styles.who}>{tenant.name}</span>
+        <span className={styles.avatar}>{initials(name)}</span>
+        <span className={styles.who}>{name}</span>
         <ChevronDown size={14} className={styles.caret} />
       </button>
       {open && (
@@ -66,12 +66,9 @@ function AccountMenu() {
             type="button"
             role="menuitem"
             className={`${styles.accountItem} ${styles.accountDanger}`}
-            onClick={async () => {
+            onClick={() => {
               setOpen(false);
-              await authApi.logout().catch(() => null);
-              signOut();
-              router.push("/");
-              router.refresh();
+              void signOut("/");
             }}
           >
             <LogOut size={16} />
@@ -86,7 +83,7 @@ function AccountMenu() {
 /** Thanh điều hướng cổng khách thuê (công khai). */
 export function SiteNav({ variant = "solid" }: { variant?: "solid" | "clear" }) {
   const role = useRole();
-  const router = useRouter();
+  const { user, ready } = useSession();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -115,33 +112,30 @@ export function SiteNav({ variant = "solid" }: { variant?: "solid" | "clear" }) 
             <>
               <span className={`${styles.roleChip} ${styles.who}`}>
                 Đang đăng nhập: {ROLE_LABEL[role]}
-                <span className={styles.roleName}> · {DEMO_USERS[role].name}</span>
+                <span className={styles.roleName}> · {user?.fullName ?? user?.email}</span>
               </span>
-              <Link href={DEMO_USERS[role].home} className={`btn btn-quiet btn-sm ${styles.who}`}>
+              <Link href={PORTAL_HOME[role]} className={`btn btn-quiet btn-sm ${styles.who}`}>
                 Vào cổng
               </Link>
               <button
                 type="button"
                 className="btn btn-quiet btn-sm"
-                onClick={async () => {
-                  await authApi.logout().catch(() => null);
-                  signOut();
-                  router.push("/");
-                  router.refresh();
-                }}
+                onClick={() => void signOut("/")}
               >
                 <LogOut size={15} /> Đăng xuất
               </button>
             </>
+          ) : !ready ? (
+            <span className="skeleton" style={{ width: 168, height: 34 }} aria-hidden="true" />
           ) : (
             <>
-              <Link href="/register?role=landlord" className={`${styles.landlordLink} ${styles.who}`}>
+              <Link href="/login?tab=landlord" className={`${styles.landlordLink} ${styles.who}`}>
                 Cho thuê nhà
               </Link>
               <Link href="/login" className={`btn btn-quiet btn-sm ${styles.onlyDesktop}`}>
                 <LogIn size={15} /> Đăng nhập
               </Link>
-              <Link href="/register" className="btn btn-primary btn-sm">
+              <Link href="/login" className="btn btn-primary btn-sm">
                 Đăng ký
               </Link>
             </>
@@ -166,7 +160,7 @@ export function SiteNav({ variant = "solid" }: { variant?: "solid" | "clear" }) 
               </Link>
             ))}
           {!role && (
-            <Link href="/register?role=landlord" onClick={() => setOpen(false)}>
+            <Link href="/login?tab=landlord" onClick={() => setOpen(false)}>
               Cho thuê nhà
             </Link>
           )}

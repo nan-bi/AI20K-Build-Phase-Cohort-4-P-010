@@ -10,7 +10,7 @@ import { toast } from "@/components/ui/Toast";
 import { ConsignTimeline } from "@/components/consign/ConsignTimeline";
 import { InspectionReportView } from "@/components/consign/InspectionReportView";
 import { hostAcceptInspection, submitInspection } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtTime, vnd } from "@/lib/mock/format";
 import {
   DECLARED_LABEL,

@@ -1,7 +1,9 @@
 "use client";
 
 import { BookOpenText, ClipboardCheck, Radio, UserRound, Wallet } from "lucide-react";
-import { DEMO_USERS, loginUrl } from "@/lib/mock/auth";
+import { loginPathFor } from "@/lib/auth/portals";
+import { useSession } from "@/lib/auth/client";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { hostRoles } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { HostRole } from "@/lib/mock/units";
@@ -44,6 +46,7 @@ export function hostNavItems(
 
 export function HostShell({ children }: { children: React.ReactNode }) {
   const state = useMock();
+  const session = useSession();
   const u = DEMO_USERS.host;
   const hostId = u.refId!;
   const roles = hostRoles(state, hostId);
@@ -61,9 +64,9 @@ export function HostShell({ children }: { children: React.ReactNode }) {
   return (
     <PortalShell
       portal="Cổng Field Host"
-      userName={u.name}
+      userName={session.user?.fullName ?? session.user?.email ?? u.name}
       userMeta={userMeta}
-      signOutHref={loginUrl("host")}
+      signOutHref={loginPathFor("host")}
       sideSlot={<HostSideTools />}
       nav={nav}
     >

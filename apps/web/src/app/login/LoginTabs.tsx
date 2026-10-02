@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Tabs } from "@/components/auth/Tabs";
 import { PortalAuth } from "@/components/auth/PortalAuth";
+import { safeNext } from "@/lib/auth/portals";
 
 type Tab = "tenant" | "landlord";
 
@@ -27,6 +28,7 @@ export function LoginTabs() {
       <PortalAuth
         key={tab}
         portal={tab}
+        next={safeNext(searchParams.get("next"))}
         label={tab === "tenant" ? "khách thuê" : "chủ nhà"}
         initialError={searchParams.get("tab") === tab ? searchParams.get("error") : null}
         initialNotice={

@@ -6,7 +6,7 @@ import { CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 import { OtpSign } from "@/components/booking/OtpSign";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { submitConsignment, signConsignment } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { allInCost } from "@/lib/mock/cost";
 import { vnd } from "@/lib/mock/format";
 import { pickHostFor } from "@/lib/mock/selectors";

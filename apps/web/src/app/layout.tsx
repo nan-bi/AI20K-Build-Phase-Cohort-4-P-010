@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { ToastHost } from "@/components/ui/Toast";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import "./globals.css";
 
 // Một họ chữ duy nhất cho toàn bộ giao diện: Be Vietnam Pro được thiết kế cho dấu tiếng Việt.
@@ -27,10 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi" className={beVietnamPro.variable}>
       <body>
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"}>
-          {children}
-          <ToastHost />
-        </GoogleOAuthProvider>
+        {children}
+        <ToastHost />
       </body>
     </html>
   );

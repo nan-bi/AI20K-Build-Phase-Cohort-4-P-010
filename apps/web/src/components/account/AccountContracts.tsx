@@ -5,7 +5,6 @@ import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtDate, maskPhone, vnd } from "@/lib/mock/format";
 import { bookingUnit } from "@/lib/mock/selectors";
 import { tenantContracts } from "@/lib/mock/selectors-tenant";
@@ -32,7 +31,7 @@ export function AccountContracts() {
   const state = useMock();
   if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
 
-  const phone = (state.tenantProfile ?? { phone: DEMO_USERS.tenant.phone! }).phone;
+  const phone = state.tenantProfile?.phone ?? "";
   const bookings = tenantContracts(state, phone);
 
   return (

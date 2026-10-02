@@ -15,6 +15,8 @@ interface PortalAuthProps {
   label: string;
   initialError?: string | null;
   initialNotice?: string | null;
+  /** Trang quay lại sau khi đăng nhập (đã qua safeNext). */
+  next?: string;
 }
 
 interface LoginData {
@@ -28,7 +30,7 @@ interface LoginData {
  * Admin is email + password only and cannot sign up.
  * Host (on first login) must verify their RFID card number.
  */
-export function PortalAuth({ portal, label, initialError, initialNotice }: PortalAuthProps) {
+export function PortalAuth({ portal, label, initialError, initialNotice, next }: PortalAuthProps) {
   const router = useRouter();
   const canSignup = portal !== "admin";
   const canGoogle = portal !== "admin"; // Admin chỉ đăng nhập email + mật khẩu
@@ -44,7 +46,7 @@ export function PortalAuth({ portal, label, initialError, initialNotice }: Porta
   const [pendingRfid, setPendingRfid] = useState<string | null>(null);
 
   function enter() {
-    router.push(PORTAL_HOME[portal]);
+    router.push(next ?? PORTAL_HOME[portal]);
     router.refresh();
   }
 

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { vnd } from "@/lib/mock/format";
 import { holdMsLeft, isOpenBooking, unitDisplayStatus } from "@/lib/mock/selectors";
 import { landlordConsignments, landlordUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";

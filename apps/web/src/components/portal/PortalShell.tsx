@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { LogOut, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { signOut } from "@/lib/mock/useRole";
+import { signOut } from "@/lib/auth/client";
 import { initials } from "@/lib/mock/format";
 import styles from "./PortalShell.module.css";
 
@@ -47,7 +47,6 @@ export function isNavActive(pathname: string, item: Pick<PortalNavItem, "href" |
 /** Khung dashboard có sidebar cho cổng Chủ nhà và Admin (trên mobile sidebar thành thanh cuộn ngang). */
 export function PortalShell({ portal, userName, userMeta, nav, children, signOutHref, sideSlot }: PortalShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   return (
     <div className={styles.shell}>
       <aside className={styles.side}>
@@ -78,11 +77,7 @@ export function PortalShell({ portal, userName, userMeta, nav, children, signOut
             type="button"
             className={styles.out}
             aria-label="Đăng xuất"
-            onClick={() => {
-              signOut();
-              router.push(signOutHref ?? "/login");
-              router.refresh();
-            }}
+            onClick={() => void signOut(signOutHref ?? "/login")}
           >
             <LogOut size={18} />
           </button>

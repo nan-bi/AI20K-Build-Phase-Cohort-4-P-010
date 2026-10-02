@@ -19,7 +19,7 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   invalid_credentials: [HttpStatus.UNAUTHORIZED, 'Email hoặc mật khẩu không đúng'],
   email_not_verified: [HttpStatus.UNAUTHORIZED, 'Email chưa được xác nhận'],
   not_authorized: [HttpStatus.FORBIDDEN, 'Email này chưa được cấp quyền truy cập cổng này'],
-  wrong_portal: [HttpStatus.FORBIDDEN, 'Tài khoản đã được gán cho vai trò khác, không thể đăng nhập chéo cổng'],
+  wrong_portal: [HttpStatus.FORBIDDEN, 'Tài khoản thuộc một vai trò khác. Vui lòng đăng nhập đúng cổng dành cho vai trò của bạn'],
   account_suspended: [HttpStatus.FORBIDDEN, 'Tài khoản đã bị tạm khoá'],
   account_conflict: [HttpStatus.CONFLICT, 'Email đã gắn với một hồ sơ khác'],
   signup_not_allowed: [HttpStatus.FORBIDDEN, 'Cổng này không hỗ trợ đăng ký / đăng nhập Google'],
