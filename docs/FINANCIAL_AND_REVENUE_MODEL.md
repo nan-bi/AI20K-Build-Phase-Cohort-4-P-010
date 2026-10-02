@@ -12,19 +12,26 @@
 
 ## MỤC LỤC
 1. [TỔNG QUAN CHIẾN LƯỢC TÀI CHÍNH & NGUYÊN TẮC ASSET-LIGHT](#1-tổng-quan-chiến-lược-tài-chính--nguyên-tắc-asset-light)
-2. [CHI TIẾT 5 NHÓM CHI PHÍ VẬN HÀNH & ĐẦU TƯ (COST STRUCTURE)](#2-chi-tiết-5-nhóm-chi-phí-vận-hành--đầu-tư-cost-structure)
-   - [2.1. Chi Phí Hạ Tầng Kỹ Thuật & Giấy Phép Số (Cloud & Software Infrastructure)](#21-chi-phí-hạ-tầng-kỹ-thuật--giấy-phép-số-cloud--software-infrastructure)
-   - [2.2. Chi Phí Vận Hành Trí Tuệ Nhân Tạo & Ký Số (AI Engine & Digital Protocol Cost)](#22-chi-phí-vận-hành-trí-tuệ-nhân-tạo--ký-số-ai-engine--digital-protocol-cost)
-   - [2.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Field Ops & Dynamic Incentives)](#23-chi-phí-điều-phối-thực-địa--thù-lao-field-host-field-ops--dynamic-incentives)
-   - [2.4. Chi Phí Tiếp Thị & Kích Hoạt Nguồn Cung (Acquisition Cost - CAC)](#24-chi-phí-tiếp-thị--kích-hoạt-nguồn-cung-acquisition-cost---cac)
-   - [2.5. Chi Phí Pháp Lý, Vận Hành Doanh Nghiệp & Hợp Đồng Số (Admin & Compliance)](#25-chi-phí-pháp-lý-vận-hành-doanh-nghiệp--hợp-đồng-số-admin--compliance)
-3. [CHI TIẾT 3 NHÓM NGUỒN THU CỐT LÕI (REVENUE STREAMS)](#3-chi-tiết-3-nhóm-nguồn-thu-cốt-lõi-revenue-streams)
-   - [3.1. Phí Giao Dịch Thành Công Theo Kỳ Hạn (Transaction Fee - Nguồn thu chủ lực)](#31-phí-giao-dịch-thành-công-theo-kỳ-hạn-transaction-fee---nguồn-thu-chủ-lực)
-   - [3.2. Phí Đăng Ký Quản Lý Vận Hành Số Hóa (SaaS Subscription Fee)](#32-phí-đăng-ký-quản-lý-vận-hành-số-hóa-saas-subscription-fee)
-   - [3.3. Lãi Suất Tạm Giữ Ký Quỹ & Dòng Tiền Đệm (Escrow Float Income)](#33-lãi-suất-tạm-giữ-ký-quỹ--dòng-tiền-đệm-escrow-float-income)
-4. [PHÂN TÍCH KINH TẾ ĐƠN VỊ (UNIT ECONOMICS TRÊN MỖI CĂN HỘ)](#4-phân-tích-kinh-tế-đơn-vị-unit-economics-trên-mỗi-căn-hộ)
-5. [DỰ PHÓNG TÀI CHÍNH THEO 3 GIAI ĐOẠN (FINANCIAL PROJECTIONS 50 - 300 - 1.000 CĂN)](#5-dự-phóng-tài-chính-theo-3-giai-đoạn-financial-projections-50---300---1000-căn)
-6. [MA TRẬN QUẢN TRỊ RỦI RO DÒNG TIỀN & ĐIỂM HÒA VỐN (BREAK-EVEN ANALYSIS)](#6-ma-trận-quản-trị-rủi-ro-dòng-tiền--điểm-hòa-vốn-break-even-analysis)
+2. [QUY MÔ THỊ TRƯỜNG & ĐỊA HẠT DOANH THU TIỀM NĂNG (TAM – SAM – SOM)](#2-quy-mô-thị-trường--địa-hạt-doanh-thu-tiềm-năng-tam--sam--som)
+   - [2.1. Phương Pháp Luận Tính Toán (Methodology)](#21-phương-pháp-luận-tính-toán-methodology)
+   - [2.2. TAM (Total Addressable Market - Thị Trường Cho Thuê Căn Hộ Chung Cư)](#22-tam-total-addressable-market---thị-trường-cho-thuê-căn-hộ-chung-cư)
+   - [2.3. SAM (Serviceable Available Market - Hệ Sinh Thái Vinhomes Ocean Park)](#23-sam-serviceable-available-market---hệ-sinh-thái-vinhomes-ocean-park)
+   - [2.4. SOM (Serviceable Obtainable Market - Thị Phần Mục Tiêu Của VinStay AI)](#24-som-serviceable-obtainable-market---thị-phần-mục-tiêu-của-vinstay-ai)
+   - [2.5. Bảng Tổng Hợp Đối Chiếu & Sơ Đồ Quy Mô Thị Trường](#25-bảng-tổng-hợp-đối-chiếu-3-cấp-độ-thị-trường)
+3. [CHI TIẾT 5 NHÓM CHI PHÍ VẬN HÀNH & ĐẦU TƯ (COST STRUCTURE)](#3-chi-tiết-5-nhóm-chi-phí-vận-hành--đầu-tư-cost-structure)
+   - [3.1. Chi Phí Hạ Tầng Kỹ Thuật & Giấy Phép Số (Cloud & Software Infrastructure)](#31-chi-phí-hạ-tầng-kỹ-thuật--giấy-phép-số-cloud--software-infrastructure)
+   - [3.2. Chi Phí Vận Hành Trí Tuệ Nhân Tạo & Ký Số (AI Engine & Digital Protocol Cost)](#32-chi-phí-vận-hành-trí-tuệ-nhân-tạo--ký-số-ai-engine--digital-protocol-cost)
+   - [3.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Field Ops & Dynamic Incentives)](#33-chi-phí-điều-phối-thực-địa--thù-lao-field-host-field-ops--dynamic-incentives)
+   - [3.4. Chi Phí Tiếp Thị & Kích Hoạt Nguồn Cung (Acquisition Cost - CAC)](#34-chi-phí-tiếp-thị--kích-hoạt-nguồn-cung-acquisition-cost---cac)
+   - [3.5. Chi Phí Pháp Lý, Vận Hành Doanh Nghiệp & Hợp Đồng Số (Admin & Compliance)](#35-chi-phí-pháp-lý-vận-hành-doanh-nghiệp--hợp-đồng-số-admin--compliance)
+4. [CHI TIẾT 3 NHÓM NGUỒN THU CỐT LÕI (REVENUE STREAMS)](#4-chi-tiết-3-nhóm-nguồn-thu-cốt-lõi-revenue-streams)
+   - [4.1. Phí Giao Dịch Thành Công Theo Kỳ Hạn (Transaction Fee - Nguồn thu chủ lực)](#41-phí-giao-dịch-thành-công-theo-kỳ-hạn-transaction-fee---nguồn-thu-chủ-lực)
+   - [4.2. Phí Đăng Ký Quản Lý Vận Hành Số Hóa (SaaS Subscription Fee)](#42-phí-đăng-ký-quản-lý-vận-hành-số-hóa-saas-subscription-fee)
+   - [4.3. Lãi Suất Tạm Giữ Ký Quỹ & Dòng Tiền Đệm (Escrow Float Income)](#43-lãi-suất-tạm-giữ-ký-quỹ--dòng-tiền-đệm-escrow-float-income)
+5. [PHÂN TÍCH KINH TẾ ĐƠN VỊ (UNIT ECONOMICS TRÊN MỖI CĂN HỘ)](#5-phân-tích-kinh-tế-đơn-vị-unit-economics-trên-mỗi-căn-hộ)
+6. [DỰ PHÓNG TÀI CHÍNH THEO 3 GIAI ĐOẠN (FINANCIAL PROJECTIONS 50 - 300 - 1.000 CĂN)](#6-dự-phóng-tài-chính-theo-3-giai-đoạn-financial-projections-50---300---1000-căn)
+7. [MA TRẬN QUẢN TRỊ RỦI RO DÒNG TIỀN & ĐIỂM HÒA VỐN (BREAK-EVEN ANALYSIS)](#7-ma-trận-quản-trị-rủi-ro-dòng-tiền--điểm-hòa-vốn-break-even-analysis)
+8. [KẾT LUẬN & CAM KẾT HIỆU QUẢ ĐẦU TƯ](#8-kết-luận--cam-kết-hiệu-quả-đầu-tư)
 
 ---
 
@@ -62,9 +69,103 @@ flowchart LR
 
 ---
 
-## 2. CHI TIẾT 5 NHÓM CHI PHÍ VẬN HÀNH & ĐẦU TƯ (COST STRUCTURE)
+## 2. QUY MÔ THỊ TRƯỜNG & ĐỊA HẠT DOANH THU TIỀM NĂNG (TAM – SAM – SOM)
 
-### 2.1. Chi Phí Hạ Tầng Kỹ Thuật & Giấy Phép Số (Cloud & Software Infrastructure)
+### 2.1. Phương Pháp Luận Tính Toán (Methodology)
+Mô hình định lượng quy mô thị trường của **VinStay AI** kết hợp phương pháp luận tiếp cận hai chiều:
+1. **Top-Down Approach (Từ vĩ mô đô thị):** Dựa trên dữ liệu thống kê số lượng căn hộ chung cư thương mại bàn giao và tỷ lệ bất động sản đầu tư cho thuê tại Hà Nội và TP. Hồ Chí Minh theo báo cáo của Savills, CBRE Việt Nam và Tổng cục Thống kê.
+2. **Bottom-Up Approach (Từ thực địa vi mô Ocean Park):** Thống kê số lượng căn hộ thực tế tại 66 tòa chung cư đã vận hành tại Vinhomes Ocean Park 1 (Sapphire 1, Sapphire 2, Ruby, Zenpark, Pavilion, Zurich, Masteri Waterfront...) kết hợp đơn giá All-in Cost bình quân thực tế và chu kỳ quay vòng khách thuê (6 – 12 tháng).
+
+```mermaid
+graph TD
+    subgraph TAM ["TAM: Toàn Thị Trường Cho Thuê Căn Hộ VN (HN & HCM)"]
+        T1["270.000 căn hộ cho thuê thứ cấp<br><b>GMV: 29.160 tỷ VNĐ/năm (~1.16B USD)</b><br>Địa hạt phí dịch vụ (Take Rate ~8.3%): <b>2.430 tỷ VNĐ/năm</b>"]
+    end
+    subgraph SAM ["SAM: Hệ Sinh Thái Đại Đô Thị Vinhomes Ocean Park"]
+        S1["15.000 căn hộ cho thuê thường trực (OCP 1)<br><b>GMV: 1.440 tỷ VNĐ/năm (~58M USD)</b><br>Doanh thu dịch vụ thị trường: <b>144 tỷ VNĐ/năm</b>"]
+    end
+    subgraph SOM ["SOM: Thị Phần Khả Thi VinStay AI Chinh Phục"]
+        M1["Năm 1: 300 căn (2% SAM) → <b>4.73 tỷ VNĐ</b><br>Năm 2: 1.000 căn (6.6% SAM) → <b>15.30 tỷ VNĐ</b><br>Năm 3: 3.000 căn (OCP 1-3 & Smart City) → <b>45.00 tỷ VNĐ</b>"]
+    end
+    TAM --> SAM --> SOM
+```
+
+---
+
+### 2.2. TAM (Total Addressable Market - Thị Trường Cho Thuê Căn Hộ Chung Cư Thương Mại)
+* **Phạm vi khảo sát:** Toàn bộ phân khúc căn hộ chung cư thương mại cho thuê tại 2 trung tâm kinh tế - giáo dục lớn nhất cả nước: Hà Nội & TP. Hồ Chí Minh.
+* **Số liệu quy mô nguồn cung:**
+  * Hà Nội hiện có khoảng $380.000$ căn hộ chung cư thương mại.
+  * TP. Hồ Chí Minh có khoảng $450.000$ căn hộ chung cư thương mại.
+  * **Tổng rổ hàng chung cư 2 đô thị:** $\approx \mathbf{830.000 \text{ căn hộ}}$.
+* **Tỷ lệ cho thuê thứ cấp (Secondary Rental Ratio):**
+  * Theo thống kê CBRE, trung bình $30\% – 35\%$ lượng căn hộ tại các đô thị lớn được chủ sở hữu mua với mục đích tích sản và khai thác dòng tiền cho thuê dài hạn $\rightarrow$ Quy mô căn hộ cho thuê thường trực: $\approx \mathbf{270.000 \text{ căn hộ}}$.
+* **Giá thuê trung bình & Chu kỳ thanh khoản:**
+  * Giá chào thuê trung bình: $9.000.000 \text{ VNĐ / căn / tháng}$.
+  * Chu kỳ hợp đồng thuê: 12 tháng/lượt $\rightarrow$ Mỗi năm phát sinh xấp xỉ $270.000$ lượt ký mới/tái ký.
+* **Định lượng giá trị tiền tệ TAM:**
+  $$\text{Tổng dòng tiền thuê luân chuyển (GMV TAM)} = 270.000 \text{ căn} \times 9.000.000 \text{ đ} \times 12 \text{ tháng} = \mathbf{29.160 \text{ tỷ VNĐ / năm}} \; (\approx 1.16 \text{ tỷ USD / năm})$$
+  $$\text{Địa hạt doanh thu phí dịch vụ môi giới \& vận hành (Take Rate 8.3\% GMV)} \approx \mathbf{2.430 \text{ tỷ VNĐ / năm}} \; (\approx 97 \text{ triệu USD / năm})$$
+
+---
+
+### 2.3. SAM (Serviceable Available Market - Hệ Sinh Thái Vinhomes Ocean Park)
+* **Địa hạt phục vụ trực tiếp:** Quần thể siêu đại đô thị Vinhomes Ocean Park (Gia Lâm, Hà Nội).
+* **Quy mô quần thể lưu trú:**
+  * **Vinhomes Ocean Park 1 (Quận 1):** Gồm 66 tòa chung cư cao tầng đã bàn giao và vận hành đầy đủ (Sapphire 1: 11 tòa; Sapphire 2: 16 tòa; Ruby: 5 tòa; Zenpark: 4 tòa; Pavilion: 4 tòa; Zurich: 3 tòa; Masteri Waterfront: 6 tòa...). Tổng số lượng căn hộ: **~44.000 căn hộ**.
+  * **Vinhomes Ocean Park 2 & 3 (Quận 2 & Quận 3):** Khoảng $30.000$ sản phẩm thấp tầng (shophouse, liền kề) và căn hộ cao tầng đang hoàn thiện bàn giao giai đoạn 2026–2028.
+  * **Tổng quy mô toàn quần thể Ocean Park:** **~74.000 sản phẩm lưu trú**.
+* **Đặc tính nguồn cung cho thuê thứ cấp tại Ocean Park 1:**
+  * Do đặc thù là đô thị vệ tinh cách trung tâm nội đô 15–20km, tỷ lệ chủ nhà mua để đầu tư tích sản/cho thuê chiếm tỷ trọng cao vượt trội: **$35\% – 40\%$ tổng số căn hộ**.
+  * $\rightarrow$ Dung lượng căn hộ cho thuê thường trực tại OCP 1: $\approx \mathbf{15.000 – 17.000 \text{ căn hộ}}$.
+* **Đặc tính nguồn cầu thuê dồi dào & thường trực:**
+  * Quy mô dân cư vượt mốc $100.000$ người.
+  * Hơn $5.000$ sinh viên, giảng viên Đại học Quốc tế VinUni và hệ thống Vinschool.
+  * Hơn $15.000$ chuyên gia, kỹ sư công nghệ và nhân viên văn phòng làm việc tại tháp văn phòng thông minh 45 tầng TechnoPark Tower.
+  * Lực lượng lao động chất lượng cao và chuyên gia nước ngoài tại các khu công nghiệp lân cận (KCN Sài Đồng, KCN Yên Phong, Hưng Yên, Bắc Ninh) di chuyển qua các tuyến cao tốc Hà Nội - Hải Phòng.
+* **Định lượng giá trị tiền tệ SAM (tại riêng Ocean Park 1):**
+  * Giá thuê bình quân thực tế (căn 1PN, 2PN phân khu Sapphire): $8.000.000 \text{ VNĐ / căn / tháng}$.
+  $$\text{Tổng dòng tiền thuê luân chuyển (GMV SAM)} = 15.000 \text{ căn} \times 8.000.000 \text{ đ} \times 12 \text{ tháng} = \mathbf{1.440 \text{ tỷ VNĐ / năm}} \; (\approx 58 \text{ triệu USD / năm})$$
+  $$\text{Quy mô doanh thu thị trường dịch vụ cho thuê (Take Rate ~10\% GMV gồm hoa hồng + SaaS)} = \mathbf{144 \text{ tỷ VNĐ / năm}} \; (\approx 5.8 \text{ triệu USD / năm})$$
+
+---
+
+### 2.4. SOM (Serviceable Obtainable Market - Thị Phần Mục Tiêu Của VinStay AI)
+Dựa trên năng lực vận hành công nghệ Asset-Light, mạng lưới Field Host nội khu tại Sapphire và thuật toán AI Matchmaker, VinStay AI đặt lộ trình chiếm lĩnh thị phần qua 3 năm:
+
+* **Năm 1 (Giai đoạn Pilot MVP & Thâm nhập sâu Sapphire 1 & 2):**
+  * **Quy mô giỏ hàng độc quyền:** **300 căn hộ** (Chiếm $\mathbf{2.0\%}$ tổng lượng căn hộ cho thuê tại OCP 1).
+  * **Sản lượng giao dịch:** 50 deal chốt mới/tháng $\approx$ 600 deal/năm.
+  * **Doanh thu mục tiêu Năm 1:** **4.736.000.000 VNĐ / năm** (~190.000 USD).
+  * **Tỷ suất lợi nhuận ròng (Net Margin):** $54.5\%$.
+* **Năm 2 (Phủ sóng toàn bộ 66 tòa Vinhomes Ocean Park 1):**
+  * **Quy mô giỏ hàng độc quyền:** **1.000 căn hộ** (Chiếm $\mathbf{6.6\%}$ tổng lượng căn hộ cho thuê tại OCP 1).
+  * **Sản lượng giao dịch:** 160 deal chốt mới/tháng $\approx$ 1.920 deal/năm.
+  * **Doanh thu mục tiêu Năm 2:** **15.300.000.000 VNĐ / năm** (~612.000 USD).
+  * **Tỷ suất lợi nhuận ròng (Net Margin):** $61.8\%$.
+* **Năm 3 (Mở rộng sang Ocean Park 2, 3 và Vinhomes Smart City Tây Mỗ):**
+  * **Quy mô giỏ hàng độc quyền:** **3.000 căn hộ** (gồm 2.000 căn tại Ocean Park 1, 2, 3 và 1.000 căn tại Vinhomes Smart City).
+  * **Doanh thu mục tiêu Năm 3:** **~45.000.000.000 VNĐ / năm** (~1.800.000 USD).
+
+---
+
+### 2.5. Bảng Tổng Hợp Đối Chiếu 3 Cấp Độ Thị Trường
+
+| Tiêu chí phân tích | TAM (Hà Nội & TP.HCM) | SAM (Vinhomes Ocean Park 1) | SOM Năm 1 (VinStay AI) | SOM Năm 2 (VinStay AI) | SOM Năm 3 (VinStay AI) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Số căn hộ khai thác cho thuê** | 270.000 căn | 15.000 căn | **300 căn** | **1.000 căn** | **3.000 căn** |
+| **Thị phần nắm giữ** | 100% thị trường lớn | 100% rổ hàng OCP 1 | **2.0% SAM** | **6.6% SAM** | **15.0% OCP + Smart City** |
+| **Giá thuê bình quân / tháng** | 9.000.000 VNĐ | 8.000.000 VNĐ | 8.000.000 VNĐ | 8.000.000 VNĐ | 8.500.000 VNĐ |
+| **Tổng GMV dòng tiền thuê / năm** | 29.160 tỷ VNĐ | 1.440 tỷ VNĐ | **28.8 tỷ VNĐ** | **96.0 tỷ VNĐ** | **306.0 tỷ VNĐ** |
+| **Doanh thu tiềm năng nền tảng / năm** | 2.430 tỷ VNĐ | 144 tỷ VNĐ | **4.73 tỷ VNĐ** | **15.30 tỷ VNĐ** | **45.00 tỷ VNĐ** |
+| **Lợi nhuận ròng (EBITDA) / năm** | — | — | **+2.57 tỷ VNĐ** | **+9.45 tỷ VNĐ** | **+28.50 tỷ VNĐ** |
+| **Động lực tăng trưởng chính** | Tốc độ đô thị hóa & căn hộ mới | Sinh viên VinUni, TechnoPark Tower | Mạng lưới Field Host Sapphire | Phủ kín 66 tòa OCP 1 | Nhân rộng mô hình sang Smart City |
+
+---
+
+## 3. CHI TIẾT 5 NHÓM CHI PHÍ VẬN HÀNH & ĐẦU TƯ (COST STRUCTURE)
+
+### 3.1. Chi Phí Hạ Tầng Kỹ Thuật & Giấy Phép Số (Cloud & Software Infrastructure)
 Khoản chi bảo đảm hệ thống vận hành 24/7 với độ trễ thấp và an toàn dữ liệu:
 
 | Khoản mục chi phí | Đơn vị cung cấp | Định mức đơn giá dự kiến | Chu kỳ | Chi phí ước tính (Pilot 50 căn) | Chi phí ước tính (Scale 300 căn) |
@@ -79,7 +180,7 @@ Khoản chi bảo đảm hệ thống vận hành 24/7 với độ trễ thấp 
 
 ---
 
-### 2.2. Chi Phí Vận Hành Trí Tuệ Nhân Tạo & Ký Số (AI Engine & Digital Protocol Cost)
+### 3.2. Chi Phí Vận Hành Trí Tuệ Nhân Tạo & Ký Số (AI Engine & Digital Protocol Cost)
 Khoản chi trả theo lượng tiêu thụ thực tế (Pay-as-you-go) cho các mô hình AI và xác thực:
 
 | Hạng mục AI & Xác thực | Nhà cung cấp & Model | Đơn giá tiêu thụ | Tần suất / Định mức mỗi giao dịch | Chi phí trên mỗi căn chốt deal |
@@ -93,7 +194,7 @@ Khoản chi trả theo lượng tiêu thụ thực tế (Pay-as-you-go) cho các
 
 ---
 
-### 2.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Field Ops & Dynamic Incentives)
+### 3.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Field Ops & Dynamic Incentives)
 Khoản thù lao chi trả trực tiếp cho mạng lưới Field Host nội khu theo cơ chế biến phí linh hoạt cấu hình trên Trang Quản Trị (`AdminCommission.tsx`, `seed.ts`):
 
 | Khoản mục hiện trường | Cơ chế chi trả | Mức chi trả quy chuẩn (Web v0.9.2) | Điều kiện áp dụng & Phạm vi cấu hình Admin |
@@ -108,18 +209,88 @@ Khoản thù lao chi trả trực tiếp cho mạng lưới Field Host nội khu
 
 ---
 
-### 2.4. Chi Phí Tiếp Thị & Kích Hoạt Nguồn Cung (Acquisition Cost - CAC)
-Chi phí thu hút 2 nhóm người dùng hai đầu nền tảng:
+### 3.4. Mô Hình Phễu Chuyển Đổi Hai Đầu & Chi Phí Tiếp Thị (Two-Sided Conversion Funnel & Unit CAC)
 
-| Nhóm đối tượng | Kênh tiếp cận chính | Định mức chi phí | Tỷ lệ chuyển đổi mục tiêu | CAC bình quân |
-|---|---|---|:---:|:---:|
-| **Chủ nhà ký gửi (Supply Acquisition)** | • Quảng cáo Facebook Target cư dân nội thành (Cầu Giấy, Đống Đa...) sở hữu BĐS Ocean Park.<br>• Tiếp cận trực tiếp qua Zalo Group cư dân Sapphire 1 & 2.<br>• Giới thiệu truyền miệng (Referral: tặng 200k khi ký gửi thành công). | ~200.000 – 350.000 VNĐ / chủ nhà tiếp cận quan tâm | $15\% - 25\%$ đồng ý ký HĐ Độc quyền | **~800.000 VNĐ / căn ký gửi thành công** |
-| **Khách thuê (Demand Acquisition)** | • Hợp tác Đoàn hội sinh viên Đại học VinUni, cộng đồng TechnoPark Tower.<br>• SEO Local "Thuê căn hộ Ocean Park All-in", Google Search Ads.<br>• Truyền thông hữu cơ trên TikTok/Reels về "Review căn thật giá thật". | ~25.000 – 40.000 VNĐ / lượt truy cập có nhu cầu thật | $8\% - 12\%$ đặt lịch xem phòng | **~350.000 VNĐ / khách chốt thuê thành công** |
-| **TỔNG CAC TRÊN MỖI GIAO DỊCH HOÀN TẤT** | | | | **~1.150.000 VNĐ / deal** |
+Khác biệt cốt lõi của VinStay AI là giải quyết bài toán thị trường hai mặt (Two-Sided Marketplace): **Thu hút Chủ nhà ký gửi độc quyền (Supply Side)** và **Thu hút Khách thuê có nhu cầu ở thực (Demand Side)**. 
+
+Để đạt được mục tiêu sản lượng **50 deal thành công / tháng** tại quy mô Pilot 300 căn hộ với tổng chi phí tiếp thị **~1.150.000 VNĐ / deal**, hệ thống vận hành theo 2 mô hình phễu chuyển đổi định lượng nghiêm ngặt dưới đây:
 
 ---
 
-### 2.5. Chi Phí Pháp Lý, Vận Hành Doanh Nghiệp & Hợp Đồng Số (Admin & Compliance)
+#### 3.4.1. Phễu Chuyển Đổi Khách Thuê (Tenant Demand Funnel — 6 Tầng)
+Mô phỏng dòng chảy khách thuê hàng tháng để tạo ra 50 hợp đồng thuê hoàn tất:
+
+```mermaid
+flowchart TD
+    F1["<b>Tầng 1: Lượt Tiếp Cận & Truy Cập (Traffic)</b><br>12.000 lượt khách ghé thăm/tháng (SEO, TikTok, Reels, Referral VinUni)"] -->|Tỷ lệ dùng AI: 30%| F2["<b>Tầng 2: Sàng Lọc Nhu Cầu & Tính All-in Cost</b><br>3.600 lượt tương tác AI Matchmaker & bộ lọc ngân sách trần"]
+    F2 -->|Tỷ lệ đặt lịch: 10%| F3["<b>Tầng 3: Xác Thực SĐT & Đặt Lịch Xem Phòng</b><br>360 lịch hẹn được tạo qua Zalo OTP 1 lần (One-Time OTP)"]
+    F3 -->|Tỷ lệ có mặt (Show Rate): 80%| F4["<b>Tầng 4: Tiếp Đón Sảnh & Xem Phòng Thực Địa</b><br>288 ca xem phòng do Field Host quẹt thẻ cư dân dẫn lên phòng"]
+    F4 -->|Tỷ lệ chốt giữ căn: 20.8%| F5["<b>Tầng 5: Quét VietQR Cọc Giữ Chỗ (Holding Lock)</b><br>60 căn hộ chuyển trạng thái holding (khóa 12–72h)"]
+    F5 -->|Tỷ lệ chuyển đổi HĐ: 83.3%| F6["<b>Tầng 6: Ký Hợp Đồng Thuê 3 Bước Thành Công</b><br><b>50 HỢP ĐỒNG THUÊ CHÍNH THỨC HOÀN TẤT / THÁNG</b>"]
+```
+
+| Tầng phễu khách thuê | Số lượng đầu vào | Tỷ lệ chuyển đổi tầng (CR) | Nguyên nhân suy hao (Drop-off) | Giải pháp công nghệ VinStay AI khắc phục |
+|---|:---:|:---:|---|---|
+| **Tầng 1: Traffic & Khám phá** | $12.000$ visits | — | Khách xem lướt, chưa có nhu cầu chuyển nhà ngay. | Tối ưu hóa SEO Local "Thuê căn hộ Ocean Park All-in", video review căn thật giá thật trên TikTok/Reels. |
+| **Tầng 2: Sàng lọc AI Matchmaker** | $3.600$ users | $\mathbf{30.0\%}$ | Rời bỏ nếu bộ lọc phức tạp, sợ bị cộng chi phí ẩn. | **AI Matchmaker theo All-in Cost**: Bảng tính minh bạch tiền thuê + phí QL $9.5k/m^2$ + phí xe + điện nước; gợi ý 3 căn chuẩn trong 30 giây. |
+| **Tầng 3: Đặt lịch Zalo OTP** | $360$ bookings | $\mathbf{10.0\%}$ | Ngại lộ số điện thoại cho môi giới spam làm phiền. | **One-Time OTP & Ẩn danh**: Xác thực OTP Zalo 1 lần duy nhất; hệ thống mã hóa SĐT cá nhân, cam kết 0% cuộc gọi làm phiền. |
+| **Tầng 4: Tiếp đón thực địa sảnh** | $288$ viewings | $\mathbf{80.0\%}$ *(Show Rate)* | Bị lạc đường tại Ocean Park, đứng chờ lâu nên bỏ hẹn (No-show). | **Nhắc hẹn kép T-10m & Nút 1-chạm Zalo**: Báo Host xuống sảnh trước 10p, khách bấm nút "Tôi đã có mặt tại sảnh"; Host quẹt thẻ thang máy dẫn lên trong 60 giây. |
+| **Tầng 5: Cọc giữ chỗ VietQR** | $60$ holding deals | $\mathbf{20.8\%}$ | Do dự, so đo giá giữa nhiều căn, sợ bị lừa tiền cọc. | **Badge Căn hời phân khu & VietQR động**: Tự động nhận diện căn rẻ hơn $\ge 10\%$; quét QR cọc 2 triệu khóa căn ngay 48h gạch nợ tự động vào tài khoản định danh sàn. |
+| **Tầng 6: Ký HĐ thuê chính thức** | $\mathbf{50 \text{ leases}}$ | $\mathbf{83.3\%}$ | Ngại thủ tục giấy tờ công chứng rườm rà, tranh chấp điều khoản cọc. | **Quy trình ký thuê 3 bước tinh gọn**: Bỏ thỏa thuận cọc riêng; OCR CCCD Zero-Storage tiêu hủy ảnh tức thì + ký chữ ký tay cảm ứng trên điện thoại. |
+
+---
+
+#### 3.4.2. Phễu Chuyển Đổi Chủ Nhà Ký Gửi Độc Quyền (Landlord Supply Funnel — 5 Tầng)
+Mô phỏng quy trình tiếp nhận và thẩm định nguồn cung để duy trì giỏ hàng 300 căn hộ hoạt động:
+
+```mermaid
+flowchart TD
+    L1["<b>Tầng 1: Tiếp Cận Chủ Nhà BĐS Ocean Park</b><br>1.000 chủ nhà nội thành tiếp cận truyền thông (FB Target, Zalo Group Sapphire)"] -->|Tỷ lệ quan tâm: 12%| L2["<b>Tầng 2: Điền Thông Tin & Nhận Báo Cáo Định Giá</b><br>120 chủ nhà gửi thông tin căn hộ nhận định giá All-in sơ bộ"]
+    L2 -->|Tỷ lệ đồng ý khảo sát: 58.3%| L3["<b>Tầng 3: Field Host Khảo Sát & Kiểm Định 32 Hạng Mục</b><br>70 căn hộ được Field Host tiếp nhận và thẩm định hiện trạng"]
+    L3 -->|Tỷ lệ ký ủy quyền: 71.4%| L4["<b>Tầng 4: Ký Hợp Đồng Ký Gửi Quản Lý Độc Quyền</b><br>50 căn hộ ký HĐ Ủy quyền 10 điều (Thoát linh hoạt sau 15 ngày)"]
+    L4 -->|Tỷ lệ khớp khách: 100%| L5["<b>Tầng 5: Giỏ Hàng Verified 100% & Khớp Khách Thành Công</b><br><b>50 CĂN HỘ HOÀN TẤT THỦ TỤC VÀ ĐÓN KHÁCH VÀO Ở</b>"]
+```
+
+| Tầng phễu chủ nhà | Số lượng đầu vào | Tỷ lệ chuyển đổi tầng (CR) | Trở ngại thực tế của chủ nhà | Giải pháp công nghệ VinStay AI cam kết |
+|---|:---:|:---:|---|---|
+| **Tầng 1: Tiếp cận truyền thông** | $1.000$ chủ nhà | — | Chủ nhà ở nội thành (Cầu Giấy, Đống Đa...) ngại đi xa 20–30km; sợ môi giới lấy ảnh dìm giá. | Quảng cáo trúng đích: "Chủ nhà ngồi tại nhà 100% — Cho thuê căn hộ Ocean Park không tốn 1 giọt xăng". |
+| **Tầng 2: Định giá All-in sơ bộ** | $120$ leads | $\mathbf{12.0\%}$ | Không nắm được giá thị trường thực tế, sợ bị ép giá. | Hệ thống tự động phân tích dữ liệu phân khu, đề xuất mức giá All-in Cost tối ưu thanh khoản dưới 7 ngày. |
+| **Tầng 3: Khảo sát & Kiểm định** | $70$ inspections | $\mathbf{58.3\%}$ | Bận công việc, không thể chạy sang Ocean Park mở cửa đón thợ/môi giới. | **Mạng lưới Field Host nội khu**: Host đến nhận chìa cơ tại quầy hoặc chủ nhà cấp mã khóa tạm thời; chụp ảnh Hộ chiếu bàn giao số 32 hạng mục. |
+| **Tầng 4: Ký HĐ Ủy quyền độc quyền** | $50$ mandates | $\mathbf{71.4\%}$ | Sợ bị ràng buộc pháp lý chặt, mất quyền tự do định đoạt nhà. | **Hợp đồng Ký gửi 10 điều linh hoạt**: Miễn phí kiểm định; điều khoản thoát linh hoạt (chủ nhà có quyền rút sau 15 ngày báo trước kèm trạng thái nhà trống). |
+| **Tầng 5: Niêm yết & Khớp deal** | $\mathbf{50 \text{ deals}}$ | $\mathbf{100\%}$ | Căn hộ đăng lên bị "thiu", mất 1–2 tháng không có khách. | **AI Pre-Leasing & Khóa căn VietQR**: Tìm khách và chốt cọc trong 7 ngày; tiền cọc 2 triệu chuyển 100% thành cọc bảo đảm tài sản giữ nguyên suốt kỳ thuê. |
+
+---
+
+#### 3.4.3. Mô Hình Phân Bổ Chi Phí CAC Chi Tiết (CAC Attribution Model)
+Bảng hạch toán phân rã chi phí thu hút trên mỗi giao dịch thành công (Quy mô 50 deal/tháng):
+
+| Hạng mục chi phí CAC | Chi phí hạch toán / tháng | Cơ chế phân bổ trên 1 deal thành công | Đơn giá CAC / deal | Tỷ trọng CAC |
+|---|:---:|---|:---:|:---:|
+| **1. Chi phí thu hút Chủ nhà (Supply CAC):** | | | | |
+| • Paid Ads Target (Facebook / Google) | 18.000.000 VNĐ | Phân bổ cho 50 căn ký gửi thành công | 360.000 VNĐ | $31.3\%$ |
+| • Hoa hồng giới thiệu cư dân (Referral Bonus) | 10.000.000 VNĐ | Tặng 200k/chủ nhà ký gửi qua truyền miệng | 200.000 VNĐ | $17.4\%$ |
+| • Chi phí Field Host thẩm định 32 hạng mục | 12.000.000 VNĐ | 70 lượt khảo sát thực địa $\times$ 170k phân bổ | 240.000 VNĐ | $20.9\%$ |
+| **Tiểu kế Supply CAC / deal:** | **40.000.000 VNĐ** | | **~800.000 VNĐ** | **69.6%** |
+| **2. Chi phí thu hút Khách thuê (Demand CAC):** | | | | |
+| • Hợp tác VinUni & Cộng đồng TechnoPark | 6.000.000 VNĐ | Tài trợ sự kiện sinh viên, đặt standee văn phòng | 120.000 VNĐ | $10.4\%$ |
+| • TikTok/Reels Review căn thật & SEO Local | 5.500.000 VNĐ | Chi phí sáng tạo nội dung và tối ưu thứ hạng | 110.000 VNĐ | $9.6\%$ |
+| • Zalo ZNS OTP & Nhắc hẹn kép T-10m | 1.000.000 VNĐ | Chi phí tin nhắn tương tác trên 360 lượt booking | 20.000 VNĐ | $1.7\%$ |
+| • Hỗ trợ thù lao lượt dẫn khách không chốt | 5.000.000 VNĐ | Bù đắp chi phí dẫn khách xem phòng không thành công | 100.000 VNĐ | $8.7\%$ |
+| **Tiểu kế Demand CAC / deal:** | **17.500.000 VNĐ** | | **~350.000 VNĐ** | **30.4%** |
+| **TỔNG CAC TRÊN MỖI GIAO DỊCH THÀNH CÔNG** | **57.500.000 VNĐ** | *(Khớp 100% dòng OpEx Marketing tại Mục 6)* | **~1.150.000 VNĐ** | **100.0%** |
+
+---
+
+#### 3.4.4. Chiến Lược Giảm Thiểu Tỷ Lệ Rơi Rụng (Drop-off Prevention Moats)
+Để bảo vệ biên lợi nhuận và giữ vững chỉ số **LTV/CAC = 9.5x**, VinStay AI thiết lập 4 chốt chặn kỹ thuật triệt tiêu rò rỉ:
+1. **Chốt chặn No-show khách thuê (Tầng 3 $\rightarrow$ Tầng 4):** Quy trình nhắc hẹn kép T-10m kèm nút bấm Zalo 1-chạm nâng Show Rate từ mức trung bình thị trường $50\%$ lên **$80\%$**.
+2. **Chốt chặn Ép giá dìm hàng (Tầng 4 $\rightarrow$ Tầng 5):** Bảng tính All-in Cost chuẩn xác kèm huy hiệu Căn hời phân khu giúp khách ra quyết định chuyển cọc VietQR 2 triệu trong 15 phút mà không đi so kè nhiều nơi.
+3. **Chốt chặn Bỏ cọc / Phân vân (Tầng 5 $\rightarrow$ Tầng 6):** Cọc giữ chỗ khóa căn 48h tạo tính khan hiếm; quy trình ký Hợp đồng thuê 3 bước ngay trên điện thoại giúp giữ vững tỷ lệ chuyển đổi từ cọc sang thuê đạt **$83.3\%$**.
+4. **Chốt chặn Cắt cầu ngoài sàn:** Hợp đồng Ký gửi Độc quyền ràng buộc pháp lý chặt chẽ; Hộ chiếu bàn giao số 32 hạng mục và quyền lợi Escrow bảo vệ tài sản chỉ kích hoạt khi thanh toán qua tài khoản định danh nền tảng, triệt tiêu 100% động cơ giao dịch ngầm.
+
+---
+
+### 3.5. Chi Phí Pháp Lý, Vận Hành Doanh Nghiệp & Hợp Đồng Số (Admin & Compliance)
 Chi phí bảo đảm tính pháp lý chuẩn mực theo Nghị định 13/2023/NĐ-CP, Luật Nhà ở 2023 và Luật Giao dịch Điện tử 2023:
 
 | Hạng mục tuân thủ | Đơn vị hợp tác / Cơ chế | Mức chi phí ước tính | Chu kỳ phát sinh |
@@ -132,9 +303,9 @@ Chi phí bảo đảm tính pháp lý chuẩn mực theo Nghị định 13/2023/
 
 ---
 
-## 3. CHI TIẾT 3 NHÓM NGUỒN THU CỐT LÕI (REVENUE STREAMS)
+## 4. CHI TIẾT 3 NHÓM NGUỒN THU CỐT LÕI (REVENUE STREAMS)
 
-### 3.1. Phí Giao Dịch Thành Công Theo Kỳ Hạn (Transaction Fee - Nguồn thu chủ lực)
+### 4.1. Phí Giao Dịch Thành Công Theo Kỳ Hạn (Transaction Fee - Nguồn thu chủ lực)
 Áp dụng theo Biểu phí niêm yết trong **Hợp đồng Ký gửi Quản lý Độc quyền (Exclusive Rental Mandate - 10 điều)** ký với Chủ nhà:
 
 * **Hợp đồng thuê ngắn hạn (6 tháng):**
@@ -152,7 +323,7 @@ Chi phí bảo đảm tính pháp lý chuẩn mực theo Nghị định 13/2023/
 
 ---
 
-### 3.2. Phí Đăng Ký Quản Lý Vận Hành Số Hóa (SaaS Subscription Fee)
+### 4.2. Phí Đăng Ký Quản Lý Vận Hành Số Hóa (SaaS Subscription Fee)
 Mô hình thu phí định kỳ hàng tháng cho các tiện ích công nghệ mở rộng dành cho Chủ nhà và Khách thuê:
 
 #### A. Gói "Chủ Nhà Thông Minh" (Smart Landlord Dashboard Premium)
@@ -171,7 +342,7 @@ Mô hình thu phí định kỳ hàng tháng cho các tiện ích công nghệ m
 
 ---
 
-### 3.3. Lãi Suất Tạm Giữ Ký Quỹ & Dòng Tiền Đệm (Escrow Float Income)
+### 4.3. Lãi Suất Tạm Giữ Ký Quỹ & Dòng Tiền Đệm (Escrow Float Income)
 Nguồn doanh thu tài chính an toàn sinh ra từ việc quản lý lượng tiền ký quỹ tập trung:
 
 1. **Dòng tiền Tiền cọc giữ chỗ linh hoạt (2.000.000 VNĐ/lượt):**
@@ -191,7 +362,7 @@ Nguồn doanh thu tài chính an toàn sinh ra từ việc quản lý lượng t
 
 ---
 
-## 4. PHÂN TÍCH KINH TẾ ĐƠN VỊ (UNIT ECONOMICS TRÊN MỖI CĂN HỘ)
+## 5. PHÂN TÍCH KINH TẾ ĐƠN VỊ (UNIT ECONOMICS TRÊN MỖI CĂN HỘ)
 
 Bảng đối chiếu Doanh thu và Chi phí trên **1 căn hộ ký gửi thành công hợp đồng 12 tháng** (Giá thuê: 8.000.000 VNĐ/tháng, đồng bộ Web v0.9.2):
 
@@ -230,7 +401,7 @@ Bảng đối chiếu Doanh thu và Chi phí trên **1 căn hộ ký gửi thàn
 
 ---
 
-## 5. DỰ PHÓNG TÀI CHÍNH THEO 3 GIAI ĐOẠN (FINANCIAL PROJECTIONS)
+## 6. DỰ PHÓNG TÀI CHÍNH THEO 3 GIAI ĐOẠN (FINANCIAL PROJECTIONS)
 
 ```mermaid
 gantt
@@ -268,9 +439,9 @@ gantt
 
 ---
 
-## 6. MA TRẬN QUẢN TRỊ RỦI RO DÒNG TIỀN & ĐIỂM HÒA VỐN
+## 7. MA TRẬN QUẢN TRỊ RỦI RO DÒNG TIỀN & ĐIỂM HÒA VỐN
 
-### 6.1. Xác định Điểm Hòa Vốn (Break-Even Analysis)
+### 7.1. Xác định Điểm Hòa Vốn (Break-Even Analysis)
 * **Tổng định phí cố định hàng tháng (Fixed OpEx ban đầu):**  
   $\text{Hạ tầng (3.45M)} + \text{Pháp lý/Admin (6M)} + \text{Lương tối thiểu (25M)} \approx \mathbf{34.450.000 \text{ VNĐ / tháng}}$.
 * **Biên đóng góp trên mỗi deal thành công (Contribution Margin per Deal):**  
@@ -279,7 +450,7 @@ gantt
   $$\text{Số deal hòa vốn} = \frac{34.450.000}{5.010.000} \approx \mathbf{6.8 \approx 7 \text{ deal / tháng}}$$
   *(Tương đương chỉ cần khớp thành công 7 căn hộ mỗi tháng là nền tảng hoàn toàn tự trang trải được bộ máy).*
 
-### 6.2. Ma Trận Quản Trị Rủi Ro Dòng Tiền & Kế Hoạch Ứng Phó:
+### 7.2. Ma Trận Quản Trị Rủi Ro Dòng Tiền & Kế Hoạch Ứng Phó:
 
 | Tình huống rủi ro | Mức độ ảnh hưởng | Kế hoạch dự phòng & Kiểm soát tài chính (Contingency) |
 |---|:---:|---|
@@ -292,7 +463,7 @@ gantt
 
 ---
 
-## 7. KẾT LUẬN & CAM KẾT HIỆU QUẢ ĐẦU TƯ
+## 8. KẾT LUẬN & CAM KẾT HIỆU QUẢ ĐẦU TƯ
 Mô hình tài chính của **VinStay AI** chứng minh tính bền vững vượt trội nhờ:
 1. **Dòng tiền dương ngay từ tháng đầu tiên** nhờ chi phí đầu tư ban đầu (CapEx) = 0.
 2. **Biên lợi nhuận gộp đạt trên 83%** nhờ mô hình tự động hóa bằng AI, quy trình ký số 3 bước tinh gọn và lực lượng Field Host biến phí.
