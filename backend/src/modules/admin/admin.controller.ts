@@ -1,10 +1,17 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
-import { UpdateCommissionParamDto } from './dto/admin.dto';
+import {
+  UpdateCommissionParamDto,
+  ApproveConsignmentDto,
+  RejectConsignmentDto,
+  ReassignBookingDto,
+  VoidHoldDto,
+  UpdateHoldPolicyDto,
+} from './dto/admin.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
-@ApiTags('10. Admin Portal & Biến phí Host')
+@ApiTags('10. Admin Portal & Quản trị vận hành')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
@@ -30,6 +37,20 @@ export class AdminController {
   }
 
   @Public()
+  @Post('consignments/:id/approve')
+  @ApiOperation({ summary: 'Admin duyệt hồ sơ ký gửi căn hộ sau khi có báo cáo thẩm định của Host' })
+  async approveConsignment(@Param('id') id: string, @Body() dto: ApproveConsignmentDto) {
+    return this.adminService.approveConsignment(id, dto);
+  }
+
+  @Public()
+  @Post('consignments/:id/reject')
+  @ApiOperation({ summary: 'Admin từ chối hồ sơ ký gửi kèm lý do' })
+  async rejectConsignment(@Param('id') id: string, @Body() dto: RejectConsignmentDto) {
+    return this.adminService.rejectConsignment(id, dto);
+  }
+
+  @Public()
   @Get('dispatch-sla')
   @ApiOperation({
     summary: 'Module 3: Giám sát Điều phối SLA Field Host',
@@ -37,6 +58,76 @@ export class AdminController {
   })
   async getDispatchSla() {
     return this.adminService.getDispatchSlaMonitoring();
+  }
+
+  @Public()
+  @Post('bookings/:id/reassign')
+  @ApiOperation({ summary: 'Điều phối tay lịch hẹn sang Field Host khác' })
+  async reassignBooking(@Param('id') id: string, @Body() dto: ReassignBookingDto) {
+    return this.adminService.reassignBooking(id, dto);
+  }
+
+  @Public()
+  @Get('contracts')
+  @ApiOperation({ summary: 'Sổ hợp đồng toàn hệ thống (Ủy quyền, Giữ chỗ, Thuê)' })
+  async getContracts() {
+    return this.adminService.getContracts();
+  }
+
+  @Public()
+  @Get('contracts/:id')
+  @ApiOperation({ summary: 'Chi tiết hợp đồng và gói chứng cứ pháp lý' })
+  async getContractById(@Param('id') id: string) {
+    return this.adminService.getContractById(id);
+  }
+
+  @Public()
+  @Post('contracts/:id/void-hold')
+  @ApiOperation({ summary: 'Hủy cọc giữ chỗ (Chủ nhà vi phạm hoặc Bất khả kháng)' })
+  async voidHold(@Param('id') id: string, @Body() dto: VoidHoldDto) {
+    return this.adminService.voidHold(id, dto);
+  }
+
+  @Public()
+  @Post('contracts/:id/complete-exit')
+  @ApiOperation({ summary: 'Hoàn tất thoát ủy quyền sau 15 ngày đếm ngược' })
+  async completeExit(@Param('id') id: string) {
+    return this.adminService.completeExit(id);
+  }
+
+  @Public()
+  @Post('contracts/:id/remind-renewal')
+  @ApiOperation({ summary: 'Gửi nhắc gia hạn hợp đồng thuê sắp hết hạn' })
+  async remindRenewal(@Param('id') id: string) {
+    return this.adminService.remindRenewal(id);
+  }
+
+  @Public()
+  @Get('contract-templates')
+  @ApiOperation({ summary: 'Thư viện mẫu văn bản pháp lý' })
+  getContractTemplates() {
+    return this.adminService.getContractTemplates();
+  }
+
+  @Public()
+  @Get('contract-templates/:id')
+  @ApiOperation({ summary: 'Chi tiết mẫu văn bản pháp lý' })
+  getContractTemplateById(@Param('id') id: string) {
+    return this.adminService.getContractTemplateById(id);
+  }
+
+  @Public()
+  @Get('contract-parties')
+  @ApiOperation({ summary: 'Danh bạ các bên ký kết' })
+  getContractParties() {
+    return this.adminService.getContractParties();
+  }
+
+  @Public()
+  @Get('contract-parties/:id')
+  @ApiOperation({ summary: 'Chi tiết bên ký kết' })
+  getContractPartyById(@Param('id') id: string) {
+    return this.adminService.getContractPartyById(id);
   }
 
   @Public()
@@ -57,5 +148,19 @@ export class AdminController {
   })
   async updateCommissionParam(@Body() dto: UpdateCommissionParamDto) {
     return this.adminService.updateCommissionParam(dto);
+  }
+
+  @Public()
+  @Get('settings/hold-policy')
+  @ApiOperation({ summary: 'Chính sách thời hạn giữ chỗ toàn sàn & riêng từng căn' })
+  getHoldPolicy() {
+    return this.adminService.getHoldPolicy();
+  }
+
+  @Public()
+  @Post('settings/hold-policy')
+  @ApiOperation({ summary: 'Cập nhật chính sách thời hạn giữ chỗ' })
+  updateHoldPolicy(@Body() dto: UpdateHoldPolicyDto) {
+    return this.adminService.updateHoldPolicy(dto);
   }
 }

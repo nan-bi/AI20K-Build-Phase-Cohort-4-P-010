@@ -1,13 +1,23 @@
 import { Controller, Post, Body, Param, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BookingService } from './booking.service';
-import { RequestBookingOtpDto, ConfirmBookingDto } from './dto/booking.dto';
+import { RequestBookingOtpDto, ConfirmBookingDto, CreateBookingDto, CancelBookingDto, RescheduleBookingDto, RateBookingDto } from './dto/booking.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('3. Booking & Đón sảnh 1-chạm')
 @Controller('bookings')
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
+
+  @Public()
+  @Post()
+  @ApiOperation({
+    summary: 'Đặt lịch xem phòng trực tiếp',
+    description: 'Tạo Viewing, phân bổ Field Host phân khu và tạo Dispatch Ticket',
+  })
+  async createBooking(@Body() dto: CreateBookingDto) {
+    return this.bookingService.createBooking(dto);
+  }
 
   @Public()
   @Post('request-otp')
@@ -40,9 +50,37 @@ export class BookingController {
   }
 
   @Public()
+  @Get('by-ref/:ref')
+  @ApiOperation({ summary: 'Tra cứu lịch xem theo mã tham chiếu (vd: VIEW-S1.02-839201)' })
+  async getByRef(@Param('ref') ref: string) {
+    return this.bookingService.getByRef(ref);
+  }
+
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Xem chi tiết lịch hẹn xem phòng và Host phụ trách' })
   async getViewingDetails(@Param('id') id: string) {
     return this.bookingService.getViewingDetails(id);
+  }
+
+  @Public()
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Hủy lịch hẹn xem phòng' })
+  async cancelBooking(@Param('id') id: string, @Body() dto: CancelBookingDto) {
+    return this.bookingService.cancelBooking(id, dto);
+  }
+
+  @Public()
+  @Post(':id/reschedule')
+  @ApiOperation({ summary: 'Đổi khung giờ xem phòng' })
+  async rescheduleBooking(@Param('id') id: string, @Body() dto: RescheduleBookingDto) {
+    return this.bookingService.rescheduleBooking(id, dto);
+  }
+
+  @Public()
+  @Post(':id/rating')
+  @ApiOperation({ summary: 'Đánh giá chất lượng phục vụ của Field Host sau buổi xem' })
+  async rateBooking(@Param('id') id: string, @Body() dto: RateBookingDto) {
+    return this.bookingService.rateBooking(id, dto);
   }
 }
