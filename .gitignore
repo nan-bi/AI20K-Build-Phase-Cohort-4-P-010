@@ -70,6 +70,7 @@ tech data/giaodien/
 # Backend NestJS
 backend/node_modules/
 backend/dist/
+backend/*.tsbuildinfo
 backend/.env
 
 #harness

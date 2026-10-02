@@ -12,7 +12,7 @@ import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
 import { adminVoidHold, completeMandateExit, remindLeaseRenewal } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { contractByKey, contractEvents } from "@/lib/mock/contracts";
 import { templatesForKind } from "@/lib/mock/contract-templates";
 import { fmtDate, fmtDateTime, maskPhone, vnd } from "@/lib/mock/format";

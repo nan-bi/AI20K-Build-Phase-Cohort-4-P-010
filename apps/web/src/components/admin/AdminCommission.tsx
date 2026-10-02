@@ -6,7 +6,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
 import { updateFee } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDateTime, vnd } from "@/lib/mock/format";
 import { hostEarnings, type Earnings } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";

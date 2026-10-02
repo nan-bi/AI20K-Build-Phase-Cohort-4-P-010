@@ -1,72 +1,64 @@
-import { Controller, Get, Patch, Put, Delete, Body, Param, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Patch, Put, Delete, Body, Param } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AccountService } from './account.service';
 import { UpdateProfileDto } from './dto/account.dto';
-import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/**
+ * Mọi route `/me/*` yêu cầu đăng nhập (guard toàn cục gắn `request.user`) và CHỈ trả dữ liệu của chính người gọi.
+ * Tuyệt đối không đánh dấu `@Public()` ở đây: không có `request.user` thì không có "người dùng hiện tại".
+ */
 @ApiTags('11. Tài khoản & Hồ sơ cá nhân (/me)')
+@ApiCookieAuth('session-cookie')
 @Controller('me')
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
 
-  @Public()
   @Get('profile')
   @ApiOperation({ summary: 'Lấy thông tin tài khoản hiện tại' })
-  async getProfile(@Req() req: any) {
-    const userId = req.user?.id;
+  getProfile(@CurrentUser('id') userId: string) {
     return this.accountService.getProfile(userId);
   }
 
-  @Public()
   @Patch('profile')
-  @ApiOperation({ summary: 'Cập nhật thông tin tài khoản' })
-  async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
-    const userId = req.user?.id;
+  @ApiOperation({ summary: 'Cập nhật thông tin tài khoản (hiện chỉ họ tên)' })
+  updateProfile(@CurrentUser('id') userId: string, @Body() dto: UpdateProfileDto) {
     return this.accountService.updateProfile(userId, dto);
   }
 
-  @Public()
   @Get('bookings')
   @ApiOperation({ summary: 'Danh sách lịch hẹn xem phòng của người dùng' })
-  async getBookings(@Req() req: any) {
-    const userId = req.user?.id;
+  getBookings(@CurrentUser('id') userId: string) {
     return this.accountService.getBookings(userId);
   }
 
-  @Public()
   @Get('contracts')
   @ApiOperation({ summary: 'Danh sách hợp đồng thuê & bàn giao của người dùng' })
-  async getContracts(@Req() req: any) {
-    const userId = req.user?.id;
+  getContracts(@CurrentUser('id') userId: string) {
     return this.accountService.getContracts(userId);
   }
 
-  @Public()
   @Get('favorites')
   @ApiOperation({ summary: 'Danh sách căn hộ đã lưu yêu thích' })
-  async getFavorites() {
-    return this.accountService.getFavorites();
+  getFavorites(@CurrentUser('id') userId: string) {
+    return this.accountService.getFavorites(userId);
   }
 
-  @Public()
   @Put('favorites/:unitId')
   @ApiOperation({ summary: 'Thêm căn hộ vào danh sách yêu thích' })
-  async addFavorite(@Param('unitId') unitId: string) {
-    return this.accountService.addFavorite(unitId);
+  addFavorite(@CurrentUser('id') userId: string, @Param('unitId') unitId: string) {
+    return this.accountService.addFavorite(userId, unitId);
   }
 
-  @Public()
   @Delete('favorites/:unitId')
   @ApiOperation({ summary: 'Xóa căn hộ khỏi danh sách yêu thích' })
-  async removeFavorite(@Param('unitId') unitId: string) {
-    return this.accountService.removeFavorite(unitId);
+  removeFavorite(@CurrentUser('id') userId: string, @Param('unitId') unitId: string) {
+    return this.accountService.removeFavorite(userId, unitId);
   }
 
-  @Public()
   @Get('notifications')
   @ApiOperation({ summary: 'Danh sách thông báo người dùng' })
-  async getNotifications(@Req() req: any) {
-    const userId = req.user?.id;
+  getNotifications(@CurrentUser('id') userId: string) {
     return this.accountService.getNotifications(userId);
   }
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { Building2, FileSignature, Gauge, Radar, Settings, SlidersHorizontal, Users } from "lucide-react";
-import { DEMO_USERS, loginUrl } from "@/lib/mock/auth";
+import { loginPathFor } from "@/lib/auth/portals";
+import { useSession } from "@/lib/auth/client";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { contractKpis, contractRows } from "@/lib/mock/contracts";
 import { useMock } from "@/lib/mock/store";
 import { useNow } from "@/lib/useNow";
@@ -13,13 +15,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pendingCs = state.consignments.filter((c) => c.status === "reviewing").length;
   const pendingBk = state.bookings.filter((b) => b.status === "pending").length;
   const contractBadge = now ? contractKpis(contractRows(state, now)).needsAction : 0;
+  const session = useSession();
   const u = DEMO_USERS.admin;
   return (
     <PortalShell
       portal="Quản trị nền tảng"
-      userName={u.name}
+      userName={session.user?.fullName ?? session.user?.email ?? u.name}
       userMeta="Operations Lead"
-      signOutHref={loginUrl("admin")}
+      signOutHref={loginPathFor("admin")}
       nav={[
         { href: "/admin/dashboard", label: "Tổng quan", icon: Gauge },
         { href: "/admin/inventory", label: "Căn hộ & ký gửi", icon: Building2, badge: pendingCs },

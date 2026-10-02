@@ -1,7 +1,7 @@
 import { isOpenBooking } from "./selectors";
 import type { Booking, MockState } from "./types";
 import { normalizePhone } from "./format";
-import { DEMO_USERS, type Role } from "./auth";
+import type { Role } from "./actors";
 
 /** Lịch xem của một khách thuê, mới nhất trước — dùng cho `/account/bookings`. */
 export function tenantBookings(state: MockState, phone: string): Booking[] {
@@ -28,7 +28,7 @@ export function tenantLatestKyc(state: MockState, phone: string) {
 }
 
 export function accountPhone(state: MockState): string {
-  return normalizePhone(state.tenantProfile?.phone ?? DEMO_USERS.tenant.phone!);
+  return normalizePhone(state.tenantProfile?.phone ?? "");
 }
 
 export function ownsBooking(state: MockState, b: Booking): boolean {

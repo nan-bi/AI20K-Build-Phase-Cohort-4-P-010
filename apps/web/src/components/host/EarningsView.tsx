@@ -6,7 +6,7 @@ import { StatTile } from "@/components/charts/StatTile";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDate, vnd } from "@/lib/mock/format";
 import { hostBookings, hostEarnings } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";

@@ -31,3 +31,7 @@ export interface SessionUser {
   isHostVerified: boolean;
   pendingHostId?: string;
 }
+
+/** Chỉ cho phép chuyển hướng nội bộ, tránh open-redirect qua `next`. */
+export const safeNext = (next: string | null | undefined): string | undefined =>
+  next && next.startsWith("/") && !next.startsWith("//") ? next : undefined;

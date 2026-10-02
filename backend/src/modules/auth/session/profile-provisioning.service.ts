@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { User } from '../../../supabase/supabase.service';
 import { Portal, PORTAL_ROLE, ROLE_NAMES } from '../auth.constants';
@@ -34,6 +34,7 @@ const isUniqueViolation = (err: unknown) => (err as { code?: string })?.code ===
  */
 @Injectable()
 export class ProfileProvisioningService {
+  private readonly logger = new Logger(ProfileProvisioningService.name);
   private readonly roleIds = new Map<string, string>();
 
   constructor(private readonly prisma: PrismaService) {}
@@ -84,11 +85,12 @@ export class ProfileProvisioningService {
     if (existing.role.code !== PORTAL_ROLE[portal]) return { ok: false, error: 'wrong_portal' };
     if (!existing.isActive) return { ok: false, error: 'account_suspended' };
 
-    const profile = await this.prisma.profile.update({
-      where: { id: existing.id },
-      data: { lastLoginAt: new Date() },
-      include: PROFILE_INCLUDE,
-    });
+    // lastLoginAt chỉ để tham khảo: không chờ DB (mỗi lượt khứ hồi ~0,6s) và không để lỗi ghi làm hỏng đăng nhập.
+    const lastLoginAt = new Date();
+    void this.prisma.profile
+      .update({ where: { id: existing.id }, data: { lastLoginAt } })
+      .catch((err) => this.logger.warn(`Không ghi được lastLoginAt: ${(err as Error).message}`));
+    const profile = { ...existing, lastLoginAt };
 
     // Host đã đăng nhập nhưng chưa nhập RFID thì chưa được coi là Host (guard cũng chặn theo isHostVerified).
     if (portal === 'host' && !profile.hostProfile) {
@@ -100,7 +102,7 @@ export class ProfileProvisioningService {
   }
 
   private findProfile(id: string) {
-    return this.prisma.profile.findUnique({ where: { id }, include: PROFILE_INCLUDE });
+    return this.prisma.profile.findUnique({ where: { id }, include: PROFILE_INCLUDE, relationLoadStrategy: 'join' });
   }
 
   /** Bảng `roles` tự lành: thiếu dòng (chưa chạy seed) thì tạo, không làm hỏng đăng nhập. */
