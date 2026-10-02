@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleMark } from "@/components/auth/GoogleMark";
-import { useGoogleOneTapLogin } from "@react-oauth/google";
+import { useGoogleLogin } from "@react-oauth/google";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { authApi } from "@/lib/apiClient";
@@ -65,7 +65,7 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<ReactNode | null>(null);
 
-  useGoogleOneTapLogin({
+  const googleLoginPrompt = useGoogleLogin({
     onSuccess: async () => {
       setError(null);
       setSubmitting(true);
@@ -118,16 +118,8 @@ export function LoginForm({ next, as, initialTab }: LoginFormProps) {
     goHome(result.role);
   };
 
-  const onGoogle = async () => {
-    setError(null);
-    setSubmitting(true);
-    try {
-      await authApi.demoLogin(tab).catch(() => null);
-    } catch {
-      // Backend offline
-    }
-    signInAs(tab);
-    goHome(tab);
+  const onGoogle = () => {
+    googleLoginPrompt();
   };
 
   const fillDemo = (role: "tenant" | "landlord") => {
