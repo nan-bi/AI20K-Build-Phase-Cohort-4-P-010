@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CalendarSearch, ChevronDown, FileText, Heart, LogIn, LogOut, Menu, User, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { authApi } from "@/lib/apiClient";
 import { initials } from "@/lib/mock/format";
 import { DEMO_USERS, ROLE_LABEL } from "@/lib/mock/auth";
 import { signOut, useRole } from "@/lib/mock/useRole";
@@ -65,8 +66,9 @@ function AccountMenu() {
             type="button"
             role="menuitem"
             className={`${styles.accountItem} ${styles.accountDanger}`}
-            onClick={() => {
+            onClick={async () => {
               setOpen(false);
+              await authApi.logout().catch(() => null);
               signOut();
               router.push("/");
               router.refresh();
@@ -121,7 +123,8 @@ export function SiteNav({ variant = "solid" }: { variant?: "solid" | "clear" }) 
               <button
                 type="button"
                 className="btn btn-quiet btn-sm"
-                onClick={() => {
+                onClick={async () => {
+                  await authApi.logout().catch(() => null);
                   signOut();
                   router.push("/");
                   router.refresh();

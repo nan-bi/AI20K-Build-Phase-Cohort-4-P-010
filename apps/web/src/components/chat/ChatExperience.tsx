@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, CalendarClock, Plus, ReceiptText, Footprints } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
+import { matchmakerApi } from "@/lib/apiClient";
 import { chatAppend, chatReset, chatSetCriteria, chatSetSearch, countGuestMessage } from "@/lib/mock/actions";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { vndShort } from "@/lib/mock/format";
@@ -51,6 +52,20 @@ export function ChatExperience({ below }: { below: ReactNode }) {
     const result = interpret(text, chat.criteria, chat.searched, statusOf);
     const isSearch = result.kind === "search";
     const budget = isSearch ? result.criteria.budget : undefined;
+
+    if (isSearch && budget) {
+      matchmakerApi
+        .recommend({
+          maxAllInBudget: budget,
+          preferredLayout: result.criteria.layouts?.[0],
+          occupants: result.criteria.household?.persons,
+          motorbikes: result.criteria.household?.motorbikes,
+          cars: result.criteria.household?.cars,
+          prompt: text,
+        })
+        .catch(() => null);
+    }
+
     setThinking({
       steps: isSearch
         ? [`Quét ${openCount} căn đang mở tại Ocean Park 1`, budget ? `Loại căn có All-in vượt ${vndShort(budget)}` : "Áp dụng bộ lọc của bạn", "Xếp hạng theo mức tiết kiệm"]

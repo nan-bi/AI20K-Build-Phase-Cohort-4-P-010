@@ -24,6 +24,7 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { ZaloBubble } from "@/components/zalo/ZaloThread";
+import { bookingApi } from "@/lib/apiClient";
 import { createBooking, requestOtp, verifyOtp } from "@/lib/mock/actions";
 import { fmtDateTime, fmtPhone, fmtTime, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
 import { useMock } from "@/lib/mock/store";
@@ -66,12 +67,6 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
 
   const [step, setStep] = useState<Step>("slot");
   const [slot, setSlot] = useState<string | null>(null);
-  // Mặc định họ tên/SĐT: ưu tiên hồ sơ khách đã lưu, rồi tới tài khoản demo đang đăng nhập.
-  // Dùng `||` để chuỗi rỗng cũng rơi xuống fallback; effect bên dưới lấp lại khi `role`
-  // hydrate xong (useSyncExternalStore trả null ở lần render đầu ⇒ initializer có thể chạy khi chưa biết vai).
-  // Mặc định họ tên/SĐT tính LẠI mỗi lần render từ hồ sơ khách đã lưu, rồi tới tài khoản demo
-  // đang đăng nhập — nên không phụ thuộc thời điểm `role` hydrate (useSyncExternalStore trả null
-  // ở render đầu). `*Input === null` nghĩa là khách chưa tự gõ ⇒ hiển thị giá trị mặc định.
   const defaultName = state.tenantProfile?.name || (isTenant ? demoUser?.name ?? "" : "");
   const defaultPhone = state.tenantProfile?.phone || (isTenant ? demoUser?.phone ?? "" : "");
   const [nameInput, setNameInput] = useState<string | null>(null);
@@ -108,6 +103,14 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     setErrors(next);
     if (Object.keys(next).length) return;
 
+    if (canSkip && slot) {
+      bookingApi.create({ unitId: unit.id, slot, name, phone: p, persons, note }).catch(() => null);
+      setBooking(createBooking({ unitId: unit.id, slot, name, phone: p, persons, note }));
+      setStep("done");
+      return;
+    }
+
+    bookingApi.requestOtp({ phone: p, fullName: name }).catch(() => null);
     requestOtp(p, "booking");
     setCode("");
     setOtpError(false);
@@ -120,6 +123,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     setOtpError(false);
     if (v.length === 4) {
       if (verifyOtp(v) && slot) {
+        bookingApi.create({ unitId: unit.id, slot, name, phone: p, persons, note }).catch(() => null);
         setBooking(createBooking({ unitId: unit.id, slot, name, phone: p, persons, note }));
         setStep("done");
       } else {

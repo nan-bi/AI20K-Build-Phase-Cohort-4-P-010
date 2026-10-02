@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Field } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
+import { accountApi } from "@/lib/apiClient";
 import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtDate, fmtPhone } from "@/lib/mock/format";
 import { tenantLatestKyc } from "@/lib/mock/selectors-tenant";
@@ -18,6 +19,17 @@ export function AccountProfile() {
   const profile = state.tenantProfile ?? { name: DEMO_USERS.tenant.name, phone: DEMO_USERS.tenant.phone! };
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState(true);
+
+  useEffect(() => {
+    accountApi.getProfile().then((res) => {
+      if (res.ok && res.data) {
+        if (res.data.fullName) setName(res.data.fullName);
+        if (res.data.email) setEmail(res.data.email);
+        if (res.data.isPhoneVerified !== undefined) setPhoneVerified(res.data.isPhoneVerified);
+      }
+    }).catch(() => null);
+  }, []);
 
   if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
 
@@ -30,9 +42,15 @@ export function AccountProfile() {
       <Section title="Thông tin cá nhân">
         <form
           className="stack"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            setTenantProfile({ name: name.trim() || profile.name, phone: profile.phone });
+            const newName = name.trim() || profile.name;
+            setTenantProfile({ name: newName, phone: profile.phone });
+            try {
+              await accountApi.updateProfile({ fullName: newName, email }).catch(() => null);
+            } catch {
+              // Ignore
+            }
             toast("Đã lưu thay đổi", "success");
           }}
         >
@@ -42,7 +60,7 @@ export function AccountProfile() {
           <Field label="Số điện thoại">
             <div className="row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <input className="input" value={fmtPhone(profile.phone)} disabled />
-              <StatusBadge tone="ok">Đã xác thực Zalo</StatusBadge>
+              <StatusBadge tone={phoneVerified ? "ok" : "warn"}>{phoneVerified ? "Đã xác thực Zalo" : "Chưa xác thực"}</StatusBadge>
             </div>
           </Field>
           <Field label="Email" hint="Chỉ hiển thị trong phiên demo này">
