@@ -1,0 +1,58 @@
+# Digest: app.module.ts
+
+## Files
+- backend/src/app.module.ts (85 dòng)
+## Cấu hình
+- L1: import { Module } from '@nestjs/common';
+- L2: import { ConfigModule } from '@nestjs/config';
+- L3: import { EventEmitterModule } from '@nestjs/event-emitter';
+- L4: import { ThrottlerModule } from '@nestjs/throttler';
+- L5: import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+- L8: import { PrismaModule } from './prisma/prisma.module';
+- L9: import { SupabaseModule } from './supabase/supabase.module';
+- L10: import { AuditModule } from './modules/audit/audit.module';
+- L11: import { AuthModule } from './modules/auth/auth.module';
+- L14: import { PropertyModule } from './modules/property/property.module';
+- L15: import { MatchmakerModule } from './modules/matchmaker/matchmaker.module';
+- L16: import { BookingModule } from './modules/booking/booking.module';
+- L17: import { DispatchModule } from './modules/dispatch/dispatch.module';
+- L18: import { DepositModule } from './modules/deposit/deposit.module';
+- L19: import { IdentityModule } from './modules/identity/identity.module';
+- L20: import { ContractModule } from './modules/contract/contract.module';
+- L21: import { LandlordModule } from './modules/landlord/landlord.module';
+- L22: import { HandoverModule } from './modules/handover/handover.module';
+- L23: import { AdminModule } from './modules/admin/admin.module';
+- L24: import { AccountModule } from './modules/account/account.module';
+- L25: import { HostModule } from './modules/host/host.module';
+- L34: @Module({
+- L36: ConfigModule.forRoot({
+- L40: EventEmitterModule.forRoot(),
+- L41: // Chỉ áp dụng ở nơi có @UseGuards(ThrottlerGuard) (các endpoint auth), không phải toàn cục.
+- L42: ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+- L43: PrismaModule,
+- L44: SupabaseModule,
+- L45: AuditModule,
+- L46: AuthModule,
+- L49: PropertyModule,
+- L50: MatchmakerModule,
+- L51: BookingModule,
+- L52: DispatchModule,
+- L53: DepositModule,
+- L54: IdentityModule,
+- L55: ContractModule,
+- L56: LandlordModule,
+- L57: HandoverModule,
+- L58: AdminModule,
+- L59: AccountModule,
+- L60: HostModule,
+- L64: provide: APP_GUARD,
+- L65: useClass: SupabaseAuthGuard,
+- L68: provide: APP_GUARD,
+- L69: useClass: RolesGuard,
+- L72: provide: APP_FILTER,
+- L73: useClass: HttpExceptionFilter,
+- L76: provide: APP_INTERCEPTOR,
+- L77: useClass: LoggingInterceptor,
+- L80: provide: APP_INTERCEPTOR,
+- L81: useClass: TransformInterceptor,
+- L85: export class AppModule {}
