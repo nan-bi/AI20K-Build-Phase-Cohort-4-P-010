@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useGoogleLogin } from "@react-oauth/google";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -46,6 +47,44 @@ export function RegisterForm({ initialRole, next }: RegisterFormProps) {
     router.refresh();
   };
 
+  const googleLoginPrompt = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setSubmitting(true);
+      try {
+        if (tokenResponse?.access_token) {
+          const userRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+          }).catch(() => null);
+          if (userRes && userRes.ok) {
+            const userInfo = await userRes.json();
+            if (role === "tenant" && userInfo?.name) {
+              setTenantProfile({
+                name: userInfo.name,
+                phone: state.tenantProfile?.phone || "0912345678",
+              });
+            }
+          }
+        }
+      } catch {
+        // Fallback
+      }
+      try {
+        await authApi.demoLogin(role).catch(() => null);
+      } catch {
+        // Backend offline
+      }
+      setSubmitting(false);
+      goHome(role);
+    },
+    onError: () => {
+      if (role === "tenant" && name.trim()) {
+        setTenantProfile({ name: name.trim(), phone: state.tenantProfile?.phone || "0912345678" });
+      }
+      setSubmitting(false);
+      goHome(role);
+    },
+  });
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const nextErrors: typeof errors = {};
@@ -70,18 +109,8 @@ export function RegisterForm({ initialRole, next }: RegisterFormProps) {
     goHome(role);
   };
 
-  const onGoogle = async () => {
-    setSubmitting(true);
-    try {
-      await authApi.demoLogin(role).catch(() => null);
-    } catch {
-      // Offline fallback
-    }
-    if (role === "tenant" && name.trim()) {
-      setTenantProfile({ name: name.trim(), phone: state.tenantProfile?.phone || "0912345678" });
-    }
-    setSubmitting(false);
-    goHome(role);
+  const onGoogle = () => {
+    googleLoginPrompt();
   };
 
   return (
