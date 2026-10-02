@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
-import { DEMO_USERS } from "@/lib/mock/auth";
 import { fmtDateTime, vnd } from "@/lib/mock/format";
 import { bookingUnit, hostName, tenantAllIn } from "@/lib/mock/selectors";
 import { tenantPastBookings, tenantUpcomingBookings } from "@/lib/mock/selectors-tenant";
@@ -23,7 +22,7 @@ export function AccountBookings() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
 
-  const phone = (state.tenantProfile ?? { phone: DEMO_USERS.tenant.phone! }).phone;
+  const phone = state.tenantProfile?.phone ?? "";
   const rows = tab === "upcoming" ? tenantUpcomingBookings(state, phone) : tenantPastBookings(state, phone);
 
   const columns: DataTableColumn<Booking>[] = [

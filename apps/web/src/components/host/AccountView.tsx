@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { DEMO_USERS, loginUrl } from "@/lib/mock/auth";
-import { signOut } from "@/lib/mock/useRole";
+import { loginPathFor } from "@/lib/auth/portals";
+import { DEMO_USERS } from "@/lib/mock/actors";
+import { signOut } from "@/lib/auth/client";
 import { hostById, zoneById } from "@/lib/mock/units";
 import styles from "./Host.module.css";
 
@@ -26,7 +26,6 @@ const RULES = [
 
 /** Hồ sơ Field Host: thông tin cá nhân, thẻ RFID, ca trực và quy tắc cốt lõi. */
 export function AccountView() {
-  const router = useRouter();
   const host = hostById(HOST.refId!)!;
   const [onShift, setOnShift] = useState<Record<string, boolean>>({ morning: true, afternoon: true });
 
@@ -96,11 +95,7 @@ export function AccountView() {
         <button
           type="button"
           className="btn btn-quiet"
-          onClick={() => {
-            signOut();
-            router.push(loginUrl("host"));
-            router.refresh();
-          }}
+          onClick={() => void signOut(loginPathFor("host"))}
         >
           Đăng xuất
         </button>

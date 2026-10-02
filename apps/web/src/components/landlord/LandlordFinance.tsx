@@ -5,7 +5,7 @@ import { Columns } from "@/components/charts/Columns";
 import { StatTile } from "@/components/charts/StatTile";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { RATES } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
 import { activeLease, landlordUnits, monthlyRent, unitStatus } from "@/lib/mock/selectors";

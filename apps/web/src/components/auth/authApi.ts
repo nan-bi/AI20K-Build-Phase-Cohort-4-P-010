@@ -1,7 +1,7 @@
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Email hoặc mật khẩu không đúng.",
   wrong_portal:
-    "Tài khoản này đã được gán cố định cho một vai trò khác (Chủ nhà hoặc Khách thuê). Không thể đăng nhập chéo giữa các cổng.",
+    "Tài khoản này thuộc một vai trò khác trên VinStay. Vui lòng chọn đúng vai trò của bạn ở phía trên để đăng nhập.",
   account_suspended: "Tài khoản đã bị tạm khoá.",
   account_conflict: "Email này đã gắn với một hồ sơ khác. Liên hệ Admin.",
   invalid_request: "Thông tin chưa hợp lệ. Kiểm tra lại (mật khẩu tối thiểu 8 ký tự).",

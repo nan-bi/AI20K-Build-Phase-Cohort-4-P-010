@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDate, maskPhone } from "@/lib/mock/format";
 import { landlordUnitRows } from "@/lib/mock/selectors-landlord";
 import { useMock } from "@/lib/mock/store";

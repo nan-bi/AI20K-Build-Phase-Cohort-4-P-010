@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { hostRoles } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { HostRole } from "@/lib/mock/units";

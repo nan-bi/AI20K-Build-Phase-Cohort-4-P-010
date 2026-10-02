@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { approveConsignment, rejectConsignment } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/auth";
+import { DEMO_USERS } from "@/lib/mock/actors";
 import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
 import { fmtDate, vnd } from "@/lib/mock/format";
 import { unitDisplayStatus } from "@/lib/mock/selectors";

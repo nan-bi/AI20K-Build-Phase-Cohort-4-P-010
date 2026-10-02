@@ -13,7 +13,7 @@ const { unitStatus, noticesFor, bookingById } = await import("@/lib/mock/selecto
 const { unitById } = await import("@/lib/mock/units");
 const { upcomingSlots } = await import("@/lib/mock/slots");
 const { isPhoneVerified, canSkipBookingOtp, ownsBooking } = await import("@/lib/mock/selectors-tenant");
-const { DEMO_USERS } = await import("@/lib/mock/auth");
+const { TENANT_DEMO } = await import("@/lib/mock/seed");
 
 const slot = (i: number) => upcomingSlots(Date.now(), 30)[i];
 
@@ -191,9 +191,9 @@ describe("Admin", () => {
 });
 
 describe("OTP một lần cho mỗi SĐT khách thuê - SPEC-P06 §6", () => {
-  it("1. Seed: isPhoneVerified(state, DEMO_USERS.tenant.phone) === true; SĐT lạ ⇒ false", () => {
+  it("1. Seed: isPhoneVerified(state, TENANT_DEMO.phone) === true; SĐT lạ ⇒ false", () => {
     const state = getMockState();
-    expect(isPhoneVerified(state, DEMO_USERS.tenant.phone!)).toBe(true);
+    expect(isPhoneVerified(state, TENANT_DEMO.phone)).toBe(true);
     expect(isPhoneVerified(state, "0999888999")).toBe(false);
   });
 
@@ -222,8 +222,11 @@ describe("OTP một lần cho mỗi SĐT khách thuê - SPEC-P06 §6", () => {
   });
 
   it("3. canSkipBookingOtp kiểm tra đúng vai trò và SĐT", () => {
-    const state = getMockState();
-    const verifiedPhone = DEMO_USERS.tenant.phone!;
+    const verifiedPhone = TENANT_DEMO.phone;
+    // Khách mới đăng nhập chưa có SĐT trong hồ sơ ⇒ luôn phải qua OTP, dù gõ đúng số đã xác thực của người khác.
+    expect(canSkipBookingOtp(getMockState(), "tenant", verifiedPhone)).toBe(false);
+
+    const state = { ...getMockState(), tenantProfile: { name: "Khách", phone: verifiedPhone } };
     expect(canSkipBookingOtp(state, "tenant", verifiedPhone)).toBe(true);
     expect(canSkipBookingOtp(state, null, verifiedPhone)).toBe(false);
     expect(canSkipBookingOtp(state, "tenant", "0999000111")).toBe(false);
