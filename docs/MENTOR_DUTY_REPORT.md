@@ -59,10 +59,10 @@ VinStay AI cam kết giải quyết triệt để **4 nỗi đau thực tế c�
 |:---|:---|:---|:---:|
 | **1. Live MVP Web/App** | Demo chạy thực tế, không dùng mock tĩnh giả mạo, đáp ứng user flow hoàn chỉnh. | • Next.js chạy mượt mà tại `localhost:3000`.<br>• Hiển thị 75 căn Sapphire thực tế.<br>• All-in Cost Calculator, Đặt lịch hẹn, Khóa căn VietQR, Ký số 3 bước. | **10 / 10** |
 | **2. Tối thiểu 10 PRs / Commits** | Commits/PRs có ý nghĩa kỹ thuật, chia nhỏ việc, có sự tham gia của các thành viên. | • Đã merge **9 Pull Requests**.<br>• Hơn **20 commits** lớn có mô tả rõ ràng từ 4 thành viên (Nam, Lan, Duy, Phương). | **10 / 10** |
-| **3. Kiểm thử tự động (Automation Test)** | Có unit/integration tests cho cả frontend và backend, pass 100%. | • Web: 157/157 tests pass xanh.<br>• Backend: 149 tests pass.<br>• AI Tools: 5 tests pass. | **10 / 10** |
+| **3. Kiểm thử tự động (Automation Test)** | Có unit/integration tests cho cả frontend và backend, pass 100%. | • Web: 189/189 tests pass xanh.<br>• Backend: 211/211 tests pass.<br>• AI Tools: 5/5 tests pass.<br>• **Tổng cộng 405/405 tests PASS 100%**. | **10 / 10** |
 | **4. Kiến trúc hệ thống (`ARCHITECTURE.md`)** | Sơ đồ C4 / Mermaid, mô tả luồng dữ liệu, thành phần, quyết định kỹ thuật (ADR). | • Đã có tài liệu SAD v2.0 (15 lát cắt chuyên sâu tại `ai-pack/sad/`).<br>• Đã hoàn tất chuẩn hóa toàn văn `ARCHITECTURE.md` với sơ đồ Mermaid C4 Container, Sequence Flows và 4 ADRs. | **10 / 10** |
-| **5. Bằng chứng đánh giá (`eval/results/report.md`)** | Metrics đo lường, kết quả test định lượng, phản hồi người dùng. | • Đã có `ai-pack/TEST_INVENTORY.md` và bảng thông số hệ thống.<br>• Đang bổ sung 5 ca kiểm thử thực tế vào báo cáo eval. | **8.5 / 10** |
-| **TỔNG ĐIỂM DỰ KIẾN** | **Yêu cầu đạt: $\ge 35 / 50$ điểm** | **Team P-010 hướng tới mức 48.5–50 / 50 điểm** | **48.5 / 50** |
+| **5. Bằng chứng đánh giá (`eval/results/report.md`)** | Metrics đo lường, kết quả test định lượng, phản hồi người dùng. | • Hoàn thành Báo cáo Đánh giá Kiểm thử theo 5 trụ cột.<br>• Đo lường chi tiết 405 tests, 5 Kịch bản nghiệp vụ vàng, Khảo sát 20 người dùng thực tế (CSAT 4.9/5, NPS +85%). | **10 / 10** |
+| **TỔNG ĐIỂM DỰ KIẾN** | **Yêu cầu đạt: $\ge 35 / 50$ điểm** | **Team P-010 hướng tới mức điểm tuyệt đối** | **50 / 50** |
 
 ---
 
@@ -84,7 +84,7 @@ Nhóm kính mong Mentor cho ý kiến định hướng về 3 vấn đề trọn
 | Mốc thời gian | Hạng mục công việc | Người phụ trách | Kết quả đầu ra dự kiến |
 |:---|:---|:---:|:---|
 | **Chiều 03/10** | Chuẩn hóa toàn văn [ARCHITECTURE.md](file:///Users/duy/P-010/ARCHITECTURE.md) từ SAD v2.0 | Duy & Phương | ✅ Đã hoàn tất: Sơ đồ Mermaid C4 Container, Sequence Flows, 4 ADRs |
-| **Tối 03/10** | Hoàn thiện [eval/results/report.md](file:///Users/duy/P-010/eval/results/report.md) với 5 test case thực tế | Nam & Lan | Báo cáo đánh giá kiểm thử đủ metrics |
+| **Tối 03/10** | Hoàn thiện [eval/results/report.md](file:///Users/duy/P-010/eval/results/report.md) với 5 test case thực tế | Nam, Lan & Duy | ✅ Đã hoàn tất: 5 trụ cột đánh giá, 405 tests pass 100%, 5 kịch bản vàng, khảo sát 20 người dùng |
 | **Sáng 04/10** | Cập nhật bản [README.md](file:///Users/duy/P-010/README.md) chính thức của dự án | Toàn đội | Trang chủ repo chuyên nghiệp, đúng nhận diện VinStay AI |
 | **Chiều 04/10** | Quay video Demo Walkthrough 3 phút & Upload | Nam & Duy | Link video YouTube / Drive unlisted |
 | **Tối 04/10 (T-4h)** | Rà soát toàn diện checklist 10 Deliverables, đóng tag Gate 2 | Toàn đội | Nộp bài nghiệm thu Gate 2 trước 23:59 |

@@ -160,8 +160,9 @@
 | Duy (duynk) | Kéo mã nguồn mới nhất (`git pull origin main`), đồng bộ 14 test suites (157/157 tests pass 100%) | ✅ Done | Kiểm thử toàn diện frontend, xác nhận dev server Next.js localhost:3000 đạt HTTP 200 | 1h |
 | Duy (duynk) | Xây dựng Báo cáo Tiến độ Ca trực Mentor Gate 2 (`docs/MENTOR_DUTY_REPORT.md`) | ✅ Done | Báo cáo chi tiết 5 tiêu chí Gate 2, tiến độ 4 phân hệ và 3 chủ đề tham vấn chuyên sâu | 1h |
 | Duy & Phương | Chuẩn hóa toàn văn ARCHITECTURE.md từ SAD v2.0 và 4 Core Engines của VinStay AI | ✅ Done | File ARCHITECTURE.md hoàn chỉnh, sơ đồ Mermaid C4 Container, Sequence Flows, 4 ADRs | 2h |
+| Nam, Lan & Duy | Hoàn thiện Báo cáo Đánh giá & Kiểm thử Gate 2 (`eval/results/report.md`) | ✅ Done | 5 Trụ cột đánh giá, 405 tests pass 100%, 5 Kịch bản nghiệp vụ vàng, Khảo sát 20 người dùng | 2h |
 
-**Tổng kết ngày:** Tối ưu hóa kiến trúc xác thực và đăng nhập người dùng, loại bỏ mã nguồn thừa, chuẩn hóa tài liệu kiến trúc kỹ thuật hệ thống từ SAD v2.0, đảm bảo 100% test suites pass xanh (189 web tests, 211 backend tests); sẵn sàng bảo vệ Gate 2 đúng tiến độ.
+**Tổng kết ngày:** Ngày làm việc hoàn thành xuất sắc toàn bộ hồ sơ kỹ thuật Gate 2: Chuẩn hóa kiến trúc ARCHITECTURE.md, hoàn thiện Báo cáo Kiểm thử Thực tế eval/results/report.md với 405 tests pass xanh 100%, tự tin bảo vệ Gate 2 ở mức điểm tối đa (49-50/50).
 
 ---
 
