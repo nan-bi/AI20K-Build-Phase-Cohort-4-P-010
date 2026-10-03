@@ -102,7 +102,7 @@ export class ProfileProvisioningService {
   }
 
   private findProfile(id: string) {
-    return this.prisma.profile.findUnique({ where: { id }, include: PROFILE_INCLUDE, relationLoadStrategy: 'join' });
+    return this.prisma.profile.findUnique({ where: { id }, include: PROFILE_INCLUDE });
   }
 
   /** Bảng `roles` tự lành: thiếu dòng (chưa chạy seed) thì tạo, không làm hỏng đăng nhập. */
