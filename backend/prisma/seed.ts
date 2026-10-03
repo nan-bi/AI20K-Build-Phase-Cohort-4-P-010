@@ -43,6 +43,7 @@ async function main() {
     { configKey: 'holding_duration_days', paramValue: 7, paramUnit: 'ngày' },
     { configKey: 'host_base_viewing_fee', paramValue: 50000, paramUnit: 'VND/lượt' },
     { configKey: 'host_deal_commission', paramValue: 400000, paramUnit: 'VND/cọc' },
+    { configKey: 'landlord_service_fee_rate', paramValue: 5, paramUnit: '%' },
     { configKey: 'host_rating_multiplier_5star', paramValue: 1.2, paramUnit: 'hệ số' },
     { configKey: 'host_peak_hour_multiplier', paramValue: 1.15, paramUnit: 'hệ số' },
   ];

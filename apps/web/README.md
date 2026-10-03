@@ -21,6 +21,8 @@ pnpm install && pnpm dev   # http://localhost:3000
   Dữ liệu seed gắn với ngày hiện tại; qua ngày mới sẽ tự dựng lại.
 - **Zalo / OTP / VietQR / OCR đều là mô phỏng**: mã OTP hiện ngay trong khung "tin Zalo mô phỏng"; nút "Demo" trong màn Host/khách
   cho phép tua (T-10 phút, ngân hàng báo có, khách bấm có mặt).
+- **Cổng Chủ nhà đã nối API thật** (trừ trang Tổng quan `/landlord/dashboard` vẫn dùng mock): Căn hộ, Chi tiết căn, Ký gửi (tạo hồ sơ → OTP Zalo → ký), Hồ sơ ký gửi, Khoản thu, Thoát ủy quyền, Tài khoản. Mã nằm ở `src/lib/landlord/` (`types.ts` khớp backend, `api.ts` gọi `/api/v1/landlord/*`, `useLandlordQuery.ts` tải dữ liệu) và `src/components/landlord/`. Cần backend chạy (`BACKEND_URL`) và đăng nhập tab Chủ nhà bằng tài khoản thật có căn trong DB; muốn thấy mã OTP khi thử, đặt `OTP_ECHO_DEV_CODE=true` trong `backend/.env`.
+- **Tải ảnh ở `/landlord/consign`**: chọn ở bước 2, tải lên ngay sau khi tạo hồ sơ nháp (trước khi gửi OTP). `next.config.ts` đặt `experimental.proxyClientMaxBodySize: "30mb"` — thiếu dòng này thì Next cắt body ở 10MB và proxy lỗi 500 khi tải nhiều ảnh (8 × 3MB). Ảnh được nén trên trình duyệt (cạnh dài ≤1600px, JPEG) trước khi tải, thường còn 200–500KB, để tiết kiệm dung lượng Supabase. Giới hạn ảnh nằm ở `src/lib/landlord/photos.ts`, phải khớp `backend/src/modules/landlord/landlord.mappers.ts`.
 - Căn hộ mẫu ở `src/lib/mock/units.ts`, ảnh ở `public/units/` (lấy từ `tech data/caodata`, giá/mã căn đã chuẩn hoá cho demo).
 - Logic thuần (All-in Cost, Matchmaker, luồng nghiệp vụ) có test ở `src/tests/`.
 

@@ -1,33 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
-import { OtpSign } from "@/components/booking/OtpSign";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { submitConsignment, signConsignment } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/actors";
 import { allInCost } from "@/lib/mock/cost";
 import { vnd } from "@/lib/mock/format";
-import { pickHostFor } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import type { Consignment } from "@/lib/mock/types";
-import {
-  LANDLORDS,
-  LAYOUT_LABEL,
-  LEASE_TERM_LABEL,
-  ZONES,
-  hostById,
-  zoneOfBuilding,
-  type LayoutKind,
-  type LeaseTermPref,
-  type LockType,
-} from "@/lib/mock/units";
+import { errorText, landlordApi } from "@/lib/landlord/api";
+import { LAYOUT_LABEL, LEASE_TERM_LABEL } from "@/lib/landlord/labels";
+import type { BuildingOption, Consignment, LayoutKind, LeaseTermPref, LockKind } from "@/lib/landlord/types";
+import { queries, type QueryDef } from "@/lib/landlord/queries";
+import { invalidateLandlordData, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
+import { ConsignOtpSign } from "./ConsignOtpSign";
+import { PhotoPicker } from "./PhotoPicker";
+import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
 
-const LID = DEMO_USERS.landlord.refId!;
-const PHONE = LANDLORDS.find((l) => l.id === LID)!.phone;
-const BUILDINGS = ZONES.flatMap((z) => z.buildings);
 const LABELS = ["Thông tin căn", "Khoá cửa và ảnh", "Ký ủy quyền"];
 
 interface Form {
@@ -40,13 +28,12 @@ interface Form {
   suggestedDeposit: string;
   leaseTerm: LeaseTermPref;
   furnished: boolean;
-  locks: LockType[];
+  locks: LockKind[];
   doorCode: string;
-  auditByHost: boolean;
 }
 
 const blank: Form = {
-  building: "S2.12",
+  building: "",
   floor: "",
   door: "",
   layout: "1PN",
@@ -57,44 +44,79 @@ const blank: Form = {
   furnished: true,
   locks: ["smart"],
   doorCode: "",
-  auditByHost: true,
 };
 
-export function ConsignWizard({ draftId }: { draftId?: string }) {
-  const state = useMock();
-  const draft = draftId
-    ? state.consignments.find((c) => c.id === draftId && c.landlordId === LID && c.status === "draft")
-    : undefined;
+/** Không có bản nháp (ký gửi mới) thì không gọi API: coi như `null`. */
+const NO_DRAFT: QueryDef<Consignment | null> = { key: "consignment:none", fetch: () => Promise.resolve({ ok: true, status: 200, data: null }) };
 
-  if (!state.ready) return <div className="skeleton" style={{ height: 360 }} />;
-  return <Wizard key={draft?.id ?? "new"} draft={draft} />;
+/** Dữ liệu cần để dựng wizard: danh sách toà, trạng thái SĐT và (khi ký tiếp bản nháp) hồ sơ nháp. */
+function useWizardData(draftId?: string) {
+  const buildings = useLandlordQuery(queries.buildings);
+  const profile = useLandlordQuery(queries.profile);
+  const draft = useLandlordQuery<Consignment | null>(draftId ? queries.consignment(draftId) : NO_DRAFT);
+  return { buildings, profile, draft };
 }
 
-function Wizard({ draft }: { draft?: Consignment }) {
-  const state = useMock();
+export function ConsignWizard({ draftId }: { draftId?: string }) {
+  const { buildings, profile, draft } = useWizardData(draftId);
+  return (
+    <QueryView query={buildings} skeleton="form">
+      {(bs) => (
+        <QueryView query={profile} skeleton="form">
+          {(p) => (
+            <QueryView query={draft} skeleton="form">
+              {(d) => (
+                <>
+                  {d && d.status !== "draft" ? (
+                    <div className={`${styles.page} ${styles.wizard}`}>
+                      <PageHeader title="Ký gửi căn mới" />
+                      <section className={`card ${styles.success}`}>
+                        <h1>Hồ sơ này đã ký ủy quyền</h1>
+                        <Link href={`/landlord/consignments/${d.id}`} className="btn btn-primary">
+                          Xem tiến trình
+                        </Link>
+                      </section>
+                    </div>
+                  ) : (
+                    <Wizard key={d?.id ?? "new"} buildings={bs} phoneVerified={p.isPhoneVerified} draft={d ?? undefined} />
+                  )}
+                </>
+              )}
+            </QueryView>
+          )}
+        </QueryView>
+      )}
+    </QueryView>
+  );
+}
+
+function Wizard({ buildings, phoneVerified, draft }: { buildings: BuildingOption[]; phoneVerified: boolean; draft?: Consignment }) {
   const [step, setStep] = useState(draft ? 2 : 0);
   const [f, setF] = useState<Form>(
     draft
       ? {
           building: draft.building,
           floor: String(draft.floor),
-          door: draft.door,
-          layout: draft.layout,
+          door: draft.door ?? "",
+          layout: draft.layoutKind,
           areaM2: String(draft.areaM2),
           askRent: String(draft.askRent),
           suggestedDeposit: String(draft.suggestedDeposit || draft.askRent),
-          leaseTerm: draft.leaseTerm || "long",
-          furnished: draft.furnished !== undefined ? draft.furnished : draft.furnishing !== "empty",
-          locks: draft.locks?.length ? draft.locks : [draft.lock || "smart"],
+          leaseTerm: draft.leaseTerm ?? "long",
+          furnished: draft.furnished ?? true,
+          locks: draft.locks.length ? draft.locks : ["smart"],
           doorCode: "",
-          auditByHost: draft.auditByHost,
         }
-      : blank,
+      : { ...blank, building: buildings[0]?.buildingCode ?? "" },
   );
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
-  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(draft?.id ?? null);
+  const draftIdRef = useRef<string | null>(draft?.id ?? null);
   const [warranted, setWarranted] = useState(false);
+  // Ảnh tham khảo: chọn ở bước 2, tải lên ngay sau khi tạo hồ sơ nháp (trước khi gửi OTP).
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [uploadedCount, setUploadedCount] = useState(draft?.photoCount ?? 0);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((prev) => ({ ...prev, [k]: v }));
 
@@ -102,10 +124,8 @@ function Wizard({ draft }: { draft?: Consignment }) {
   const deposit = Number(f.suggestedDeposit) || 0;
   const area = Number(f.areaM2) || 0;
   const preview = rent && area ? allInCost({ rent, areaM2: area }) : null;
-
-  const zone = zoneOfBuilding(f.building);
-  const pickedHost = zone ? pickHostFor(state, zone.id, "inspector") : undefined;
-  const inspector = hostById(pickedHost?.hostId ?? zone?.hostId ?? "H01");
+  const zoneName = buildings.find((b) => b.buildingCode === f.building)?.zoneName;
+  const maxFloor = buildings.find((b) => b.buildingCode === f.building)?.totalFloors ?? 60;
 
   const handleRentChange = (val: string) => {
     const raw = val.replace(/\D/g, "");
@@ -121,7 +141,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
     });
   };
 
-  const handleLockToggle = (type: LockType) => {
+  const handleLockToggle = (type: LockKind) => {
     setF((prev) => {
       const exists = prev.locks.includes(type);
       if (exists) {
@@ -133,8 +153,8 @@ function Wizard({ draft }: { draft?: Consignment }) {
 
   const next1 = () => {
     const floorNum = Number(f.floor);
-    if (!f.floor || floorNum < 1 || floorNum > 60) {
-      setErr("Tầng phải từ 1 đến 60.");
+    if (!f.floor || floorNum < 1 || floorNum > maxFloor) {
+      setErr(`Tầng phải từ 1 đến ${maxFloor} (toà ${f.building}).`);
       return;
     }
     if (!f.door || !f.door.trim()) {
@@ -172,38 +192,50 @@ function Wizard({ draft }: { draft?: Consignment }) {
     setStep(2);
   };
 
-  const finish = () => {
-    if (draft) {
-      const res = signConsignment(draft.id, { ownershipWarranted: warranted });
+  /**
+   * Bảo đảm hồ sơ ký gửi (bản nháp) đã tồn tại VÀ ảnh đã chọn đã lên máy chủ — gọi ngay trước khi gửi OTP.
+   * Gửi lại OTP không tạo thêm hồ sơ; ảnh tải lỗi thì hồ sơ vẫn giữ, bấm gửi lại sẽ chỉ tải lại ảnh.
+   */
+  const ensureDraft = async (): Promise<string | null> => {
+    let id = draftIdRef.current;
+    if (!id) {
+      const res = await landlordApi.createConsignment({
+        building: f.building,
+        floor: Number(f.floor),
+        door: f.door.padStart(2, "0"),
+        layout: f.layout,
+        areaM2: area,
+        askRent: rent,
+        suggestedDeposit: deposit || rent,
+        leaseTerm: f.leaseTerm,
+        furnished: f.furnished,
+        locks: f.locks,
+        ...(f.locks.includes("smart") && f.doorCode ? { doorCode: f.doorCode } : {}),
+      });
       if (!res.ok) {
-        setErr(res.reason);
-        return;
+        setErr(errorText(res, "Không tạo được hồ sơ ký gửi."));
+        return null;
       }
-      setCreatedId(draft.id);
-    } else {
-      try {
-        const created = submitConsignment({
-          landlordId: LID,
-          building: f.building,
-          floor: Number(f.floor),
-          door: f.door.padStart(2, "0"),
-          layout: f.layout,
-          areaM2: area,
-          askRent: rent,
-          suggestedDeposit: deposit || rent,
-          leaseTerm: f.leaseTerm,
-          furnished: f.furnished,
-          locks: f.locks,
-          auditByHost: f.auditByHost,
-          doorCode: f.doorCode || undefined,
-        });
-        setCreatedId(created.id);
-      } catch (e) {
-        setErr((e as Error).message);
-        return;
-      }
+      id = res.data.id;
+      draftIdRef.current = id;
+      setCreatedId(id);
     }
+    if (photoFiles.length) {
+      const up = await landlordApi.uploadPhotos(id, photoFiles);
+      if (!up.ok) {
+        setErr(`Hồ sơ đã được lưu nhưng chưa tải được ảnh: ${errorText(up, "thử lại sau.")} Bấm gửi lại để thử tiếp, hoặc bỏ ảnh lỗi ở bước trước.`);
+        return null;
+      }
+      setUploadedCount(up.data.length);
+      setPhotoFiles([]);
+    }
+    return id;
+  };
+
+  const signed = (c: Consignment) => {
+    setCreatedId(c.id);
     setDone(true);
+    invalidateLandlordData();
   };
 
   if (done) {
@@ -216,7 +248,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
           </span>
           <h1>Đã gửi yêu cầu ký gửi</h1>
           <p className="muted">
-            Bạn đã ký ủy quyền độc quyền cho căn {f.building} · Tầng {f.floor} · Căn {f.door.padStart(2, "0")}. Chuyên viên thẩm định <b>{inspector?.name ?? "Field Host"}</b> sẽ liên hệ hỗ trợ bạn trong 48 giờ (chi phí 0đ), sau đó Admin chốt duyệt ký gửi. Theo dõi tiến trình tại hồ sơ.
+            Bạn đã ký ủy quyền độc quyền cho căn {f.building} · Tầng {f.floor} · Căn {f.door.padStart(2, "0")}. Field Host phân khu {zoneName ?? f.building} sẽ liên hệ hỗ trợ bạn trong 48 giờ (chi phí 0đ), sau đó Admin chốt duyệt ký gửi. Theo dõi tiến trình tại hồ sơ.
           </p>
           <div style={{ display: "flex", gap: "var(--s-3)", justifyContent: "center", flexWrap: "wrap" }}>
             {createdId && (
@@ -224,8 +256,8 @@ function Wizard({ draft }: { draft?: Consignment }) {
                 Xem tiến trình
               </Link>
             )}
-            <Link href="/landlord/dashboard" className="btn btn-secondary">
-              Về tổng quan
+            <Link href="/landlord/units" className="btn btn-secondary">
+              Về danh sách căn
             </Link>
           </div>
         </section>
@@ -256,8 +288,10 @@ function Wizard({ draft }: { draft?: Consignment }) {
               <label className="field">
                 <span className="label">Toà</span>
                 <select className="select" value={f.building} onChange={(e) => set("building", e.target.value)}>
-                  {BUILDINGS.map((b) => (
-                    <option key={b}>{b}</option>
+                  {buildings.map((b) => (
+                    <option key={b.id} value={b.buildingCode}>
+                      {b.buildingCode}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -278,7 +312,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
                 <input
                   className="input"
                   inputMode="numeric"
-                  placeholder="1–60"
+                  placeholder={`1–${maxFloor}`}
                   value={f.floor}
                   onChange={(e) => set("floor", e.target.value.replace(/\D/g, ""))}
                 />
@@ -452,25 +486,11 @@ function Wizard({ draft }: { draft?: Consignment }) {
             )}
 
             <div style={{ marginTop: 14 }}>
-              <span className="label">Ảnh thẩm định</span>
-              <label className="check" style={{ marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={f.auditByHost}
-                  onChange={(e) => set("auditByHost", e.target.checked)}
-                />
-                <span>Nhờ Field Host chụp ảnh niêm yết (thẩm định thực tế luôn do Host làm).</span>
-              </label>
-              {!f.auditByHost && (
-                <input
-                  className="input"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ marginTop: 10, paddingTop: 9 }}
-                  aria-label="Tải ảnh hiện trạng"
-                />
-              )}
+              <span className="label">Ảnh căn hộ (không bắt buộc)</span>
+              <p className="small muted" style={{ margin: "6px 0 8px" }}>
+                Field Host phân khu sẽ tới chụp ảnh hiện trạng có dấu thời gian khi thẩm định — bạn không cần tự chụp. Có sẵn ảnh thì đính kèm thêm để Host và Admin tham khảo.
+              </p>
+              <PhotoPicker files={photoFiles} onChange={setPhotoFiles} uploadedCount={uploadedCount} />
             </div>
 
             {err && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{err}</p>}
@@ -519,6 +539,10 @@ function Wizard({ draft }: { draft?: Consignment }) {
                 <dd>{f.furnished ? "Có nội thất" : "Không nội thất"}</dd>
               </div>
               <div>
+                <dt>Ảnh đính kèm</dt>
+                <dd>{photoFiles.length + uploadedCount > 0 ? `${photoFiles.length + uploadedCount} ảnh` : "Không có"}</dd>
+              </div>
+              <div>
                 <dt>Khoá cửa</dt>
                 <dd>
                   {f.locks.includes("smart") && f.locks.includes("physical")
@@ -560,7 +584,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
                   Chuyên viên thẩm định sẽ liên hệ hỗ trợ bạn
                 </b>
                 <p className="small muted" style={{ margin: "4px 0 0", lineHeight: 1.5 }}>
-                  Sau khi ký, <b>{inspector?.name ?? "Field Host phân khu"}</b> (Field Host phân khu {zone?.short ?? f.building}) sẽ gọi hẹn giờ, tới căn kiểm tra đồ đạc và hiện trạng theo bảng kê Điều 5 hợp đồng thuê trong 48 giờ. Chi phí 0đ, bạn không cần có mặt.
+                  Sau khi ký, Field Host phân khu {zoneName ?? f.building} sẽ gọi hẹn giờ, tới căn kiểm tra đồ đạc và hiện trạng theo bảng kê Điều 5 hợp đồng thuê trong 48 giờ. Chi phí 0đ, bạn không cần có mặt.
                 </p>
               </div>
             </div>
@@ -583,18 +607,7 @@ function Wizard({ draft }: { draft?: Consignment }) {
             </label>
 
             <div style={{ margin: "14px 0 6px" }}>
-              {warranted ? (
-                <OtpSign
-                  phone={PHONE}
-                  purpose="agreement"
-                  sendLabel="Gửi mã OTP để ký ủy quyền"
-                  onVerified={finish}
-                />
-              ) : (
-                <button type="button" className="btn btn-primary btn-block" disabled>
-                  Gửi mã OTP để ký ủy quyền
-                </button>
-              )}
+              <ConsignOtpSign warranted={warranted} needPhone={!phoneVerified} ensureDraft={ensureDraft} onSigned={signed} onError={setErr} />
               <p className="muted xs" style={{ textAlign: "center", marginTop: 8 }}>
                 Nhập OTP nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn), ký điện tử theo Luật Giao dịch điện tử 2023.
               </p>

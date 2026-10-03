@@ -20,7 +20,7 @@ import { Section } from "@/components/ui/Section";
 import styles from "./Consign.module.css";
 
 interface InspectionReportViewProps {
-  c: Consignment & { report: InspectionReport };
+  c: Pick<Consignment, "building" | "floor" | "door" | "layout" | "areaM2" | "furnished" | "locks"> & { report: InspectionReport };
 }
 
 const GROUPS: InventoryGroup[] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];

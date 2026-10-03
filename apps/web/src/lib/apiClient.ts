@@ -18,8 +18,10 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const url = `${API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    // FormData: để trình duyệt tự đặt Content-Type (kèm boundary); đặt tay sẽ làm hỏng multipart.
+    const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
     const headers = {
-      "Content-Type": "application/json",
+      ...(isForm ? {} : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     };
 
@@ -59,6 +61,7 @@ export const api = {
     request<T>(endpoint, { method: "POST", body: JSON.stringify(body ?? {}) }),
   patch: <T>(endpoint: string, body?: unknown) =>
     request<T>(endpoint, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
+  postForm: <T>(endpoint: string, form: FormData) => request<T>(endpoint, { method: "POST", body: form }),
   put: <T>(endpoint: string, body?: unknown) =>
     request<T>(endpoint, { method: "PUT", body: JSON.stringify(body ?? {}) }),
   delete: <T>(endpoint: string) => request<T>(endpoint, { method: "DELETE" }),
