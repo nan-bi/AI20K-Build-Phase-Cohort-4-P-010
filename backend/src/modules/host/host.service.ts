@@ -11,7 +11,8 @@ export class HostService {
   async getInspections(hostId?: string) {
     try {
       const mandates = await this.prisma.exclusiveMandate.findMany({
-        where: { status: 'PENDING_INSPECTION' },
+        // Chỉ hồ sơ chủ nhà đã ký ủy quyền mới thành ca thẩm định; bản nháp chưa ký thì Host không thấy.
+        where: { status: 'PENDING_INSPECTION', signedAt: { not: null } },
         include: { unit: { include: { building: true, landlord: true } } },
         orderBy: { createdAt: 'desc' },
       });
