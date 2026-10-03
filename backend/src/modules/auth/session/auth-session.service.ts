@@ -85,7 +85,6 @@ export class AuthSessionService {
       this.prisma.profile.findUnique({
         where: { id: identity.id },
         include: PROFILE_INCLUDE,
-        relationLoadStrategy: 'join',
       }),
     );
     // Phiên Google luôn gắn với một Profile đã tạo; Profile bị xoá thì token vô hiệu.
