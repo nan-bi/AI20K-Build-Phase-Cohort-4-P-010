@@ -142,10 +142,29 @@
 |--------|------|--------|--------|------|
 | Duy (duynk) | Xây dựng Tài liệu Đặc tả Thuật toán Định giá & Niêm yết Động (`docs/DYNAMIC_PRICING_SPEC.md`) | ✅ Done | Công thức trọng số đa biến 4 nhóm, hàm phân rã DOM, cơ chế Floor/Target Price Guardrail và Rank PCS | 2.5h |
 | Duy (duynk) | Ban hành Quy chuẩn FOMO Tag, Waitlist F2 và Quy chế First-to-Pay Wins + AI Conflict Resolver | ✅ Done | Cập nhật đồng bộ AGENTS.md, GEMINI.md, PRD.md (Mục 3.5) và Văn bản Pháp lý 08 (Điều 5, Điều 6) | 2h |
+| Duy (duynk) | Khắc phục xung đột phụ thuộc `@react-oauth/google`, phục hồi localhost:3000 đạt HTTP 200 | ✅ Done | Cài đặt module vào `apps/web/node_modules/`, khởi động lại dev server thành công | 0.5h |
+| Lan (nan-bi) | Đồng bộ 75 căn hộ chuẩn hóa Vinhomes Ocean Park (Sapphire 1 & 2) lên Web và Supabase DB | ✅ Done | Catalog Web hiển thị 75 căn kèm hình ảnh thực tế, script seed DB `seed_excel_units.ts` | 3h |
+| Lan (nan-bi) | Tích hợp Google OAuth Login & Register 1-chạm và xây dựng module `apiClient` kết nối Backend | ✅ Done | Giao diện đăng nhập mượt mà, bộ API client cho frontend kết nối Supabase/NestJS | 2.5h |
+| Lan (nan-bi) | Hoàn thiện toàn diện các API Backend NestJS (GET & Mutation) cho 8 modules cốt lõi | ✅ Done | Endpoints Account, Host, Booking, Dispatch, Deposit, Landlord, Identity, Admin | 3h |
+| Phương (phuong) | Xây dựng bộ công cụ điều phối tự động và trích xuất tài liệu Kiến trúc phần mềm chuẩn hóa (SAD v2.0) | ✅ Done | 15 lát cắt kiến trúc chuyên sâu tại `ai-pack/sad/`, bộ tools kiểm tra tự động | 3h |
+| Phương (phuong) | Xây dựng Bảng phân quyền Route Guard (88 routes) và Bản đồ CSDL Prisma | ✅ Done | `ai-pack/ROUTE_GUARD_TABLE.md`, `ai-pack/PRISMA_MODELS.md` | 1.5h |
+| Nam (namnp) | Cập nhật tài liệu kiến trúc Backend (`backend/README.md`) và danh mục endpoints chuẩn (PR #6) | ✅ Done | Tài liệu API Backend chi tiết, hướng dẫn cài đặt và tích hợp cho toàn team | 1.5h |
 
-**Tổng kết ngày:** Thống nhất và pháp lý hóa bài toán giải quyết xung đột khi khách cọc trực tuyến trong ca dẫn thực địa, hoàn thiện đặc tả niêm yết động bảo vệ lợi nhuận chủ nhà và duy trì test suites pass 100%.
+**Tổng kết ngày:** Ngày làm việc bứt phá của toàn đội: Hoàn tất đồng bộ 75 căn hộ thực tế, kết nối thông luồng Frontend - Backend - Supabase, ban hành cơ chế giải quyết xung đột giữ căn và trích xuất chuẩn hóa toàn bộ tài liệu kiến trúc hệ thống phục vụ Gate 2.
+
+## 2026-10-03
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Nam (namnp) | Hợp nhất và chuẩn hóa toàn diện luồng Xác thực (Auth Flow) trên toàn bộ các Portal (PR #9) | ✅ Done | Bỏ các form đăng nhập phân mảnh; tích hợp `PortalAuth.tsx`, `client.ts`, bổ sung test `account.http.spec.ts` | 3h |
+| Duy (duynk) | Kéo mã nguồn mới nhất (`git pull origin main`), đồng bộ 14 test suites (157/157 tests pass 100%) | ✅ Done | Kiểm thử toàn diện frontend, xác nhận dev server Next.js localhost:3000 đạt HTTP 200 | 1h |
+| Duy (duynk) | Xây dựng Báo cáo Tiến độ Ca trực Mentor Gate 2 (`docs/MENTOR_DUTY_REPORT.md`) | ✅ Done | Báo cáo chi tiết 5 tiêu chí Gate 2, tiến độ 4 phân hệ và 3 chủ đề tham vấn chuyên sâu | 1h |
+| Duy & Phương | Chuẩn hóa toàn văn ARCHITECTURE.md từ SAD v2.0 và 4 Core Engines của VinStay AI | ✅ Done | File ARCHITECTURE.md hoàn chỉnh, sơ đồ Mermaid C4 Container, Sequence Flows, 4 ADRs | 2h |
+
+**Tổng kết ngày:** Tối ưu hóa kiến trúc xác thực và đăng nhập người dùng, loại bỏ mã nguồn thừa, chuẩn hóa tài liệu kiến trúc kỹ thuật hệ thống từ SAD v2.0, đảm bảo 100% test suites pass xanh (189 web tests, 211 backend tests); sẵn sàng bảo vệ Gate 2 đúng tiến độ.
 
 ---
 
 <!-- Format: copy block trên cho mỗi ngày làm việc -->
+
 
