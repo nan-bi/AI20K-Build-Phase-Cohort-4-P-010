@@ -1,33 +1,32 @@
 import { JwtService } from '@nestjs/jwt';
 import { AuthAuditService } from './auth-audit.service';
+import { SESSION_TTL_SECONDS } from './auth.constants';
 import { AuthException } from './auth.errors';
 import { AuthService } from './auth.service';
+import { GoogleIdentity } from './google/google.strategy';
+import { hashPassword } from './password-hasher';
 import { AuthSessionService } from './session/auth-session.service';
 import { ProfileProvisioningService } from './session/profile-provisioning.service';
-import { GoogleIdentity } from './google/google.strategy';
 import { fakeConfig } from './testing/fake-config';
-import { createSessionTokens } from './testing/fake-session-token';
 import { createFakePrisma, seedProfile } from './testing/fake-prisma';
-import { createFakeSupabase, fakeSession, fakeSupabaseUser } from './testing/fake-supabase';
+import { createSessionTokens } from './testing/fake-session-token';
 
 const CTX = { ipAddress: '203.0.113.7', userAgent: 'jest' };
-const supabaseError = (status: number, code?: string, name = 'AuthApiError') => ({ name, status, code, message: code ?? name });
+const JWT_SECRET = 'a-test-jwt-secret-of-at-least-32-chars';
 
 function setup(env: Record<string, string> = {}) {
   const prisma = createFakePrisma();
-  const supabase = createFakeSupabase();
   const sessionTokens = createSessionTokens();
-  const sessions = new AuthSessionService(prisma as any, supabase as any, sessionTokens);
+  const sessions = new AuthSessionService(prisma as any, sessionTokens);
   const service = new AuthService(
     prisma as any,
-    supabase as any,
     sessions,
     new ProfileProvisioningService(prisma as any),
     new AuthAuditService(prisma as any),
     sessionTokens,
     fakeConfig({ WEB_APP_URL: 'http://localhost:3000/', API_PREFIX: 'api/v1', ...env }),
   );
-  return { prisma, supabase, service, sessions, sessionTokens };
+  return { prisma, service, sessions, sessionTokens };
 }
 
 const codeOf = async (promise: Promise<unknown>) => {
@@ -39,118 +38,168 @@ const codeOf = async (promise: Promise<unknown>) => {
   }
 };
 
-const signInAs = (supabase: ReturnType<typeof createFakeSupabase>, email = 'a@example.com') => {
-  const user = fakeSupabaseUser({ email });
-  const session = fakeSession(user);
-  supabase.signInWithPassword.mockResolvedValue({ data: { session, user }, error: null });
-  return { user, session };
-};
+/** Seed một tài khoản đã có mật khẩu (băm scrypt thật) như sau khi đăng ký. */
+const seedWithPassword = async (
+  prisma: ReturnType<typeof createFakePrisma>,
+  params: { email: string; roleCode: string; password: string; isActive?: boolean; withFieldHost?: boolean },
+) => seedProfile(prisma, { ...params, passwordHash: await hashPassword(params.password) });
 
 describe('AuthService', () => {
   describe('login', () => {
-    it('thành công: trả token cho controller đặt cookie, tạo Profile, KHÔNG có token trong user', async () => {
-      const { supabase, service, prisma } = setup();
-      const { session } = signInAs(supabase);
+    it('thành công: trả JWT backend cho controller đặt cookie, KHÔNG có token trong user', async () => {
+      const { service, prisma, sessionTokens } = setup();
+      const profile = await seedWithPassword(prisma, { email: 'a@example.com', roleCode: 'landlord', password: 'Matkhau-123' });
 
-      const outcome = await service.login({ email: ' A@Example.com ', password: 'pw', portal: 'landlord' }, CTX);
+      const outcome = await service.login({ email: ' A@Example.com ', password: 'Matkhau-123', portal: 'landlord' }, CTX);
 
-      expect(supabase.signInWithPassword).toHaveBeenCalledWith('a@example.com', 'pw');
-      expect(outcome.tokens).toEqual({ accessToken: session.access_token, refreshToken: session.refresh_token, expiresIn: 3600 });
-      expect(outcome.user).toMatchObject({ role: 'landlord', portal: 'landlord', email: 'a@example.com' });
-      expect(JSON.stringify(outcome.user)).not.toContain(session.access_token);
+      expect(outcome.tokens.expiresIn).toBe(SESSION_TTL_SECONDS);
+      expect(sessionTokens.verify(outcome.tokens.accessToken)).toMatchObject({ sub: profile.id, email: 'a@example.com' });
+      expect('refreshToken' in outcome.tokens).toBe(false);
+      expect(outcome.needsRfidVerification).toBe(false);
+      expect(outcome.user).toMatchObject({ id: profile.id, role: 'landlord', portal: 'landlord', email: 'a@example.com' });
+      expect(JSON.stringify(outcome.user)).not.toContain(outcome.tokens.accessToken);
+      expect(JSON.stringify(outcome.user)).not.toContain('scrypt$');
       expect(prisma.authAuditLog.rows.map((r: any) => r.event)).toContain('login_succeeded');
     });
 
-    it.each([
-      [supabaseError(400, 'invalid_credentials'), 'invalid_credentials'],
-      [supabaseError(400, 'email_not_confirmed'), 'email_not_verified'],
-      [supabaseError(429, 'over_request_rate_limit'), 'rate_limited'],
-      [supabaseError(503), 'auth_provider_unavailable'],
-      [supabaseError(0, undefined, 'AuthRetryableFetchError'), 'auth_provider_unavailable'],
-    ])('lỗi Supabase %j → %s', async (error, expected) => {
-      const { supabase, service, prisma } = setup();
-      supabase.signInWithPassword.mockResolvedValue({ data: { session: null, user: null }, error });
-      expect(await codeOf(service.login({ email: 'a@example.com', password: 'x', portal: 'tenant' }, CTX))).toBe(expected);
+    it('sai mật khẩu → invalid_credentials + audit login_failed, không tạo/đổi gì', async () => {
+      const { service, prisma } = setup();
+      await seedWithPassword(prisma, { email: 'a@example.com', roleCode: 'tenant', password: 'Matkhau-123' });
+
+      expect(await codeOf(service.login({ email: 'a@example.com', password: 'sai-mat-khau', portal: 'tenant' }, CTX))).toBe('invalid_credentials');
+      expect(prisma.authAuditLog.rows.map((r: any) => r.event)).toEqual(['login_failed']);
+      expect(prisma.profile.rows).toHaveLength(1);
+    });
+
+    it('email không tồn tại → invalid_credentials (giống sai mật khẩu, không lộ email nào có tài khoản) + audit login_failed', async () => {
+      const { service, prisma } = setup();
+      expect(await codeOf(service.login({ email: 'khong-co@example.com', password: 'Matkhau-123', portal: 'tenant' }, CTX))).toBe('invalid_credentials');
+      expect(prisma.authAuditLog.rows.map((r: any) => r.event)).toEqual(['login_failed']);
+      expect(prisma.profile.rows).toHaveLength(0);
+    });
+
+    it('tài khoản Google chưa có mật khẩu → password_not_set (kèm audit login_failed)', async () => {
+      const { service, prisma } = setup();
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'tenant' });
+
+      expect(await codeOf(service.login({ email: 'g@example.com', password: 'bat-ky-123', portal: 'tenant' }, CTX))).toBe('password_not_set');
       expect(prisma.authAuditLog.rows.map((r: any) => r.event)).toContain('login_failed');
     });
 
-    it('chưa cấu hình Supabase → auth_not_configured (không gọi mạng)', async () => {
-      const { supabase, service } = setup();
-      supabase.isConfigured.mockReturnValue(false);
-      expect(await codeOf(service.login({ email: 'a@example.com', password: 'x', portal: 'tenant' }, CTX))).toBe('auth_not_configured');
-      expect(supabase.signInWithPassword).not.toHaveBeenCalled();
+    it('đúng mật khẩu nhưng sai cổng → wrong_portal, ghi login_rejected, không phát token', async () => {
+      const { service, prisma } = setup();
+      await seedWithPassword(prisma, { email: 'a@example.com', roleCode: 'tenant', password: 'Matkhau-123' });
+
+      expect(await codeOf(service.login({ email: 'a@example.com', password: 'Matkhau-123', portal: 'landlord' }, CTX))).toBe('wrong_portal');
+      const rejected = prisma.authAuditLog.rows.find((r: any) => r.event === 'login_rejected');
+      expect(rejected.metadata).toMatchObject({ portal: 'landlord', method: 'password', reason: 'wrong_portal' });
     });
 
-    it('đăng nhập Supabase đúng nhưng sai cổng → từ chối và thu hồi phiên vừa tạo', async () => {
-      const { supabase, service } = setup();
-      const { session } = signInAs(supabase);
-      await service.login({ email: 'a@example.com', password: 'pw', portal: 'tenant' }, CTX);
-
-      expect(await codeOf(service.login({ email: 'a@example.com', password: 'pw', portal: 'landlord' }, CTX))).toBe('wrong_portal');
-      expect(supabase.signOut).toHaveBeenCalledWith(session.access_token);
+    it('tài khoản bị khoá → account_suspended', async () => {
+      const { service, prisma } = setup();
+      await seedWithPassword(prisma, { email: 'a@example.com', roleCode: 'tenant', password: 'Matkhau-123', isActive: false });
+      expect(await codeOf(service.login({ email: 'a@example.com', password: 'Matkhau-123', portal: 'tenant' }, CTX))).toBe('account_suspended');
     });
 
     it('Host lần đầu: trả needsRfidVerification + hostId', async () => {
-      const { supabase, service, prisma } = setup();
+      const { service, prisma } = setup();
       const invite = await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      signInAs(supabase, 'h@example.com');
+      await seedWithPassword(prisma, { email: 'h@example.com', roleCode: 'field_host', password: 'Matkhau-123' });
 
-      const outcome = await service.login({ email: 'h@example.com', password: 'pw', portal: 'host' }, CTX);
+      const outcome = await service.login({ email: 'h@example.com', password: 'Matkhau-123', portal: 'host' }, CTX);
       expect(outcome).toMatchObject({ needsRfidVerification: true, hostId: invite.id });
       expect(outcome.user.isHostVerified).toBe(false);
+    });
+
+    it('Host đã xác nhận RFID đăng nhập thẳng, không có hostId', async () => {
+      const { service, prisma } = setup();
+      await seedWithPassword(prisma, { email: 'h@example.com', roleCode: 'field_host', password: 'Matkhau-123', withFieldHost: true });
+      const outcome = await service.login({ email: 'h@example.com', password: 'Matkhau-123', portal: 'host' }, CTX);
+      expect(outcome).toMatchObject({ needsRfidVerification: false, user: { isHostVerified: true } });
+      expect(outcome.hostId).toBeUndefined();
     });
   });
 
   describe('signup', () => {
     it('admin không có đăng ký', async () => {
-      const { service, supabase } = setup();
+      const { service, prisma } = setup();
       expect(await codeOf(service.signup({ email: 'a@example.com', password: '12345678', fullName: 'A', portal: 'admin' }, CTX))).toBe('signup_not_allowed');
-      expect(supabase.signUp).not.toHaveBeenCalled();
+      expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('host không có lời mời bị chặn trước khi Supabase gửi email', async () => {
-      const { service, supabase } = setup();
+    it('host không có lời mời → not_authorized, không tạo Profile', async () => {
+      const { service, prisma } = setup();
       expect(await codeOf(service.signup({ email: 'x@example.com', password: '12345678', fullName: 'X', portal: 'host' }, CTX))).toBe('not_authorized');
-      expect(supabase.signUp).not.toHaveBeenCalled();
+      expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('cần xác nhận email: trả needsEmailConfirmation, link quay về màn đăng nhập đúng cổng', async () => {
-      const { service, supabase } = setup();
-      const outcome = await service.signup({ email: 'A@Example.com', password: '12345678', fullName: ' An ', portal: 'landlord' }, CTX);
-
-      expect(outcome).toEqual({ needsEmailConfirmation: true });
-      expect(supabase.signUp).toHaveBeenCalledWith('a@example.com', '12345678', {
-        fullName: 'An',
-        emailRedirectTo: 'http://localhost:3000/login?tab=landlord&confirmed=1',
-      });
+    it('host có lời mời nhưng đã được nhận → not_authorized', async () => {
+      const { service, prisma } = setup();
+      await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z', claimedAt: new Date() } });
+      expect(await codeOf(service.signup({ email: 'h@example.com', password: '12345678', fullName: 'H', portal: 'host' }, CTX))).toBe('not_authorized');
     });
 
-    it('Host được mời quay về /admin/login', async () => {
-      const { service, supabase, prisma } = setup();
-      await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      await service.signup({ email: 'h@example.com', password: '12345678', fullName: 'H', portal: 'host' }, CTX);
-      expect(supabase.signUp.mock.calls[0][2].emailRedirectTo).toBe('http://localhost:3000/admin/login?tab=host&confirmed=1');
+    it('thành công: tạo Profile với passwordHash scrypt (không phải mật khẩu thô), đúng vai trò, fullName đã trim, trả token + user luôn', async () => {
+      const { service, prisma, sessionTokens } = setup();
+      const outcome = await service.signup({ email: ' A@Example.com ', password: 'Matkhau-123', fullName: ' An ', portal: 'landlord' }, CTX);
+
+      const profile = prisma.profile.rows[0];
+      expect(profile).toMatchObject({ email: 'a@example.com', fullName: 'An' });
+      expect(profile.passwordHash).toMatch(/^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/);
+      expect(profile.passwordHash).not.toBe('Matkhau-123');
+      expect(prisma.role.rows.find((r: any) => r.id === profile.roleId).code).toBe('landlord');
+
+      expect(outcome).toMatchObject({ needsRfidVerification: false, user: { id: profile.id, portal: 'landlord', role: 'landlord', fullName: 'An' } });
+      expect('needsEmailConfirmation' in outcome).toBe(false);
+      expect(sessionTokens.verify(outcome.tokens.accessToken)).toMatchObject({ sub: profile.id, email: 'a@example.com' });
+      expect(JSON.stringify(outcome.user)).not.toContain('scrypt$');
+      expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_succeeded').metadata).toMatchObject({ method: 'signup' });
     });
 
-    it('project tắt Confirm email → có phiên ngay và đăng nhập luôn', async () => {
-      const { service, supabase } = setup();
-      const user = fakeSupabaseUser({ email: 'a@example.com' });
-      supabase.signUp.mockResolvedValue({ data: { user, session: fakeSession(user) }, error: null });
+    it('đăng nhập lại được bằng đúng mật khẩu vừa đăng ký, sai mật khẩu thì không', async () => {
+      const { service } = setup();
+      await service.signup({ email: 'a@example.com', password: 'Matkhau-123', fullName: 'An', portal: 'tenant' }, CTX);
 
-      const outcome = await service.signup({ email: 'a@example.com', password: '12345678', fullName: 'A', portal: 'tenant' }, CTX);
-      expect(outcome).toMatchObject({ needsEmailConfirmation: false, user: { portal: 'tenant' } });
-      expect('tokens' in outcome).toBe(true);
+      expect(await service.login({ email: 'a@example.com', password: 'Matkhau-123', portal: 'tenant' }, CTX)).toMatchObject({ user: { portal: 'tenant' } });
+      expect(await codeOf(service.login({ email: 'a@example.com', password: 'Matkhau-124', portal: 'tenant' }, CTX))).toBe('invalid_credentials');
     });
 
-    it.each([
-      [supabaseError(422, 'weak_password'), 'weak_password'],
-      [supabaseError(422, 'user_already_exists'), 'email_already_registered'],
-      [supabaseError(429, 'over_email_send_rate_limit'), 'rate_limited'],
-      [supabaseError(400, 'email_address_invalid'), 'invalid_request'],
-    ])('lỗi đăng ký %j → %s', async (error, expected) => {
-      const { service, supabase } = setup();
-      supabase.signUp.mockResolvedValue({ data: { user: null, session: null }, error });
-      expect(await codeOf(service.signup({ email: 'a@example.com', password: '12345678', fullName: 'A', portal: 'tenant' }, CTX))).toBe(expected);
+    it('Host được mời → có phiên nhưng needsRfidVerification + hostId', async () => {
+      const { service, prisma } = setup();
+      const invite = await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
+      const outcome = await service.signup({ email: 'h@example.com', password: '12345678', fullName: 'H', portal: 'host' }, CTX);
+
+      expect(outcome).toMatchObject({ needsRfidVerification: true, hostId: invite.id, user: { portal: 'host', isHostVerified: false } });
+      expect(prisma.fieldHost.rows).toHaveLength(0);
+    });
+
+    it('email đã có Profile có mật khẩu → email_already_registered, mật khẩu cũ giữ nguyên', async () => {
+      const { service, prisma } = setup();
+      const profile = await seedWithPassword(prisma, { email: 'a@example.com', roleCode: 'tenant', password: 'Mat-khau-cu-1' });
+      const before = profile.passwordHash;
+
+      expect(await codeOf(service.signup({ email: 'A@example.com', password: 'Mat-khau-moi-2', fullName: 'Kẻ lạ', portal: 'tenant' }, CTX))).toBe('email_already_registered');
+      expect(prisma.profile.rows).toHaveLength(1);
+      expect(prisma.profile.rows[0].passwordHash).toBe(before);
+      expect(await service.login({ email: 'a@example.com', password: 'Mat-khau-cu-1', portal: 'tenant' }, CTX)).toMatchObject({ user: { id: profile.id } });
+    });
+
+    it('email đã có Profile Google (không có passwordHash) → email_already_registered, KHÔNG gắn mật khẩu (chống chiếm tài khoản)', async () => {
+      const { service, prisma } = setup();
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'tenant' });
+
+      expect(await codeOf(service.signup({ email: 'g@example.com', password: 'Mat-khau-moi-2', fullName: 'Kẻ lạ', portal: 'tenant' }, CTX))).toBe('email_already_registered');
+      expect(prisma.profile.rows[0].passwordHash).toBeNull();
+      expect(await codeOf(service.login({ email: 'g@example.com', password: 'Mat-khau-moi-2', portal: 'tenant' }, CTX))).toBe('password_not_set');
+    });
+
+    it('đăng ký đồng thời hai lần cùng email: chỉ một Profile, không 500', async () => {
+      const { service, prisma } = setup();
+      const dto = { email: 'a@example.com', password: 'Matkhau-123', fullName: 'An', portal: 'tenant' as const };
+      const codes = await Promise.all([codeOf(service.signup(dto, CTX)), codeOf(service.signup(dto, CTX))]);
+
+      expect(prisma.profile.rows).toHaveLength(1);
+      expect(codes.every((c) => c === 'no-error' || c === 'email_already_registered' || c === 'account_conflict')).toBe(true);
     });
   });
 
@@ -165,12 +214,18 @@ describe('AuthService', () => {
       expect(await codeOf(service.demoLogin('tenant', CTX))).toBe('demo_disabled');
     });
 
-    it('bật → đăng nhập thật bằng tài khoản demo', async () => {
-      const { service, supabase } = setup({ AUTH_DEMO_MODE: 'true', DEMO_PASSWORD: 'demo-pw' });
-      signInAs(supabase, 'khachthue.demo@vinstay.vn');
+    it('bật → đăng nhập thật (qua login) bằng tài khoản demo đã seed', async () => {
+      const { service, prisma } = setup({ AUTH_DEMO_MODE: 'true', DEMO_PASSWORD: 'demo-pw' });
+      await seedWithPassword(prisma, { email: 'khachthue.demo@vinstay.vn', roleCode: 'tenant', password: 'demo-pw' });
+
       const outcome = await service.demoLogin('tenant', CTX);
-      expect(supabase.signInWithPassword).toHaveBeenCalledWith('khachthue.demo@vinstay.vn', 'demo-pw');
-      expect(outcome.user.portal).toBe('tenant');
+      expect(outcome.user).toMatchObject({ portal: 'tenant', email: 'khachthue.demo@vinstay.vn' });
+      expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_succeeded').metadata).toMatchObject({ method: 'password' });
+    });
+
+    it('bật nhưng chưa seed tài khoản demo (hoặc sai DEMO_PASSWORD) → invalid_credentials', async () => {
+      const { service } = setup({ AUTH_DEMO_MODE: 'true', DEMO_PASSWORD: 'demo-pw' });
+      expect(await codeOf(service.demoLogin('tenant', CTX))).toBe('invalid_credentials');
     });
   });
 
@@ -243,7 +298,7 @@ describe('AuthService', () => {
     });
 
     it('lần đầu: tạo Profile, ký JWT phiên (không có refresh token), redirect trang chủ cổng', async () => {
-      const { service, prisma, supabase, sessionTokens } = setup();
+      const { service, prisma, sessionTokens } = setup();
       const { state, nonce } = roundTrip(service, 'landlord');
 
       const result = await service.completeGoogle({ identity: google(), state, nonce }, CTX);
@@ -253,10 +308,9 @@ describe('AuthService', () => {
       const profile = prisma.profile.rows[0];
       expect(profile).toMatchObject({ email: 'g@example.com', fullName: 'Nguyễn Văn An' });
       expect(result.outcome.user).toMatchObject({ id: profile.id, role: 'landlord', portal: 'landlord' });
-      expect(result.outcome.tokens.refreshToken).toBeUndefined();
-      expect(result.outcome.tokens.expiresIn).toBe(24 * 60 * 60);
+      expect('refreshToken' in result.outcome.tokens).toBe(false);
+      expect(result.outcome.tokens.expiresIn).toBe(SESSION_TTL_SECONDS);
       expect(sessionTokens.verify(result.outcome.tokens.accessToken)).toMatchObject({ sub: profile.id, email: 'g@example.com' });
-      expect(supabase.signInWithPassword).not.toHaveBeenCalled();
       expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_succeeded').metadata).toMatchObject({ method: 'google' });
     });
 
@@ -271,6 +325,29 @@ describe('AuthService', () => {
       if (!result.ok) return;
       expect(prisma.profile.rows).toHaveLength(1);
       expect(sessionTokens.verify(result.outcome.tokens.accessToken)?.sub).toBe(existing.id);
+    });
+
+    it('Google chung Profile với tài khoản mật khẩu: không đổi passwordHash, mật khẩu cũ vẫn đăng nhập được', async () => {
+      const { service, prisma } = setup();
+      await service.signup({ email: 'g@example.com', password: 'Matkhau-123', fullName: 'An', portal: 'tenant' }, CTX);
+      const before = prisma.profile.rows[0].passwordHash;
+      const { state, nonce } = roundTrip(service);
+
+      const result = await service.completeGoogle({ identity: google(), state, nonce }, CTX);
+
+      expect(result.ok).toBe(true);
+      expect(prisma.profile.rows).toHaveLength(1);
+      expect(prisma.profile.rows[0].passwordHash).toBe(before);
+      expect(await service.login({ email: 'g@example.com', password: 'Matkhau-123', portal: 'tenant' }, CTX)).toMatchObject({ user: { portal: 'tenant' } });
+    });
+
+    it('Google tạo Profile mới: không có passwordHash, nên đăng nhập mật khẩu báo password_not_set', async () => {
+      const { service, prisma } = setup();
+      const { state, nonce } = roundTrip(service);
+      await service.completeGoogle({ identity: google(), state, nonce }, CTX);
+
+      expect(prisma.profile.rows[0].passwordHash).toBeNull();
+      expect(await codeOf(service.login({ email: 'g@example.com', password: 'bat-ky-123', portal: 'tenant' }, CTX))).toBe('password_not_set');
     });
 
     it('Host chưa nhập RFID → redirect kèm rfidPending', async () => {
@@ -292,8 +369,8 @@ describe('AuthService', () => {
       expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('sai cổng → redirect lỗi wrong_portal, không có phiên (và không đụng Supabase)', async () => {
-      const { service, prisma, supabase } = setup();
+    it('sai cổng → redirect lỗi wrong_portal, không có phiên', async () => {
+      const { service, prisma } = setup();
       seedProfile(prisma, { email: 'g@example.com', roleCode: 'landlord' });
       const { state, nonce } = roundTrip(service, 'tenant');
 
@@ -301,7 +378,6 @@ describe('AuthService', () => {
         ok: false,
         redirectUrl: 'http://localhost:3000/login?error=wrong_portal&tab=tenant',
       });
-      expect(supabase.signOut).not.toHaveBeenCalled();
       expect(prisma.authAuditLog.rows.find((r: any) => r.event === 'login_rejected').metadata).toMatchObject({ reason: 'wrong_portal' });
     });
 
@@ -316,166 +392,89 @@ describe('AuthService', () => {
     });
   });
 
-  describe('phiên do backend ký (Google)', () => {
-    const signedInGoogleUser = async (setupResult: ReturnType<typeof setup>, roleCode = 'tenant') => {
-      const profile = seedProfile(setupResult.prisma, { email: 'g@example.com', roleCode });
-      return { profile, token: setupResult.sessionTokens.sign(profile.id, 'g@example.com').accessToken };
+  describe('phiên do backend ký', () => {
+    const signedIn = (ctx: ReturnType<typeof setup>, roleCode = 'tenant') => {
+      const profile = seedProfile(ctx.prisma, { email: 'g@example.com', roleCode });
+      return { profile, token: ctx.sessionTokens.sign(profile.id, 'g@example.com').accessToken };
     };
+    const expiredToken = (sub: string) =>
+      new JwtService({ secret: JWT_SECRET }).sign({ sub }, { issuer: 'vinstay-backend', expiresIn: -10 });
 
-    it('authenticate: token backend hợp lệ → user lấy vai trò từ DB, không hỏi Supabase', async () => {
+    it('authenticate: token backend hợp lệ → user lấy vai trò từ DB', async () => {
       const ctx = setup();
-      const { profile, token } = await signedInGoogleUser(ctx, 'landlord');
+      const { profile, token } = signedIn(ctx, 'landlord');
       expect(await ctx.sessions.authenticate(token)).toMatchObject({ id: profile.id, role: 'landlord', portal: 'landlord' });
-      expect(ctx.supabase.verifyJwtToken).not.toHaveBeenCalled();
     });
 
-    it('authenticate: Profile bị xoá hoặc khoá → phiên vô hiệu', async () => {
+    it('authenticate: Profile không tồn tại (bị xoá) → null', async () => {
       const ctx = setup();
-      const { profile, token } = await signedInGoogleUser(ctx);
+      const { token } = signedIn(ctx);
       ctx.prisma.profile.rows.splice(0);
       expect(await ctx.sessions.authenticate(token)).toBeNull();
-
-      const other = setup();
-      const { profile: p2, token: t2 } = await signedInGoogleUser(other);
-      other.prisma.profile.rows.find((r: any) => r.id === p2.id).isActive = false;
-      expect(await codeOf(other.sessions.authenticate(t2))).toBe('account_suspended');
-      expect(profile.id).toBeDefined();
     });
 
-    it('authenticate: token ký bằng khóa khác / hết hạn / thiếu issuer không được chấp nhận là token backend', async () => {
+    it('authenticate: Profile bị khoá → account_suspended', async () => {
+      const ctx = setup();
+      const { profile, token } = signedIn(ctx);
+      ctx.prisma.profile.rows.find((r: any) => r.id === profile.id).isActive = false;
+      expect(await codeOf(ctx.sessions.authenticate(token))).toBe('account_suspended');
+    });
+
+    it('authenticate: khóa khác / thiếu issuer / hết hạn / JWT kiểu Supabase / rác → null, không truy vấn DB', async () => {
       const ctx = setup();
       const profile = seedProfile(ctx.prisma, { email: 'g@example.com', roleCode: 'tenant' });
       const forged = createSessionTokens('another-secret-of-at-least-32-characters').sign(profile.id, 'g@example.com').accessToken;
-      const noIssuer = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign({ sub: profile.id });
-      const expired = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign(
-        { sub: profile.id },
-        { issuer: 'vinstay-backend', expiresIn: -10 },
-      );
+      const noIssuer = new JwtService({ secret: JWT_SECRET }).sign({ sub: profile.id });
+      const supabaseLike = new JwtService({ secret: JWT_SECRET }).sign({ sub: profile.id, aud: 'authenticated', role: 'authenticated' }, { issuer: 'https://x.supabase.co/auth/v1' });
 
-      for (const token of [forged, noIssuer, expired]) {
+      for (const token of [forged, noIssuer, expiredToken(profile.id), supabaseLike, 'not-a-jwt']) {
         expect(ctx.sessionTokens.verify(token)).toBeNull();
-        expect(await ctx.sessions.authenticate(token)).toBeNull(); // rơi xuống Supabase, Supabase giả từ chối
+        expect(await ctx.sessions.authenticate(token)).toBeNull();
       }
-      expect(ctx.supabase.verifyJwtToken).toHaveBeenCalledTimes(3);
+      expect(ctx.prisma.profile.findUnique).not.toHaveBeenCalled();
     });
 
-    it('token Supabase (mật khẩu) vẫn hoạt động song song', async () => {
+    it('resolveSession: token hợp lệ → user (không có clear)', async () => {
       const ctx = setup();
-      const user = fakeSupabaseUser({ email: 't@example.com' });
-      seedProfile(ctx.prisma, { id: user.id, email: 't@example.com', roleCode: 'tenant' });
-      ctx.supabase.verifyJwtToken.mockResolvedValue(user);
-      expect(await ctx.sessions.authenticate('supabase-access-token')).toMatchObject({ id: user.id, role: 'tenant' });
+      const { profile, token } = signedIn(ctx);
+      const result = await ctx.service.resolveSession(token);
+      expect(result.user).toMatchObject({ id: profile.id, portal: 'tenant' });
+      expect(result.clear).toBeUndefined();
     });
 
-    it('resolveSession: token backend → user, không cần refresh', async () => {
-      const ctx = setup();
-      const { profile, token } = await signedInGoogleUser(ctx);
-      const result = await ctx.service.resolveSession(token, undefined);
-      expect(result.user).toMatchObject({ id: profile.id });
-      expect(result.tokens).toBeUndefined();
-    });
-
-    it('resolveSession: token backend hết hạn, không có refresh → xoá cookie', async () => {
+    it('resolveSession: token hết hạn / hỏng → user null và báo xoá cookie', async () => {
       const ctx = setup();
       const profile = seedProfile(ctx.prisma, { email: 'g@example.com', roleCode: 'tenant' });
-      const expired = new JwtService({ secret: 'a-test-jwt-secret-of-at-least-32-chars' }).sign(
-        { sub: profile.id },
-        { issuer: 'vinstay-backend', expiresIn: -10 },
-      );
-      expect(await ctx.service.resolveSession(expired, undefined)).toEqual({ user: null, clear: true });
+      expect(await ctx.service.resolveSession(expiredToken(profile.id))).toEqual({ user: null, clear: true });
+      expect(await ctx.service.resolveSession('bad')).toEqual({ user: null, clear: true });
     });
 
-    it('logout token backend: không gọi Supabase; token Supabase vẫn bị thu hồi', async () => {
+    it('resolveSession: không có cookie → user null, không cần xoá', async () => {
+      const { service } = setup();
+      expect(await service.resolveSession(undefined)).toEqual({ user: null, clear: false });
+    });
+
+    it('resolveSession: tài khoản bị khoá hoặc đã bị xoá → coi như không có phiên, xoá cookie', async () => {
       const ctx = setup();
-      const { token } = await signedInGoogleUser(ctx);
-      await ctx.service.logout(token);
-      expect(ctx.supabase.signOut).not.toHaveBeenCalled();
-
-      await ctx.service.logout('supabase-access-token');
-      expect(ctx.supabase.signOut).toHaveBeenCalledWith('supabase-access-token');
-    });
-  });
-
-  describe('resolveSession', () => {
-    it('access token hợp lệ → user, không refresh', async () => {
-      const { service, supabase, prisma } = setup();
-      const user = fakeSupabaseUser({ email: 't@example.com' });
-      seedProfile(prisma, { id: user.id, email: 't@example.com', roleCode: 'tenant' });
-      supabase.verifyJwtToken.mockResolvedValue(user);
-
-      const result = await service.resolveSession('access', 'refresh');
-      expect(result.user).toMatchObject({ portal: 'tenant' });
-      expect(result.tokens).toBeUndefined();
-      expect(supabase.refreshSession).not.toHaveBeenCalled();
+      const { profile, token } = signedIn(ctx);
+      ctx.prisma.profile.rows.find((r: any) => r.id === profile.id).isActive = false;
+      expect(await ctx.service.resolveSession(token)).toEqual({ user: null, clear: true });
     });
 
-    it('access token hết hạn + refresh token → làm mới và trả token mới', async () => {
-      const { service, supabase, prisma } = setup();
-      const user = fakeSupabaseUser({ email: 't@example.com' });
-      seedProfile(prisma, { id: user.id, email: 't@example.com', roleCode: 'tenant' });
-      const fresh = fakeSession(user, { access_token: 'fresh-access', refresh_token: 'fresh-refresh' });
-      supabase.verifyJwtToken.mockImplementation(async (token: string) => (token === 'fresh-access' ? user : null));
-      supabase.refreshSession.mockResolvedValue({ data: { session: fresh, user }, error: null });
+    it('resolveSession: Host chờ RFID → view có pendingHostId để FE dựng lại bước RFID', async () => {
+      const ctx = setup();
+      const profile = seedProfile(ctx.prisma, { email: 'h@example.com', roleCode: 'field_host' });
+      const invite = await ctx.prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
+      const token = ctx.sessionTokens.sign(profile.id, 'h@example.com').accessToken;
 
-      const result = await service.resolveSession('expired', 'refresh');
-      expect(result.user).toMatchObject({ portal: 'tenant' });
-      expect(result.tokens).toEqual({ accessToken: 'fresh-access', refreshToken: 'fresh-refresh', expiresIn: 3600 });
-    });
-
-    it('cả hai đều vô dụng → user null và báo xoá cookie', async () => {
-      const { service } = setup();
-      expect(await service.resolveSession('bad', 'bad')).toEqual({ user: null, clear: true });
-    });
-
-    it('không có cookie nào → user null, không cần xoá', async () => {
-      const { service } = setup();
-      expect(await service.resolveSession(undefined, undefined)).toEqual({ user: null, clear: false });
-    });
-
-    it('Supabase sập tạm thời: không xoá cookie của người dùng', async () => {
-      const { service, supabase } = setup();
-      supabase.refreshSession.mockResolvedValue({ data: { session: null }, error: supabaseError(503) });
-      expect(await service.resolveSession('expired', 'refresh')).toEqual({ user: null });
-    });
-
-    it('tài khoản bị khoá → coi như không có phiên', async () => {
-      const { service, supabase, prisma } = setup();
-      const user = fakeSupabaseUser({ email: 't@example.com' });
-      seedProfile(prisma, { id: user.id, email: 't@example.com', roleCode: 'tenant', isActive: false });
-      supabase.verifyJwtToken.mockResolvedValue(user);
-      expect((await service.resolveSession('access', undefined)).user).toBeNull();
-    });
-
-    it('Host chờ RFID: view có pendingHostId để FE dựng lại bước RFID', async () => {
-      const { service, supabase, prisma } = setup();
-      const user = fakeSupabaseUser({ email: 'h@example.com' });
-      seedProfile(prisma, { id: user.id, email: 'h@example.com', roleCode: 'field_host' });
-      const invite = await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      supabase.verifyJwtToken.mockResolvedValue(user);
-
-      expect((await service.resolveSession('access', undefined)).user).toMatchObject({ isHostVerified: false, pendingHostId: invite.id });
-    });
-  });
-
-  describe('refresh / logout', () => {
-    it('refresh thất bại → unauthorized', async () => {
-      const { service } = setup();
-      expect(await codeOf(service.refresh('bad'))).toBe('unauthorized');
-    });
-
-    it('logout thu hồi phiên; không có token thì bỏ qua', async () => {
-      const { service, supabase } = setup();
-      await service.logout('access');
-      await service.logout(undefined);
-      expect(supabase.signOut).toHaveBeenCalledTimes(1);
+      expect((await ctx.service.resolveSession(token)).user).toMatchObject({ isHostVerified: false, pendingHostId: invite.id });
     });
   });
 
   describe('verifyRfid', () => {
     async function pendingHost() {
       const ctx = setup();
-      const user = fakeSupabaseUser({ email: 'h@example.com' });
-      const profile = seedProfile(ctx.prisma, { id: user.id, email: 'h@example.com', roleCode: 'field_host' });
+      const profile = seedProfile(ctx.prisma, { email: 'h@example.com', roleCode: 'field_host' });
       const invite = await ctx.prisma.hostInvite.create({
         data: { email: 'h@example.com', rfidCardNumber: 'RFID-S1-0001', assignedZone: 'The Sapphire 1' },
       });

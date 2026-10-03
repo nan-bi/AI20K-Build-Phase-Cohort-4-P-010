@@ -12,8 +12,8 @@ function requiredPortal(pathname: string): Portal | null {
 }
 
 /**
- * Chặn trang theo phiên THẬT: hỏi backend `GET /auth/session` (cookie httpOnly `vs_access`/`vs_refresh`).
- * Backend có thể làm mới token ⇒ chuyển tiếp Set-Cookie cho trình duyệt và cập nhật cookie của request đang xử lý.
+ * Chặn trang theo phiên THẬT: hỏi backend `GET /auth/session` (cookie httpOnly `vs_access`).
+ * Backend có thể xoá cookie hỏng ⇒ chuyển tiếp Set-Cookie cho trình duyệt và cập nhật cookie của request đang xử lý.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

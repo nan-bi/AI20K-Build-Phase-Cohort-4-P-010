@@ -13,7 +13,9 @@ datasource db {
 generator client {
   provider        = "prisma-client-js"
   // DB ở xa (RTT ~0,6s): `relationLoadStrategy: "join"` gộp profile+role+hostProfile thành 1 truy vấn thay vì 3.
-  previewFeatures = ["relationJoins"]
+  // `omitApi`: PrismaService ẩn `Profile.passwordHash` ở MỌI truy vấn (kể cả `include: { landlord: true }` của module khác);
+  // chỉ đăng nhập mới đọc nó bằng `omit: { passwordHash: false }`.
+  previewFeatures = ["relationJoins", "omitApi"]
 }
 
 // ====================================================================
@@ -58,6 +60,8 @@ model Profile {
   phoneEnc        String?   @map("phone_enc") // AES-256-GCM encrypted
   phoneHash       String?   @unique @map("phone_hash") @db.VarChar(64) // HMAC-SHA256 blind index
   email           String?   @unique @db.VarChar(100)
+  // scrypt: `scrypt$<salt hex>$<hash hex>`. NULL = tài khoản chỉ đăng nhập bằng Google. Không bao giờ trả ra API.
+  passwordHash    String?   @map("password_hash")
   isPhoneVerified Boolean   @default(false) @map("is_phone_verified")
   isActive        Boolean   @default(true) @map("is_active")
   lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz

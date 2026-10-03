@@ -7,6 +7,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super({
+      // Băm mật khẩu không bao giờ rò sang response của module khác; AuthService.login tự bật lại cho mình.
+      omit: { profile: { passwordHash: true } },
       log: [
         { emit: 'event', level: 'query' },
         { emit: 'stdout', level: 'info' },

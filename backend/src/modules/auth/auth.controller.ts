@@ -5,7 +5,6 @@ import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { PORTALS } from './auth.constants';
-import { AuthException, authError } from './auth.errors';
 import { AuthService, LoginOutcome, RequestContext } from './auth.service';
 import { LoginDto, PortalQueryDto, SignupDto, VerifyRfidDto } from './dto/auth.dto';
 import { GoogleAuthGuard, GoogleCallbackGuard } from './google/google-auth.guard';
@@ -22,9 +21,9 @@ export const requestContext = (req: Request): RequestContext => ({
 
 /**
  * Đăng nhập là việc của backend: FE chỉ hiển thị form và gọi các endpoint này. Phiên nằm trong cookie
- * httpOnly (`vs_access`, `vs_refresh`) — response không bao giờ chứa token. API client có thể gửi
- * `Authorization: Bearer <Supabase access token>` thay cho cookie. Đăng nhập Google chạy bằng Passport và
- * phát JWT phiên do backend ký (không qua Supabase, không có refresh token).
+ * httpOnly (`vs_access`) — response không bao giờ chứa token. API client có thể gửi
+ * `Authorization: Bearer <access token>` thay cho cookie. Email + mật khẩu (băm scrypt trong `profiles`) và
+ * Google (Passport) đều phát JWT phiên do backend ký; không dùng Supabase Auth, không có refresh token.
  */
 @ApiTags('0. Xác thực & Phân quyền (Auth)')
 @Controller('auth')
@@ -62,14 +61,14 @@ export class AuthController {
   @ApiOperation({
     summary: 'Đăng ký tài khoản (tenant / landlord / host được mời) bằng email + mật khẩu',
     description:
-      'Supabase gửi email xác nhận; bấm link xong quay lại màn đăng nhập rồi đăng nhập như bình thường. ' +
+      'Không xác nhận email: đăng ký xong đăng nhập luôn (set cookie phiên, response giống `POST /auth/login`). ' +
+      'Email đã có tài khoản (kể cả Google) → 409 `email_already_registered`. ' +
       'Host chỉ đăng ký được nếu Admin đã mời email đó. Admin không có đăng ký.',
   })
   async signup(@Body() dto: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const outcome = await this.auth.signup(dto, requestContext(req));
-    if (!('tokens' in outcome)) return { needsEmailConfirmation: true };
     this.cookies.set(res, outcome.tokens);
-    return { needsEmailConfirmation: false, ...this.loginBody(outcome) };
+    return this.loginBody(outcome);
   }
 
   @Public()
@@ -111,7 +110,10 @@ export class AuthController {
       requestContext(req),
     );
     this.cookies.clearOAuthState(res);
-    if (result.ok) this.cookies.set(res, result.outcome.tokens);
+    if (result.ok) {
+      this.cookies.set(res, result.outcome.tokens);
+      this.cookies.setGoogleHint(res, { name: result.outcome.user.fullName, email: result.outcome.user.email });
+    }
     return res.redirect(302, result.redirectUrl);
   }
 
@@ -119,44 +121,21 @@ export class AuthController {
   @Get('session')
   @ApiCookieAuth('session-cookie')
   @ApiOperation({
-    summary: 'Phiên hiện tại (user hoặc null); tự làm mới access token nếu còn refresh token',
+    summary: 'Phiên hiện tại (user hoặc null)',
     description: 'FE/proxy gọi endpoint này để biết đã đăng nhập chưa và ở cổng nào. Không bao giờ trả token.',
   })
   async session(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { user, tokens, clear } = await this.auth.resolveSession(
-      this.cookies.readAccessToken(req),
-      this.cookies.readRefreshToken(req),
-    );
-    if (tokens) this.cookies.set(res, tokens);
-    else if (clear) this.cookies.clear(res);
+    const { user, clear } = await this.auth.resolveSession(this.cookies.readAccessToken(req));
+    if (clear) this.cookies.clear(res);
     res.setHeader('Cache-Control', 'no-store');
     return { user };
   }
 
   @Public()
-  @Post('refresh')
-  @HttpCode(200)
-  @Throttle(perMinute(30))
-  @ApiOperation({ summary: 'Làm mới phiên bằng refresh cookie' })
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = this.cookies.readRefreshToken(req);
-    if (!refreshToken) throw authError('unauthorized');
-    try {
-      const tokens = await this.auth.refresh(refreshToken);
-      this.cookies.set(res, tokens);
-      return { expiresIn: tokens.expiresIn };
-    } catch (err) {
-      if (err instanceof AuthException && err.getStatus() === 401) this.cookies.clear(res);
-      throw err;
-    }
-  }
-
-  @Public()
   @Post('logout')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Đăng xuất: thu hồi phiên Supabase và xoá cookie (idempotent)' })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.auth.logout(this.cookies.readAccessToken(req));
+  @ApiOperation({ summary: 'Đăng xuất: xoá cookie phiên (idempotent)' })
+  logout(@Res({ passthrough: true }) res: Response) {
     this.cookies.clear(res);
     return { loggedOut: true };
   }
