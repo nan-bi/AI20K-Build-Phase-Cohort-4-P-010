@@ -101,9 +101,8 @@
 
 ### Kế hoạch tiếp theo (Chuẩn bị nghiệm thu Gate 2 - Hạn chót 04/10/2026)
 - [x] Hoàn thiện Đặc tả Thuật toán Niêm yết & Định giá Động đa biến (`docs/DYNAMIC_PRICING_SPEC.md`).
-- [x] Đồng bộ quy chuẩn FOMO Tag, Hàng chờ Waitlist F2, SLA 75m và AI Conflict Resolver vào AGENTS.md, GEMINI.md, PRD.md và Legal 08.
 - [x] Chuẩn hóa tài liệu kiến trúc kỹ thuật gốc [ARCHITECTURE.md](file:///Users/duy/P-010/ARCHITECTURE.md) (kế thừa từ SAD v2.0 và 4 Core Engines).
-- [ ] Hoàn thiện báo cáo đánh giá kiểm thử [eval/results/report.md](file:///Users/duy/P-010/eval/results/report.md) với 5 kịch bản kiểm thử thực tế.
+- [x] Hoàn thiện báo cáo đánh giá kiểm thử [eval/results/report.md](file:///Users/duy/P-010/eval/results/report.md) với 5 kịch bản kiểm thử thực tế.
 - [ ] Cập nhật file [README.md](file:///Users/duy/P-010/README.md) tổng quan dự án thay thế template mặc định.
 - [ ] Quay video Walkthrough (3 phút) và chuẩn bị tài liệu thuyết trình Demo Day.
 
