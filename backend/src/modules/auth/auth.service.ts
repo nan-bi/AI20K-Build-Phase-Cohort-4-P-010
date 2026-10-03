@@ -3,14 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HostDutyStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuthError, Session, SupabaseService } from '../../supabase/supabase.service';
 import { AuthAuditService } from './auth-audit.service';
 import { PORTAL_HOME, Portal, PORTALS, loginPathForPortal } from './auth.constants';
 import { AuthException, authError } from './auth.errors';
 import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from './demo-accounts';
 import { GoogleIdentity } from './google/google.strategy';
+import { DUMMY_PASSWORD_HASH, hashPassword, verifyPassword } from './password-hasher';
 import { AuthenticatedUser, AuthUserView } from './session/authenticated-user';
-import { AuthSessionService, ProfileWithRole, toAuthenticatedUser } from './session/auth-session.service';
+import { AuthSessionService, PROFILE_INCLUDE, ProfileWithRole, toAuthenticatedUser } from './session/auth-session.service';
 import { ProfileProvisioningService, ProvisionUser } from './session/profile-provisioning.service';
 import { SessionTokens } from './session/session-cookies.service';
 import { SessionTokenService } from './session/session-token.service';
@@ -27,18 +27,10 @@ export interface LoginOutcome {
   hostId?: string;
 }
 
-export type SignupOutcome = { needsEmailConfirmation: true } | ({ needsEmailConfirmation: false } & LoginOutcome);
-
 /** Callback Google luôn kết thúc bằng một redirect về FE (thành công → trang chủ cổng, lỗi → màn đăng nhập). */
 export type OAuthResult =
   | { ok: true; redirectUrl: string; outcome: LoginOutcome }
   | { ok: false; redirectUrl: string };
-
-const toTokens = (session: Session): SessionTokens => ({
-  accessToken: session.access_token,
-  refreshToken: session.refresh_token,
-  expiresIn: session.expires_in,
-});
 
 const rfidEquals = (expected: string, given: string) => {
   // RFID thường nhập tay nên so không phân biệt hoa/thường; so sánh thời gian hằng số.
@@ -48,8 +40,9 @@ const rfidEquals = (expected: string, given: string) => {
 };
 
 /**
- * Toàn bộ nghiệp vụ đăng nhập của VinStay: mật khẩu, đăng ký, Google (Passport), làm mới/đăng xuất phiên
- * và bước RFID của Field Host. FE chỉ hiển thị form và gọi các endpoint này.
+ * Toàn bộ nghiệp vụ đăng nhập của VinStay: mật khẩu (băm scrypt trong `profiles.password_hash`), đăng ký, Google
+ * (Passport), phiên (JWT do backend ký) và bước RFID của Field Host. Không dùng Supabase Auth. FE chỉ hiển thị
+ * form và gọi các endpoint này.
  */
 @Injectable()
 export class AuthService {
@@ -61,7 +54,6 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly supabase: SupabaseService,
     private readonly sessions: AuthSessionService,
     private readonly provisioning: ProfileProvisioningService,
     private readonly audit: AuthAuditService,
@@ -77,41 +69,46 @@ export class AuthService {
   // ------------------------------------------------------------------ Email + mật khẩu
 
   async login(dto: { email: string; password: string; portal: Portal }, ctx: RequestContext): Promise<LoginOutcome> {
-    this.assertConfigured();
-    const { data, error } = await this.supabase.signInWithPassword(dto.email.trim().toLowerCase(), dto.password);
-    if (error || !data?.session) {
+    const email = dto.email.trim().toLowerCase();
+    const profile = await this.prisma.profile.findUnique({
+      where: { email },
+      include: PROFILE_INCLUDE,
+      omit: { passwordHash: false },
+    });
+    // Luôn băm một lần dù email không tồn tại / chưa có mật khẩu: độ trễ không để lộ email nào có tài khoản.
+    const passwordOk = await verifyPassword(dto.password, profile?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!profile || !profile.passwordHash || !passwordOk) {
       await this.audit.record('login_failed', { ...ctx, metadata: { portal: dto.portal, method: 'password' } });
-      throw this.mapSignInError(error);
+      // Tài khoản tạo bằng Google chưa có mật khẩu: chỉ dẫn người dùng sang Google thay vì báo sai mật khẩu.
+      throw authError(profile && !profile.passwordHash ? 'password_not_set' : 'invalid_credentials');
     }
-    return this.completeLogin(data.session, dto.portal, ctx, 'password');
+    return this.completeLogin({ id: profile.id, email }, dto.portal, ctx, 'password');
   }
 
+  /** Đăng ký email + mật khẩu: tạo Profile rồi đăng nhập luôn (không xác nhận email). */
   async signup(
     dto: { email: string; password: string; fullName: string; portal: Portal },
     ctx: RequestContext,
-  ): Promise<SignupOutcome> {
-    this.assertConfigured();
+  ): Promise<LoginOutcome> {
     if (dto.portal === 'admin') throw authError('signup_not_allowed');
 
     const email = dto.email.trim().toLowerCase();
+    // Không đặt mật khẩu lên tài khoản đã có (kể cả tài khoản Google): email chưa được chứng minh nên làm vậy là chiếm tài khoản.
+    const existing = await this.prisma.profile.findUnique({ where: { email }, select: { id: true } });
+    if (existing) throw authError('email_already_registered');
+
     if (dto.portal === 'host') {
-      // Chặn sớm: không gửi email xác nhận từ hệ thống ta tới địa chỉ tuỳ ý cho cổng Field Host.
       const invite = await this.prisma.hostInvite.findUnique({ where: { email } });
       if (!invite || invite.claimedAt) throw authError('not_authorized');
     }
 
-    const { data, error } = await this.supabase.signUp(email, dto.password, {
-      fullName: dto.fullName.trim(),
-      emailRedirectTo: `${this.webUrl}${loginPathForPortal(dto.portal)}?tab=${dto.portal}&confirmed=1`,
-    });
-    if (error) throw this.mapSignUpError(error);
-
-    // Project Supabase tắt "Confirm email" thì có phiên ngay.
-    if (data.session) {
-      return { needsEmailConfirmation: false, ...(await this.completeLogin(data.session, dto.portal, ctx, 'signup')) };
-    }
-    await this.audit.record('signup_requested', { ...ctx, metadata: { portal: dto.portal } });
-    return { needsEmailConfirmation: true };
+    const passwordHash = await hashPassword(dto.password);
+    return this.completeLogin(
+      { id: randomUUID(), email, fullName: dto.fullName.trim(), passwordHash },
+      dto.portal,
+      ctx,
+      'signup',
+    );
   }
 
   /** Đăng nhập 1-chạm bằng tài khoản demo đã seed. Tắt hẳn khi không bật AUTH_DEMO_MODE. */
@@ -120,7 +117,7 @@ export class AuthService {
     return this.login({ email: DEMO_ACCOUNTS[portal].email, password: this.demoPassword, portal }, ctx);
   }
 
-  // ------------------------------------------------------------------ Google (Passport, không qua Supabase)
+  // ------------------------------------------------------------------ Google (Passport)
 
   /**
    * Bước 1: tạo `state` = `<portal>.<nonce>`. Nonce nằm trong cookie httpOnly; callback chỉ hợp lệ khi `state`
@@ -157,20 +154,8 @@ export class AuthService {
       const email = identity.email.trim().toLowerCase();
       // Cùng email đã có tài khoản (vd. đăng ký bằng mật khẩu trước đó) thì dùng chung Profile, không tạo bản thứ hai.
       const existing = await this.prisma.profile.findUnique({ where: { email }, select: { id: true } });
-      const user: ProvisionUser = {
-        id: existing?.id ?? randomUUID(),
-        email,
-        email_confirmed_at: new Date().toISOString(),
-        user_metadata: { full_name: identity.fullName },
-      };
-      const admitted = await this.admit(user, state.portal, ctx, 'google');
-      const tokens = this.sessionTokens.sign(admitted.profile.id, email);
-      const outcome: LoginOutcome = {
-        tokens,
-        user: this.viewOfProfile(admitted.profile),
-        needsRfidVerification: admitted.needsRfidVerification,
-        ...(admitted.hostId ? { hostId: admitted.hostId } : {}),
-      };
+      const user: ProvisionUser = { id: existing?.id ?? randomUUID(), email, fullName: identity.fullName };
+      const outcome = await this.completeLogin(user, state.portal, ctx, 'google');
       const path = outcome.needsRfidVerification
         ? `/admin/login?tab=host&rfidPending=${outcome.hostId}`
         : PORTAL_HOME[state.portal];
@@ -184,45 +169,13 @@ export class AuthService {
 
   // ------------------------------------------------------------------ Phiên
 
-  async refresh(refreshToken: string): Promise<SessionTokens> {
-    this.assertConfigured();
-    const { data, error } = await this.supabase.refreshSession(refreshToken);
-    if (error || !data?.session) {
-      throw authError(this.isProviderOutage(error) ? 'auth_provider_unavailable' : 'unauthorized');
-    }
-    return toTokens(data.session);
-  }
-
-  /**
-   * Phiên hiện tại cho FE/proxy: access token còn hạn → dùng; hết hạn mà còn refresh token → làm mới
-   * âm thầm (trả `tokens` mới để controller set cookie). `clear` = cookie hiện có đã vô dụng.
-   */
-  async resolveSession(
-    accessToken?: string,
-    refreshToken?: string,
-  ): Promise<{ user: AuthUserView | null; tokens?: SessionTokens; clear?: boolean }> {
+  /** Phiên hiện tại cho FE/proxy. `clear` = cookie hiện có đã vô dụng (hết hạn / sai chữ ký / Profile bị xoá hoặc khoá). */
+  async resolveSession(accessToken?: string): Promise<{ user: AuthUserView | null; clear?: boolean }> {
     if (accessToken) {
       const user = await this.safeAuthenticate(accessToken);
       if (user) return { user: await this.toView(user) };
     }
-    if (refreshToken && this.supabase.isConfigured()) {
-      const { data, error } = await this.supabase.refreshSession(refreshToken);
-      if (data?.session) {
-        const user = await this.safeAuthenticate(data.session.access_token);
-        if (user) return { user: await this.toView(user), tokens: toTokens(data.session) };
-      } else if (this.isProviderOutage(error)) {
-        // Supabase tạm lỗi: đừng xoá cookie của người dùng đang đăng nhập hợp lệ.
-        return { user: null };
-      }
-    }
-    return { user: null, clear: Boolean(accessToken || refreshToken) };
-  }
-
-  async logout(accessToken?: string): Promise<void> {
-    // Token do backend ký (Google) không có phiên phía Supabase để thu hồi; controller xoá cookie là đủ.
-    if (accessToken && !this.sessionTokens.verify(accessToken) && this.supabase.isConfigured()) {
-      await this.supabase.signOut(accessToken);
-    }
+    return { user: null, clear: Boolean(accessToken) };
   }
 
   // ------------------------------------------------------------------ Field Host: xác nhận RFID
@@ -262,22 +215,16 @@ export class AuthService {
 
   // ------------------------------------------------------------------ nội bộ
 
+  /** Tạo/nạp Profile theo cổng rồi ký JWT phiên. Ném AuthException nếu bị từ chối. */
   private async completeLogin(
-    session: Session,
+    user: ProvisionUser,
     portal: Portal,
     ctx: RequestContext,
-    method: 'password' | 'signup',
+    method: 'password' | 'google' | 'signup',
   ): Promise<LoginOutcome> {
-    let admitted: Awaited<ReturnType<AuthService['admit']>>;
-    try {
-      admitted = await this.admit(session.user, portal, ctx, method);
-    } catch (err) {
-      // Đăng nhập Supabase đã thành công nhưng không được vào cổng này → thu hồi phiên vừa tạo.
-      if (err instanceof AuthException) await this.supabase.signOut(session.access_token);
-      throw err;
-    }
+    const admitted = await this.admit(user, portal, ctx, method);
     return {
-      tokens: toTokens(session),
+      tokens: this.sessionTokens.sign(admitted.profile.id, user.email),
       user: this.viewOfProfile(admitted.profile),
       needsRfidVerification: admitted.needsRfidVerification,
       ...(admitted.hostId ? { hostId: admitted.hostId } : {}),
@@ -344,28 +291,4 @@ export class AuthService {
     const target = portal ?? 'tenant';
     return `${this.webUrl}${loginPathForPortal(target)}?error=${encodeURIComponent(error)}&tab=${target}`;
   }
-
-  private assertConfigured(): void {
-    if (!this.supabase.isConfigured()) throw authError('auth_not_configured');
-  }
-
-  private isProviderOutage(error?: AuthError | null): boolean {
-    return Boolean(error && (error.name === 'AuthRetryableFetchError' || (error.status ?? 0) >= 500));
-  }
-
-  private mapSignInError(error?: AuthError | null): AuthException {
-    if (error?.code === 'email_not_confirmed') return authError('email_not_verified');
-    if (error?.status === 429) return authError('rate_limited');
-    if (this.isProviderOutage(error)) return authError('auth_provider_unavailable');
-    return authError('invalid_credentials');
-  }
-
-  private mapSignUpError(error: AuthError): AuthException {
-    if (error.code === 'weak_password') return authError('weak_password');
-    if (error.code === 'user_already_exists' || error.code === 'email_exists') return authError('email_already_registered');
-    if (error.status === 429) return authError('rate_limited');
-    if (this.isProviderOutage(error)) return authError('auth_provider_unavailable');
-    return authError('invalid_request');
-  }
 }
-

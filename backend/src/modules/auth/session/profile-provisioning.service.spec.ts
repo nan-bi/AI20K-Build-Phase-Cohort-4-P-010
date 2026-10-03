@@ -1,22 +1,37 @@
-import { User } from '@supabase/supabase-js';
 import { createFakePrisma, seedProfile } from '../testing/fake-prisma';
-import { fakeSupabaseUser } from '../testing/fake-supabase';
-import { ProfileProvisioningService } from './profile-provisioning.service';
+import { ProfileProvisioningService, ProvisionUser } from './profile-provisioning.service';
+
+const USER_ID = '00000000-0000-4000-8000-000000000001';
 
 const setup = () => {
   const prisma = createFakePrisma();
   return { prisma, service: new ProfileProvisioningService(prisma as any) };
 };
 
-const user = (overrides: Partial<User> = {}) => fakeSupabaseUser({ email: 'New.User@Example.com', ...overrides });
+const user = (overrides: Partial<ProvisionUser> = {}): ProvisionUser => ({ id: USER_ID, email: 'New.User@Example.com', ...overrides });
 
 describe('ProfileProvisioningService.ensureProfile', () => {
-  it('từ chối khi email chưa được xác nhận (chặn chiếm email của Host được mời)', async () => {
-    const { service } = setup();
-    expect(await service.ensureProfile(user({ email_confirmed_at: undefined }), 'landlord')).toEqual({
-      ok: false,
-      error: 'email_not_verified',
-    });
+  it('không còn bước kiểm tra xác nhận email: danh tính hợp lệ là tạo được Profile', async () => {
+    const { prisma, service } = setup();
+    expect(await service.ensureProfile(user(), 'landlord')).toMatchObject({ ok: true, created: true });
+    expect(prisma.profile.rows).toHaveLength(1);
+  });
+
+  it('ghi passwordHash khi tạo mới (đăng ký email + mật khẩu); không có thì để null (Google)', async () => {
+    const { prisma, service } = setup();
+    await service.ensureProfile(user({ passwordHash: 'scrypt$aa$bb' }), 'tenant');
+    expect(prisma.profile.rows[0].passwordHash).toBe('scrypt$aa$bb');
+
+    const other = setup();
+    await other.service.ensureProfile(user(), 'tenant');
+    expect(other.prisma.profile.rows[0].passwordHash).toBeNull();
+  });
+
+  it('đăng nhập lại không ghi đè passwordHash đã có', async () => {
+    const { prisma, service } = setup();
+    await service.ensureProfile(user({ passwordHash: 'scrypt$aa$bb' }), 'tenant');
+    await service.ensureProfile(user({ passwordHash: 'scrypt$cc$dd' }), 'tenant');
+    expect(prisma.profile.rows[0].passwordHash).toBe('scrypt$aa$bb');
   });
 
   it.each([
@@ -24,7 +39,7 @@ describe('ProfileProvisioningService.ensureProfile', () => {
     ['landlord', 'landlord'],
   ] as const)('tự tạo Profile %s ở lần đăng nhập đầu (email chuẩn hóa chữ thường)', async (portal, roleCode) => {
     const { prisma, service } = setup();
-    const result = await service.ensureProfile(user({ user_metadata: { full_name: 'Nguyễn Văn An' } }), portal);
+    const result = await service.ensureProfile(user({ fullName: 'Nguyễn Văn An' }), portal);
 
     expect(result).toMatchObject({ ok: true, created: true, needsRfidVerification: false });
     const profile = prisma.profile.rows[0];

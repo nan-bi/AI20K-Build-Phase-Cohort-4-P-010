@@ -94,7 +94,7 @@ export function createFakePrisma() {
   const fieldHost = new FakeTable(['id', 'profileId']);
   const profile: FakeTable = new FakeTable(
     ['id', 'email', 'phoneHash'],
-    () => ({ isActive: true, isPhoneVerified: false, fullName: null, lastLoginAt: null }),
+    () => ({ isActive: true, isPhoneVerified: false, fullName: null, lastLoginAt: null, passwordHash: null }),
     (row, include) => ({
       ...row,
       ...(include?.role ? { role: role.rows.find((r) => r.id === row.roleId) } : {}),
@@ -125,7 +125,7 @@ export type FakePrisma = ReturnType<typeof createFakePrisma>;
 /** Seed nhanh: role + profile (+ FieldHost nếu là host đã xác nhận RFID). */
 export function seedProfile(
   prisma: FakePrisma,
-  params: { id?: string; email: string; roleCode: string; isActive?: boolean; withFieldHost?: boolean; fullName?: string },
+  params: { id?: string; email: string; roleCode: string; isActive?: boolean; withFieldHost?: boolean; fullName?: string; passwordHash?: string | null },
 ) {
   let role = prisma.role.rows.find((r: Row) => r.code === params.roleCode);
   if (!role) {
@@ -137,6 +137,7 @@ export function seedProfile(
     roleId: role.id,
     email: params.email,
     fullName: params.fullName ?? null,
+    passwordHash: params.passwordHash ?? null,
     isActive: params.isActive ?? true,
     isPhoneVerified: false,
     createdAt: new Date(),

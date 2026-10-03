@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PORTAL_HOME, type Portal } from "@/lib/auth/portals";
+import { hintDisplayName, useGoogleHint } from "@/lib/auth/googleHint";
 import { GoogleMark } from "./GoogleMark";
 import { RfidVerifyStep } from "./RfidVerifyStep";
 import { API_BASE, errorMessage, postJson } from "./authApi";
@@ -22,7 +23,6 @@ interface PortalAuthProps {
 interface LoginData {
   needsRfidVerification?: boolean;
   hostId?: string;
-  needsEmailConfirmation?: boolean;
 }
 
 /**
@@ -44,6 +44,7 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [loading, setLoading] = useState(false);
   const [pendingRfid, setPendingRfid] = useState<string | null>(null);
+  const googleHint = useGoogleHint();
 
   function enter() {
     router.push(next ?? PORTAL_HOME[portal]);
@@ -51,11 +52,13 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
   }
 
   // Google chạy hoàn toàn ở backend (PKCE): điều hướng trình duyệt, không dùng fetch.
-  function handleGoogle() {
+  // `loginHint` = email Google đã dùng trước đó → Google chọn sẵn đúng tài khoản đó.
+  function handleGoogle(loginHint?: string) {
     setError(null);
     setLoading(true);
+    const hint = loginHint ? `&login_hint=${encodeURIComponent(loginHint)}` : "";
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- /api/v1 là backend (rewrite), không phải trang Next
-    window.location.assign(`${API_BASE}/auth/google?portal=${portal}`);
+    window.location.assign(`${API_BASE}/auth/google?portal=${portal}${hint}`);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,9 +71,6 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
       const body = mode === "login" ? { email, password, portal } : { email, password, fullName, portal };
       const { ok, data, code } = await postJson<LoginData>(path, body);
       if (!ok) return setError(errorMessage(code));
-      if (data.needsEmailConfirmation) {
-        return setNotice(`Đã gửi email xác nhận tới ${email}. Bấm vào liên kết trong email rồi quay lại đăng nhập.`);
-      }
       if (portal === "host" && data.needsRfidVerification && data.hostId) return setPendingRfid(data.hostId);
       return enter();
     } finally {
@@ -151,10 +151,30 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
 
       {canGoogle && (
         <>
-          <button type="button" className={styles.googleButton} onClick={handleGoogle} disabled={loading}>
-            <GoogleMark />
-            {mode === "login" ? "Đăng nhập với Google" : "Đăng ký với Google"}
-          </button>
+          {googleHint ? (
+            <>
+              <button
+                type="button"
+                className={`${styles.googleButton} ${styles.googleAccount}`}
+                onClick={() => handleGoogle(googleHint.email)}
+                disabled={loading}
+              >
+                <GoogleMark />
+                <span className={styles.googleAccountText}>
+                  <span className={styles.googleAccountName}>Tiếp tục bằng tên {hintDisplayName(googleHint)}</span>
+                  <span className={styles.googleAccountEmail}>{googleHint.email}</span>
+                </span>
+              </button>
+              <button type="button" className={styles.linkButton} onClick={() => handleGoogle()} disabled={loading}>
+                Dùng tài khoản Google khác
+              </button>
+            </>
+          ) : (
+            <button type="button" className={styles.googleButton} onClick={() => handleGoogle()} disabled={loading}>
+              <GoogleMark />
+              {mode === "login" ? "Đăng nhập với Google" : "Đăng ký với Google"}
+            </button>
+          )}
           <p className={styles.divider}>hoặc dùng email</p>
         </>
       )}

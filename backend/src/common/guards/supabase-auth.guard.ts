@@ -9,7 +9,7 @@ import { SessionCookieService } from '../../modules/auth/session/session-cookies
 
 /**
  * Xác thực mọi route không đánh dấu @Public(): lấy access token từ `Authorization: Bearer` hoặc
- * cookie `vs_access`, xác thực với Supabase Auth, nạp vai trò từ DB và gắn `request.user`.
+ * cookie `vs_access`, kiểm tra JWT do backend ký, nạp vai trò từ DB và gắn `request.user`.
  */
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {

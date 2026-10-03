@@ -7,6 +7,8 @@ import { AuthService } from '../auth.service';
 import { SessionCookieService } from '../session/session-cookies.service';
 import { isGoogleConfigured } from './google.strategy';
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * Bước 1 — `GET /auth/google?portal=`: sinh `state` (portal + nonce), đặt nonce vào cookie httpOnly rồi để
  * Passport redirect sang Google. Cookie phải đặt ở đây vì Passport tự gửi redirect ngay trong guard.
@@ -24,9 +26,13 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   getAuthenticateOptions(context: ExecutionContext) {
     if (!isGoogleConfigured(this.config)) throw authError('auth_not_configured');
     const http = context.switchToHttp();
-    const { state, nonce } = this.auth.beginGoogle(http.getRequest<Request>().query.portal);
+    const req = http.getRequest<Request>();
+    const { state, nonce } = this.auth.beginGoogle(req.query.portal);
     this.cookies.setOAuthState(http.getResponse<Response>(), nonce);
-    return { state };
+    // FE gửi email Google đã dùng trước đó (`login_hint`) để Google chọn sẵn đúng tài khoản; chỉ nhận chuỗi giống email.
+    const hint = req.query.login_hint;
+    const loginHint = typeof hint === 'string' && hint.length <= 100 && EMAIL_SHAPE.test(hint) ? hint : undefined;
+    return { state, ...(loginHint ? { loginHint } : {}) };
   }
 }
 

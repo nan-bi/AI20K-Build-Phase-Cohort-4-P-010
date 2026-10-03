@@ -55,7 +55,7 @@ async function bootstrap() {
     .setTitle('VinStay AI — Backend API Platform')
     .setDescription(
       `Hệ thống API Backend toàn diện cho nền tảng thuê căn hộ Asset-Light tại Vinhomes Ocean Park (Sapphire 1 & 2).\n\n` +
-        `**Kiến trúc:** NestJS 10 + Prisma ORM + Supabase (PostgreSQL + Auth + Storage).\n` +
+        `**Kiến trúc:** NestJS 10 + Prisma ORM + Supabase (PostgreSQL + Storage); đăng nhập do backend tự xử lý (JWT + băm mật khẩu trong bảng profiles).\n` +
         `**Phân hệ bám sát:**\n` +
         `- 👤 **Khách thuê (Tenant):** All-in Cost Calculator, AI Matchmaker 30s, Đặt lịch OTP, Đón sảnh 1-chạm, Cọc VietQR 2M, FPT.AI eKYC, Ký thỏa thuận số.\n` +
         `- 🏠 **Chủ nhà (Landlord):** Ký gửi độc quyền thẩm định 0đ, Ở nhà 100% (0km, 0 phút), Giám sát mở cửa từ xa, Thoát ủy quyền 15 ngày.\n` +
@@ -70,7 +70,7 @@ async function bootstrap() {
         bearerFormat: 'JWT',
         name: 'JWT Authorization',
         description:
-          'Supabase access token (trình duyệt dùng cookie httpOnly do POST /auth/login set). ' +
+          'JWT phiên do backend ký (trình duyệt dùng cookie httpOnly do POST /auth/login set). ' +
           'Khi AUTH_DEMO_MODE=true có thể gửi header [x-demo-role: ops_admin / field_host / landlord / tenant].',
         in: 'header',
       },

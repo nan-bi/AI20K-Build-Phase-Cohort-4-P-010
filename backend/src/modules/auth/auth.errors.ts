@@ -17,7 +17,8 @@ export class AuthException extends HttpException {
 
 const MESSAGES: Record<string, [HttpStatus, string]> = {
   invalid_credentials: [HttpStatus.UNAUTHORIZED, 'Email hoặc mật khẩu không đúng'],
-  email_not_verified: [HttpStatus.UNAUTHORIZED, 'Email chưa được xác nhận'],
+  password_not_set: [HttpStatus.UNAUTHORIZED, 'Tài khoản này đăng nhập bằng Google, chưa đặt mật khẩu'],
+  email_not_verified: [HttpStatus.UNAUTHORIZED, 'Email Google chưa được xác minh'],
   not_authorized: [HttpStatus.FORBIDDEN, 'Email này chưa được cấp quyền truy cập cổng này'],
   wrong_portal: [HttpStatus.FORBIDDEN, 'Tài khoản thuộc một vai trò khác. Vui lòng đăng nhập đúng cổng dành cho vai trò của bạn'],
   account_suspended: [HttpStatus.FORBIDDEN, 'Tài khoản đã bị tạm khoá'],
@@ -32,8 +33,7 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   forbidden: [HttpStatus.FORBIDDEN, 'Bạn không có quyền thực hiện thao tác này'],
   host_rfid_unverified: [HttpStatus.FORBIDDEN, 'Field Host cần xác nhận mã thẻ RFID trước khi sử dụng'],
   oauth_failed: [HttpStatus.BAD_REQUEST, 'Đăng nhập bằng Google không thành công'],
-  auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Dịch vụ xác thực chưa được cấu hình (thiếu SUPABASE_* hoặc GOOGLE_*)'],
-  auth_provider_unavailable: [HttpStatus.BAD_GATEWAY, 'Không kết nối được dịch vụ xác thực'],
+  auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Đăng nhập Google chưa được cấu hình (thiếu GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)'],
   demo_disabled: [HttpStatus.NOT_FOUND, 'Chế độ demo đang tắt'],
   rate_limited: [HttpStatus.TOO_MANY_REQUESTS, 'Quá nhiều yêu cầu, vui lòng thử lại sau'],
   invalid_phone: [HttpStatus.BAD_REQUEST, 'Số điện thoại không hợp lệ'],

@@ -3,16 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
 import {
   ACCESS_COOKIE,
+  GOOGLE_HINT_COOKIE,
+  GOOGLE_HINT_MAX_AGE_MS,
+  LEGACY_REFRESH_COOKIE,
   OAUTH_COOKIE,
   OAUTH_COOKIE_MAX_AGE_MS,
-  REFRESH_COOKIE,
-  REFRESH_COOKIE_MAX_AGE_MS,
 } from '../auth.constants';
 
 export interface SessionTokens {
   accessToken: string;
-  /** Không có với phiên Google (JWT do backend ký, hết hạn thì đăng nhập lại). */
-  refreshToken?: string;
   /** Số giây access token còn hiệu lực. */
   expiresIn: number;
 }
@@ -38,17 +37,21 @@ export class SessionCookieService {
 
   set(res: Response, tokens: SessionTokens): void {
     res.cookie(ACCESS_COOKIE, tokens.accessToken, { ...this.base(), maxAge: tokens.expiresIn * 1000 });
-    if (tokens.refreshToken) {
-      res.cookie(REFRESH_COOKIE, tokens.refreshToken, { ...this.base(), maxAge: REFRESH_COOKIE_MAX_AGE_MS });
-    } else {
-      // Đừng để refresh token cũ (của tài khoản khác đăng nhập trước đó) làm mới thành phiên khác.
-      res.clearCookie(REFRESH_COOKIE, this.base());
-    }
+    res.clearCookie(LEGACY_REFRESH_COOKIE, this.base());
   }
 
   clear(res: Response): void {
     res.clearCookie(ACCESS_COOKIE, this.base());
-    res.clearCookie(REFRESH_COOKIE, this.base());
+    res.clearCookie(LEGACY_REFRESH_COOKIE, this.base());
+  }
+
+  /** Nhớ tài khoản Google vừa đăng nhập trên thiết bị này (FE đọc để hiện "Tiếp tục bằng tên …"). Không httpOnly có chủ đích. */
+  setGoogleHint(res: Response, hint: { name: string | null; email: string }): void {
+    res.cookie(GOOGLE_HINT_COOKIE, JSON.stringify({ name: hint.name, email: hint.email }), {
+      ...this.base(),
+      httpOnly: false,
+      maxAge: GOOGLE_HINT_MAX_AGE_MS,
+    });
   }
 
   setOAuthState(res: Response, value: string): void {
@@ -71,9 +74,5 @@ export class SessionCookieService {
       if (token) return token;
     }
     return req.cookies?.[ACCESS_COOKIE];
-  }
-
-  readRefreshToken(req: Request): string | undefined {
-    return req.cookies?.[REFRESH_COOKIE];
   }
 }

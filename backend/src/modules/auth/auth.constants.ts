@@ -40,15 +40,20 @@ export function loginPathForPortal(portal: Portal): string {
   return portal === 'host' || portal === 'admin' ? '/admin/login' : '/login';
 }
 
-// Cookie phiên (httpOnly). Email + mật khẩu: access token = JWT Supabase, refresh token = Supabase refresh token.
-// Đăng nhập Google: access token = JWT do backend ký (SessionTokenService), không có refresh token.
+// Cookie phiên (httpOnly): access token = JWT do backend ký (SessionTokenService) cho cả email + mật khẩu lẫn Google.
 export const ACCESS_COOKIE = 'vs_access';
-export const REFRESH_COOKIE = 'vs_refresh';
+/** Cookie của phiên cũ (Supabase refresh token). Không còn dùng; chỉ xoá khi gặp để dọn trình duyệt. */
+export const LEGACY_REFRESH_COOKIE = 'vs_refresh';
+/**
+ * Cookie KHÔNG httpOnly để màn đăng nhập hiện "Tiếp tục bằng tên …" cho tài khoản Google đã dùng trên thiết bị này.
+ * Chỉ chứa tên + email của chính người dùng; không phải thông tin phiên, đăng xuất không xoá.
+ */
+export const GOOGLE_HINT_COOKIE = 'vs_google_hint';
+export const GOOGLE_HINT_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
 /** Cookie tạm giữ nonce chống CSRF (khớp với `state`) trong lúc đi vòng qua Google. */
 export const OAUTH_COOKIE = 'vs_oauth';
 
-/** Phiên Google sống 1 ngày; hết hạn thì đăng nhập lại (không có refresh token). */
-export const GOOGLE_SESSION_TTL_SECONDS = 24 * 60 * 60;
+/** Phiên sống 7 ngày; hết hạn thì đăng nhập lại (không có refresh token). */
+export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export const OAUTH_COOKIE_MAX_AGE_MS = 10 * 60 * 1000;
