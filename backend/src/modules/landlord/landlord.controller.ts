@@ -1,93 +1,170 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { LandlordConsignmentService } from './landlord-consignment.service';
+import { LandlordFinanceService } from './landlord-finance.service';
+import { LandlordMandateService } from './landlord-mandate.service';
+import { LandlordPhotoService, UploadedImage } from './landlord-photo.service';
+import { MAX_PHOTOS, MAX_PHOTO_BYTES } from './landlord.mappers';
+import { LandlordUnitsService } from './landlord-units.service';
 import { LandlordService } from './landlord.service';
-import { RequestExitMandateDto, CancelExitMandateDto, CreateConsignmentDto, SignConsignmentDto } from './dto/landlord.dto';
-import { Public } from '../../common/decorators/public.decorator';
+import {
+  CancelExitMandateDto,
+  CreateConsignmentDto,
+  RequestExitMandateDto,
+  SendConsignmentOtpDto,
+  SignConsignmentDto,
+} from './dto/landlord.dto';
 
+/**
+ * Khu Chủ nhà. `landlordId` LUÔN lấy từ phiên đăng nhập (`@CurrentUser('id')`), không nhận từ query/body:
+ * chủ nhà chỉ thấy và thao tác được trên căn của chính mình.
+ */
 @ApiTags('8. Chủ nhà Ở Nhà 100% & Ký Gửi')
+@ApiCookieAuth('session-cookie')
+@Roles('landlord')
 @Controller('landlord')
 export class LandlordController {
-  constructor(private readonly landlordService: LandlordService) {}
+  constructor(
+    private readonly dashboard: LandlordService,
+    private readonly units: LandlordUnitsService,
+    private readonly consignments: LandlordConsignmentService,
+    private readonly finance: LandlordFinanceService,
+    private readonly mandates: LandlordMandateService,
+    private readonly photos: LandlordPhotoService,
+  ) {}
 
-  @Public()
   @Get('dashboard')
-  @ApiOperation({
-    summary: 'Bảng điều khiển Chủ nhà "Ở nhà 100%" (0km, 0 phút)',
-    description: 'Giám sát từ xa tình trạng căn hộ, trạng thái HOLDING và tiền cọc 2M đã gạch nợ',
-  })
-  @ApiQuery({ name: 'landlordId', required: false })
-  async getDashboard(@Query('landlordId') landlordId?: string) {
-    return this.landlordService.getLandlordDashboard(landlordId);
+  @ApiOperation({ summary: 'Tổng quan chủ nhà (bản tối thiểu — UI dashboard làm sau)' })
+  getDashboard(@CurrentUser('id') landlordId: string) {
+    return this.dashboard.getLandlordDashboard(landlordId);
   }
 
-  @Public()
   @Get('units')
-  @ApiOperation({ summary: 'Danh sách các căn hộ của Chủ nhà' })
-  @ApiQuery({ name: 'landlordId', required: false })
-  async getLandlordUnits(@Query('landlordId') landlordId?: string) {
-    return this.landlordService.getLandlordUnits(landlordId);
+  @ApiOperation({ summary: 'Danh sách căn đã ký gửi của tôi (kèm trạng thái căn + ủy quyền)' })
+  listUnits(@CurrentUser('id') landlordId: string) {
+    return this.units.list(landlordId);
   }
 
-  @Public()
   @Get('units/:id')
-  @ApiOperation({ summary: 'Chi tiết căn hộ của Chủ nhà' })
-  async getLandlordUnitById(@Param('id') id: string) {
-    return this.landlordService.getLandlordUnitById(id);
+  @ApiOperation({ summary: 'Chi tiết căn: All-in, ủy quyền, giữ chỗ, hợp đồng đang chạy (không có mã cửa)' })
+  getUnit(@CurrentUser('id') landlordId: string, @Param('id') id: string) {
+    return this.units.detail(landlordId, id);
   }
 
-  @Public()
-  @Get('units/:unitId/audit-trail')
-  @ApiOperation({
-    summary: 'Nhật ký mở cửa xem phòng (Audit Trail) của căn hộ',
-    description: 'Minh bạch 100% từng lượt mở cửa: ai mở, lúc nào, thiết bị nào',
-  })
-  async getUnitDoorAuditTrail(@Param('unitId') unitId: string) {
-    return this.landlordService.getUnitDoorAuditTrail(unitId);
+  @Get('units/:id/viewings')
+  @ApiOperation({ summary: 'Nhật ký xem phòng của căn (khách bị che SĐT)' })
+  getViewings(@CurrentUser('id') landlordId: string, @Param('id') id: string) {
+    return this.units.viewingLog(landlordId, id);
   }
 
-  @Public()
+  @Get('units/:id/audit-trail')
+  @ApiOperation({ summary: 'Nhật ký mở cửa của căn: Host nào xem mã cửa, lúc nào' })
+  getAuditTrail(@CurrentUser('id') landlordId: string, @Param('id') id: string) {
+    return this.units.doorAuditTrail(landlordId, id);
+  }
+
+  @Get('consignments')
+  @ApiOperation({ summary: 'Hồ sơ ký gửi của tôi (nháp → chờ Host → thẩm định → duyệt/từ chối)' })
+  listConsignments(@CurrentUser('id') landlordId: string) {
+    return this.consignments.list(landlordId);
+  }
+
   @Post('consignments')
-  @ApiOperation({ summary: 'Tạo hồ sơ ký gửi căn hộ mới' })
-  async createConsignment(@Body() dto: CreateConsignmentDto) {
-    return this.landlordService.createConsignment(dto);
+  @ApiOperation({ summary: 'Tạo hồ sơ ký gửi căn mới (trạng thái draft, chưa ký)' })
+  createConsignment(@CurrentUser('id') landlordId: string, @Body() dto: CreateConsignmentDto) {
+    return this.consignments.create(landlordId, dto);
   }
 
-  @Public()
   @Get('consignments/:id')
-  @ApiOperation({ summary: 'Xem chi tiết hồ sơ ký gửi & kết quả thẩm định' })
-  async getConsignmentById(@Param('id') id: string) {
-    return this.landlordService.getConsignmentById(id);
+  @ApiOperation({ summary: 'Chi tiết hồ sơ ký gửi + kết quả thẩm định' })
+  getConsignment(@CurrentUser('id') landlordId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.consignments.get(landlordId, id);
   }
 
-  @Public()
-  @Post('consignments/:id/sign')
-  @ApiOperation({ summary: 'Ký số ủy quyền độc quyền (chuyển giao Host phân khu thẩm định)' })
-  async signConsignment(@Param('id') id: string, @Body() dto: SignConsignmentDto) {
-    return this.landlordService.signConsignment(id, dto);
-  }
-
-  @Public()
-  @Get('finance')
-  @ApiOperation({ summary: 'Bảng kê tài chính, khoản thu, thực nhận sau phí dịch vụ' })
-  @ApiQuery({ name: 'landlordId', required: false })
-  async getLandlordFinance(@Query('landlordId') landlordId?: string) {
-    return this.landlordService.getLandlordFinance(landlordId);
-  }
-
-  @Public()
-  @Post('mandates/request-exit')
+  @Post('consignments/:id/photos')
+  // +1: multer coi file chạm đúng giới hạn là bị cắt; cộng 1 để ảnh đúng 3MB vẫn được nhận (service chặn > MAX_PHOTO_BYTES).
+  @UseInterceptors(FilesInterceptor('files', MAX_PHOTOS, { limits: { fileSize: MAX_PHOTO_BYTES + 1, files: MAX_PHOTOS } }))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Kích hoạt Thoát ủy quyền linh hoạt 15 ngày (Exit Clause)',
-    description: 'Chỉ áp dụng khi căn Available. Tự động đếm ngược 15 ngày, hết hạn xóa sạch mã cửa khỏi mạng lưới Host.',
+    summary: 'Tải thêm ảnh tham khảo cho hồ sơ ký gửi (JPG/PNG/WebP, ≤3MB/ảnh, tối đa 8 ảnh/hồ sơ)',
+    description: 'Field multipart `files`. Chỉ khi hồ sơ còn nháp hoặc chờ Host nhận. Đây KHÔNG phải ảnh Verified — ảnh niêm yết do Host chụp khi thẩm định.',
   })
-  async requestExitMandate(@Body() dto: RequestExitMandateDto) {
-    return this.landlordService.requestExitMandate(dto);
+  addPhotos(
+    @CurrentUser('id') landlordId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() files: UploadedImage[] | undefined,
+  ) {
+    if (!files?.length) throw new BadRequestException('Chưa chọn ảnh nào.');
+    return this.photos.add(landlordId, id, files);
   }
 
-  @Public()
+  @Delete('consignments/:id/photos/:photoId')
+  @ApiOperation({ summary: 'Xóa một ảnh đã tải lên của hồ sơ ký gửi' })
+  removePhoto(
+    @CurrentUser('id') landlordId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+  ) {
+    return this.photos.remove(landlordId, id, photoId);
+  }
+
+  @Post('consignments/:id/send-otp')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Gửi OTP Zalo để ký ủy quyền (tới SĐT đã lưu; chưa có SĐT thì gửi tới số truyền lên)' })
+  sendSignOtp(
+    @CurrentUser('id') landlordId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendConsignmentOtpDto,
+  ) {
+    return this.consignments.sendSignOtp(landlordId, id, dto.phone);
+  }
+
+  @Post('consignments/:id/sign')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Ký ủy quyền độc quyền bằng OTP → giao Field Host phân khu thẩm định (SLA 48h)' })
+  signConsignment(
+    @CurrentUser('id') landlordId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SignConsignmentDto,
+  ) {
+    return this.consignments.sign(landlordId, id, dto);
+  }
+
+  @Get('finance')
+  @ApiOperation({ summary: 'Khoản thu: thực nhận tháng này, 6 tháng, theo căn, cọc giữ hộ' })
+  getFinance(@CurrentUser('id') landlordId: string) {
+    return this.finance.getFinance(landlordId);
+  }
+
+  @Post('mandates/request-exit')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Yêu cầu thoát ủy quyền (báo trước 15 ngày)',
+    description: 'Chỉ khi ủy quyền đang hiệu lực và căn đang trống (AVAILABLE).',
+  })
+  requestExit(@CurrentUser('id') landlordId: string, @Body() dto: RequestExitMandateDto) {
+    return this.mandates.requestExit(landlordId, dto);
+  }
+
   @Post('mandates/cancel-exit')
-  @ApiOperation({ summary: 'Hủy yêu cầu thoát ủy quyền' })
-  async cancelExitMandate(@Body() dto: CancelExitMandateDto) {
-    return this.landlordService.cancelExitMandate(dto);
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Hủy yêu cầu thoát ủy quyền đang đếm ngược' })
+  cancelExit(@CurrentUser('id') landlordId: string, @Body() dto: CancelExitMandateDto) {
+    return this.mandates.cancelExit(landlordId, dto);
   }
 }

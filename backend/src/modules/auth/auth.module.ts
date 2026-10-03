@@ -57,6 +57,15 @@ import { SESSION_TOKEN_ISSUER, SessionTokenService } from './session/session-tok
   ],
   // Guard toàn cục (AppModule) cần AuthSessionService + SessionCookieService; các module nghiệp vụ
   // (booking, deposit...) dùng PhoneService / OtpService / ActionTokenService khi chuyển sang OTP thật.
-  exports: [AuthSessionService, SessionCookieService, AuthService, PhoneService, OtpService, ActionTokenService, AuthAuditService],
+  exports: [
+    AuthSessionService,
+    SessionCookieService,
+    AuthService,
+    PhoneService,
+    OtpService,
+    PhoneVerificationService,
+    ActionTokenService,
+    AuthAuditService,
+  ],
 })
 export class AuthModule {}
