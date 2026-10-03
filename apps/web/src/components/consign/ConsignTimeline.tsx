@@ -5,8 +5,13 @@ import { isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import styles from "./Consign.module.css";
 
+/** Chỉ các trường tiến trình cần — để cả hồ sơ mock (Admin/Host) lẫn hồ sơ từ API (Chủ nhà) đều dùng được. */
+export type TimelineSource = Pick<Consignment, "status" | "signedAt" | "hostAcceptedAt" | "decidedAt" | "note" | "inspectDueAt"> & {
+  report?: { submittedAt?: string };
+};
+
 interface ConsignTimelineProps {
-  c: Consignment;
+  c: TimelineSource;
   now: number;
 }
 

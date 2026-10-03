@@ -1,21 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import { Banknote, Building2, DoorOpen, FilePlus2, LayoutDashboard, UserCircle2 } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import { landlordConsignments } from "@/lib/mock/selectors-landlord";
-import { useMock } from "@/lib/mock/store";
+import { queries } from "@/lib/landlord/queries";
+import { setLandlordCacheOwner, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
 import { PortalShell } from "./PortalShell";
 
 export function LandlordShell({ children }: { children: React.ReactNode }) {
-  const state = useMock();
   const session = useSession();
-  const u = DEMO_USERS.landlord;
-  const draft = landlordConsignments(state, u.refId!).filter((c) => c.status === "draft").length;
+  const consignments = useLandlordQuery(queries.consignments);
+  // Cache dữ liệu chủ nhà gắn với người đang đăng nhập; đổi tài khoản thì bỏ cache cũ.
+  const userId = session.user?.id;
+  useEffect(() => setLandlordCacheOwner(userId), [userId]);
+  // Số hồ sơ ký gửi còn nháp (chưa ký) hiện trên mục "Tổng quan"; chưa tải xong thì không hiện số.
+  const draft = consignments.state.status === "ready" ? consignments.state.data.filter((c) => c.status === "draft").length : 0;
   return (
     <PortalShell
       portal="Cổng chủ nhà"
-      userName={session.user?.fullName ?? session.user?.email ?? u.name}
+      userName={session.user?.fullName ?? session.user?.email ?? "Chủ nhà"}
       userMeta="Ký gửi độc quyền"
       nav={[
         { href: "/landlord/dashboard", label: "Tổng quan", icon: LayoutDashboard, badge: draft },

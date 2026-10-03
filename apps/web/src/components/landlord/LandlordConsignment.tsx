@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowRight, FileSignature, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
@@ -11,96 +10,76 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ConsignTimeline } from "@/components/consign/ConsignTimeline";
 import { InspectionReportView } from "@/components/consign/InspectionReportView";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDateTime, vnd } from "@/lib/mock/format";
-import { consignmentById } from "@/lib/mock/selectors-admin";
-import { useMock } from "@/lib/mock/store";
-import type { Consignment, InspectionReport } from "@/lib/mock/types";
-import {
-  FURNISHING_LABEL,
-  hostById,
-  LAYOUT_LABEL,
-  LEASE_TERM_LABEL,
-} from "@/lib/mock/units";
+import type { InspectionReport } from "@/lib/mock/types";
+import { FURNISHING_LABEL } from "@/lib/mock/units";
+import { queries } from "@/lib/landlord/queries";
+import { LAYOUT_LABEL, LEASE_TERM_LABEL } from "@/lib/landlord/labels";
+import type { Consignment } from "@/lib/landlord/types";
+import { useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
 import { useNow } from "@/lib/useNow";
+import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
 
-const LID = DEMO_USERS.landlord.refId!;
-
 export function LandlordConsignment({ id }: { id: string }) {
-  const state = useMock();
-  const now = useNow(10_000);
-
-  if (!state.ready || !now) {
-    return <div className="skeleton" style={{ height: 420 }} />;
-  }
-
-  const c = consignmentById(state, id);
-
-  if (!c || c.landlordId !== LID) {
-    notFound();
-  }
-
-  const meta = CONSIGN_STATUS_META[c.status];
-  const host = c.hostId ? hostById(c.hostId) : undefined;
-  const can = `${c.building} · Tầng ${c.floor} · Căn ${c.door}`;
-
+  const query = useLandlordQuery(queries.consignment(id));
   return (
     <div className={styles.page}>
+      <QueryView query={query} skeleton="detail">{(c) => <ConsignmentBody c={c} />}</QueryView>
+    </div>
+  );
+}
+
+function ConsignmentBody({ c }: { c: Consignment }) {
+  const now = useNow(10_000);
+  const meta = CONSIGN_STATUS_META[c.status];
+  const can = `${c.building} · Tầng ${c.floor} · Căn ${c.door ?? "—"}`;
+  // Báo cáo thẩm định do module Host ghi; nhận đúng cấu trúc InspectionReport (null khi Host chưa nộp).
+  const report = (c.report ?? undefined) as InspectionReport | undefined;
+  const timeline = {
+    status: c.status,
+    signedAt: c.signedAt ?? undefined,
+    hostAcceptedAt: c.hostAcceptedAt ?? undefined,
+    decidedAt: c.decidedAt ?? undefined,
+    note: c.decisionNote ?? undefined,
+    inspectDueAt: c.inspectDueAt ?? undefined,
+    report,
+  };
+  const lockText =
+    c.locks.includes("smart") && c.locks.includes("physical")
+      ? "Khoá điện tử + chìa cơ"
+      : c.locks.includes("physical")
+        ? "Khoá cơ (chìa khoá)"
+        : "Khoá điện tử (có mã số)";
+
+  return (
+    <>
       <PageHeader
         title={`Hồ sơ ký gửi · ${can}`}
-        description={`Mã hồ sơ: #${c.id} · Đăng ký ngày ${fmtDateTime(c.createdAt)}`}
+        description={`Mã hồ sơ: #${c.contractNumber} · Đăng ký ngày ${fmtDateTime(c.createdAt)}`}
         back={{ href: "/landlord/units", label: "Danh sách căn hộ" }}
         actions={<StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>}
       />
 
-      {/* Card trạng thái & gợi ý cho chủ nhà */}
       <div className={`card ${styles.statusCard}`}>
-        <p style={{ margin: 0, fontWeight: 600, color: "var(--ink)", fontSize: "var(--fs-15)" }}>
-          {meta.landlordHint}
-        </p>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "var(--s-4)",
-            marginTop: "var(--s-2)",
-            fontSize: "var(--fs-13)",
-            color: "var(--ink-2)",
-          }}
-        >
-          {host && (
-            <span>
-              Field Host phụ trách: <strong>{host.name}</strong>
-            </span>
-          )}
-          {(c.status === "awaiting_host" || c.status === "inspecting") && c.inspectDueAt && (
+        <p style={{ margin: 0, fontWeight: 600, color: "var(--ink)", fontSize: "var(--fs-15)" }}>{meta.landlordHint}</p>
+        {(c.status === "awaiting_host" || c.status === "inspecting") && c.inspectDueAt && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-4)", marginTop: "var(--s-2)", fontSize: "var(--fs-13)", color: "var(--ink-2)" }}>
             <span>
               Hạn thẩm định: <strong>{fmtDateTime(c.inspectDueAt)}</strong>
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Khối lý do nếu bị rejected */}
       {c.status === "rejected" && (
         <div
           className="card"
-          style={{
-            background: "var(--danger-050)",
-            borderColor: "var(--danger)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "var(--s-3)",
-          }}
+          style={{ background: "var(--danger-050)", borderColor: "var(--danger)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--s-3)" }}
         >
           <div>
             <b style={{ color: "var(--danger)" }}>Lý do không duyệt ký gửi:</b>
-            <p style={{ margin: "var(--s-1) 0 0", color: "var(--ink)", fontSize: "var(--fs-13)" }}>
-              {c.note || "Không đạt điều kiện tiếp nhận của phân khu."}
-            </p>
+            <p style={{ margin: "var(--s-1) 0 0", color: "var(--ink)", fontSize: "var(--fs-13)" }}>{c.decisionNote || "Không đạt điều kiện tiếp nhận của phân khu."}</p>
           </div>
           <Link href="/landlord/consign" className="btn btn-primary btn-sm">
             <RefreshCw size={14} /> Ký gửi lại
@@ -108,19 +87,10 @@ export function LandlordConsignment({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Khối ký ủy quyền nếu đang là draft */}
       {c.status === "draft" && (
         <div
           className="card"
-          style={{
-            background: "var(--amber-050)",
-            borderColor: "var(--amber)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "var(--s-3)",
-          }}
+          style={{ background: "var(--amber-050)", borderColor: "var(--amber)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--s-3)" }}
         >
           <div>
             <b style={{ color: "var(--ink)" }}>Hồ sơ chưa hoàn tất ký ủy quyền</b>
@@ -134,57 +104,54 @@ export function LandlordConsignment({ id }: { id: string }) {
         </div>
       )}
 
-      <ConsignTimeline c={c} now={now} />
+      <ConsignTimeline c={timeline} now={now} />
 
-      {/* Thông tin chủ nhà đã kê khai */}
       <Section title="Thông tin bạn kê khai">
         <KeyValue
           items={[
             { label: "Căn hộ", value: can },
-            { label: "Loại căn", value: LAYOUT_LABEL[c.layout] },
-            {
-              label: "Diện tích",
-              value: `${c.areaM2} m² tim tường${c.report?.netAreaM2 ? ` · thông thuỷ ${c.report.netAreaM2} m²` : ""}`,
-            },
+            { label: "Mã căn", value: c.unitCode },
+            { label: "Loại căn", value: LAYOUT_LABEL[c.layoutKind] },
+            { label: "Diện tích", value: `${c.areaM2} m² tim tường${report?.netAreaM2 ? ` · thông thuỷ ${report.netAreaM2} m²` : ""}` },
             { label: "Giá thuê", value: `${vnd(c.askRent)}đ/tháng` },
-            {
-              label: "Tiền cọc đề xuất",
-              value: `${vnd(c.suggestedDeposit ?? c.askRent)}đ`,
-            },
-            {
-              label: "Thời gian thuê",
-              value: c.leaseTerm ? (LEASE_TERM_LABEL[c.leaseTerm] ?? c.leaseTerm) : "Dài hạn: 12 tháng",
-            },
+            { label: "Tiền cọc đề xuất", value: `${vnd(c.suggestedDeposit)}đ` },
+            { label: "Thời gian thuê", value: LEASE_TERM_LABEL[c.leaseTerm ?? "long"] },
             {
               label: "Tình trạng nội thất",
-              value: `${c.furnished ? "Có nội thất" : "Không nội thất"}${
-                c.report?.furnishing ? ` (thực tế: ${FURNISHING_LABEL[c.report.furnishing]})` : ""
-              }`,
+              value: `${c.furnished === false ? "Không nội thất" : "Có nội thất"}${report?.furnishing ? ` (thực tế: ${FURNISHING_LABEL[report.furnishing]})` : ""}`,
             },
-            {
-              label: "Loại khoá cửa",
-              value:
-                c.locks && c.locks.includes("smart") && c.locks.includes("physical")
-                  ? "Khoá điện tử + chìa cơ"
-                  : c.locks?.includes("physical") || (c as unknown as { lock?: string }).lock === "key"
-                  ? "Khoá cơ (chìa khoá)"
-                  : "Khoá điện tử (có mã số)",
-            },
+            { label: "Loại khoá cửa", value: lockText },
           ]}
         />
       </Section>
 
-      {/* Báo cáo thẩm định thực tế */}
+      {(c.photos?.length ?? 0) > 0 && (
+        <Section title={`Ảnh bạn đính kèm (${c.photos!.length})`} description="Ảnh tham khảo cho Field Host và Admin — không phải ảnh niêm yết chính thức.">
+          <div className={styles.photoGrid}>
+            {c.photos!.map((p) => (
+              <a key={p.id} className={styles.photoItem} href={p.url ?? undefined} target="_blank" rel="noopener noreferrer" aria-label={`Mở ảnh ${p.name}`}>
+                {p.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- link ký tạm thời của Supabase Storage, không dùng next/image
+                  <img src={p.url} alt={p.name} loading="lazy" />
+                ) : (
+                  <span className="muted xs" style={{ display: "grid", placeItems: "center", height: "100%" }}>
+                    Không tải được ảnh
+                  </span>
+                )}
+                <span className={styles.photoName}>{p.name}</span>
+              </a>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title="Kết quả thẩm định thực tế">
-        {c.report ? (
-          <InspectionReportView c={c as Consignment & { report: InspectionReport }} />
+        {report ? (
+          <InspectionReportView c={{ building: c.building, floor: c.floor, door: c.door ?? "", layout: c.layoutKind, areaM2: c.areaM2, furnished: c.furnished ?? true, locks: c.locks, report }} />
         ) : (
-          <EmptyState
-            title="Field Host chưa nộp báo cáo"
-            description="Field Host phân khu đang tiếp nhận và sẽ kiểm tra thực tế trong vòng 48 giờ."
-          />
+          <EmptyState title="Field Host chưa nộp báo cáo" description="Field Host phân khu đang tiếp nhận và sẽ kiểm tra thực tế trong vòng 48 giờ." />
         )}
       </Section>
-    </div>
+    </>
   );
 }

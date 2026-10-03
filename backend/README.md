@@ -75,14 +75,21 @@ Màn: tổng quan, căn của tôi, ký gửi căn mới, hồ sơ ký gửi, t�
 
 | Endpoint | Vai | Màn hình / bước nghiệp vụ | TT |
 |---|---|---|---|
-| `GET /landlord/dashboard` | landlord | tổng quan | ✅ |
-| `GET /landlord/units` · `GET /landlord/units/:id` | landlord | danh sách / chi tiết căn | ⬜ |
-| `GET /landlord/units/:unitId/audit-trail` | landlord | nhật ký xem phòng & mở cửa | ✅ |
-| `POST /landlord/consignments` `{building, floor, door, layout, areaM2, askRent, suggestedDeposit, leaseTerm, furnished, locks[], doorCode, note, draft}` | landlord | form ký gửi căn | ⬜ |
-| `POST /landlord/consignments/:id/sign` `{ownershipWarranted}` | landlord | ký uỷ quyền độc quyền → giao Host phân khu thẩm định | ⬜ |
-| `GET /landlord/consignments/:id` | landlord | hồ sơ ký gửi + kết quả thẩm định | ⬜ |
-| `GET /landlord/finance` | landlord | khoản thu, thực nhận theo tháng sau phí dịch vụ | ⬜ |
-| `POST /landlord/mandates/request-exit` · `POST /landlord/mandates/cancel-exit` | landlord | yêu cầu / huỷ yêu cầu thoát uỷ quyền | ✅ / ⬜ |
+| `GET /landlord/dashboard` | landlord | tổng quan | ⚠️ bản tối thiểu, UI làm sau |
+| `GET /landlord/units` | landlord | danh sách căn đã ký gửi (trạng thái căn + ủy quyền, giá hiện hành) | ✅ |
+| `GET /landlord/units/:id` | landlord | chi tiết căn **gồm luôn** `viewings` + `doorAudit`: All-in, ủy quyền + ngày gia hạn, giữ chỗ, HĐ đang chạy (không có mã cửa); các truy vấn chạy song song, phí và danh bạ Host cache 60 giây | ✅ |
+| `GET /landlord/units/:id/viewings` | landlord | nhật ký xem phòng (khách bị che SĐT) | ✅ |
+| `GET /landlord/units/:id/audit-trail` | landlord | nhật ký mở cửa của căn (lọc theo căn) | ✅ |
+| `GET /landlord/consignments` · `GET /landlord/consignments/:id` | landlord | hồ sơ ký gửi + kết quả thẩm định | ✅ |
+| `POST /landlord/consignments` `{building, floor, door, layout, areaM2, askRent, suggestedDeposit, leaseTerm (mid\|long\|fixed), furnished, locks[], doorCode, note, draft}` | landlord | form ký gửi căn → tạo Unit `UNLISTED` + ủy quyền `PENDING_INSPECTION` (draft) | ✅ |
+| `POST /landlord/consignments/:id/photos` (multipart `files`) · `DELETE /landlord/consignments/:id/photos/:photoId` | landlord | đính kèm/xóa ảnh tham khảo của hồ sơ: JPG/PNG/WebP (kiểm tra theo nội dung file), ≤3MB/ảnh (web nén ảnh trước khi gửi), tối đa 8 ảnh; chỉ khi hồ sơ còn nháp hoặc chờ Host nhận. Lưu Supabase Storage bucket **private** `consignment-photos` (tự tạo lần đầu), xem qua link ký 1 giờ. **Không** ghi vào `UnitMedia` — ảnh Verified do Host chụp khi thẩm định | ✅ |
+| `POST /landlord/consignments/:id/send-otp` `{phone?}` | landlord | gửi OTP Zalo tới SĐT đã lưu của chủ nhà (chưa có SĐT thì dùng `phone` truyền lên) | ✅ |
+| `POST /landlord/consignments/:id/sign` `{ownershipWarranted, otp, phone?}` | landlord | ký ủy quyền bằng OTP (PHONE_VERIFY); hồ sơ chưa có SĐT thì OTP đúng đồng thời gắn SĐT; → giao Host phân khu, SLA 48h | ✅ |
+| `GET /landlord/finance` | landlord | khoản thu: tháng này, 6 tháng, theo căn, cọc giữ hộ; phí dịch vụ đọc từ FeeConfig `landlord_service_fee_rate` (chưa có ⇒ 5% tạm, `feeSource: "default"`) | ✅ tính từ hợp đồng |
+| `POST /landlord/mandates/request-exit` `{mandateId, reason}` · `POST /landlord/mandates/cancel-exit` `{mandateId}` | landlord | thoát ủy quyền: chỉ khi căn `AVAILABLE`, báo trước 15 ngày | ✅ (chưa có job thu hồi mã cửa khi hết hạn) |
+
+Mọi route `/landlord/*` có `@Roles('landlord')`; `landlordId` lấy từ phiên, căn của người khác trả 404.
+Hồ sơ ký gửi lưu phần mở rộng (giá cọc đề xuất, nội thất, hạn thẩm định, báo cáo…) trong `ExclusiveMandate.doorAccessConfig.consignment`; mã cửa lưu mã hóa ở `DoorAccessKey.vaultSecretRef` (`aes:` + AES-256-GCM), không trả lại qua API.
 
 ### 1.4. 🚶 Field Host (Sale / Inspector)
 
