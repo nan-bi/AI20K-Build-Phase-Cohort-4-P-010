@@ -16,7 +16,7 @@ export const DECLARED_LABEL: Record<DeclaredField, string> = {
   lock: "Loại khoá",
 };
 
-export function declaredValue(c: Consignment, f: DeclaredField): string {
+export function declaredValue(c: Pick<Consignment, "building" | "floor" | "door" | "layout" | "areaM2" | "furnished" | "locks">, f: DeclaredField): string {
   switch (f) {
     case "identity":
       return `${c.building} · Tầng ${c.floor} · Căn ${c.door}`;
@@ -33,7 +33,7 @@ export function declaredValue(c: Consignment, f: DeclaredField): string {
   }
 }
 
-export function isInspectOverdue(c: Consignment, now: number): boolean {
+export function isInspectOverdue(c: Pick<Consignment, "status" | "inspectDueAt">, now: number): boolean {
   if (c.status !== "awaiting_host" && c.status !== "inspecting") return false;
   if (!c.inspectDueAt) return false;
   return now > new Date(c.inspectDueAt).getTime();

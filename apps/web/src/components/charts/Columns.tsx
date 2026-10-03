@@ -20,16 +20,21 @@ interface ColumnsProps {
   axisFormat: (v: number) => string;
   valueFormat: (v: number) => string;
   seriesName: string;
+  /**
+   * Giá trị tối thiểu của thang đo. Mặc định 1 hợp với số đếm nhỏ; biểu đồ tiền (VNĐ) phải truyền cỡ triệu —
+   * nếu không, khi mọi cột bằng 0 thang đo chỉ cao 1đ và các vạch chia thành 0,0000002 triệu.
+   */
+  scaleFloor?: number;
 }
 
 const H = 250;
 const PAD = { l: 48, r: 12, t: 22, b: 30 };
 
 /** Cột dọc một series, nhấn tháng hiện tại (emphasis) và để các tháng còn lại làm nền. */
-export function Columns({ title, subtitle, data, axisFormat, valueFormat, seriesName }: ColumnsProps) {
+export function Columns({ title, subtitle, data, axisFormat, valueFormat, seriesName, scaleFloor = 1 }: ColumnsProps) {
   const tip = useChartTip();
   const [W, measure] = useMeasure();
-  const { max, step } = niceScale(Math.max(...data.map((d) => d.value), 1));
+  const { max, step } = niceScale(Math.max(...data.map((d) => d.value), scaleFloor));
   const iw = W - PAD.l - PAD.r;
   const ih = H - PAD.t - PAD.b;
   const band = iw / data.length;

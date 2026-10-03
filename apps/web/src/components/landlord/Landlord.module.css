@@ -544,3 +544,87 @@
     padding: 18px;
   }
 }
+
+/* Ảnh tham khảo đính kèm hồ sơ ký gửi */
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.photoItem {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.photoItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photoRemove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.62);
+  color: #fff;
+  cursor: pointer;
+}
+.photoRemove:hover {
+  background: rgb(0 0 0 / 0.82);
+}
+.photoRemove:focus-visible {
+  outline: 2px solid var(--lagoon, #1d6fb8);
+  outline-offset: 2px;
+}
+.photoName {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 14px 8px 5px;
+  font-size: 11px;
+  color: #fff;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.6));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  text-align: center;
+  border: 1.5px dashed var(--line-strong, #b7cdee);
+  border-radius: 14px;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone:hover,
+.dropzoneOver {
+  border-color: var(--lagoon, #1d6fb8);
+  background: #eef4fc;
+}
+.dropzoneDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
