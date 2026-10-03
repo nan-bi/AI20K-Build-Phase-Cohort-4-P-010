@@ -7,12 +7,12 @@
  *   npm run seed:auth            # admin + lời mời host
  *   npm run seed:auth -- --demo  # thêm tài khoản demo
  *
- * Cần Supabase thật (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY). Không chạy ở production.
+ * Chỉ cần DATABASE_URL (tài khoản nằm trong bảng profiles). Không chạy ở production.
  */
 import { HostDutyStatus } from '@prisma/client';
 import { PORTAL_ROLE } from '../src/modules/auth/auth.constants';
 import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS, DEMO_HOST_RFID } from '../src/modules/auth/demo-accounts';
-import { ensureAccount, prisma, refuseInProduction, run, supabaseAdmin } from './auth-helpers';
+import { ensureAccount, prisma, refuseInProduction, run } from './auth-helpers';
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@vinstay.test';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? '123456!';
@@ -24,9 +24,8 @@ const HOST_INVITES = [
 
 run(async () => {
   refuseInProduction('seed:auth');
-  const supabase = supabaseAdmin();
 
-  const admin = await ensureAccount(supabase, {
+  const admin = await ensureAccount({
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
     fullName: 'Admin',
@@ -44,13 +43,13 @@ run(async () => {
   const password = process.env.DEMO_PASSWORD ?? DEFAULT_DEMO_PASSWORD;
   for (const portal of ['tenant', 'landlord', 'admin'] as const) {
     const { email, fullName } = DEMO_ACCOUNTS[portal];
-    const { created } = await ensureAccount(supabase, { email, password, fullName, roleCode: PORTAL_ROLE[portal] });
+    const { created } = await ensureAccount({ email, password, fullName, roleCode: PORTAL_ROLE[portal] });
     console.log(`${created ? 'Đã tạo' : 'Bỏ qua'} tài khoản demo ${portal}: ${email}`);
   }
 
   // Host demo đã "nhập RFID" sẵn để vào thẳng dashboard.
   const host = DEMO_ACCOUNTS.host;
-  const { id, created } = await ensureAccount(supabase, {
+  const { id, created } = await ensureAccount({
     email: host.email,
     password,
     fullName: host.fullName,

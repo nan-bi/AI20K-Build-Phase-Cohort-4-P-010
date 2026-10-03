@@ -19,6 +19,7 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "create:admin": "ts-node --transpile-only scripts/create-admin.ts",
+    "set:password": "ts-node --transpile-only scripts/set-password.ts",
     "seed:auth": "ts-node --transpile-only scripts/seed-auth.ts"
   },
   "dependencies": {

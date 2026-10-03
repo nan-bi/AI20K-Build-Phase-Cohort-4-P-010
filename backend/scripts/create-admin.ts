@@ -4,7 +4,7 @@
  *   npm run create:admin -- you@example.com 'mat-khau-manh' "Ten Day Du"
  */
 import { PORTAL_ROLE } from '../src/modules/auth/auth.constants';
-import { ensureAccount, run, supabaseAdmin } from './auth-helpers';
+import { ensureAccount, run } from './auth-helpers';
 
 run(async () => {
   const [email, password, fullName] = process.argv.slice(2);
@@ -13,7 +13,7 @@ run(async () => {
   }
   if (password.length < 8) throw new Error('Mật khẩu tối thiểu 8 ký tự.');
 
-  const { created } = await ensureAccount(supabaseAdmin(), {
+  const { created } = await ensureAccount({
     email,
     password,
     fullName: fullName ?? 'Admin',

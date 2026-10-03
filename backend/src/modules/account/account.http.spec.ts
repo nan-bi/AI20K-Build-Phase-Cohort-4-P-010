@@ -10,10 +10,9 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { TransformInterceptor } from '../../common/interceptors/transform.interceptor';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SupabaseService } from '../../supabase/supabase.service';
 import { AuthModule } from '../auth/auth.module';
 import { createFakePrisma, seedProfile } from '../auth/testing/fake-prisma';
-import { createFakeSupabase, fakeSession, fakeSupabaseUser } from '../auth/testing/fake-supabase';
+import { hashPassword } from '../auth/password-hasher';
 import { AccountModule } from './account.module';
 
 const ENV = {
@@ -26,7 +25,7 @@ const ENV = {
 const USER_A = '00000000-0000-4000-8000-00000000000a';
 const USER_B = '00000000-0000-4000-8000-00000000000b';
 
-describe('/me (Nest thật + Prisma/Supabase giả)', () => {
+describe('/me (Nest thật + Prisma giả)', () => {
   let app: INestApplication;
   let prisma: Record<string, any>;
   let agentOf: (email: string, id: string, roleCode: 'tenant' | 'landlord') => Promise<ReturnType<typeof request.agent>>;
@@ -36,17 +35,11 @@ describe('/me (Nest thật + Prisma/Supabase giả)', () => {
     prisma.viewing = { findMany: jest.fn(async () => []) };
     prisma.contract = { findMany: jest.fn(async () => []) };
     prisma.unit = { findMany: jest.fn(async () => []) };
-    const supabase = createFakeSupabase();
-    const sessions = new Map<string, ReturnType<typeof fakeSupabaseUser>>();
-    supabase.verifyJwtToken.mockImplementation(async (token: string) => sessions.get(token) ?? null);
 
     @Global()
     @Module({
-      providers: [
-        { provide: PrismaService, useValue: prisma },
-        { provide: SupabaseService, useValue: supabase },
-      ],
-      exports: [PrismaService, SupabaseService],
+      providers: [{ provide: PrismaService, useValue: prisma }],
+      exports: [PrismaService],
     })
     class FakeInfraModule {}
 
@@ -75,16 +68,13 @@ describe('/me (Nest thật + Prisma/Supabase giả)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
-    // Hai người dùng thật trong DB; đăng nhập bằng mật khẩu qua đúng đường của hệ thống.
-    seedProfile(prisma as any, { id: USER_A, email: 'a@example.com', roleCode: 'tenant', fullName: 'Người A' });
-    seedProfile(prisma as any, { id: USER_B, email: 'b@example.com', roleCode: 'tenant', fullName: 'Người B' });
-    agentOf = async (email, id, roleCode) => {
-      const user = fakeSupabaseUser({ id, email });
-      const session = fakeSession(user);
-      sessions.set(session.access_token, user);
-      supabase.signInWithPassword.mockResolvedValue({ data: { session, user }, error: null });
+    // Hai người dùng thật trong DB (mật khẩu băm scrypt); đăng nhập bằng mật khẩu qua đúng đường của hệ thống.
+    const passwordHash = await hashPassword('Matkhau-123');
+    seedProfile(prisma as any, { id: USER_A, email: 'a@example.com', roleCode: 'tenant', fullName: 'Người A', passwordHash });
+    seedProfile(prisma as any, { id: USER_B, email: 'b@example.com', roleCode: 'tenant', fullName: 'Người B', passwordHash });
+    agentOf = async (email, _id, roleCode) => {
       const agent = request.agent(app.getHttpServer());
-      await agent.post('/api/v1/auth/login').send({ email, password: 'pw', portal: roleCode }).expect(200);
+      await agent.post('/api/v1/auth/login').send({ email, password: 'Matkhau-123', portal: roleCode }).expect(200);
       return agent;
     };
   });

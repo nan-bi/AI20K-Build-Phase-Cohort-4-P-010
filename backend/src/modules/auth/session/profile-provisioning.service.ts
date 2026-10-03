@@ -1,17 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { User } from '../../../supabase/supabase.service';
 import { Portal, PORTAL_ROLE, ROLE_NAMES } from '../auth.constants';
 import { PROFILE_INCLUDE, ProfileWithRole } from './auth-session.service';
 
-/**
- * Phần của Supabase `User` mà ensureProfile đọc. Đăng nhập Google (Passport) dựng object cùng dạng này,
- * với `email_confirmed_at` chỉ đặt khi Google xác nhận email.
- */
-export type ProvisionUser = Pick<User, 'id' | 'email' | 'email_confirmed_at' | 'user_metadata'>;
+/** Danh tính để tạo/nạp Profile. `passwordHash` chỉ dùng khi tạo mới (đăng ký email + mật khẩu). */
+export interface ProvisionUser {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  passwordHash?: string | null;
+}
 
 export type EnsureProfileError =
-  | 'email_not_verified'
   | 'not_authorized' // Host chưa được Admin mời (hoặc lời mời đã dùng), hoặc Admin chưa được cấp
   | 'wrong_portal' // tài khoản đã gắn với vai trò khác
   | 'account_suspended'
@@ -25,7 +25,7 @@ export type EnsureProfileResult =
 const isUniqueViolation = (err: unknown) => (err as { code?: string })?.code === 'P2002';
 
 /**
- * Gọi sau MỖI lần đăng nhập thành công (mật khẩu, Google, đăng ký có phiên) với cổng người dùng đi vào.
+ * Gọi sau MỖI lần xác thực thành công (mật khẩu, Google, đăng ký) với cổng người dùng đi vào.
  * Tạo Profile ở lần đầu và bắt buộc tài khoản khớp cổng:
  *  - tenant / landlord: tự đăng ký.
  *  - host: email phải có HostInvite chưa dùng; sau khi nhập đúng RFID (AuthService.verifyRfid)
@@ -40,10 +40,7 @@ export class ProfileProvisioningService {
   constructor(private readonly prisma: PrismaService) {}
 
   async ensureProfile(user: ProvisionUser, portal: Portal): Promise<EnsureProfileResult> {
-    const email = user.email?.toLowerCase();
-    // Email phải được chứng minh (Google luôn có; đăng ký email cần bấm link) — nếu không, ai cũng có
-    // thể chiếm email của một Host đã được mời.
-    if (!email || !user.email_confirmed_at) return { ok: false, error: 'email_not_verified' };
+    const email = user.email.toLowerCase();
 
     const existing = await this.findProfile(user.id);
     if (existing) return this.admitExisting(existing, portal, email);
@@ -58,13 +55,14 @@ export class ProfileProvisioningService {
     }
 
     const roleCode = PORTAL_ROLE[portal];
-    const fullName: string | null = user.user_metadata?.full_name ?? user.user_metadata?.name ?? null;
+    const fullName = user.fullName ?? null;
     try {
       const profile = await this.prisma.profile.create({
         data: {
           id: user.id,
           roleId: await this.roleId(roleCode),
           email,
+          passwordHash: user.passwordHash ?? null,
           fullName: fullName?.slice(0, 100) ?? null,
           lastLoginAt: new Date(),
         },
