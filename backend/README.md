@@ -246,20 +246,25 @@ npm test                         # unit + HTTP test (Prisma/Supabase giả)
 ## 4. ĐĂNG NHẬP & PHÂN QUYỀN (`modules/auth`)
 
 Toàn bộ đăng nhập nằm ở backend; `apps/web` chỉ có form và proxy `/api/v1/*` → backend.
-Phiên là **cookie httpOnly** (`vs_access`, `vs_refresh`, SameSite=Lax) do backend set — response không chứa token.
-Email + mật khẩu dùng token Supabase; **đăng nhập Google chạy bằng Passport, không qua Supabase** và phát JWT phiên do backend
-tự ký (HS256, `iss=vinstay-backend`, sống 1 ngày, không có refresh token — hết hạn thì đăng nhập lại). `AuthSessionService` nhận cả hai
-loại token. API client có thể dùng `Authorization: Bearer <token>`. Vai trò đọc từ DB (`profiles.role`), không cần Auth Hook.
+Phiên là **cookie httpOnly** (`vs_access`, SameSite=Lax) do backend set — response không chứa token.
+**Không dùng Supabase Auth** (bảng `auth.users` không liên quan): email + mật khẩu kiểm tra ngay trong bảng `public.profiles`
+(`password_hash` = scrypt `scrypt$<salt>$<hash>`, NULL với tài khoản chỉ dùng Google; Prisma omit toàn cục nên cột này không
+bao giờ lộ ra response của module khác). Cả hai cách đăng nhập (mật khẩu, Google/Passport) đều phát JWT phiên do backend tự ký
+(HS256, `iss=vinstay-backend`, sống 7 ngày, không có refresh token — hết hạn thì đăng nhập lại). **Đăng ký không xác nhận email**:
+tạo Profile rồi đăng nhập luôn; email đã có tài khoản (kể cả Google) → 409, không bao giờ đặt mật khẩu lên tài khoản có sẵn.
+API client có thể dùng `Authorization: Bearer <token>`. Vai trò đọc từ DB (`profiles.role`). Supabase chỉ còn dùng cho
+Postgres + Storage ảnh hồ sơ ký gửi.
 
 Hai cổng đăng nhập trên UI: `/login` (Khách thuê / Chủ nhà) và `/admin/login` (Sale – Field Host / Quản trị).
 
 | Endpoint | Mô tả |
 |---|---|
 | `POST /auth/login` `{email,password,portal}` | portal = tenant / landlord / host / admin |
-| `POST /auth/signup` | tenant / landlord — Supabase gửi email xác nhận. Field Host không tự đăng ký: Admin tạo tài khoản (§1.5) |
+| `POST /auth/signup` | tenant / landlord (và Host đã được Admin mời email) — đăng ký xong đăng nhập luôn, không xác nhận email |
 | `POST /auth/demo-login` | đăng nhập 1-click tài khoản demo (chỉ khi `AUTH_DEMO_MODE=true`) |
-| `GET /auth/google?portal=` → `GET /auth/google/callback` | Google OAuth (Passport; `state` = `portal.nonce`, nonce nằm trong cookie httpOnly `vs_oauth`; luôn hiện màn chọn tài khoản) |
-| `GET /auth/session`, `POST /auth/refresh`, `POST /auth/logout` | phiên hiện tại (tự refresh), làm mới, đăng xuất |
+| `GET /auth/google?portal=` → `GET /auth/google/callback` | Google OAuth (Passport; `state` = `portal.nonce`, nonce nằm trong cookie httpOnly `vs_oauth`; luôn hiện màn chọn tài khoản; nhận `login_hint=<email>` để chọn sẵn tài khoản; thành công thì set cookie không-httpOnly `vs_google_hint` {name,email} để FE hiện "Tiếp tục bằng tên …") |
+| `GET /auth/session`, `POST /auth/logout` | phiên hiện tại, đăng xuất (xoá cookie) |
+| `npm run set:password -- <email> <mật khẩu>` | script đặt/đặt lại mật khẩu cho Profile có sẵn (tài khoản cũ chưa có `password_hash`); `create:admin` / `seed:auth` chỉ tạo mới |
 | `POST /auth/verify-rfid` | Field Host nhập RFID lần đầu; chưa xong thì bị chặn mọi quyền Host |
 | `POST /auth/otp/send`, `/otp/verify`, `/phone/verify` | OTP xác thực SĐT (không phải đăng nhập); Khách thuê nhận action token dùng một lần |
 | `/admin/field-hosts` (ops_admin) | quản lý Field Host — xem §1.5 |
