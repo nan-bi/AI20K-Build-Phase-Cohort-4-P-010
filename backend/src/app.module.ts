@@ -23,6 +23,7 @@ import { HandoverModule } from './modules/handover/handover.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AccountModule } from './modules/account/account.module';
 import { HostModule } from './modules/host/host.module';
+import { DemoModule } from './modules/demo/demo.module';
 
 // Common Filters, Guards & Interceptors
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
@@ -58,6 +59,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AdminModule,
     AccountModule,
     HostModule,
+    DemoModule,
   ],
   providers: [
     {

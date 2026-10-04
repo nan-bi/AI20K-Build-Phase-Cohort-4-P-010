@@ -1,28 +1,41 @@
-import { Controller, Post, Get, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IdentityService } from './identity.service';
-import { EkycVerificationRequestDto } from './dto/identity.dto';
-import { Public } from '../../common/decorators/public.decorator';
+import { EkycScanRequestDto, SubmitEkycInputDto } from './dto/identity.dto';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('6. FPT.AI eKYC & Zero-Storage')
-@Controller('identity')
+@Controller()
 export class IdentityController {
   constructor(private readonly identityService: IdentityService) {}
 
-  @Public()
-  @Post('ekyc/verify')
+  @Roles('tenant')
+  @Post('bookings/:ref/ekyc/scan')
   @ApiOperation({
-    summary: 'FPT.AI eKYC: Quét CCCD 2 mặt, Face Liveness & Đối chiếu C06',
-    description: 'Cơ chế Zero-Storage RAM (0 byte ảnh lưu trên server), loại trừ rủi ro dữ liệu cá nhân theo NĐ 356/2025/NĐ-CP. Trả độ tin cậy theo từng trường.',
+    summary: 'A17: Bắt đầu phiên quét eKYC mô phỏng (CCCD gắn chip)',
+    description: 'Tạo mã scanId HMAC 15 phút, trả kết quả trích xuất CCCD và độ tin cậy từng trường',
   })
-  async verifyEkyc(@Body() dto: EkycVerificationRequestDto) {
-    return this.identityService.processEkyc(dto);
+  async scan(
+    @Param('ref') ref: string,
+    @CurrentUser() user: any,
+    @Body() dto: EkycScanRequestDto,
+  ) {
+    return this.identityService.scan(ref, user, dto);
   }
 
-  @Public()
-  @Get(':depositId')
-  @ApiOperation({ summary: 'Lấy kết quả xác thực eKYC theo mã cọc' })
-  async getEkycResult(@Param('depositId') depositId: string) {
-    return this.identityService.getEkycResult(depositId);
+  @Roles('tenant')
+  @Post('bookings/:ref/ekyc')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'A18: Gửi thông tin eKYC xác nhận & Tự động xác lập Hợp đồng thuê chính thức',
+    description: 'Chuyển 100% cọc giữ chỗ 2M sang cọc bảo đảm, chuyển unit sang RENTED, tạo hợp đồng ACTIVE và sinh PDF',
+  })
+  async submit(
+    @Param('ref') ref: string,
+    @CurrentUser() user: any,
+    @Body() dto: SubmitEkycInputDto,
+  ) {
+    return this.identityService.submit(ref, user, dto);
   }
 }

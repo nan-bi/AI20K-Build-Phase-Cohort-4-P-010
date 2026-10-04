@@ -5,10 +5,9 @@ import { Minus, Plus } from "lucide-react";
 import { AllInBar } from "@/components/unit/AllInBar";
 import { allInCost, RATES, type Household } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
-import { unitAddress, unitById } from "@/lib/mock/units";
+import { unitAddress } from "@/lib/mock/units";
+import { useCatalog } from "@/lib/tenant/catalog";
 import styles from "./Landing.module.css";
-
-const unit = unitById("s2-12-1608")!;
 
 function Step({ label, hint, value, min, max, onChange }: { label: string; hint: string; value: number; min: number; max: number; onChange: (n: number) => void }) {
   return (
@@ -33,6 +32,10 @@ function Step({ label, hint, value, min, max, onChange }: { label: string; hint:
 /** Minh hoạ trực tiếp bảng All-in Cost: đổi số người và xe, tổng tiền đổi theo. */
 export function AllInDemo() {
   const [hh, setHh] = useState<Household>({ persons: 2, motorbikes: 1, cars: 0 });
+  const { available } = useCatalog();
+  // Căn minh hoạ: căn đang mở có giá thuê ở giữa rổ hàng (không chọn căn rẻ/đắt nhất cho khỏi lệch).
+  const unit = [...available].sort((a, b) => a.rent - b.rent)[Math.floor(available.length / 2)];
+  if (!unit) return <div className={`card skeleton ${styles.demo}`} style={{ minHeight: 320 }} aria-hidden />;
   const cost = allInCost(unit, hh);
   return (
     <div className={`card ${styles.demo}`}>

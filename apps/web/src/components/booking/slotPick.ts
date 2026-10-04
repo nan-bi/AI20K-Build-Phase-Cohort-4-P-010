@@ -1,6 +1,5 @@
 import { isSameDay, weekday } from "@/lib/mock/format";
 import { slotsForDay, type SlotOption } from "@/lib/mock/selectors";
-import type { MockState } from "@/lib/mock/types";
 
 export const SHORT_WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"] as const;
 
@@ -202,16 +201,16 @@ export function getNextDayIdx(
 
 /** Tìm slot khả dụng sớm nhất trong khoảng từ hôm nay đến hết tháng sau */
 export function findEarliestInBounds(
-  state: MockState,
   startOfToday: Date,
   endOfMaxMonth: Date,
-  now: number
+  now: number,
+  busySlots: readonly string[] = [],
 ): { date: Date; slot: SlotOption } | null {
   const start = startOfToday.getTime();
   const end = endOfMaxMonth.getTime();
   for (let t = start; t <= end; t += 86_400_000) {
     const d = new Date(t);
-    const slots = slotsForDay(state, d, now);
+    const slots = slotsForDay(d, now, busySlots);
     const avail = slots.find((s) => s.available);
     if (avail) {
       return { date: d, slot: avail };

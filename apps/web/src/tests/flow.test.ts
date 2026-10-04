@@ -12,8 +12,6 @@ const { getMockState, resetMockState } = await import("@/lib/mock/store");
 const { unitStatus, noticesFor, bookingById } = await import("@/lib/mock/selectors");
 const { unitById } = await import("@/lib/mock/units");
 const { upcomingSlots } = await import("@/lib/mock/slots");
-const { isPhoneVerified, canSkipBookingOtp, ownsBooking } = await import("@/lib/mock/selectors-tenant");
-const { TENANT_DEMO } = await import("@/lib/mock/seed");
 
 const slot = (i: number) => upcomingSlots(Date.now(), 30)[i];
 
@@ -25,20 +23,6 @@ beforeEach(() => {
 function book(unitId: string, name: string, phone: string, i: number) {
   return actions.createBooking({ unitId, slot: slot(i), name, phone, persons: 1 });
 }
-
-describe("OTP Zalo", () => {
-  it("chỉ chấp nhận đúng mã đã gửi và dùng một lần", () => {
-    const code = actions.requestOtp("0988123456", "booking");
-    expect(actions.verifyOtp("0000" === code ? "1111" : "0000")).toBe(false);
-    expect(actions.verifyOtp(code)).toBe(true);
-    expect(actions.verifyOtp(code)).toBe(false);
-  });
-  it("gửi mã như một tin Zalo tới đúng SĐT", () => {
-    const code = actions.requestOtp("+84 988 123 456", "booking");
-    const msg = noticesFor(getMockState(), "tenant", "0988123456")[0];
-    expect(msg.body).toContain(code);
-  });
-});
 
 describe("đặt lịch → Host → Zalo", () => {
   it("tạo ticket pending, báo Host và Admin, cảm ơn khách qua Zalo", () => {
@@ -190,63 +174,3 @@ describe("Admin", () => {
   });
 });
 
-describe("OTP một lần cho mỗi SĐT khách thuê - SPEC-P06 §6", () => {
-  it("1. Seed: isPhoneVerified(state, TENANT_DEMO.phone) === true; SĐT lạ ⇒ false", () => {
-    const state = getMockState();
-    expect(isPhoneVerified(state, TENANT_DEMO.phone)).toBe(true);
-    expect(isPhoneVerified(state, "0999888999")).toBe(false);
-  });
-
-  it("2. requestOtp + verifyOtp(đúng mã) ⇒ vào verifiedPhones, không nhân đôi; sai mã ⇒ không thêm", () => {
-    const phoneTest = "0981122334";
-    actions.requestOtp(phoneTest, "booking");
-    const otpCode = getMockState().otp?.code;
-    expect(otpCode).toBeDefined();
-
-    // Sai mã
-    const failRes = actions.verifyOtp("0000");
-    expect(failRes).toBe(false);
-    expect(isPhoneVerified(getMockState(), phoneTest)).toBe(false);
-
-    // Đúng mã
-    const okRes = actions.verifyOtp(otpCode!);
-    expect(okRes).toBe(true);
-    expect(isPhoneVerified(getMockState(), phoneTest)).toBe(true);
-
-    // Gọi lần 2 không nhân đôi
-    actions.requestOtp(phoneTest, "booking");
-    const otpCode2 = getMockState().otp!.code;
-    actions.verifyOtp(otpCode2);
-    const count = getMockState().verifiedPhones.filter((p) => p === "0981122334").length;
-    expect(count).toBe(1);
-  });
-
-  it("3. canSkipBookingOtp kiểm tra đúng vai trò và SĐT", () => {
-    const verifiedPhone = TENANT_DEMO.phone;
-    // Khách mới đăng nhập chưa có SĐT trong hồ sơ ⇒ luôn phải qua OTP, dù gõ đúng số đã xác thực của người khác.
-    expect(canSkipBookingOtp(getMockState(), "tenant", verifiedPhone)).toBe(false);
-
-    const state = { ...getMockState(), tenantProfile: { name: "Khách", phone: verifiedPhone } };
-    expect(canSkipBookingOtp(state, "tenant", verifiedPhone)).toBe(true);
-    expect(canSkipBookingOtp(state, null, verifiedPhone)).toBe(false);
-    expect(canSkipBookingOtp(state, "tenant", "0999000111")).toBe(false);
-    expect(canSkipBookingOtp(state, "landlord", verifiedPhone)).toBe(false);
-  });
-
-  it("4. ownsBooking: booking tạo bởi createBooking với SĐT X ⇒ true khi tenantProfile.phone = X, false khi khác", () => {
-    resetMockState();
-    const b = actions.createBooking({
-      unitId: "s1-01-0806",
-      slot: "2026-10-01T09:00:00.000Z",
-      name: "Khách Mới",
-      phone: "0911223344",
-      persons: 2,
-    });
-    const state = getMockState();
-    expect(ownsBooking(state, b)).toBe(true);
-
-    // Khi tenantProfile có SĐT khác
-    const otherState = { ...state, tenantProfile: { name: "Khác", phone: "0988776655" } };
-    expect(ownsBooking(otherState, b)).toBe(false);
-  });
-});

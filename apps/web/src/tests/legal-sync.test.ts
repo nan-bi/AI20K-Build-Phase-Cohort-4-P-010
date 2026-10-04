@@ -294,19 +294,6 @@ describe("Hồ sơ 11 — Legal Sync (TESTING §1)", () => {
       });
     });
 
-    it("(8) demoExpireHold => holdOutcome.kind === 'forfeited', 1_000_000 / 1_000_000", () => {
-      // Dùng bk-108 trong seed (đang holding)
-      const res = actions.demoExpireHold("bk-108");
-      expect(res.ok).toBe(true);
-
-      const b = bookingById(getMockState(), "bk-108")!;
-      const outcome = holdOutcome(b, Date.now());
-      expect(outcome.kind).toBe("forfeited");
-      expect(outcome.toLandlord).toBe(1_000_000);
-      expect(outcome.toPlatform).toBe(1_000_000);
-      expect(outcome.toTenant).toBe(0);
-    });
-
     it("(9) adminVoidHold(..., 'landlord_breach') => refunded_double, toTenant === 4_000_000, booking cancelled, unitStatus available", () => {
       const res = actions.adminVoidHold("bk-108", "landlord_breach", "Chủ nhà không giao nhà", "Admin A");
       expect(res.ok).toBe(true);
@@ -349,13 +336,6 @@ describe("Hồ sơ 11 — Legal Sync (TESTING §1)", () => {
       const resAgain = actions.adminVoidHold("bk-108", "landlord_breach", "Chủ nhà tự bán nhà cho người khác", "Admin");
       expect(resAgain.ok).toBe(false);
       if (!resAgain.ok) expect(resAgain.code).toBe("bad_status");
-
-      // 4. Void sau hạn => expired (tua hết hạn rồi void)
-      resetMockState(FIXED_NOW);
-      actions.demoExpireHold("bk-108");
-      const resExpired = actions.adminVoidHold("bk-108", "landlord_breach", "Lý do sau khi cọc đã hết hạn", "Admin");
-      expect(resExpired.ok).toBe(false);
-      if (!resExpired.ok) expect(resExpired.code).toBe("expired");
     });
   });
 
@@ -480,41 +460,6 @@ describe("Hồ sơ 11 — Legal Sync (TESTING §1)", () => {
       // 0 occupants => ok
       const res0 = actions.signLease("bk-108", validBase);
       expect(res0.ok).toBe(true);
-    });
-
-    it("(16) confirmFirstPayment => paidAt có; gọi lại => bad_status; trên booking holding => bad_status", () => {
-      // Trên booking holding (bk-108 chưa ký lease)
-      const resHolding = actions.confirmFirstPayment("bk-108");
-      expect(resHolding.ok).toBe(false);
-      if (!resHolding.ok) expect(resHolding.code).toBe("bad_status");
-
-      // Ký lease cho bk-108
-      actions.saveKyc("bk-108", {
-        fullName: "Hoàng Thị Yến",
-        idNumber: "001198000123",
-        dob: "1998-05-12",
-        homeTown: "Hà Nội",
-        address: "Ocean Park",
-        confidence: 0.95,
-      });
-      actions.signLease("bk-108", {
-        startDate: "2026-10-01",
-        months: 12,
-        paymentCycle: 1,
-        occupants: [],
-        refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "HOANG THI YEN" },
-      });
-
-      // Confirm first payment lần 1 => ok
-      const resOk = actions.confirmFirstPayment("bk-108");
-      expect(resOk.ok).toBe(true);
-      const b = bookingById(getMockState(), "bk-108")!;
-      expect(b.lease!.firstPayment.paidAt).toBeTruthy();
-
-      // Gọi lại lần 2 => bad_status
-      const resAgain = actions.confirmFirstPayment("bk-108");
-      expect(resAgain.ok).toBe(false);
-      if (!resAgain.ok) expect(resAgain.code).toBe("bad_status");
     });
 
     it("(17) bất biến 1: với mọi cycle (1, 3, 6), firstPayment.rent % unit.rent === 0 (không trừ 2tr cọc vào tiền thuê)", () => {

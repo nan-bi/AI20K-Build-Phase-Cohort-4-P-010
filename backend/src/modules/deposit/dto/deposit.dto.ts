@@ -1,33 +1,35 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
-export class GenerateVietQrDto {
-  @ApiProperty({ description: 'ID của lượt xem phòng (Viewing ID)' })
-  @IsString()
-  viewingId: string;
+export class CreateDepositDto {
+  @ApiProperty({ description: 'Đồng ý điều khoản cọc' })
+  @IsNotEmpty()
+  @IsBoolean()
+  acceptTerms: boolean;
 
-  @ApiPropertyOptional({ description: 'ID của Field Host chốt cọc (Attribution Lock)' })
-  @IsOptional()
-  @IsString()
-  hostId?: string;
-
-  @ApiPropertyOptional({ default: 2000000, description: 'Số tiền cọc giữ chỗ (mặc định 2.000.000 VNĐ)' })
-  @IsOptional()
-  @IsNumber()
-  amount?: number = 2000000;
-}
-
-export class VietQrWebhookDto {
-  @ApiProperty({ example: 'DEP-VHOP-S1.02-12A08-8921', description: 'Mã cọc định danh' })
+  @ApiProperty({ example: 'HOLD-2026.10-v1', description: 'Phiên bản điều khoản cọc' })
   @IsNotEmpty()
   @IsString()
-  depositCode: string;
+  termsVersion: string;
+}
 
-  @ApiProperty({ example: 2000000, description: 'Số tiền đã chuyển khoản' })
+export class VietQrWebhookInputDto {
+  @ApiPropertyOptional({ example: 'DEP-VS-89212', description: 'Mã cọc định danh' })
+  @IsOptional()
+  @IsString()
+  depositCode?: string;
+
+  @ApiPropertyOptional({ example: 'COC S1.02-12A08 0912345678', description: 'Nội dung chuyển khoản' })
+  @IsOptional()
+  @IsString()
+  transferContent?: string;
+
+  @ApiProperty({ example: 2000000, description: 'Số tiền chuyển khoản' })
+  @IsNotEmpty()
   @IsNumber()
   amount: number;
 
-  @ApiProperty({ example: 'BANK-TX-982142', description: 'Mã tham chiếu ngân hàng' })
+  @ApiProperty({ example: 'FT2401019999', description: 'Mã giao dịch ngân hàng' })
   @IsNotEmpty()
   @IsString()
   bankRefNumber: string;

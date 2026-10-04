@@ -1,8 +1,11 @@
-import { Controller, Get, Patch, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Patch, Put, Delete, Body, Param, Res, Optional } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Response } from 'express';
 import { AccountService } from './account.service';
+import { LeasePdfService } from '../contract/lease-pdf.service';
 import { UpdateProfileDto } from './dto/account.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 /**
  * Mọi route `/me/*` yêu cầu đăng nhập (guard toàn cục gắn `request.user`) và CHỈ trả dữ liệu của chính người gọi.
@@ -12,7 +15,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @ApiCookieAuth('session-cookie')
 @Controller('me')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) {}
+  constructor(
+    private readonly accountService: AccountService,
+    @Optional() private readonly leasePdfService?: LeasePdfService,
+  ) {}
 
   @Get('profile')
   @ApiOperation({ summary: 'Lấy thông tin tài khoản hiện tại' })
@@ -26,16 +32,37 @@ export class AccountController {
     return this.accountService.updateProfile(userId, dto);
   }
 
+  @Roles('tenant')
   @Get('bookings')
-  @ApiOperation({ summary: 'Danh sách lịch hẹn xem phòng của người dùng' })
+  @ApiOperation({ summary: 'A7: Danh sách lịch hẹn xem phòng của người dùng' })
   getBookings(@CurrentUser('id') userId: string) {
     return this.accountService.getBookings(userId);
   }
 
+  @Roles('tenant')
   @Get('contracts')
-  @ApiOperation({ summary: 'Danh sách hợp đồng thuê & bàn giao của người dùng' })
+  @ApiOperation({ summary: 'A19: Danh sách hợp đồng thuê của khách thuê' })
   getContracts(@CurrentUser('id') userId: string) {
     return this.accountService.getContracts(userId);
+  }
+
+  @Roles('tenant')
+  @Get('contracts/:id/pdf')
+  @ApiOperation({ summary: 'A20: Tải file PDF hợp đồng thuê' })
+  async getContractPdf(
+    @Param('id') contractId: string,
+    @CurrentUser('id') userId: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.leasePdfService.getPdfStream(
+      contractId,
+      userId,
+      'tenant',
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(buffer);
   }
 
   @Get('favorites')

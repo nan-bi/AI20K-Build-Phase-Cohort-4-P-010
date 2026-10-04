@@ -1,4 +1,4 @@
-import { allInCost, MANDATE_TERM_MONTHS, TENANT_MODIFY_LEAD_MS } from "./cost";
+import { MANDATE_TERM_MONTHS, TENANT_MODIFY_LEAD_MS } from "./cost";
 import { ALL_SLOT_TIMES, MIN_LEAD_MS, slotDate } from "./slots";
 import type { Booking, BookingDispatch, BookingStatus, FeeConfig, Mandate, MockState, Notice } from "./types";
 import {
@@ -164,12 +164,6 @@ export function pickHostFor(
   return { hostId: z ? z.hostId : "H01", fallback: true };
 }
 
-/** Số khách đang quan tâm căn (≥3 → gắn cờ HOT). */
-export function unitInterest(state: MockState, unit: Unit): number {
-  const open = state.bookings.filter((b) => b.unitId === unit.id && isOpenBooking(b)).length;
-  return Math.max(unit.interest24h, open);
-}
-
 export const HOT_THRESHOLD = 3;
 
 export function bookingByRef(state: MockState, ref: string): Booking | undefined {
@@ -178,8 +172,6 @@ export function bookingByRef(state: MockState, ref: string): Booking | undefined
 }
 
 export const bookingById = (state: MockState, id: string) => state.bookings.find((b) => b.id === id);
-
-export const bookingsOfPhone = (state: MockState, phone: string) => state.bookings.filter((b) => b.tenant.phone === phone);
 
 export function hostBookings(state: MockState, hostId: string): Booking[] {
   return state.bookings.filter((b) => b.hostId === hostId && b.dispatch?.state !== "open");
@@ -293,14 +285,16 @@ export interface SlotOption {
   time: string;
   iso: string;
   available: boolean;
-  reason?: "past";
+  reason?: "past" | "busy";
 }
 
-export function slotsForDay(_state: MockState, day: Date, now: number): SlotOption[] {
+/** Khung giờ của một ngày: quá gần giờ ⇒ "past"; trùng ca đã có người đặt (từ API busy-slots) ⇒ "busy". */
+export function slotsForDay(day: Date, now: number, busySlots: readonly string[] = []): SlotOption[] {
   return ALL_SLOT_TIMES.map((time) => {
     const d = slotDate(day, time);
     const iso = d.toISOString();
     if (d.getTime() < now + MIN_LEAD_MS) return { time, iso, available: false, reason: "past" as const };
+    if (busySlots.includes(iso)) return { time, iso, available: false, reason: "busy" as const };
     return { time, iso, available: true };
   });
 }
@@ -400,8 +394,3 @@ export function occupancy(state: MockState, units: Unit[]): { rented: number; ho
 
 export const hostName = (id: string) => HOSTS.find((h) => h.id === id)?.name ?? "—";
 
-export function bookingUnit(b: Booking): Unit {
-  return unitById(b.unitId)!;
-}
-
-export const tenantAllIn = (unit: Unit, persons = 1) => allInCost(unit, { persons, motorbikes: 1, cars: 0 });

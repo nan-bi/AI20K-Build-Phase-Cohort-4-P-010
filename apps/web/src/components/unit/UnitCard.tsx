@@ -25,7 +25,7 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
   return (
     <article className={`${styles.card} ${feature ? styles.feature : ""}`}>
       <div className={styles.photo}>
-        <Link href={`/units/${unit.id}`} aria-label={`Xem chi tiết căn ${unitAddress(unit)}`} className={styles.photoLink}>
+        <Link href={`/units/${unit.code || unit.id}`} aria-label={`Xem chi tiết căn ${unitAddress(unit)}`} className={styles.photoLink}>
           <VerifiedPhoto
             unit={unit}
             sizes={feature ? "(max-width: 900px) 100vw, 420px" : "(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 340px"}
@@ -83,10 +83,10 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
         )}
 
         <div className={styles.actions}>
-          <Link href={`/units/${unit.id}`} className="btn btn-quiet btn-sm">
+          <Link href={`/units/${unit.code || unit.id}`} className="btn btn-quiet btn-sm">
             Xem chi tiết
           </Link>
-          <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
+          <Link href={`/units/${unit.code || unit.id}?book=1`} className="btn btn-primary btn-sm">
             Đặt lịch xem
           </Link>
         </div>
