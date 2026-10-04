@@ -34,7 +34,7 @@ npm run start:dev   # :4000, Swagger /api/docs
 npm test            # jest (Prisma/Supabase giả)
 ```
 
-**Next.js side** (`apps/web/`) — pnpm, UI 4 cổng. **Hiện chạy hoàn toàn bằng dữ liệu mock** (đăng nhập demo bằng cookie `vs_role`, store localStorage, không cần backend — xem `apps/web/README.md`); mã gọi backend NestJS còn giữ lại để khôi phục:
+**Next.js side** (`apps/web/`) — pnpm, UI 4 cổng. **Cổng Chủ nhà và Khách thuê đã nối backend NestJS thật** (`/api/v1/*`); cổng Field Host và Admin tiếp tục dùng mock hỗ trợ demo (xem `apps/web/README.md`):
 
 ```bash
 cd apps/web
@@ -47,7 +47,7 @@ pnpm build lint typecheck test
 The backend is split across two independent apps, matching `docs/SAD.md`'s multi-service design but with the Core Service's stack swapped:
 
 - **`backend/`** — NestJS + Prisma + Supabase, nơi duy nhất xử lý đăng nhập/phân quyền/dữ liệu (SAD v2). `backend/prisma/schema.prisma` là nguồn chân lý của database (`database/schema.sql` và schema Prisma cũ của `apps/web` đã bị thay thế). Auth: `backend/src/modules/auth` (email+mật khẩu băm scrypt ngay trong `profiles.password_hash` và Google qua Passport, cả hai phát JWT phiên do backend ký — không dùng Supabase Auth, đăng ký không xác nhận email, Field Host nhập RFID theo lời mời của Admin, OTP Zalo xác thực SĐT — không phải phương thức đăng nhập). Phiên = cookie httpOnly do backend set; vai trò đọc từ DB. Các controller nghiệp vụ hiện vẫn `@Public()` (chưa gắn `@Roles`).
-- **`apps/web/`** — Next.js (App Router), **bản MVP mock hiện không gọi backend** (xem `apps/web/README.md`; luồng đăng nhập backend bên dưới là thiết kế cũ, đang tạm dừng); chỉ có UI 4 cổng + `src/proxy.ts` chặn trang theo phiên + rewrite `/api/v1/*` sang backend.
+- **`apps/web/`** — Next.js (App Router), **cổng Chủ nhà và Khách thuê đã nối backend NestJS thật** (xem `apps/web/README.md`); UI 4 cổng + `src/proxy.ts` chặn trang theo phiên + rewrite `/api/v1/*` sang backend.
 - **`src/`** — still the original Python/FastAPI+LangGraph AI20K template skeleton, reserved for the future AI Engine service (Matchmaker/OCR/Dispatcher per SAD §5.2). A FastAPI app (`src/main.py`, router mounted at `/api/v1`) calls a compiled LangGraph `agent` (`src/agents/graph.py`: `analyze` → conditional → `respond`). State is a `total=False` TypedDict (`src/agents/state.py`). Nodes return partial-state dicts. Settings come from `src/config.py` (pydantic-settings, `.env`, cached `get_settings()`). The LLM client is `src/services/llm.py` (OpenAI, `gpt-4o-mini` by default). The nodes and tools are still placeholders — nothing VinStay-specific has been built here.
 
 **The target design lives in docs.** Treat these as the spec when implementing:

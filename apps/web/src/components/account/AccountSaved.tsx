@@ -4,16 +4,13 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { UnitCard } from "@/components/unit/UnitCard";
-import { tenantAllIn } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import { unitById } from "@/lib/mock/units";
+import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
+import { useFavorites } from "@/lib/tenant/favorites";
 import styles from "./AccountSaved.module.css";
 
 export function AccountSaved() {
-  const state = useMock();
-  if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
-
-  const units = state.favorites.map((id) => unitById(id)).filter((u): u is NonNullable<typeof u> => Boolean(u));
+  const { units, loading } = useFavorites();
+  if (loading) return <div className="skeleton" style={{ height: 320 }} />;
 
   return (
     <div>
@@ -32,7 +29,7 @@ export function AccountSaved() {
       ) : (
         <div className={styles.grid}>
           {units.map((u) => (
-            <UnitCard key={u.id} unit={u} cost={tenantAllIn(u)} />
+            <UnitCard key={u.id} unit={u} cost={allInCost(u, DEFAULT_HOUSEHOLD)} />
           ))}
         </div>
       )}

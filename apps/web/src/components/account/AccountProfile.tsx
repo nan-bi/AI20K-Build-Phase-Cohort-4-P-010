@@ -9,30 +9,33 @@ import { toast } from "@/components/ui/Toast";
 import { accountApi } from "@/lib/apiClient";
 import { refreshSession, useSession } from "@/lib/auth/client";
 import { fmtDate, fmtPhone } from "@/lib/mock/format";
-import { tenantLatestKyc } from "@/lib/mock/selectors-tenant";
-import { setTenantProfile } from "@/lib/mock/actions";
-import { useMock } from "@/lib/mock/store";
+import { useApiQuery } from "@/lib/query/useApiQuery";
+import { tenantQueries } from "@/lib/tenant/queries";
 
 export function AccountProfile() {
-  const state = useMock();
   const { user } = useSession();
-  // SĐT chỉ có khi khách đã nhập và xác thực OTP Zalo (lúc đặt lịch xem). Chưa có thì để trống, không điền số giả.
-  const phone = state.tenantProfile?.phone ?? "";
   const [name, setName] = useState(user?.fullName ?? "");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
+
+  // A7: Đọc thông tin eKYC gần nhất từ danh sách lịch xem của tài khoản
+  const { state: bookingsState } = useApiQuery(tenantQueries.bookings());
 
   useEffect(() => {
     accountApi.getProfile().then((res) => {
       if (!res.ok || !res.data) return;
       if (res.data.fullName) setName(res.data.fullName);
+      if (res.data.phone) setPhone(res.data.phone);
       setPhoneVerified(Boolean(res.data.isPhoneVerified));
     });
   }, []);
 
-  if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
-
-  const kyc = phone ? tenantLatestKyc(state, phone) : undefined;
+  const bookings = bookingsState.status === "ready" ? bookingsState.data : [];
+  const latestKycBooking = bookings
+    .filter((b) => b.kyc?.verifiedAt)
+    .sort((a, b) => new Date(b.kyc!.verifiedAt).getTime() - new Date(a.kyc!.verifiedAt).getTime())[0];
+  const kyc = latestKycBooking?.kyc;
   const email = user?.email ?? "";
 
   const onSubmit = async (e: FormEvent) => {
@@ -43,7 +46,6 @@ export function AccountProfile() {
     const res = await accountApi.updateProfile({ fullName });
     setSaving(false);
     if (!res.ok) return toast("Không lưu được thay đổi. Thử lại sau.");
-    if (phone) setTenantProfile({ name: fullName, phone }); // giữ tên mặc định khi đặt lịch ở bản mock
     await refreshSession();
     toast("Đã lưu thay đổi", "success");
   };

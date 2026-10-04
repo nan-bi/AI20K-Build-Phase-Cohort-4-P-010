@@ -1,7 +1,19 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { GenerateVietQrDto, VietQrWebhookDto, UploadHostReceiptDto } from './dto/deposit.dto';
+import { PhoneService } from '../auth/phone/phone.service';
+import { BookingAccessService } from '../tenant/booking-access.service';
+import { buildDepositTerms, DEPOSIT_TERMS_VERSION } from './deposit-terms';
+import { VietQrSimulator } from './vietqr.simulator';
+import { CreateDepositDto, UploadHostReceiptDto } from './dto/deposit.dto';
+import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
+import { DepositTermsDoc, TenantBooking } from '../tenant/tenant.types';
 import { DepositStatus, UnitStatus, ViewingStatus } from '@prisma/client';
 
 @Injectable()
@@ -9,174 +21,447 @@ export class DepositService {
   private readonly logger = new Logger(DepositService.name);
 
   constructor(
-    private prisma: PrismaService,
-    private auditService: AuditService,
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+    private readonly phones: PhoneService,
+    private readonly bookingAccess: BookingAccessService,
   ) {}
 
-  async generateVietQr(dto: GenerateVietQrDto) {
-    const { viewingId, hostId, amount = 2000000 } = dto;
+  /**
+   * Giờ giữ chỗ theo luật B4: `unit.holdHoursOverride` → `FeeConfig.hold_hours_default` (Admin cài) → 48, kẹp [12, 72].
+   * Mọi nơi tính giờ giữ chỗ (biên bản, tạo cọc, báo có) PHẢI dùng hàm này để không lệch nhau và lệch catalog.
+   */
+  private async resolveHoldHours(override?: number | null, client: any = this.prisma): Promise<number> {
+    let hours: number | null = override ?? null;
+    if (hours == null) {
+      const cfg = await client.feeConfig?.findUnique({ where: { configKey: 'hold_hours_default' } });
+      hours = cfg ? Number(cfg.paramValue) : 48;
+    }
+    return Math.min(72, Math.max(12, Math.round(hours)));
+  }
 
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id: viewingId }, { bookingRefCode: viewingId }] },
+  /** A14 (công khai): biên bản điều khoản cọc khách đọc trước khi tick. Có `unitCode` thì dùng giờ giữ chỗ của căn đó. */
+  async getPublicDepositTerms(unitCode?: string): Promise<DepositTermsDoc> {
+    let override: number | null = null;
+    if (unitCode) {
+      const unit = await this.prisma.unit.findFirst({
+        where: { unitCode: { equals: unitCode.trim(), mode: 'insensitive' } },
+        select: { holdHoursOverride: true },
+      });
+      if (!unit) throw new NotFoundException({ message: 'Không tìm thấy căn hộ.', code: 'unit_not_found' });
+      override = unit.holdHoursOverride;
+    }
+    return buildDepositTerms(await this.resolveHoldHours(override));
+  }
+
+  async getDepositTerms(ref: string, user: { id: string }): Promise<DepositTermsDoc> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: viewing.unitId },
+    });
+
+    return buildDepositTerms(await this.resolveHoldHours(unit?.holdHoursOverride));
+  }
+
+  async createDeposit(
+    ref: string,
+    user: { id: string },
+    dto: CreateDepositDto,
+    reqContext?: { ip?: string; userAgent?: string },
+  ): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    if (viewing.status !== ViewingStatus.CLOSING) {
+      throw new ConflictException({
+        message: 'Lịch hẹn chưa ở trạng thái chốt cọc.',
+        code: 'bad_status',
+        expected: 'closing',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    if (dto.acceptTerms !== true) {
+      throw new BadRequestException({
+        message: 'Bạn phải đồng ý với điều khoản đặt cọc giữ chỗ.',
+        code: 'invalid_request',
+      });
+    }
+
+    if (dto.termsVersion !== DEPOSIT_TERMS_VERSION) {
+      throw new ConflictException({
+        message: 'Phiên bản điều khoản đặt cọc đã cũ, vui lòng tải lại.',
+        code: 'terms_version_stale',
+      });
+    }
+
+    // Check existing deposit
+    const existingDeposit = await this.prisma.holdingDeposit.findUnique({
+      where: { viewingId: viewing.id },
+    });
+
+    if (existingDeposit) {
+      if (existingDeposit.paymentStatus === DepositStatus.PENDING_PAYMENT) {
+        // Idempotent: return existing without changing termsAcceptedAt
+        const reloaded = await this.bookingAccess.loadOwned(ref, user);
+        let rawPhone: string | undefined;
+        if (viewing.contactPhoneEnc) {
+          try {
+            rawPhone = this.phones.decrypt(viewing.contactPhoneEnc);
+          } catch {}
+        }
+        return toTenantBooking(reloaded, { rawPhone, holdHours: existingDeposit.holdHours ?? 48 });
+      }
+      throw new ConflictException({
+        message: 'Giao dịch cọc đã được xử lý hoặc không ở trạng thái chờ thanh toán.',
+        code: 'bad_status',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      await this.expireIfDue(viewing.unitId, tx);
+
+      const unit = await tx.unit.findUnique({
+        where: { id: viewing.unitId },
+      });
+
+      if (!unit || unit.status !== UnitStatus.AVAILABLE) {
+        throw new ConflictException({
+          message: 'Căn hộ đã có người khác giữ chỗ hoặc không còn trống.',
+          code: 'unit_already_held',
+        });
+      }
+
+      // Attribution lock: find host from accepted ticket
+      const acceptedTicket = viewing.tickets?.find((t: any) => t.status === 'ACCEPTED');
+      const attributedHostId = acceptedTicket?.hostId ?? null;
+
+      let contactPhone = '0912345678';
+      if (viewing.contactPhoneEnc) {
+        try {
+          contactPhone = this.phones.decrypt(viewing.contactPhoneEnc);
+        } catch {}
+      }
+      const phoneClean = contactPhone.startsWith('+84')
+        ? '0' + contactPhone.slice(3)
+        : contactPhone;
+
+      const depositCode = `DEP-${ref}`;
+      const amount = 2000000; // Constant: CẤM accept from client!
+      const randNum = Math.floor(1000 + Math.random() * 9000);
+      const randHex = Math.random().toString(16).substring(2, 6).toUpperCase();
+      const vietqrRef = `VQ-${randNum}-${randHex}`;
+      const transferContent = `COC ${unit.unitCode} ${phoneClean}`;
+      const now = new Date();
+      const holdHours = await this.resolveHoldHours(unit.holdHoursOverride, tx);
+
+      const deposit = await tx.holdingDeposit.create({
+        data: {
+          depositCode,
+          viewingId: viewing.id,
+          unitId: unit.id,
+          attributedHostId,
+          amount,
+          vietqrRef,
+          transferContent,
+          paymentStatus: DepositStatus.PENDING_PAYMENT,
+          termsAcceptedAt: now,
+          termsVersion: DEPOSIT_TERMS_VERSION,
+          holdHours,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          actorRole: 'tenant',
+          actionType: 'DEPOSIT_TERMS_ACCEPTED',
+          entityName: 'HoldingDeposit',
+          entityId: deposit.id,
+          newValue: {
+            termsVersion: DEPOSIT_TERMS_VERSION,
+            holdHours,
+          },
+          ipAddress: reqContext?.ip || '127.0.0.1',
+          userAgent: reqContext?.userAgent || 'VinStay PWA / Web Client',
+        },
+      });
+
+      const reloaded = await tx.viewing.findUnique({
+        where: { id: viewing.id },
         include: {
           unit: { include: { building: true } },
           tenant: true,
-          tickets: { include: { host: true } },
+          tickets: { include: { host: { include: { profile: true } } } },
+          deposit: true,
         },
       });
 
-      if (viewing) {
-        const assignedHostId = hostId || viewing.tickets[0]?.hostId;
-        const depositCode = `DEP-${viewing.unit.unitCode}-${Date.now().toString().slice(-4)}`;
-        const transferContent = `COC ${viewing.unit.unitCode} ${viewing.tenant.phoneHash?.slice(-4) || '9999'}`;
-        const qrImageUrl = `https://img.vietqr.io/image/970422-0912345678-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
-          transferContent,
-        )}&accountName=CONG%20TY%20CO%20PHAN%20VINSTAY%20AI`;
-
-        const deposit = await this.prisma.holdingDeposit.upsert({
-          where: { viewingId: viewing.id },
-          update: {
-            depositCode,
-            amount,
-            vietqrRef: transferContent,
-            paymentStatus: DepositStatus.PENDING_PAYMENT,
-            attributedHostId: assignedHostId,
-          },
-          create: {
-            depositCode,
-            viewingId: viewing.id,
-            unitId: viewing.unit.id,
-            attributedHostId: assignedHostId,
-            amount,
-            vietqrRef: transferContent,
-            paymentStatus: DepositStatus.PENDING_PAYMENT,
-          },
-        });
-
-        return {
-          success: true,
-          depositId: deposit.id,
-          depositCode: deposit.depositCode,
-          amount,
-          vietqrUrl: qrImageUrl,
-          transferContent,
-          bankAccount: {
-            bankName: 'Ngân hàng Quân Đội (MB Bank)',
-            accountNo: '0912345678',
-            accountName: 'CONG TY CO PHAN VINSTAY AI',
-          },
-          holdingPolicy: {
-            lockDurationHours: 48,
-            securityDepositClause:
-              'Số tiền 2.000.000 VNĐ này sẽ chuyển 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit), tuyệt đối không trừ vào tiền thuê tháng đầu.',
-          },
-          attributedHostId: assignedHostId,
-        };
-      }
-    } catch (err) {
-      this.logger.warn(`Generate VietQR DB fallback: ${err.message}`);
-    }
-
-    const transferContent = `COC S1.02-12A08 4829`;
-    return {
-      success: true,
-      depositId: 'dep-demo-' + Date.now(),
-      depositCode: `DEP-S1.02-12A08-${Date.now().toString().slice(-4)}`,
-      amount,
-      vietqrUrl: `https://img.vietqr.io/image/970422-0912345678-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
-        transferContent,
-      )}&accountName=CONG%20TY%20CO%20PHAN%20VINSTAY%20AI`,
-      transferContent,
-      bankAccount: {
-        bankName: 'Ngân hàng Quân Đội (MB Bank)',
-        accountNo: '0912345678',
-        accountName: 'CONG TY CO PHAN VINSTAY AI',
-      },
-      holdingPolicy: {
-        lockDurationHours: 48,
-        securityDepositClause:
-          'Số tiền 2.000.000 VNĐ này sẽ chuyển 100% thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit), tuyệt đối không trừ vào tiền thuê tháng đầu.',
-      },
-      attributedHostId: hostId || 'h1111111-1111-1111-1111-111111111111',
-    };
+      return toTenantBooking(reloaded, { rawPhone: contactPhone, holdHours });
+    });
   }
 
-  async processWebhook(dto: VietQrWebhookDto) {
-    const { depositCode, amount, bankRefNumber } = dto;
+  async markPaid(input: {
+    transferContent?: string;
+    depositCode?: string;
+    amount: number;
+    bankRefNumber: string;
+    paidAt?: Date;
+    actor: 'bank' | 'demo';
+    actorId?: string;
+  }): Promise<'paid' | 'duplicate' | 'ignored' | 'refunded'> {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Idempotent: check bankRefNumber in EscrowTransaction
+      const existingTx = await tx.escrowTransaction.findUnique({
+        where: { bankRefNumber: input.bankRefNumber },
+      });
+      if (existingTx) {
+        return 'duplicate';
+      }
 
-    try {
-      const deposit = await this.prisma.holdingDeposit.findUnique({
-        where: { depositCode },
-        include: {
-          unit: { include: { building: true, landlord: true } },
-          viewing: { include: { tenant: true } },
-          attributedHost: { include: { profile: true } },
+      // 2. Find pending deposit by depositCode or transferContent
+      let deposit: any = null;
+      if (input.depositCode) {
+        deposit = await tx.holdingDeposit.findFirst({
+          where: {
+            depositCode: input.depositCode,
+            paymentStatus: { in: [DepositStatus.PENDING_PAYMENT, DepositStatus.QR_EXPIRED] },
+          },
+          include: { unit: true, viewing: { include: { tenant: true } } },
+        });
+      }
+
+      if (!deposit && input.transferContent) {
+        const cleaned = input.transferContent.trim().replace(/\s+/g, ' ');
+        deposit = await tx.holdingDeposit.findFirst({
+          where: {
+            paymentStatus: { in: [DepositStatus.PENDING_PAYMENT, DepositStatus.QR_EXPIRED] },
+            transferContent: { equals: cleaned, mode: 'insensitive' },
+          },
+          include: { unit: true, viewing: { include: { tenant: true } } },
+        });
+      }
+
+      if (!deposit) {
+        const systemActorId =
+          input.actorId || '00000000-0000-0000-0000-000000000000';
+        await tx.auditLog.create({
+          data: {
+            actorId: systemActorId,
+            actorRole: input.actor,
+            actionType: 'DEPOSIT_UNMATCHED',
+            entityName: 'HoldingDeposit',
+            entityId: input.depositCode || input.transferContent || 'unknown',
+            newValue: { bankRefNumber: input.bankRefNumber, amount: input.amount },
+          },
+        });
+        return 'ignored';
+      }
+
+      const effectiveActorId =
+        input.actor === 'bank'
+          ? deposit.viewing?.tenantId || input.actorId || '00000000-0000-0000-0000-000000000000'
+          : input.actorId || deposit.viewing?.tenantId || '00000000-0000-0000-0000-000000000000';
+
+      // 3. Amount check (must be exactly 2.000.000)
+      if (Number(input.amount) !== 2000000) {
+        await tx.auditLog.create({
+          data: {
+            actorId: effectiveActorId,
+            actorRole: input.actor,
+            actionType: 'DEPOSIT_AMOUNT_MISMATCH',
+            entityName: 'HoldingDeposit',
+            entityId: deposit.id,
+            newValue: {
+              expected: 2000000,
+              received: input.amount,
+              bankRefNumber: input.bankRefNumber,
+            },
+          },
+        });
+        return 'ignored';
+      }
+
+      // 4. Lazy expire
+      await this.expireIfDue(deposit.unitId, tx);
+
+      // 5. First-to-Pay Wins race condition lock
+      const unitUpdate = await tx.unit.updateMany({
+        where: { id: deposit.unitId, status: UnitStatus.AVAILABLE },
+        data: { status: UnitStatus.HOLDING },
+      });
+
+      if (unitUpdate.count === 0) {
+        // Race lost: unit already held or rented
+        await tx.holdingDeposit.update({
+          where: { id: deposit.id },
+          data: { paymentStatus: DepositStatus.REFUNDED },
+        });
+
+        const execTime = input.paidAt || new Date();
+        await tx.escrowTransaction.create({
+          data: {
+            depositId: deposit.id,
+            transType: 'INBOUND_DEPOSIT',
+            amount: 2000000,
+            bankRefNumber: input.bankRefNumber,
+            executedAt: execTime,
+          },
+        });
+
+        await tx.escrowTransaction.create({
+          data: {
+            depositId: deposit.id,
+            transType: 'REFUND',
+            amount: 2000000,
+            bankRefNumber: `${input.bankRefNumber}-R`,
+            executedAt: execTime,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorId: effectiveActorId,
+            actorRole: input.actor,
+            actionType: 'DEPOSIT_LOST_RACE',
+            entityName: 'HoldingDeposit',
+            entityId: deposit.id,
+            newValue: {
+              bankRefNumber: input.bankRefNumber,
+              reason: 'Căn hộ đã được người khác giữ chỗ trước.',
+            },
+          },
+        });
+
+        return 'refunded';
+      }
+
+      // 6. Won race (paid)
+      const paidAt = input.paidAt || new Date();
+      const holdHours = await this.resolveHoldHours(deposit.unit?.holdHoursOverride ?? deposit.holdHours, tx);
+      const expiresAt = new Date(paidAt.getTime() + holdHours * 3600 * 1000);
+
+      await tx.holdingDeposit.update({
+        where: { id: deposit.id },
+        data: {
+          paymentStatus: DepositStatus.PAID_HOLDING,
+          paidAt,
+          holdHours,
+          expiresAt,
         },
       });
 
-      if (deposit) {
-        const paidAt = new Date();
-        const expiresAt = new Date(paidAt.getTime() + 48 * 3600 * 1000);
+      await tx.viewing.update({
+        where: { id: deposit.viewingId },
+        data: { status: ViewingStatus.HOLDING },
+      });
 
-        const updatedDeposit = await this.prisma.$transaction(async (tx) => {
-          const dep = await tx.holdingDeposit.update({
-            where: { id: deposit.id },
-            data: {
-              paymentStatus: DepositStatus.PAID_HOLDING,
-              paidAt,
-              expiresAt,
-            },
-          });
+      await tx.escrowTransaction.create({
+        data: {
+          depositId: deposit.id,
+          transType: 'INBOUND_DEPOSIT',
+          amount: 2000000,
+          bankRefNumber: input.bankRefNumber,
+          executedAt: paidAt,
+        },
+      });
 
-          await tx.unit.update({
-            where: { id: deposit.unitId },
-            data: { status: UnitStatus.HOLDING },
-          });
+      // Cancel other active viewings for the same unit
+      await tx.viewing.updateMany({
+        where: {
+          unitId: deposit.unitId,
+          id: { not: deposit.viewingId },
+          status: {
+            in: [
+              ViewingStatus.PENDING_CONFIRMATION,
+              ViewingStatus.CONFIRMED,
+              ViewingStatus.LOBBY,
+            ],
+          },
+        },
+        data: {
+          status: ViewingStatus.CANCELLED,
+          closedReason: 'auto_cancelled_due_to_deposit',
+        },
+      });
 
-          await tx.escrowTransaction.create({
-            data: {
-              depositId: deposit.id,
-              transType: 'INBOUND_DEPOSIT',
-              amount,
-              bankRefNumber,
-              executedAt: paidAt,
-            },
-          });
+      // Expire other pending deposits for the same unit
+      await tx.holdingDeposit.updateMany({
+        where: {
+          unitId: deposit.unitId,
+          id: { not: deposit.id },
+          paymentStatus: DepositStatus.PENDING_PAYMENT,
+        },
+        data: { paymentStatus: DepositStatus.QR_EXPIRED },
+      });
 
-          if (deposit.attributedHostId) {
-            await tx.fieldHost.update({
-              where: { id: deposit.attributedHostId },
-              data: { walletBalance: { increment: 450000 } },
-            });
-          }
+      await tx.auditLog.create({
+        data: {
+          actorId: effectiveActorId,
+          actorRole: input.actor,
+          actionType: 'DEPOSIT_PAID',
+          entityName: 'HoldingDeposit',
+          entityId: deposit.id,
+          newValue: {
+            bankRefNumber: input.bankRefNumber,
+            paidAt: paidAt.toISOString(),
+            holdHours,
+            expiresAt: expiresAt.toISOString(),
+          },
+        },
+      });
 
-          return dep;
+      return 'paid';
+    });
+  }
+
+  async expireIfDue(unitId: string, tx?: any): Promise<void> {
+    const db = tx || this.prisma;
+    const now = new Date();
+
+    const expiredDeposits = await db.holdingDeposit.findMany({
+      where: {
+        unitId,
+        paymentStatus: DepositStatus.PAID_HOLDING,
+        expiresAt: { lte: now },
+      },
+      include: { viewing: true },
+    });
+
+    for (const dep of expiredDeposits) {
+      await db.holdingDeposit.update({
+        where: { id: dep.id },
+        data: { paymentStatus: DepositStatus.FORFEITED },
+      });
+
+      if (dep.viewingId) {
+        await db.viewing.update({
+          where: { id: dep.viewingId },
+          data: {
+            status: ViewingStatus.COMPLETED,
+            closedReason: 'hold_expired',
+          },
         });
-
-        return {
-          success: true,
-          depositCode,
-          status: 'PAID_HOLDING',
-          paidAt,
-          expiresAt,
-          unitStatus: 'HOLDING',
-          conflictResolvedCount: 0,
-        };
       }
-    } catch (err) {
-      this.logger.warn(`Process webhook DB fallback: ${err.message}`);
-    }
 
-    return {
-      success: true,
-      depositCode,
-      status: 'PAID_HOLDING',
-      paidAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-      unitStatus: 'HOLDING',
-      conflictResolvedCount: 0,
-    };
+      await db.unit.updateMany({
+        where: { id: unitId, status: UnitStatus.HOLDING },
+        data: { status: UnitStatus.AVAILABLE },
+      });
+
+      await db.auditLog.create({
+        data: {
+          actorId: dep.viewing?.tenantId || '00000000-0000-0000-0000-000000000000',
+          actorRole: 'system',
+          actionType: 'HOLD_EXPIRED',
+          entityName: 'HoldingDeposit',
+          entityId: dep.id,
+          newValue: {
+            expiredAt: now.toISOString(),
+            previousExpiresAt: dep.expiresAt?.toISOString(),
+          },
+        },
+      });
+    }
   }
 
   async uploadHostReceipt(depositId: string, dto: UploadHostReceiptDto) {
@@ -188,47 +473,8 @@ export class DepositService {
       depositId,
       status: 'UNC_PENDING_REVIEW',
       tempHoldUntil: tempHoldUntil.toISOString(),
-      message: 'Đã ghi nhận ủy nhiệm chi từ Field Host. Căn hộ tạm khóa giữ chỗ trong 30 phút để kiểm tra đối soát.',
-    };
-  }
-
-  async getDepositStatus(id: string) {
-    try {
-      const deposit = await this.prisma.holdingDeposit.findFirst({
-        where: { OR: [{ id }, { depositCode: id }] },
-        include: {
-          unit: { include: { building: true } },
-          attributedHost: { include: { profile: true } },
-          escrowTx: true,
-        },
-      });
-
-      if (deposit) {
-        return {
-          ...deposit,
-          amount: Number(deposit.amount),
-          lockDurationHours: 48,
-          isHoldingActive: deposit.paymentStatus === DepositStatus.PAID_HOLDING,
-        };
-      }
-    } catch (err) {
-      this.logger.warn(`Get deposit status DB fallback: ${err.message}`);
-    }
-
-    return {
-      id,
-      depositCode: 'DEP-S1.02-12A08-8921',
-      amount: 2000000,
-      paymentStatus: 'PAID_HOLDING',
-      paidAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-      vietqrRef: 'COC S1.02-12A08 4829',
-      lockDurationHours: 48,
-      isHoldingActive: true,
-      unit: {
-        unitCode: 'VHOP-S1.02-12A08',
-        building: { buildingCode: 'S1.02', zoneName: 'The Sapphire 1' },
-      },
+      message:
+        'Đã ghi nhận ủy nhiệm chi từ Field Host. Căn hộ tạm khóa giữ chỗ trong 30 phút để kiểm tra đối soát.',
     };
   }
 }

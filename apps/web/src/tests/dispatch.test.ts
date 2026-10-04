@@ -24,7 +24,6 @@ import {
   slotTaken,
   dispatchSale,
 } from "@/lib/mock/selectors";
-import { accountPhone, ownsBooking } from "@/lib/mock/selectors-tenant";
 import { getMockState, resetMockState, setMockState } from "@/lib/mock/store";
 import { unitById } from "@/lib/mock/units";
 import type { Booking } from "@/lib/mock/types";
@@ -257,9 +256,8 @@ describe("Dispatch & Booking Gate - SPEC-P02 §7 & SPEC-P03 §7", () => {
 
   // Ca 7: slotsForDay không bao giờ trả reason khác "past" dù mọi Host bận
   it("Ca 7: slotsForDay không bao giờ trả reason khác 'past' dù mọi Host bận", () => {
-    const state = getMockState();
     const targetDay = new Date(Date.now() + 2 * 86_400_000);
-    const slots = slotsForDay(state, targetDay, Date.now());
+    const slots = slotsForDay(targetDay, Date.now());
 
     for (const s of slots) {
       if (!s.available) {
@@ -303,32 +301,4 @@ describe("Dispatch & Booking Gate - SPEC-P02 §7 & SPEC-P03 §7", () => {
     expect(freeAt(stateAfter, "H01", slotFuture)).toBe(true);
   });
 
-  // Ca 9: ownsBooking đúng với SĐT tài khoản
-  it("Ca 9: ownsBooking đúng với SĐT tài khoản", () => {
-    const state = getMockState();
-    const myPhone = accountPhone(state);
-    const myBooking: Booking = {
-      id: "bk-my",
-      ref: "VS-MY01",
-      unitId: "s2-12-1608",
-      hostId: "H01",
-      slot: slotFuture,
-      status: "confirmed",
-      tenant: { name: "Tôi", phone: myPhone, persons: 1 },
-      createdAt: new Date().toISOString(),
-    };
-    const otherBooking: Booking = {
-      id: "bk-other",
-      ref: "VS-OT01",
-      unitId: "s2-12-1608",
-      hostId: "H01",
-      slot: slotFuture,
-      status: "confirmed",
-      tenant: { name: "Người khác", phone: "0999999999", persons: 1 },
-      createdAt: new Date().toISOString(),
-    };
-
-    expect(ownsBooking(state, myBooking)).toBe(true);
-    expect(ownsBooking(state, otherBooking)).toBe(false);
-  });
 });

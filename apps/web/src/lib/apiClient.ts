@@ -31,12 +31,13 @@ async function request<T>(
       headers,
     });
 
-    const body = await res.json().catch(() => ({}));
+    const body: unknown = await res.json().catch(() => ({}));
 
     // NestJS response envelope or raw object
-    const data = (body && typeof body === "object" && "data" in body) ? (body as any).data : body;
-    const message = (body && typeof body === "object" && "message" in body) ? (body as any).message : undefined;
-    const code = (body && typeof body === "object" && "code" in body) ? (body as any).code : undefined;
+    const rec = (body && typeof body === "object") ? (body as Record<string, unknown>) : undefined;
+    const data = rec && "data" in rec ? rec.data : body;
+    const message = rec && typeof rec.message === "string" ? rec.message : undefined;
+    const code = rec && typeof rec.code === "string" ? rec.code : undefined;
 
     return {
       ok: res.ok,
@@ -45,12 +46,13 @@ async function request<T>(
       message,
       code,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : "Lỗi kết nối máy chủ";
     return {
       ok: false,
       status: 0,
       data: {} as T,
-      message: err?.message || "Lỗi kết nối máy chủ",
+      message: errMessage,
     };
   }
 }
@@ -69,116 +71,25 @@ export const api = {
 
 /* ── Specific Domain Endpoints ── */
 
-export const propertyApi = {
-  getBuildings: () =>
-    api.get<any[]>("/properties/buildings"),
-  getUnits: (params?: {
-    zone?: string;
-    layoutType?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    motorbikes?: number;
-    cars?: number;
-    occupants?: number;
-  }) => {
-    const qs = new URLSearchParams();
-    if (params?.zone) qs.set("zone", params.zone);
-    if (params?.layoutType) qs.set("layoutType", params.layoutType);
-    if (params?.minPrice) qs.set("minPrice", params.minPrice.toString());
-    if (params?.maxPrice) qs.set("maxPrice", params.maxPrice.toString());
-    if (params?.motorbikes !== undefined) qs.set("motorbikes", params.motorbikes.toString());
-    if (params?.cars !== undefined) qs.set("cars", params.cars.toString());
-    if (params?.occupants !== undefined) qs.set("occupants", params.occupants.toString());
-    const qStr = qs.toString();
-    return api.get<any[]>(`/properties/units${qStr ? `?${qStr}` : ""}`);
-  },
-  getUnitById: (id: string, params?: { motorbikes?: number; cars?: number; occupants?: number }) => {
-    const qs = new URLSearchParams();
-    if (params?.motorbikes !== undefined) qs.set("motorbikes", params.motorbikes.toString());
-    if (params?.cars !== undefined) qs.set("cars", params.cars.toString());
-    if (params?.occupants !== undefined) qs.set("occupants", params.occupants.toString());
-    const qStr = qs.toString();
-    return api.get<any>(`/properties/units/${id}${qStr ? `?${qStr}` : ""}`);
-  },
-};
-
-export const matchmakerApi = {
-  recommend: (body: {
-    maxAllInBudget: number;
-    preferredLayout?: string;
-    motorbikes?: number;
-    cars?: number;
-    occupants?: number;
-    prompt?: string;
-  }) => api.post<{ scanSummary: any; topRecommendations: any[] }>("/matchmaker/recommend", body),
-};
-
-export const bookingApi = {
-  requestOtp: (dto: { phone: string; fullName?: string }) =>
-    api.post<{ message: string; phone: string; expiresInSeconds: number; testHint?: string }>("/bookings/request-otp", dto),
-  confirm: (dto: { phone: string; otp: string; unitId: string; viewingSlot: string }) =>
-    api.post<any>("/bookings/confirm", dto),
-  create: (dto: { unitId: string; slot: string; name: string; phone: string; persons?: number; note?: string }) =>
-    api.post<any>("/bookings", dto),
-  getById: (id: string) =>
-    api.get<any>(`/bookings/${id}`),
-  getByRef: (ref: string) =>
-    api.get<any>(`/bookings/by-ref/${ref}`),
-  lobbyCheckIn: (id: string) =>
-    api.post<{ message: string; lobbyCheckInAt: string; instruction: string }>(`/bookings/${id}/lobby-checkin`),
-  cancel: (id: string, reason: string) =>
-    api.post<{ success: boolean; message: string; status: string }>(`/bookings/${id}/cancel`, { reason }),
-  reschedule: (id: string, slot: string) =>
-    api.post<{ success: boolean; message: string; newViewingSlot: string }>(`/bookings/${id}/reschedule`, { slot }),
-  rate: (id: string, stars: number, comment?: string) =>
-    api.post<{ success: boolean; message: string }>(`/bookings/${id}/rating`, { stars, comment }),
-};
-
-export const depositApi = {
-  generateVietQr: (dto: { viewingId: string; unitId?: string; hostId?: string; amount?: number }) =>
-    api.post<any>("/deposits/generate-vietqr", dto),
-  getStatus: (id: string) =>
-    api.get<any>(`/deposits/${id}`),
-  webhook: (dto: { depositCode: string; amount: number; bankRefNumber: string }) =>
-    api.post<any>("/deposits/webhook-vietqr", dto),
-  uploadHostReceipt: (depositId: string, receiptUrl: string) =>
-    api.post<any>(`/deposits/${depositId}/host-receipt`, { receiptUrl }),
-};
-
-export const identityApi = {
-  verifyEkyc: (dto: {
-    depositId: string;
-    consentVersion: string;
-    hasConsent: boolean;
-    idCardFrontUrl?: string;
-    idCardBackUrl?: string;
-  }) => api.post<any>("/identity/ekyc/verify", dto),
-  getResult: (depositId: string) =>
-    api.get<any>(`/identity/${depositId}`),
-};
-
-export const contractApi = {
-  signDepositAgreement: (dto: { depositId: string; signatureSvg: string; otp: string }) =>
-    api.post<any>("/contracts/holding-agreement/sign", dto),
-  getEvidencePackage: (id: string) =>
-    api.get<any>(`/contracts/${id}/evidence-package`),
-};
+export interface UserProfileDto {
+  id?: string;
+  email?: string;
+  fullName?: string;
+  phone?: string;
+  isPhoneVerified?: boolean;
+}
 
 export const accountApi = {
   getProfile: () =>
-    api.get<any>("/me/profile"),
+    api.get<UserProfileDto>("/me/profile"),
   updateProfile: (dto: { fullName?: string; email?: string; phone?: string }) =>
-    api.patch<any>("/me/profile", dto),
-  getBookings: () =>
-    api.get<any[]>("/me/bookings"),
-  getContracts: () =>
-    api.get<any[]>("/me/contracts"),
+    api.patch<UserProfileDto>("/me/profile", dto),
   getFavorites: () =>
-    api.get<any[]>("/me/favorites"),
+    api.get<string[]>("/me/favorites"),
   addFavorite: (unitId: string) =>
     api.put<{ success: boolean; unitId: string; saved: boolean }>(`/me/favorites/${unitId}`),
   removeFavorite: (unitId: string) =>
     api.delete<{ success: boolean; unitId: string; saved: boolean }>(`/me/favorites/${unitId}`),
   getNotifications: () =>
-    api.get<any[]>("/me/notifications"),
+    api.get<Record<string, unknown>[]>("/me/notifications"),
 };

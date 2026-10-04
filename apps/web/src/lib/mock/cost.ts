@@ -3,11 +3,9 @@
  *   All-in = tiền thuê + phí quản lý (diện tích × 9.500đ) + phí gửi xe + dự toán điện nước (300k/người)
  */
 export const HOLD_HOURS_DEFAULT = 48;   // chủ tịch chốt 2026-09-29 (legal/02 Điều 2.3 cho 12–72)
-export const HOLD_HOURS_MIN = 12;
-export const HOLD_HOURS_MAX = 72;
 export const HOUR_MS = 3_600_000;
 export const MANDATE_TERM_MONTHS = 12;  // legal/01 Điều 8.1–8.2
-export const NON_CIRCUMVENTION_MONTHS = 6; // legal/01 Điều 6.3
+ // legal/01 Điều 6.3
 export const OCCUPANTS_MAX = 5;
 export const PAYMENT_CYCLES = [1, 3, 6] as const; // legal/06 Điều 3.2
 export type PaymentCycle = (typeof PAYMENT_CYCLES)[number];

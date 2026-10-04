@@ -1,3 +1,3 @@
 export { PrintDocButton } from "./PrintDocButton";
 export { KycCapture } from "./KycCapture";
-export { LeaseForm } from "./LeaseForm";
+export { DepositTermsBox } from "./DepositTermsBox";

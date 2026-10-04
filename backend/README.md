@@ -38,36 +38,35 @@ Các đơn giá và ngưỡng có thể thay đổi (phí quản lý, gửi xe, 
 Vòng đời lịch xem: `pending → confirmed → lobby → receiving → viewing → closing → holding → leased`;
 nhánh phụ `completed` (xem xong chưa thuê), `no_show`, `cancelled`, `rejected`.
 
-### 1.1. 👤 Công khai & Khách thuê
+### 1.1. 👤 Công khai & Khách thuê (Toàn bộ A1–A21 đã hoàn thành)
 
-Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch & theo dõi lịch hẹn, tài khoản (lịch hẹn, căn đã lưu, hợp đồng).
+Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch xem & OTP Zalo, theo dõi lịch hẹn, cọc giữ chỗ VietQR, eKYC 1 bước Zero-Storage, hợp đồng & tải PDF tiếng Việt.
 
-| Endpoint | Vai | Màn hình / bước nghiệp vụ | TT |
+| Endpoint | Vai | Nghiệp vụ / Contract | TT |
 |---|---|---|---|
-| `GET /properties/buildings` | công khai | bộ lọc toà | ✅ |
-| `GET /properties/units` | công khai | danh sách căn — lọc, All-in Cost, badge "Căn hời" | ✅ |
-| `GET /properties/units/:id` | công khai | chi tiết căn | ✅ |
-| `POST /matchmaker/recommend` | công khai | chat AI: nhu cầu (ngân sách trần, layout, phân khu, tầng, nội thất, thú cưng, số người/xe) → gợi ý căn | ✅ |
-| `POST /auth/otp/send` · `POST /auth/otp/verify` | công khai | xác thực SĐT trước khi đặt lịch | ✅ |
-| `POST /bookings` `{unitId, slot, name, phone, persons, note}` | tenant | form đặt lịch xem — tạo lịch và điều phối Host | ⬜ |
-| `GET /bookings/:id` · `GET /bookings/by-ref/:ref` | tenant | màn theo dõi lịch hẹn (tra theo mã lịch) | ✅ / ⬜ |
-| `POST /bookings/:id/cancel` `{reason}` · `POST /bookings/:id/reschedule` `{slot}` | tenant | huỷ / đổi lịch | ⬜ |
-| `POST /bookings/:id/lobby-checkin` | tenant | nút 1-chạm "Tôi đã có mặt tại sảnh" | ✅ |
-| `POST /bookings/:id/rating` `{stars}` | tenant | đánh giá Host sau buổi xem | ⬜ |
-| `GET /deposits/:id` | tenant | trạng thái cọc, đếm ngược giữ chỗ | ✅ |
-| `POST /identity/ekyc/verify` | tenant | chụp CCCD 2 mặt + chân dung; trường có độ tin cậy < 85% chuyển nhập tay | ⚠️ cần trả độ tin cậy theo từng trường |
-| `GET /me/bookings` · `GET /me/contracts` | tenant | tài khoản: lịch hẹn, hợp đồng + Hộ chiếu bàn giao | ⬜ |
-| `GET /me/favorites` · `PUT/DELETE /me/favorites/:unitId` | tenant | căn đã lưu | ⬜ |
-| `PATCH /me/profile` | mọi vai | hồ sơ tài khoản | ⬜ |
-| `GET /me/notifications` | mọi vai | thông báo trong app | ⬜ |
-
-### 1.2. 💳 Thanh toán (VietQR)
-
-| Endpoint | Vai | Màn hình / bước nghiệp vụ | TT |
-|---|---|---|---|
-| `POST /deposits/generate-vietqr` | field_host | Host bấm [Khách chốt] → sinh VietQR động `COC [Mã căn] [SĐT]` | ⚠️ đổi caller thành Host |
-| `POST /deposits/webhook-vietqr` | ngân hàng | gạch nợ cọc → khoá `holding`, Conflict Resolver huỷ lịch trùng + gợi ý căn thay thế | ⚠️ thời hạn theo cấu hình giữ chỗ |
-| `POST /deposits/:id/host-receipt` | field_host | Host tải ủy nhiệm chi khi webhook chậm (giữ tạm) | ⬜ |
+| `GET /properties/buildings` (A1) | công khai | Bộ lọc toà | ✅ |
+| `GET /properties/units` (A1) | công khai | Catalog căn hộ: All-in Cost, Căn hời, ẩn căn 0 ảnh | ✅ |
+| `GET /properties/units/:code` (A2) | công khai | Chi tiết căn hộ: `holdHours`, `activeViewingAt`, `photos` | ✅ |
+| `GET /properties/units/:code/busy-slots` (A3) | công khai | Khung giờ đã bận của căn hộ trong 14 ngày | ✅ |
+| `POST /auth/otp/send` (A4) | công khai | Gửi OTP SĐT (purpose: `TENANT_VIEWING`, cooldown 30s) | ✅ |
+| `POST /auth/otp/verify` (A5) | công khai | Xác thực OTP → sinh `actionToken` dùng 1 lần (15 phút) | ✅ |
+| `POST /bookings` (A6) | tenant | Đặt lịch xem phòng với `actionToken` hợp lệ | ✅ |
+| `GET /me/bookings` (A7) | tenant | Danh sách lịch xem của tôi (chỉ xem lịch thuộc tài khoản) | ✅ |
+| `GET /bookings/:ref` (A8) | tenant | Chi tiết lịch xem (timeline 7 bước, DTO TenantBooking) | ✅ |
+| `POST /bookings/:ref/cancel` (A9) | tenant | Huỷ lịch xem phòng (trước ≥ 2h) | ✅ |
+| `POST /bookings/:ref/reschedule` (A10) | tenant | Đổi giờ xem phòng (trước ≥ 2h, kiểm tra slot bận) | ✅ |
+| `POST /bookings/:ref/late` (A11) | tenant | Báo xin đến muộn 10 phút | ✅ |
+| `POST /bookings/:ref/lobby-checkin` (A12) | tenant | Bấm "Tôi đã có mặt tại sảnh" | ✅ |
+| `POST /bookings/:ref/rating` (A13) | tenant | Chấm sao đánh giá Field Host | ✅ |
+| `GET /legal/deposit-terms` (A14) | công khai | Văn bản điều khoản cọc, 6 nội quy BQL, phiên bản pháp lý | ✅ |
+| `POST /bookings/:ref/deposit` (A15) | tenant | Khách tick đồng ý điều khoản cọc → sinh VietQR động 2 triệu | ✅ |
+| `POST /deposits/webhook-vietqr` · `/mark-paid` (A16) | ngân hàng/host | First-to-Pay Wins: khoá holding, huỷ lịch trùng, gợi ý 2 căn | ✅ |
+| `POST /identity/ekyc/scan` (A17) | tenant | Quét CCCD 1 bước (Zero-Storage, không upload ảnh) | ✅ |
+| `POST /identity/ekyc` (A18) | tenant | Xác nhận trường CCCD + 3 điều khoản thuê → xác lập HĐ | ✅ |
+| `GET /me/contracts` (A19) | tenant | Danh sách hợp đồng thuê: thời hạn, cọc, tiền thanh toán kỳ 1 | ✅ |
+| `GET /me/contracts/:id/pdf` (A20) | tenant | Tải PDF HĐ thuê chính thức tiếng Việt có niêm phong sha256 | ✅ |
+| `GET/PUT/DELETE /me/favorites[/:code]` | đăng nhập | Căn đã lưu theo tài khoản (bảng `favorite_units`), nhận mã căn hoặc UUID, trả DTO `TenantUnit` | ✅ |
+| `POST /demo/bookings/:ref/step` (A21) | demo | Giả lập thao tác Host/Bank phục vụ trình diễn | ✅ |
 
 ### 1.3. 🏠 Chủ nhà
 
