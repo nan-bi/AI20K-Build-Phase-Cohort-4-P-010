@@ -22,6 +22,8 @@ import { AdminPayoutService } from './admin-payout.service';
 import { AdminDispatchService } from './admin-dispatch.service';
 import { AdminBiService } from './admin-bi.service';
 import { AdminInventoryService } from './admin-inventory.service';
+import { AdminDepositService } from './admin-deposit.service';
+import { AdminKeyService } from './admin-key.service';
 import { AdminService } from './admin.service';
 
 const ENV = {
@@ -58,6 +60,11 @@ const ADMIN_ROUTES: Route[] = [
   { method: 'post', path: 'commission-engine/config' },
   { method: 'get', path: 'settings/hold-policy' },
   { method: 'post', path: 'settings/hold-policy' },
+  { method: 'get', path: 'deposits' },
+  { method: 'post', path: 'deposits/x/resolve-unc' },
+  { method: 'get', path: 'door-keys' },
+  { method: 'post', path: 'door-keys/x/rotate' },
+  { method: 'post', path: 'door-keys/x/revoke' },
 ];
 
 describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
@@ -108,6 +115,10 @@ describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
       .overrideProvider(AdminBiService)
       .useValue(fakeService)
       .overrideProvider(AdminInventoryService)
+      .useValue(fakeService)
+      .overrideProvider(AdminDepositService)
+      .useValue(fakeService)
+      .overrideProvider(AdminKeyService)
       .useValue(fakeService)
       .compile();
     app = moduleRef.createNestApplication();

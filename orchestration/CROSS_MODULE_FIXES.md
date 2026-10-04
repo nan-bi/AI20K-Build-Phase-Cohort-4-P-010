@@ -13,3 +13,7 @@
 - `AdminPayoutService.accrueDeposit(depositId)`: gọi sau khi HoldingDeposit chuyển PAID_HOLDING (webhook deposit).
 - Hiện chưa móc; dùng `POST /admin/payouts/sweep` để bù. Sweep dùng cấu hình tại thời điểm quét, không phải lúc sự kiện.
 - `HostPayout.transRef` chưa `@unique`: chống trùng chỉ bằng findFirst trong transaction (có race); đề xuất `@@unique([transRef])` (ghi trong ADMIN_OPEN_QUESTIONS).
+
+
+## Door PIN lưu gần như plaintext (phát hiện Bước 5)
+- `backend/src/modules/contract/contract.service.ts` (~L129) lưu `vaultSecretRef` dạng `vault:aes256:pin:${doorPin}` — PIN nằm nguyên văn, không mã hóa thật. Nên dùng `PhoneService.encrypt` như `landlord-consignment.service.ts`. Không sửa trên nhánh `feat/admin-flows`.

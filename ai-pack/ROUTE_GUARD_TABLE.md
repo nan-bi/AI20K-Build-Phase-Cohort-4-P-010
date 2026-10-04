@@ -10,13 +10,13 @@ Nguồn: `backend/src/modules/**/*.controller.ts` trên `main` `0334ebf`, sinh b
 - Vai trò hợp lệ (`auth.constants.ts`): `tenant`, `landlord`, `field_host`, `ops_admin`.
 
 ## Tổng kết
-- Route: 96; có `@Public`: 65; có `@Roles`: 28; còn lại cần đăng nhập nhưng không giới hạn vai trò: 1. (Cập nhật Bước 2: toàn bộ `/admin/*` khóa `ops_admin`, thêm 5 route; Bước 3 thêm 2 route dispatch; Bước 4 thêm 1 route `POST /admin/mandates/:id/terminate`; số liệu bảng module admin đã chỉnh, các cột khác chưa tính lại.)
+- Route: 101; có `@Public`: 65; có `@Roles`: 33; còn lại cần đăng nhập nhưng không giới hạn vai trò: 1. (Cập nhật Bước 2: toàn bộ `/admin/*` khóa `ops_admin`, thêm 5 route; Bước 3 thêm 2 route dispatch; Bước 4 thêm 1 route `POST /admin/mandates/:id/terminate`; Bước 5 thêm 5 route deposits/door-keys; số liệu bảng module admin đã chỉnh, các cột khác chưa tính lại.)
 - Checklist cần gắn (`[ ]`, public và chưa `@Roles`, không tính `auth`): 74; `auth` cần xem xét (`(?)`): 10.
 
 | Module | Route | PUBLIC | ROLES | Cần gắn @Roles |
 |---|---:|---:|---:|---:|
 | account | 8 | 8 | 0 | 8 |
-| admin | 27 | 0 | 27 | 0 |
+| admin | 32 | 0 | 32 | 0 |
 | auth | 14 | 10 | 3 | xem xét |
 | booking | 9 | 9 | 0 | 9 |
 | contract | 3 | 3 | 0 | 3 |
@@ -64,6 +64,11 @@ Cột `Gợi ý` chỉ là đề xuất theo tên module để người duyệt;
 | [ ] | POST | `/admin/contracts/:id/void-hold` | voidHold | backend/src/modules/admin/admin.controller.ts:85 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 | [ ] | POST | `/admin/contracts/:id/complete-exit` | completeExit | backend/src/modules/admin/admin.controller.ts:92 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 | [ ] | POST | `/admin/contracts/:id/remind-renewal` | remindRenewal | backend/src/modules/admin/admin.controller.ts:99 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/deposits` | listDeposits | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/deposits/:id/resolve-unc` | resolveUnc | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/door-keys` | listDoorKeys | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/door-keys/:id/rotate` | rotateDoorKey | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/door-keys/:id/revoke` | revokeDoorKey | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 | [ ] | GET | `/admin/contract-templates` | getContractTemplates | backend/src/modules/admin/admin.controller.ts:106 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 | [ ] | GET | `/admin/contract-templates/:id` | getContractTemplateById | backend/src/modules/admin/admin.controller.ts:113 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 | [ ] | GET | `/admin/contract-parties` | getContractParties | backend/src/modules/admin/admin.controller.ts:120 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |

@@ -59,3 +59,10 @@ Backlog: hàng đợi eKYC NEEDS_REVIEW cho compliance_officer (cần portal đ�
 - LƯU Ý HÌNH DẠNG: `dropRate`, `noShowRate`, `occupancyRate` đổi từ chuỗi mock ('3.8%') sang số (phần trăm, 1 chữ số thập phân) — trước đây là dữ liệu giả nên không có client thật phụ thuộc; cần xác nhận khi nối UI thật.
 - Terminate mandate chỉ cho phép khi mandate EXIT_REQUESTED, đã qua `exitEffectiveAt`, Unit không HOLDING, không có Contract ACTIVE/AWAITING_*/DISPUTED. Audit ghi qua AuditService (ngoài transaction vì AuditService dùng Prisma riêng) — cân nhắc audit trong cùng transaction.
 - CÒN MỞ: `consignments/:id/approve|reject` vẫn là giả (chỉ log); chưa có quyết định luồng PENDING_INSPECTION → ACTIVE.
+
+## Cập nhật Bước 5 (2026-10-04)
+- ĐÃ CHỐT: bỏ hẳn SĐT/CCCD khỏi `GET /admin/contracts` (không che 4 số cuối); `voidHold` chỉ ghi audit `DEPOSIT_VOID_REQUESTED`, không đổi `paymentStatus`; từ chối UNC ⇒ `QR_EXPIRED`.
+- CÒN MỞ (chính sách): hủy cọc giữ chỗ khi chủ nhà vi phạm / bất khả kháng thì hoàn hay tịch thu, và phạt vi phạm bao nhiêu? `DepositStatus` chưa có trạng thái "hủy trung tính". Đề xuất (chưa làm schema): thêm trạng thái hoặc bảng yêu cầu hủy.
+- `POST /admin/contracts/:id/void-hold`: `:id` là id của HoldingDeposit (giữ đường dẫn cũ để không vỡ frontend).
+- Mã khóa: rotate sinh PIN 6 số, mã hóa bằng `PhoneService.encrypt` (AES) rồi lưu `vaultSecretRef`; PIN không trả về cho admin nên chưa có kênh gửi mã mới cho Host/khách (cần quyết định luồng).
+- Chưa làm: hàng đợi eKYC `NEEDS_REVIEW` cho compliance_officer (role chưa có trong RolesGuard); `GET /admin/contracts/:id`, `complete-exit`, `remind-renewal` vẫn là dữ liệu giả (getContractById chứa SĐT/CCCD giả).
