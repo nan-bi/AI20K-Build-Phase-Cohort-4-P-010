@@ -35,7 +35,7 @@ export const landlordApi = {
     api.delete<ConsignmentPhoto[]>(`${BASE}/consignments/${encodeURIComponent(id)}/photos/${encodeURIComponent(photoId)}`),
   sendSignOtp: (id: string, phone?: string) =>
     api.post<SignOtpInfo>(`${BASE}/consignments/${encodeURIComponent(id)}/send-otp`, phone ? { phone } : {}),
-  signConsignment: (id: string, body: { ownershipWarranted: boolean; otp: string; phone?: string }) =>
+  signConsignment: (id: string, body: { ownershipWarranted: boolean; otp?: string; phone?: string }) =>
     api.post<Consignment>(`${BASE}/consignments/${encodeURIComponent(id)}/sign`, body),
 
   finance: () => api.get<Finance>(`${BASE}/finance`),

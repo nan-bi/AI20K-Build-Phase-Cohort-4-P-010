@@ -27,6 +27,7 @@ import { FieldHostsModule } from './modules/field-hosts/field-hosts.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HostViewingsModule } from './modules/host-viewings/host-viewings.module';
 import { DoorModule } from './modules/door/door.module';
+import { InspectionModule } from './modules/inspection/inspection.module';
 
 // Common Filters, Guards & Interceptors
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
@@ -66,6 +67,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     DemoModule,
     HostViewingsModule,
     DoorModule,
+    InspectionModule,
   ],
   providers: [
     {

@@ -8,194 +8,129 @@ import { DataTable } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { toast } from "@/components/ui/Toast";
-import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { hostAcceptInspection } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/actors";
 import { fmtDateTime } from "@/lib/mock/format";
-import { hostInspections, isInspectOverdue } from "@/lib/mock/selectors-inspection";
-import { useMock } from "@/lib/mock/store";
-import type { Consignment } from "@/lib/mock/types";
-import { landlordById } from "@/lib/mock/units";
+import { inspectionApi, useInspectionBoard, type InspectionBoardView } from "@/lib/inspection/api";
+import { doneCounts, hoursLeft } from "@/lib/inspection/logic";
+import { useInspectionAction } from "@/lib/inspection/useInspectionAction";
+import type { InspectionCard } from "@/lib/inspection/types";
 import { useNow } from "@/lib/useNow";
 
-const HOST_ID = DEMO_USERS.host.refId!;
+const small = { padding: "4px 12px", fontSize: "var(--fs-13)" } as const;
 
 export function InspectionList() {
-  const state = useMock();
+  const { state, reload } = useInspectionBoard();
+  if (state.status === "loading") return <div className="skeleton" style={{ height: 420 }} />;
+  if (state.status === "error") {
+    return <EmptyState title="Không tải được danh sách thẩm định" description={state.message} action={<button type="button" className="btn btn-primary" onClick={reload}>Thử lại</button>} />;
+  }
+  return <Board board={state.data} />;
+}
+
+function Board({ board }: { board: InspectionBoardView }) {
   const now = useNow(10_000);
-  const items = hostInspections(state, HOST_ID);
+  const { busy, run } = useInspectionAction();
+  const counts = doneCounts(board.done);
 
-  const awaiting = items.filter((c) => c.status === "awaiting_host");
-  const inspecting = items.filter((c) => c.status === "inspecting");
-  const reviewing = items.filter((c) => c.status === "reviewing");
+  /** Giờ còn lại theo GIỜ MÁY CHỦ (đồng hồ máy Host có thể lệch). */
+  const dueCell = (c: InspectionCard) => {
+    if (c.overdue) return <StatusBadge tone="warn">Quá hạn</StatusBadge>;
+    const serverNow = Date.parse(board.serverTime) + ((now || board.receivedAt) - board.receivedAt);
+    return <span style={{ fontSize: "var(--fs-13)" }}>Còn {hoursLeft(c.inspectDueAt, serverNow)}h</span>;
+  };
 
-  // Section "Cần xử lý" = awaiting_host + inspecting, sắp theo inspectDueAt tăng dần
-  const activeItems = [...awaiting, ...inspecting].sort((a, b) => {
-    const dueA = a.inspectDueAt ? new Date(a.inspectDueAt).getTime() : 0;
-    const dueB = b.inspectDueAt ? new Date(b.inspectDueAt).getTime() : 0;
-    return dueA - dueB;
-  });
+  async function take(c: InspectionCard, claim: boolean) {
+    const res = await run(() => (claim ? inspectionApi.claim(c.id) : inspectionApi.accept(c.id)), claim ? "Đã nhận ticket. Mở phiếu khi tới căn." : "Đã nhận ca. Mở phiếu khi tới căn.");
+    if (!res.ok && res.code === "inspection_not_open") toast("Ca còn dành cho Inspector được giao.", "info");
+  }
 
-  // Section "Đã nộp" = reviewing | approved | rejected
-  const submittedItems = items.filter(
-    (c) => c.status === "reviewing" || c.status === "approved" || c.status === "rejected",
-  );
+  const common = [
+    { key: "can", header: "Căn hộ", render: (c: InspectionCard) => <strong>{c.building} · Tầng {c.floor} · Căn {c.door ?? "—"}</strong> },
+    { key: "layout", header: "Loại · Diện tích", render: (c: InspectionCard) => `${c.layoutKind} · ${c.areaM2} m² tim tường` },
+    { key: "landlord", header: "Chủ nhà", render: (c: InspectionCard) => c.landlordName },
+  ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-6)" }}>
-      <PageHeader
-        title="Thẩm định ký gửi"
-        description="Kiểm tra thực tế căn chủ nhà ký gửi — thẩm định 1 lần, chi phí 0đ cho chủ nhà."
-      />
+      <PageHeader title="Thẩm định ký gửi" description="Kiểm tra thực tế căn chủ nhà ký gửi. Đạt là căn lên danh sách ngay — không qua Admin." />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "var(--s-3)",
-        }}
-      >
-        <StatTile label="Chờ nhận" value={`${awaiting.length} căn`} />
-        <StatTile label="Đang thẩm định" value={`${inspecting.length} căn`} />
-        <StatTile label="Chờ Admin duyệt" value={`${reviewing.length} căn`} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--s-3)" }}>
+        <StatTile label="Cần làm" value={`${board.mine.length} căn`} />
+        <StatTile label="Ticket mở" value={`${board.open.length} căn`} />
+        <StatTile label="Đã niêm yết / Không đạt" value={`${counts.approved} / ${counts.rejected}`} />
       </div>
 
-      <Section title="Cần xử lý" flush>
-        <DataTable<Consignment>
+      <Section title="Cần làm" flush>
+        <DataTable<InspectionCard>
           columns={[
-            {
-              key: "can",
-              header: "Căn hộ",
-              render: (c) => (
-                <strong>
-                  {c.building} · Tầng {c.floor} · Căn {c.door}
-                </strong>
-              ),
-            },
-            {
-              key: "layout",
-              header: "Loại · Diện tích",
-              render: (c: Consignment) => `${c.layout} · ${c.areaM2} m² tim tường`,
-            },
-            {
-              key: "landlord",
-              header: "Chủ nhà",
-              render: (c) => landlordById(c.landlordId)?.name ?? c.landlordId,
-            },
-            {
-              key: "due",
-              header: "Hạn thẩm định",
-              render: (c) => {
-                if (!c.inspectDueAt) return "—";
-                const isOverdue = isInspectOverdue(c, now);
-                if (isOverdue) {
-                  return <StatusBadge tone="warn">Quá hạn</StatusBadge>;
-                }
-                const diffMs = new Date(c.inspectDueAt).getTime() - now;
-                const hours = Math.max(0, Math.ceil(diffMs / 3_600_000));
-                return <span style={{ fontSize: "var(--fs-13)" }}>Còn {hours}h</span>;
-              },
-            },
-            {
-              key: "status",
-              header: "Trạng thái",
-              render: (c) => {
-                const meta = CONSIGN_STATUS_META[c.status];
-                return <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>;
-              },
-            },
+            ...common,
+            { key: "due", header: "Hạn thẩm định", render: dueCell },
             {
               key: "action",
               header: "Hành động",
               align: "right",
-              render: (c) => {
-                if (c.status === "awaiting_host") {
-                  return (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      style={{ padding: "4px 12px", fontSize: "var(--fs-13)" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const res = hostAcceptInspection(c.id, HOST_ID);
-                        if (res.ok) {
-                          toast("Đã nhận. Mở phiếu thẩm định khi tới căn.", "success");
-                        } else {
-                          toast(res.reason, "info");
-                        }
-                      }}
-                    >
-                      Nhận thẩm định
-                    </button>
-                  );
-                }
-                return (
-                  <Link
-                    href={`/host/inspections/${c.id}`}
-                    className="btn btn-secondary"
-                    style={{ padding: "4px 12px", fontSize: "var(--fs-13)" }}
-                  >
-                    Mở phiếu
+              render: (c) =>
+                c.stage === "awaiting_host" ? (
+                  <button type="button" className="btn btn-primary" style={small} disabled={busy} onClick={() => void take(c, false)}>
+                    Nhận ca
+                  </button>
+                ) : (
+                  <Link href={`/host/inspections/${c.id}`} className="btn btn-secondary" style={small}>
+                    Tiếp tục phiếu
                   </Link>
-                );
-              },
+                ),
             },
           ]}
-          rows={activeItems}
-          empty={
-            <EmptyState
-              title="Không có hồ sơ cần xử lý"
-              description="Hiện không có căn nào đang chờ bạn nhận hoặc thẩm định thực tế."
-            />
-          }
+          rows={board.mine}
+          empty={<EmptyState title="Không có hồ sơ cần làm" description="Hiện không có căn nào đang chờ bạn nhận hoặc thẩm định." />}
+        />
+      </Section>
+
+      <Section title="Ticket mở" description="Ca chưa ai nhận sau 4 giờ — Inspector nào nhận trước làm." flush>
+        <DataTable<InspectionCard>
+          columns={[
+            ...common,
+            { key: "zone", header: "Phân khu", render: (c) => c.zone },
+            { key: "due", header: "Hạn thẩm định", render: dueCell },
+            {
+              key: "action",
+              header: "Hành động",
+              align: "right",
+              render: (c) => (
+                <button type="button" className="btn btn-primary" style={small} disabled={busy} onClick={() => void take(c, true)}>
+                  Nhận ticket
+                </button>
+              ),
+            },
+          ]}
+          rows={board.open}
+          empty={<EmptyState title="Không có ticket mở" description="Mọi ca đang có Inspector phụ trách." />}
         />
       </Section>
 
       <Section title="Đã nộp" flush>
-        <DataTable<Consignment>
+        <DataTable<InspectionCard>
           columns={[
+            ...common,
+            { key: "decidedAt", header: "Thời điểm nộp", render: (c) => (c.decidedAt ? fmtDateTime(c.decidedAt) : "—") },
             {
-              key: "can",
-              header: "Căn hộ",
-              render: (c) => (
-                <strong>
-                  {c.building} · Tầng {c.floor} · Căn {c.door}
-                </strong>
-              ),
-            },
-            {
-              key: "layout",
-              header: "Loại · Diện tích",
-              render: (c: Consignment) => `${c.layout} · ${c.areaM2} m² tim tường`,
-            },
-            {
-              key: "landlord",
-              header: "Chủ nhà",
-              render: (c) => landlordById(c.landlordId)?.name ?? c.landlordId,
-            },
-            {
-              key: "submittedAt",
-              header: "Thời điểm nộp",
+              key: "stage",
+              header: "Kết quả",
               render: (c) =>
-                c.report?.submittedAt ? fmtDateTime(c.report.submittedAt) : "—",
-            },
-            {
-              key: "status",
-              header: "Trạng thái",
-              render: (c) => {
-                const meta = CONSIGN_STATUS_META[c.status];
-                return <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>;
-              },
+                c.stage === "approved" ? (
+                  <span style={{ display: "inline-flex", gap: "var(--s-2)", alignItems: "center" }}>
+                    <StatusBadge tone="ok">Đã niêm yết</StatusBadge>
+                    <Link href={`/units/${encodeURIComponent(c.unitCode)}`} className="link" style={{ fontWeight: 500 }}>
+                      Xem tin
+                    </Link>
+                  </span>
+                ) : (
+                  <StatusBadge tone="danger">Không đạt</StatusBadge>
+                ),
             },
           ]}
-          rows={submittedItems}
+          rows={board.done}
           rowHref={(c) => `/host/inspections/${c.id}`}
-          empty={
-            <EmptyState
-              title="Chưa có hồ sơ đã nộp"
-              description="Các báo cáo thẩm định bạn đã hoàn tất sẽ hiển thị tại đây."
-            />
-          }
+          empty={<EmptyState title="Chưa có hồ sơ đã nộp" description="Các phiếu bạn đã hoàn tất sẽ hiển thị tại đây." />}
         />
       </Section>
     </div>

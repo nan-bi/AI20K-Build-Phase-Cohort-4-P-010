@@ -1,6 +1,10 @@
 import type { ConsignmentStatus } from "@/lib/mock/types";
 import type { StatusTone } from "@/components/ui/StatusBadge";
 
+/**
+ * Khoá `reviewing` GIỮ LẠI chỉ để màn Admin mock (có dữ liệu mock mang `reviewing`) còn chạy — dữ liệu từ API
+ * không bao giờ mang trạng thái này (hồ sơ 16 bỏ bước Admin duyệt).
+ */
 export const CONSIGN_STATUS_META: Record<
   ConsignmentStatus,
   { label: string; tone: StatusTone; landlordHint: string }
@@ -13,12 +17,12 @@ export const CONSIGN_STATUS_META: Record<
   awaiting_host: {
     label: "Chờ Field Host nhận",
     tone: "warn",
-    landlordHint: "Field Host phân khu sẽ nhận và hẹn kiểm tra trong 48 giờ.",
+    landlordHint: "Field Host thẩm định phân khu sẽ nhận và hẹn kiểm tra trong 48 giờ.",
   },
   inspecting: {
     label: "Đang thẩm định thực tế",
     tone: "info",
-    landlordHint: "Field Host đang tiến hành kiểm tra và chụp ảnh hiện trạng tại căn.",
+    landlordHint: "Field Host đang kiểm tra thực tế. Thẩm định đạt ⇒ căn lên danh sách ngay.",
   },
   reviewing: {
     label: "Chờ Admin duyệt",
@@ -26,13 +30,13 @@ export const CONSIGN_STATUS_META: Record<
     landlordHint: "Báo cáo thẩm định đã gửi lên Admin để phê duyệt ký gửi chính thức.",
   },
   approved: {
-    label: "Đã ký gửi",
+    label: "Đã niêm yết",
     tone: "ok",
-    landlordHint: "Căn hộ đã hoàn tất thủ tục và được tiếp nhận ký gửi chính thức.",
+    landlordHint: "Thẩm định đạt — căn hộ đã được niêm yết cho khách thuê.",
   },
   rejected: {
-    label: "Không duyệt",
+    label: "Không đạt",
     tone: "danger",
-    landlordHint: "Hồ sơ ký gửi không được phê duyệt. Vui lòng xem lý do bên dưới.",
+    landlordHint: "Thẩm định thực tế không đạt. Vui lòng xem lý do bên dưới.",
   },
 };
