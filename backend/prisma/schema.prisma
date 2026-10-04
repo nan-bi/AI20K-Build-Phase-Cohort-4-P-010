@@ -232,14 +232,14 @@ model Unit {
   createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
-  building Building           @relation(fields: [buildingId], references: [id])
-  landlord Profile            @relation("LandlordUnits", fields: [landlordId], references: [id])
-  doorKey  DoorAccessKey?
-  media    UnitMedia[]
-  mandates ExclusiveMandate[]
-  viewings Viewing[]
-  deposits HoldingDeposit[]
-  contract Contract[]
+  building  Building           @relation(fields: [buildingId], references: [id])
+  landlord  Profile            @relation("LandlordUnits", fields: [landlordId], references: [id])
+  doorKey   DoorAccessKey?
+  media     UnitMedia[]
+  mandates  ExclusiveMandate[]
+  viewings  Viewing[]
+  deposits  HoldingDeposit[]
+  contract  Contract[]
   favorites FavoriteUnit[]
 
   @@index([status, buildingId])
@@ -481,14 +481,16 @@ enum TicketStatus {
 }
 
 model DispatchTicket {
-  id         String       @id @default(uuid()) @db.Uuid
-  viewingId  String       @map("viewing_id") @db.Uuid
-  hostId     String?      @map("host_id") @db.Uuid
-  tier       Int          @default(1) // 1: Assigned Host (5m), 2: Open Pool <=500m (3m), 3: Broadcast Area Lead
-  slaSeconds Int          @map("sla_seconds")
-  status     TicketStatus @default(OFFERED)
-  offeredAt  DateTime     @default(now()) @map("offered_at") @db.Timestamptz
-  acceptedAt DateTime?    @map("accepted_at") @db.Timestamptz
+  id           String       @id @default(uuid()) @db.Uuid
+  viewingId    String       @map("viewing_id") @db.Uuid
+  hostId       String?      @map("host_id") @db.Uuid
+  tier         Int          @default(1) // 1: Assigned Host (5m), 2: Open Pool <=500m (3m), 3: Broadcast Area Lead
+  slaSeconds   Int          @map("sla_seconds")
+  status       TicketStatus @default(OFFERED)
+  offeredAt    DateTime     @default(now()) @map("offered_at") @db.Timestamptz
+  acceptedAt   DateTime?    @map("accepted_at") @db.Timestamptz
+  rejectReason String?      @map("reject_reason") @db.VarChar(120) // lý do Sale từ chối (ticket chuyển ESCALATED)
+  closedAt     DateTime?    @map("closed_at") @db.Timestamptz // lúc ticket rời trạng thái OFFERED/ACCEPTED
 
   viewing Viewing    @relation(fields: [viewingId], references: [id], onDelete: Cascade)
   host    FieldHost? @relation(fields: [hostId], references: [id])

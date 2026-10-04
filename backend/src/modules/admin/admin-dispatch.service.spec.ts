@@ -1,7 +1,6 @@
 /// <reference types="jest" />
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { AdminDispatchService } from './admin-dispatch.service';
-import { DispatchService } from '../dispatch/dispatch.service';
 
 const ACTOR = { id: '11111111-1111-1111-1111-111111111111', role: 'ops_admin' };
 const NOW = new Date('2026-10-04T03:00:00Z');
@@ -154,23 +153,10 @@ describe('AdminDispatchService — reassign (:id = Viewing id)', () => {
     await expect(b.svc.reassign('v1', { hostId: 'h-new', reason: '  ' }, ACTOR, NOW)).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('Host mới thấy ticket, Host cũ không còn thấy qua DispatchService.getHostTickets thật', async () => {
+  it('ticket chuyển sang Host mới (bảng /host/board của Host mới sẽ thấy ASSIGNED, Host cũ không)', async () => {
     const { svc, rows } = build([ticket()], hosts);
     await svc.reassign('v1', { hostId: 'h-new', reason: 'đổi host' }, ACTOR, NOW);
-    const hostPrisma: any = {
-      dispatchTicket: {
-        findMany: jest.fn(async ({ where }: any) =>
-          rows.filter((t) =>
-            where.OR.some((c: any) => c.hostId === t.hostId && (c.status ? c.status === t.status : true)),
-          ),
-        ),
-      },
-    };
-    const dispatch = new DispatchService(hostPrisma, { log: jest.fn() } as any);
-    const forNew = await dispatch.getHostTickets('h-new');
-    expect(forNew.map((t: any) => t.id)).toContain('t1');
-    hostPrisma.dispatchTicket.findMany.mockImplementationOnce(async () => []);
-    expect(rows[0].hostId).toBe('h-new');
+    expect(rows[0]).toEqual(expect.objectContaining({ hostId: 'h-new', status: 'OFFERED', offeredAt: NOW }));
   });
 });
 
