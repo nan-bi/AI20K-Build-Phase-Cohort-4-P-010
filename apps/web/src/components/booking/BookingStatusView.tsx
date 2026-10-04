@@ -55,7 +55,10 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
   const now = useNow(1000);
   const [modal, setModal] = useState<"cancel" | "reschedule" | "leaseWizard" | null>(null);
 
-  const { state: bookingState, reload } = useApiQuery(tenantQueries.booking(refCode));
+  // Tiến trình cập nhật không cần tải lại trang: hẹn tải lại SAU khi đã có phản hồi trước (không chồng request).
+  const { state: bookingState, reload } = useApiQuery(tenantQueries.booking(refCode), true, {
+    pollMs: (b) => (!b || TERMINAL.includes(b.status) ? null : b.status === "holding" ? 15_000 : 5_000),
+  });
   // Hợp đồng chỉ cần khi lịch đã chốt thuê; danh sách căn gợi ý chỉ cần khi lịch đã kết thúc. Chưa cần thì không gọi API.
   const bookingStatus = bookingState.status === "ready" ? bookingState.data.status : null;
   const { state: contractsState } = useApiQuery(tenantQueries.contracts(), bookingStatus === "leased" || bookingStatus === "completed");
@@ -497,43 +500,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                 </Link>
               )}
             </div>
-
-            {/* DEMO TOOLBAR (SPEC-P04 §4: A21) */}
-            {showDemo && (
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--paper-2)", borderRadius: "var(--r)", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                <span className="xs muted" style={{ fontWeight: 600 }}>Công cụ Demo Host:</span>
-                {booking.status === "pending" && (
-                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-accept", "Demo: Host nhận lịch thành công")}>
-                    Host nhận lịch
-                  </button>
-                )}
-                {booking.status === "confirmed" && (
-                  <>
-                    <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("reminder", "Demo: Đã gửi nhắc hẹn Zalo")}>
-                      Nhắc hẹn Zalo
-                    </button>
-                    <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-receive", "Demo: Host đón khách tại sảnh")}>
-                      Host đón tại sảnh
-                    </button>
-                  </>
-                )}
-                {booking.status === "lobby" && (
-                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-receive", "Demo: Host đón khách tại sảnh")}>
-                    Host đón tại sảnh
-                  </button>
-                )}
-                {booking.status === "receiving" && (
-                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-view", "Demo: Mở cửa bắt đầu xem phòng")}>
-                    Mở cửa xem phòng
-                  </button>
-                )}
-                {booking.status === "viewing" && (
-                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-start-deposit", "Demo: Chốt căn & mở điều khoản cọc")}>
-                    Chốt căn (Mở cọc)
-                  </button>
-                )}
-              </div>
-            )}
           </section>
 
           {/* HỒ SƠ CỦA BẠN (KHI ĐÃ KÝ HỢP ĐỒNG HOẶC eKYC) */}
