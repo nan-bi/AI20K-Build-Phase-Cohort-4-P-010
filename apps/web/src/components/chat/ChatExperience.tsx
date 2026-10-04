@@ -3,14 +3,12 @@
 import { useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, CalendarClock, Plus, ReceiptText, Footprints } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
-import { matchmakerApi } from "@/lib/apiClient";
 import { chatAppend, chatReset, chatSetCriteria, chatSetSearch, countGuestMessage } from "@/lib/mock/actions";
 import { vndShort } from "@/lib/mock/format";
 import { interpret, searchUnits } from "@/lib/mock/matchmaker";
-import { unitStatus } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { CriteriaState } from "@/lib/mock/types";
-import { UNITS } from "@/lib/mock/units";
+import { useCatalog } from "@/lib/tenant/catalog";
 import { useRole, useSession } from "@/lib/auth/client";
 import { Composer } from "./Composer";
 import { Messages } from "./Messages";
@@ -34,9 +32,11 @@ export function ChatExperience({ below }: { below: ReactNode }) {
   const [tab, setTab] = useState<"chat" | "results">("chat");
   const busy = useRef(false);
 
-  const statusOf = (u: (typeof UNITS)[number]) => unitStatus(state, u);
-  const openCount = UNITS.filter((u) => unitStatus(state, u) === "available").length;
-  const results = searchUnits(chat.criteria, statusOf);
+  // Matchmaker chạy trên catalog THẬT (API A1): trạng thái từng căn lấy từ DB, không còn danh sách mock trong trình duyệt.
+  const catalog = useCatalog();
+  const statusOf = (u: { baseStatus?: string }) => (u.baseStatus ?? "available") as "available" | "holding" | "rented";
+  const openCount = catalog.available.length;
+  const results = searchUnits(chat.criteria, statusOf, catalog.units);
 
   const locked = state.ready && role === null && state.guestSent >= 1 && !thinking;
   const { user } = useSession();
@@ -49,22 +49,9 @@ export function ChatExperience({ below }: { below: ReactNode }) {
     chatAppend({ role: "user", text });
     if (role === null) countGuestMessage();
 
-    const result = interpret(text, chat.criteria, chat.searched, statusOf);
+    const result = interpret(text, chat.criteria, chat.searched, statusOf, catalog.units);
     const isSearch = result.kind === "search";
     const budget = isSearch ? result.criteria.budget : undefined;
-
-    if (isSearch && budget) {
-      matchmakerApi
-        .recommend({
-          maxAllInBudget: budget,
-          preferredLayout: result.criteria.layouts?.[0],
-          occupants: result.criteria.household?.persons,
-          motorbikes: result.criteria.household?.motorbikes,
-          cars: result.criteria.household?.cars,
-          prompt: text,
-        })
-        .catch(() => null);
-    }
 
     setThinking({
       steps: isSearch
@@ -98,7 +85,7 @@ export function ChatExperience({ below }: { below: ReactNode }) {
           <div className={`wrap ${styles.heroInner}`}>
             <div className={styles.heroTop}>
               <span className={styles.liveBadge}>
-                <i className={styles.liveDot} /> <strong className="num">{openCount} căn</strong> đang mở tại Ocean Park 1
+                <i className={styles.liveDot} /> <strong className="num">{catalog.loading ? "…" : `${openCount} căn`}</strong> đang mở tại Ocean Park 1
               </span>
               <h1 className={styles.h1}>Căn hộ thật ở Ocean Park, tìm ra trong 30 giây</h1>
               <p className={styles.lead}>Không tin ảo, không phí ẩn, không môi giới làm phiền — Host nội khu đón bạn tận sảnh.</p>
@@ -184,7 +171,7 @@ export function ChatExperience({ below }: { below: ReactNode }) {
       </aside>
 
       <section className={styles.results} aria-label="Kết quả tìm căn">
-        <ResultsPanel results={results} criteria={chat.criteria} onCriteria={onCriteria} state={state} totalOpen={openCount} />
+        <ResultsPanel results={results} criteria={chat.criteria} onCriteria={onCriteria} units={catalog.units} totalOpen={openCount} loading={catalog.loading} error={catalog.error} onRetry={catalog.reload} />
       </section>
     </div>
   );

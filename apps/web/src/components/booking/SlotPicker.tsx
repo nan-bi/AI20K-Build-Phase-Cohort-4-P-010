@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { isSameDay } from "@/lib/mock/format";
 import { slotsForDay } from "@/lib/mock/selectors";
 import { SLOT_TIMES } from "@/lib/mock/slots";
-import { useMock } from "@/lib/mock/store";
 import {
   CALENDAR_WEEKDAYS,
   canNavigateMonth,
@@ -22,10 +21,10 @@ export interface SlotPickerProps {
   now: number;                 // > 0; caller tự chặn khi useNow() chưa có giá trị
   value: string | null;        // ISO slot đang chọn
   onChange: (iso: string | null) => void;  // đổi ngày ⇒ onChange(null)
+  busySlots?: string[];
 }
 
-export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
-  const state = useMock();
+export function SlotPicker({ now, value, onChange, busySlots }: SlotPickerProps) {
   const bounds = useMemo(() => getMonthBounds(now), [now]);
 
   // Tháng và năm đang xem trên lịch
@@ -81,17 +80,16 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
     const map = new Map<string, boolean>();
     for (const cell of matrix) {
       if (!cell.isDisabled) {
-        const slots = slotsForDay(state, cell.date, now);
-        const hasAvail = slots.some((s) => s.available);
+        const hasAvail = slotsForDay(cell.date, now, busySlots).some((s) => s.available);
         const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}-${cell.date.getDate()}`;
         map.set(key, hasAvail);
       }
     }
     return map;
-  }, [matrix, state, now]);
+  }, [matrix, now, busySlots]);
 
   // Tìm slot trống sớm nhất trong toàn bộ cửa sổ (từ hôm nay đến hết tháng sau)
-  const earliest = findEarliestInBounds(state, bounds.startOfToday, bounds.endOfMaxMonth, now);
+  const earliest = findEarliestInBounds(bounds.startOfToday, bounds.endOfMaxMonth, now, busySlots);
 
   const handleEarliestClick = () => {
     if (!earliest) return;
@@ -113,9 +111,10 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
   };
 
   // Danh sách slot cho ngày đang chọn
-  const currentSlots = useMemo(() => {
-    return slotsForDay(state, activeSelectedDate, now);
-  }, [state, activeSelectedDate, now]);
+  const currentSlots = useMemo(
+    () => slotsForDay(activeSelectedDate, now, busySlots),
+    [activeSelectedDate, now, busySlots],
+  );
 
   const availableCount = currentSlots.filter((s) => s.available).length;
 
@@ -229,7 +228,7 @@ export function SlotPicker({ now, value, onChange }: SlotPickerProps) {
                     <b className="tnum">{o.time}</b>
                     {!o.available && (
                       <span className="xs">
-                        Quá gần giờ
+                        {o.reason === "busy" ? "Đã có người" : "Quá gần giờ"}
                       </span>
                     )}
                   </button>

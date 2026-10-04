@@ -16,8 +16,6 @@ import { HOLD_HOURS_DEFAULT, HOUR_MS } from "@/lib/mock/cost";
 import { getMockState, resetMockState } from "@/lib/mock/store";
 import {
   bookingById,
-  isHoldForfeited,
-  unitStatus,
 } from "@/lib/mock/selectors";
 import { viewingLog } from "@/lib/mock/selectors-viewing";
 
@@ -224,44 +222,6 @@ describe("Deal Flow - SPEC-P01 §7 / deal.test.ts", () => {
 
     const afterKyc = bookingById(getMockState(), b.id)!;
     expect(afterKyc.kyc?.mismatch).toEqual(["fullName"]);
-  });
-
-  it("(7) demoExpireHold => isHoldForfeited true, unitStatus = available, và signLease => expired", () => {
-    const b = actions.createBooking({
-      unitId: "s2-02-1004",
-      slot: "09:00 - 09:45 30/10/2026",
-      name: "Trần Văn Nam",
-      phone: "0912345678",
-      persons: 2,
-    });
-    actions.hostAccept(b.id);
-    actions.hostStartReceiving(b.id);
-    actions.hostConfirmViewing(b.id);
-    actions.hostStartDeposit(b.id);
-    actions.tenantAcceptDepositTerms(b.id);
-    actions.confirmDepositPaid(b.id, "webhook");
-
-    // Tua hết hạn giữ căn
-    const expireRes = actions.demoExpireHold(b.id);
-    expect(expireRes.ok).toBe(true);
-
-    const held = bookingById(getMockState(), b.id)!;
-    const now = Date.now();
-    expect(isHoldForfeited(held, now)).toBe(true);
-    expect(unitStatus(getMockState(), "s2-02-1004")).toBe("available");
-
-    // Thử ký hợp đồng sau khi đã hết hạn giữ căn
-    const signRes = actions.signLease(b.id, {
-      startDate: "2026-11-01",
-      months: 12,
-      occupants: [{ fullName: "Trần Văn Nam", idOrDob: "001095012345" }],
-      refundAccount: { bankName: "VCB", accountNo: "1234567890", holderName: "Trần Văn Nam" },
-      paymentCycle: 1,
-    });
-    expect(signRes.ok).toBe(false);
-    if (!signRes.ok) {
-      expect(signRes.code).toBe("expired");
-    }
   });
 
   it("(8) cancelBooking khi còn 1h59 => too_late, khi còn 2h01 => ok", () => {

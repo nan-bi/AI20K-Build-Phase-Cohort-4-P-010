@@ -6,8 +6,7 @@ import { Facade } from "@/components/brand/Facade";
 import { UnitCard } from "@/components/unit/UnitCard";
 import { criteriaChips, relaxHint, type MatchResult } from "@/lib/mock/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
-import { unitStatus } from "@/lib/mock/selectors";
-import type { MockState } from "@/lib/mock/types";
+import type { Unit } from "@/lib/mock/units";
 import styles from "./ResultsPanel.module.css";
 
 type Sort = "best" | "price" | "area";
@@ -16,11 +15,14 @@ interface ResultsPanelProps {
   results: MatchResult[];
   criteria: CriteriaState;
   onCriteria: (c: CriteriaState) => void;
-  state: MockState;
+  units: Unit[];
   totalOpen: number;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function ResultsPanel({ results, criteria, onCriteria, state, totalOpen }: ResultsPanelProps) {
+export function ResultsPanel({ results, criteria, onCriteria, units, totalOpen, loading, error, onRetry }: ResultsPanelProps) {
   const [sort, setSort] = useState<Sort>("best");
   const chips = criteriaChips(criteria);
   const hh = criteria.household;
@@ -69,7 +71,21 @@ export function ResultsPanel({ results, criteria, onCriteria, state, totalOpen }
         )}
       </header>
 
-      {results.length === 0 ? (
+      {loading ? (
+        <p className="muted">Đang tải danh sách căn từ hệ thống...</p>
+      ) : error ? (
+        <div className={styles.empty}>
+          <div>
+            <h3>Không tải được danh sách căn</h3>
+            <p className="muted">{error}</p>
+            {onRetry && (
+              <button type="button" className="btn btn-outline btn-sm" onClick={onRetry}>
+                Thử lại
+              </button>
+            )}
+          </div>
+        </div>
+      ) : results.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyArt}>
             <Facade lit={0} label="" />
@@ -79,7 +95,7 @@ export function ResultsPanel({ results, criteria, onCriteria, state, totalOpen }
               <SearchX size={18} style={{ verticalAlign: "-3px", marginRight: 6 }} />
               Không có căn nào vừa với bộ lọc này
             </h3>
-            <p className="muted">{relaxHint(criteria, (u) => unitStatus(state, u))}</p>
+            <p className="muted">{relaxHint(criteria, (u) => u.baseStatus, units)}</p>
             <div className={styles.emptyActions}>
               {criteria.budget && (
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => onCriteria({ ...criteria, budget: criteria.budget! + 1_000_000 })}>

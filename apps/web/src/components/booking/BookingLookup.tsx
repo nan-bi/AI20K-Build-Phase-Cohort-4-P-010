@@ -6,32 +6,41 @@ import { useState } from "react";
 import { CalendarSearch, ChevronRight } from "lucide-react";
 import { STATUS_META } from "./status";
 import { dayLabel, fmtTime } from "@/lib/mock/format";
-import { bookingByRef } from "@/lib/mock/selectors";
-import { accountPhone, ownsBooking, tenantBookings } from "@/lib/mock/selectors-tenant";
-import { useMock } from "@/lib/mock/store";
-import { unitAddress, unitById } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
+import { useApiQuery } from "@/lib/query/useApiQuery";
+import { tenantQueries } from "@/lib/tenant/queries";
+import { tenantApi } from "@/lib/tenant/api";
+import { toUnit } from "@/lib/tenant/adapters";
+import { unitAddress } from "@/lib/mock/units";
 import styles from "./Booking.module.css";
 
 export function BookingLookup() {
   const router = useRouter();
-  const state = useMock();
   const now = useNow(60_000);
   const [ref, setRef] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const phone = accountPhone(state);
-  const mine = tenantBookings(state, phone);
+  // A7: Danh sách lịch xem của tôi từ backend
+  const { state: bookingsState } = useApiQuery(tenantQueries.bookings());
+  const mine = bookingsState.status === "ready" ? bookingsState.data : [];
+  const isLoading = bookingsState.status === "loading";
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanRef = ref.trim().toUpperCase();
-    const b = bookingByRef(state, cleanRef);
-    if (!b || !ownsBooking(state, b)) {
+    if (!cleanRef) return;
+    setSubmitting(true);
+    setError("");
+
+    const res = await tenantApi.bookingByRef(cleanRef);
+    setSubmitting(false);
+
+    if (!res.ok || !res.data) {
       setError("Không tìm thấy lịch hẹn này trong tài khoản của bạn.");
       return;
     }
-    router.push(`/booking/${b.ref}`);
+    router.push(`/booking/${res.data.ref}`);
   };
 
   return (
@@ -59,25 +68,27 @@ export function BookingLookup() {
             />
           </label>
           {error && <p className="field-error" role="alert">{error}</p>}
-          <button type="submit" className="btn btn-primary btn-lg btn-block">
-            Mở lịch hẹn
+          <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={submitting}>
+            {submitting ? "Đang kiểm tra..." : "Mở lịch hẹn"}
           </button>
         </form>
       </div>
 
       <section className={styles.mine} aria-label="Lịch xem của tôi">
         <h2>Lịch xem của tôi</h2>
-        {mine.length === 0 ? (
+        {isLoading ? (
+          <div className="skeleton" style={{ height: 120 }} />
+        ) : mine.length === 0 ? (
           <p className="muted">
             Bạn chưa có lịch xem nào trong tài khoản. <Link href="/units" className="link">Tìm căn để xem</Link>
           </p>
         ) : (
           <ul className={styles.list}>
             {mine.map((b) => {
-              const u = unitById(b.unitId)!;
+              const u = toUnit(b.unit);
               const meta = STATUS_META[b.status];
               return (
-                <li key={b.id}>
+                <li key={b.ref}>
                   <Link href={`/booking/${b.ref}`} className={styles.row}>
                     <div>
                       <b>{unitAddress(u)}</b>

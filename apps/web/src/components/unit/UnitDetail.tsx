@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Star } from "lucide-react";
+import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Users } from "lucide-react";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { toast } from "@/components/ui/Toast";
 import { allInCost, DEFAULT_HOUSEHOLD, isBargain, RATES, savingsPct, type Household } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
-import { holdHoursFor, similarUnits, unitStatus } from "@/lib/mock/selectors";
 import { HOUSE_RULES } from "@/lib/mock/house-rules";
-import { useMock } from "@/lib/mock/store";
 import {
   FURNISHING_LABEL,
   ITEM_LABEL,
   PASSPORT_ITEMS,
-  hostForUnit,
   unitAddress,
   zoneById,
   type Unit,
@@ -24,6 +21,7 @@ import { FavoriteButton } from "./FavoriteButton";
 import { Gallery } from "./Gallery";
 import { LocationMap } from "./LocationMap";
 import { UnitBadges } from "./UnitBadges";
+import { similarUnits, useCatalog } from "@/lib/tenant/catalog";
 import { UnitCard } from "./UnitCard";
 import styles from "./UnitDetail.module.css";
 
@@ -46,18 +44,32 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
   );
 }
 
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth/client";
+
 export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBooking: boolean }) {
-  const state = useMock();
+  const { user } = useSession();
+  const router = useRouter();
   const zone = zoneById(unit.zoneId);
-  const host = hostForUnit(unit);
-  const status = unitStatus(state, unit);
-  const [hh, setHh] = useState<Household>(state.chat.criteria.household ?? DEFAULT_HOUSEHOLD);
-  const [booking, setBooking] = useState(autoOpenBooking);
+  const status = unit.baseStatus;
+  const [hh, setHh] = useState<Household>(DEFAULT_HOUSEHOLD);
+  const isTenant = user?.portal === "tenant";
+  const [booking, setBooking] = useState(autoOpenBooking && isTenant);
   const cost = allInCost(unit, hh);
   const sv = savingsPct(unit);
   const bookable = status === "available";
-  const holdHours = holdHoursFor(state, unit.id);
-  const similar = similarUnits(state, unit, 3);
+  const holdHours = (unit as Unit & { holdHours?: number }).holdHours ?? 48;
+  // Chỉ cần danh sách căn để gợi ý căn thay thế khi căn này đã bị giữ chỗ / cho thuê; căn còn trống thì không tải.
+  const catalog = useCatalog(status !== "available");
+  const similar = similarUnits(catalog.units, unit, 3);
+
+  const handleOpenBooking = () => {
+    if (!user || user.portal !== "tenant") {
+      router.push(`/login?next=/units/${encodeURIComponent(unit.code || unit.id)}?book=1`);
+      return;
+    }
+    setBooking(true);
+  };
 
   const share = async () => {
     const url = window.location.href;
@@ -245,11 +257,13 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
           </section>
 
           <section className={`${styles.block} ${styles.hostCard}`}>
-            <span className={styles.hostAvatar}>{host.name.split(" ").slice(-1)[0][0]}</span>
+            <span className={styles.hostAvatar}>
+              <Users size={18} />
+            </span>
             <div>
-              <h2>Field Host phụ trách: {host.name}</h2>
+              <h2>Field Host nội khu {zone.short} đón bạn tại sảnh</h2>
               <p className="muted">
-                <Star size={13} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} /> {String(host.rating).replace(".", ",")} · có thẻ cư dân thang máy · nhận lịch trong ≤ 3 phút. Số điện thoại chủ nhà được ẩn; mọi liên lạc đi qua Zalo VinStay.
+                Host có thẻ cư dân thang máy, được điều phối tự động và nhận lịch trong ≤ 3 phút; sau khi đặt lịch bạn sẽ thấy tên Host phụ trách. Số điện thoại chủ nhà được ẩn; mọi liên lạc đi qua Zalo VinStay.
               </p>
             </div>
           </section>
@@ -268,7 +282,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
 
             {bookable ? (
               <>
-                <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => setBooking(true)}>
+                <button type="button" className="btn btn-primary btn-lg btn-block" onClick={handleOpenBooking}>
                   <CalendarPlus size={19} /> Đặt lịch xem phòng
                 </button>
                 <Link href="/" className="btn btn-quiet btn-block">

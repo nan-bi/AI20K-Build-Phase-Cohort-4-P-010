@@ -1,30 +1,22 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import { accountApi } from "@/lib/apiClient";
-import { toggleFavorite } from "@/lib/mock/actions";
-import { useMock } from "@/lib/mock/store";
-import { toast } from "@/components/ui/Toast";
+import { useFavorites } from "@/lib/tenant/favorites";
 import styles from "./UnitCard.module.css";
 
+/** `unitId` là mã căn (VHOP-…). Trạng thái tim đọc từ DB theo tài khoản, không còn lưu tạm ở trình duyệt. */
 export function FavoriteButton({ unitId, variant = "overlay" }: { unitId: string; variant?: "overlay" | "plain" }) {
-  const { favorites } = useMock();
-  const saved = favorites.includes(unitId);
+  const { isSaved, toggle, busy } = useFavorites();
+  const saved = isSaved(unitId);
   return (
     <button
       type="button"
       className={variant === "overlay" ? styles.fav : "icon-btn"}
       aria-pressed={saved}
+      aria-busy={busy === unitId}
+      disabled={busy === unitId}
       aria-label={saved ? "Bỏ khỏi danh sách đã lưu" : "Lưu căn này"}
-      onClick={() => {
-        toggleFavorite(unitId);
-        if (saved) {
-          accountApi.removeFavorite(unitId).catch(() => null);
-        } else {
-          accountApi.addFavorite(unitId).catch(() => null);
-        }
-        toast(saved ? "Đã bỏ khỏi danh sách lưu" : "Đã lưu căn này", saved ? "info" : "success");
-      }}
+      onClick={() => void toggle(unitId)}
     >
       <Heart size={variant === "overlay" ? 18 : 20} fill={saved ? "currentColor" : "none"} className={saved ? styles.saved : ""} />
     </button>

@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, EyeOff, FileCheck2, KeyRound, Star } from "lucide-react";
+import { ArrowRight, BadgeCheck, EyeOff, FileCheck2, KeyRound } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { UnitCard } from "@/components/unit/UnitCard";
-import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
-import { allInCost, DEFAULT_HOUSEHOLD, isBargain, RATES } from "@/lib/mock/cost";
+import { RATES } from "@/lib/mock/cost";
 import { vnd, vndShort } from "@/lib/mock/format";
-import { UNITS, ZONES, hostById, unitById } from "@/lib/mock/units";
 import { AllInDemo } from "./AllInDemo";
+import { LiveBargains, LiveVerifiedPhoto, LiveZones } from "./LandingLive";
 import styles from "./Landing.module.css";
 
 const FLOW = [
@@ -26,9 +24,6 @@ const FAQ = [
   { q: "Ảnh CCCD của tôi được xử lý thế nào?", a: "AI đọc CCCD trong khoảng 5 giây để điền thỏa thuận. Dữ liệu được mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP, chỉ dùng cho giao dịch này và không gửi cho môi giới hay chủ nhà." },
   { q: "Ai sửa chữa khi có hỏng hóc?", a: "VinStay và Field Host không nhận sửa chữa. Host giới thiệu danh bạ thợ ngoài uy tín tại Ocean Park để bạn tự thoả thuận giá và trách nhiệm." },
 ];
-
-const bargains = UNITS.filter((u) => u.baseStatus === "available" && isBargain(u)).slice(0, 4);
-const photoUnit = unitById("s2-16-2216")!;
 
 export function Landing() {
   return (
@@ -68,7 +63,7 @@ export function Landing() {
       <section className={styles.section}>
         <div className={`wrap ${styles.split} ${styles.flip}`}>
           <div className={styles.photo}>
-            <VerifiedPhoto unit={photoUnit} index={5} sizes="(max-width: 900px) 100vw, 600px" stamp="full" className={styles.photoFrame} />
+            <LiveVerifiedPhoto />
           </div>
           <div className={styles.copy}>
             <h2 className={styles.h2}>Mỗi ảnh có mã căn và dấu thời gian</h2>
@@ -105,11 +100,7 @@ export function Landing() {
               Xem tất cả căn <ArrowRight size={16} />
             </Link>
           </div>
-          <div className={styles.cards}>
-            {bargains.map((u) => (
-              <UnitCard key={u.id} unit={u} cost={allInCost(u, DEFAULT_HOUSEHOLD)} />
-            ))}
-          </div>
+          <LiveBargains />
         </div>
       </section>
 
@@ -119,28 +110,7 @@ export function Landing() {
             <h2 className={styles.h2}>Phủ sóng các phân khu Ocean Park 1</h2>
             <p>Mỗi phân khu có Field Host riêng đã có thẻ cư dân thang máy, nên lịch xem luôn có người đón đúng giờ.</p>
           </div>
-          <ul className={styles.zones}>
-            {ZONES.map((z) => {
-              const list = UNITS.filter((u) => u.zoneId === z.id && u.baseStatus === "available");
-              const host = hostById(z.hostId)!;
-              const lo = Math.min(...list.map((u) => u.rent));
-              const hi = Math.max(...list.map((u) => u.rent));
-              return (
-                <li key={z.id}>
-                  <div>
-                    <strong>{z.name}</strong>
-                    <p className="muted small">Toà {z.buildings.join(", ")}</p>
-                  </div>
-                  <div className={styles.zoneRight}>
-                    <span className="tnum">{list.length} căn · {vndShort(lo)}–{vndShort(hi)}</span>
-                    <span className="muted small">
-                      Host {host.name} <Star size={12} fill="currentColor" style={{ verticalAlign: "-1px", color: "var(--amber)" }} /> {host.rating.toString().replace(".", ",")}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <LiveZones />
         </div>
       </section>
 

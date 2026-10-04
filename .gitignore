@@ -72,6 +72,7 @@ backend/node_modules/
 backend/dist/
 backend/*.tsbuildinfo
 backend/.env
+backend/tmp/
 
 #harness
 brain4agent/
