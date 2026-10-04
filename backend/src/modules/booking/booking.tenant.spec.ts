@@ -12,6 +12,8 @@ import { BookingAccessService } from '../tenant/booking-access.service';
 import { PhoneService } from '../auth/phone/phone.service';
 import { ActionTokenService } from '../auth/otp/action-token.service';
 import { DemoGuard } from '../demo/demo.guard';
+import { DispatchAssignerService } from '../dispatch/dispatch-assigner.service';
+import { ViewingFlowService } from '../host-viewings/viewing-flow.service';
 import { ViewingStatus, UnitStatus, TicketStatus, HostDutyStatus } from '@prisma/client';
 
 const TENANT_ID = '00000000-0000-4000-8000-000000000001';
@@ -96,6 +98,7 @@ function fakePrisma() {
       updateMany: jest.fn(async () => ({ count: 1 })),
     },
     fieldHost: {
+      findMany: jest.fn(async () => [{ id: HOST_ID, rating: 4.9, createdAt: new Date() }]),
       findFirst: jest.fn(async () => ({
         id: HOST_ID,
         rating: 4.9,
@@ -143,6 +146,8 @@ describe('Tenant Booking Backend (SPEC-P02 §6: 14 test cases)', () => {
       bookingAccess,
       phoneService,
       actionTokens,
+      new DispatchAssignerService(fixture.prisma as any),
+      {} as ViewingFlowService, // chỉ dùng cho công cụ demo A21 — test riêng ở host-viewings.spec
     );
   });
 

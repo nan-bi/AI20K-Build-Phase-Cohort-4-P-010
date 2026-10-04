@@ -7,6 +7,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super({
+      // DB ở xa (mỗi vòng truy vấn 0,25–1s): giao dịch nhiều câu lệnh dễ vượt 5s mặc định ⇒ "Transaction already closed".
+      transactionOptions: { maxWait: 10_000, timeout: 20_000 },
       // Băm mật khẩu không bao giờ rò sang response của module khác; AuthService.login tự bật lại cho mình.
       omit: { profile: { passwordHash: true } },
       log: [

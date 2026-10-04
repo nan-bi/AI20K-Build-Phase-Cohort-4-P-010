@@ -96,13 +96,13 @@ Màn: bảng điều phối, buổi xem phòng, thẩm định căn ký gửi, t
 
 | Endpoint | Vai | Màn hình / bước nghiệp vụ | TT |
 |---|---|---|---|
-| `GET /dispatch/tickets` | field_host | bảng điều phối: ticket được giao + ticket mở | ⚠️ thêm ticket mở |
-| `POST /dispatch/tickets/:id/accept` · `/reject` `{reason}` | field_host | nhận / từ chối ticket (từ chối → điều phối lại) | ✅ / ⬜ |
-| `POST /dispatch/tickets/:id/claim` | field_host | nhận ticket mở trong Open Pool | ⬜ |
-| `POST /dispatch/tickets/:id/elevator-rfid` | field_host | đón khách ở sảnh, quẹt thẻ thang máy | ✅ |
-| `POST /dispatch/tickets/:id/reveal-key` | field_host | [Xác nhận xem phòng] tại cửa → nhận mã cửa, báo chủ nhà | ✅ |
-| `POST /dispatch/tickets/:id/emergency` `{kind: smart_lock \| physical_key}` | field_host | hỗ trợ khẩn cấp khi khoá lỗi / mất chìa | ⬜ |
-| `POST /dispatch/tickets/:id/no-show` · `/not-interested` `{reason}` | field_host | khách không đến / xem xong chưa thuê | ⬜ |
+| `GET /host/board` | field_host (sale) | **Lịch & yêu cầu**: yêu cầu mới (ASSIGNED 3′ → Open Pool phân khu → mọi Sale) · lịch của tôi · lịch sử · KPI — 1 request, web poll 15″ | ✅ |
+| `POST /host/tickets/:id/accept` · `/reject` `{reason}` · `/claim` | field_host (sale) | nhận ticket được giao / từ chối (giao Sale khác) / nhận trong Open Pool (nguyên tử, ai nhận trước thắng) | ✅ |
+| `GET /host/viewings/:ref` | field_host (sale) | chi tiết ca — chỉ chủ ca (khác ⇒ 404), có SĐT đầy đủ của khách | ✅ |
+| `POST /host/viewings/:ref/remind` · `/receive` · `/no-show` | field_host (sale) | nhắc T-10 (chỉ ghi mốc) · đã đón khách ở sảnh · khách không đến (≥ giờ hẹn + 15′) | ✅ |
+| `POST /host/viewings/:ref/open-door` · `/door-code` | field_host (sale) | [Mở cửa] ca RECEIVING → VIEWING, trả mã cửa hiển thị 10′ + ghi `DOOR_KEY_REVEAL` cho chủ nhà; thiếu mã ⇒ 409 `door_code_missing` (không có PIN giả) | ✅ |
+| `POST /host/viewings/:ref/start-deposit` · `/not-interested` `{reason}` · `/emergency` | field_host (sale) | khách muốn cọc (⇒ CLOSING, khách tự quét VietQR — Host không đụng tiền) · khách chưa quyết · báo sự cố khoá/chìa (chỉ ghi nhật ký) | ✅ |
+| `PATCH /host/me/duty` `{status}` | field_host (sale) | bật/tắt trực (đang dẫn khách ⇒ 409 `host_busy`) | ✅ |
 | `GET /host/inspections` | field_host (inspector) | danh sách căn ký gửi cần thẩm định | ⬜ |
 | `POST /host/inspections/:consignmentId/accept` | field_host | nhận việc thẩm định | ⬜ |
 | `POST /host/inspections/:consignmentId/report` | field_host | nộp báo cáo: đối chiếu thông tin khai báo, kiểm kê nội thất có ảnh + % độ mới, diện tích thông thuỷ, đề xuất duyệt/từ chối | ⬜ |
@@ -175,7 +175,9 @@ backend/
 │       ├── property/          # Toà, căn hộ, All-in Cost
 │       ├── matchmaker/        # AI Matchmaker & badge "Căn hời"
 │       ├── booking/           # Lịch xem, check-in sảnh
-│       ├── dispatch/          # Ticket điều phối Host, RFID thang máy, cấp mã cửa
+│       ├── dispatch/          # DispatchAssignerService (chọn Sale), tầng 3 lớp tính lúc đọc — route `/dispatch/*` giả đã xoá (hồ sơ 15)
+│       ├── host-viewings/     # Cổng Sale `/host/board|tickets|viewings` — ViewingFlowService là nguồn duy nhất chuyển trạng thái ca (hồ sơ 15)
+│       ├── door/              # DoorCodeService: mã cửa `aes:<AES-256-GCM>` (`npm run rekey:door-codes`)
 │       ├── deposit/           # VietQR cọc giữ chỗ, webhook, Conflict Resolver
 │       ├── identity/          # eKYC CCCD
 │       ├── contract/          # Mandate, gói chứng cứ

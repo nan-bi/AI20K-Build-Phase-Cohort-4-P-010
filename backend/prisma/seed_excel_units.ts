@@ -1702,7 +1702,7 @@ async function main() {
       create: {
         unitId: unit.id,
         keyType: u.doorLockType as DoorLockType,
-        vaultSecretRef: `vault:aes256:door_pin:${u.unitCode}`,
+        vaultSecretRef: null, // chuỗi giữ chỗ cũ không phải PIN — chạy `npm run rekey:door-codes -- --apply` sau seed (hồ sơ 15)
       },
     });
 

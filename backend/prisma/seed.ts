@@ -238,7 +238,7 @@ async function main() {
       create: {
         unitId: unit.id,
         keyType: u.doorLockType,
-        vaultSecretRef: u.doorLockType === DoorLockType.ELECTRONIC_PIN ? 'vault:enc:pin:482910' : null,
+        vaultSecretRef: null, // không có PIN thật — chạy `npm run rekey:door-codes -- --apply` sau seed (hồ sơ 15)
       },
     });
 

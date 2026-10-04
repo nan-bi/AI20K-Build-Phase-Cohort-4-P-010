@@ -174,7 +174,9 @@ export function toTenantBooking(
 
   // Host info from tickets
   const tickets = viewing.tickets || [];
-  const acceptedTicket = tickets.find((t: any) => t.status === 'ACCEPTED');
+  // Chủ ca = ticket đã nhận (ACCEPTED, hoặc COMPLETED khi ca đã kết thúc — khách vẫn thấy tên Host để đánh giá, A13).
+  const ownerTicket = tickets.find((t: any) => t.acceptedAt && (t.status === 'ACCEPTED' || t.status === 'COMPLETED'));
+  const acceptedTicket = ownerTicket ?? tickets.find((t: any) => t.status === 'ACCEPTED');
   const latestTicket = tickets[tickets.length - 1];
   let hostInfo: { name: string; rating: number } | null = null;
   const targetTicket = acceptedTicket || (latestTicket?.tier === 1 ? latestTicket : null);
