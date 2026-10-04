@@ -4,14 +4,16 @@ import {
   ConflictException,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { MandateStatus, OtpPurpose, PhysicalKeyState, UnitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { OtpService } from '../auth/otp/otp.service';
-import { PhoneVerificationService } from '../auth/otp/phone-verification.service';
 import { PhoneService } from '../auth/phone/phone.service';
+import { toPhotoView } from '../inspection/inspection.helpers';
+import type { LandlordInspectionView } from '../inspection/inspection.types';
+import { InspectorAssigner } from '../inspection/inspector-assigner.service';
+import { ConsignmentMetaStore } from './consignment-meta.store';
 import { LandlordAccessService } from './landlord-access.service';
 import { LandlordPhotoService } from './landlord-photo.service';
 import { CreateConsignmentDto, SignConsignmentDto } from './dto/landlord.dto';
@@ -48,8 +50,9 @@ export class LandlordConsignmentService {
     private readonly audit: AuditService,
     private readonly otp: OtpService,
     private readonly phones: PhoneService,
-    private readonly phoneVerification: PhoneVerificationService,
     private readonly photos: LandlordPhotoService,
+    private readonly metaStore: ConsignmentMetaStore,
+    private readonly assigner: InspectorAssigner,
   ) {}
 
   async list(landlordId: string) {
@@ -67,8 +70,29 @@ export class LandlordConsignmentService {
   /** Chi tiết một hồ sơ, kèm ảnh chủ nhà đã tải lên (URL xem có hạn 1 giờ). */
   async get(landlordId: string, id: string) {
     const mandate = await this.access.ownedMandate(landlordId, id);
-    const photos = await this.photos.withUrls(readConsignmentMeta(mandate.doorAccessConfig)?.photos ?? []);
-    return { ...this.toDto(mandate), photos };
+    const meta = readConsignmentMeta(mandate.doorAccessConfig);
+    const [photos, inspection] = await Promise.all([this.photos.withUrls(meta?.photos ?? []), this.inspectionView(meta)]);
+    return { ...this.toDto(mandate), photos, inspection };
+  }
+
+  /**
+   * Phiếu thẩm định cho chủ nhà xem (E10): báo cáo + ảnh hạng mục/niêm yết (link ký 1h) + tên Host. Chưa nộp phiếu ⇒ null.
+   * Chỉ họ tên Host, không SĐT/email (B10).
+   */
+  private async inspectionView(meta: ConsignmentMeta | null): Promise<LandlordInspectionView | null> {
+    const report = meta?.report;
+    if (!meta || !report) return null;
+    const photos = meta.inspection?.photos ?? [];
+    const [host, urls] = await Promise.all([
+      this.prisma.fieldHost.findUnique({ where: { id: report.hostId }, select: { profile: { select: { fullName: true } } } }),
+      this.photos.signPaths(photos.map((p) => p.path)),
+    ]);
+    return {
+      hostName: host?.profile?.fullName || 'Field Host VinStay',
+      submittedAt: report.submittedAt,
+      report,
+      photos: photos.map((p) => toPhotoView(p, urls)),
+    };
   }
 
   async create(landlordId: string, dto: CreateConsignmentDto) {
@@ -121,7 +145,7 @@ export class LandlordConsignmentService {
           carpetAreaM2: dto.areaM2,
           baseRentPrice: dto.askRent,
           managementFee: Math.round(dto.areaM2 * mgmtRate),
-          // Chưa có số liệu thị trường: đặt bằng giá chào ⇒ chưa có badge "Căn hời". Admin cập nhật khi duyệt.
+          // Chưa có số liệu thị trường: đặt bằng giá chào ⇒ chưa có badge "Căn hời" (không còn bước Admin duyệt; giữ nguyên giá trị này khi niêm yết).
           marketAvgPrice: dto.askRent,
           doorLockType: lock,
           isVerified: false,
@@ -161,36 +185,41 @@ export class LandlordConsignmentService {
     return this.toDto(mandate);
   }
 
-  /** Ký ủy quyền độc quyền: draft → awaiting_host, giao ca thẩm định cho Host phân khu (SLA 48h). */
+  /** Ký ủy quyền độc quyền: draft → awaiting_host, giao ca thẩm định cho Inspector cùng phân khu (SLA 48h). */
   async sign(landlordId: string, id: string, dto: SignConsignmentDto) {
     const mandate = await this.access.ownedMandate(landlordId, id);
+    // Kiểm sớm (rẻ) trước khi tiêu thụ OTP; bản kiểm có hiệu lực là bản trong khóa bên dưới.
     if (consignmentStage(mandate) !== 'draft') {
       throw new ConflictException('Hồ sơ không ở trạng thái nháp để ký ủy quyền.');
     }
     if (dto.ownershipWarranted !== true) {
       throw new BadRequestException('Cần cam kết quyền sở hữu/sử dụng hợp pháp căn hộ trước khi ký.');
     }
-    await this.verifySignOtp(landlordId, dto.otp, dto.phone);
+    const { phone: signedPhone, otpSkipped } = await this.verifySignOtp(landlordId, dto.otp, dto.phone);
 
     const now = new Date();
-    const meta = readConsignmentMeta(mandate.doorAccessConfig);
-    if (!meta) throw new NotFoundException('Hồ sơ ký gửi không có dữ liệu biểu mẫu.');
-
-    const host = await this.prisma.fieldHost.findFirst({
-      where: { assignedZone: { contains: mandate.unit.building.zoneName } },
-    });
-    const signedMeta: ConsignmentMeta = {
-      ...meta,
-      stage: 'awaiting_host',
-      ownershipWarrantedAt: now.toISOString(),
-      inspectDueAt: new Date(now.getTime() + INSPECT_SLA_HOURS * 3_600_000).toISOString(),
-      ...(host ? { hostId: host.id } : {}),
-    };
-
-    const updated = await this.prisma.exclusiveMandate.update({
-      where: { id: mandate.id },
-      data: { signedAt: now, doorAccessConfig: withConsignmentMeta(mandate.doorAccessConfig, signedMeta) as object },
-      include: { unit: { include: { building: true } } },
+    const { updated, inspectorId } = await this.metaStore.mutate(mandate.id, async (locked, meta, tx) => {
+      if (consignmentStage(locked) !== 'draft') {
+        throw new ConflictException('Hồ sơ không ở trạng thái nháp để ký ủy quyền.');
+      }
+      const inspector = await this.assigner.pick(tx, locked.unit.building.zoneName);
+      const signedMeta: ConsignmentMeta = {
+        ...meta,
+        stage: 'awaiting_host',
+        ownershipWarrantedAt: now.toISOString(),
+        signedPhoneEnc: this.phones.encrypt(signedPhone),
+        inspectDueAt: new Date(now.getTime() + INSPECT_SLA_HOURS * 3_600_000).toISOString(),
+        // Không có Inspector trong phân khu ⇒ không ghi hostId: ca vào Open Pool ngay.
+        ...(inspector ? { hostId: inspector.id, offeredAt: now.toISOString() } : {}),
+      };
+      return {
+        meta: signedMeta,
+        extra: { signedAt: now },
+        result: {
+          inspectorId: inspector?.id ?? null,
+          updated: { ...locked, signedAt: now, doorAccessConfig: withConsignmentMeta(locked.doorAccessConfig, signedMeta) },
+        },
+      };
     });
 
     await this.audit.log({
@@ -199,9 +228,9 @@ export class LandlordConsignmentService {
       actionType: 'CONSIGNMENT_SIGNED',
       entityName: 'ExclusiveMandate',
       entityId: mandate.id,
-      newValue: { signedAt: now.toISOString(), hostId: host?.id ?? null },
+      newValue: { signedAt: now.toISOString(), hostId: inspectorId, inspectorId, otpSkipped },
     });
-    return this.toDto(updated);
+    return this.toDto(updated as unknown as MandateWithUnit);
   }
 
   // ─── nội bộ ───────────────────────────────────────────────────────────────────────────────
@@ -219,38 +248,49 @@ export class LandlordConsignmentService {
   }
 
   /**
-   * Gửi OTP ký ủy quyền. Hồ sơ đã có SĐT thì gửi tới SĐT đã lưu (bỏ qua `phone` client gửi); chưa có thì dùng
-   * `phone` client gửi — OTP đúng ở bước ký sẽ gắn số đó vào hồ sơ.
+   * Gửi OTP ký ủy quyền. Số đã xác thực trong tài khoản (và chủ nhà không nhập số khác) ⇒ KHÔNG cần OTP:
+   * trả `otpRequired: false`, không gửi mã. Nhập số khác số đã xác thực, hoặc tài khoản chưa có số ⇒ gửi OTP tới số đó.
    */
   async sendSignOtp(landlordId: string, id: string, phoneRaw?: string) {
     const mandate = await this.access.ownedMandate(landlordId, id);
     if (consignmentStage(mandate) !== 'draft') {
       throw new ConflictException('Hồ sơ không ở trạng thái nháp để ký ủy quyền.');
     }
-    const phone = await this.signingPhone(landlordId, phoneRaw);
+    const { phone, trusted } = await this.signingPhone(landlordId, phoneRaw);
+    if (trusted) return { otpRequired: false as const, maskedPhone: maskPhone(phone), expiresInSeconds: 0 };
     const { devCode } = await this.otp.send({ phone, purpose: OtpPurpose.PHONE_VERIFY });
-    return { maskedPhone: maskPhone(phone), expiresInSeconds: this.otp.expiresInSeconds, ...(devCode ? { devCode } : {}) };
+    return { otpRequired: true as const, maskedPhone: maskPhone(phone), expiresInSeconds: this.otp.expiresInSeconds, ...(devCode ? { devCode } : {}) };
   }
 
-  /** SĐT nhận OTP: đã lưu trong hồ sơ, hoặc (nếu chưa có) số hợp lệ do client gửi. */
-  private async signingPhone(landlordId: string, phoneRaw?: string): Promise<string> {
-    const profile = await this.prisma.profile.findUnique({ where: { id: landlordId }, select: { phoneEnc: true } });
-    if (profile?.phoneEnc) return this.phones.decrypt(profile.phoneEnc);
-    const phone = phoneRaw ? this.phones.normalize(phoneRaw) : null;
-    if (!phone) throw new BadRequestException('Nhập số điện thoại hợp lệ để nhận mã OTP ký ủy quyền.');
-    return phone;
+  /**
+   * SĐT dùng để ký. `trusted` = đúng số ĐÃ XÁC THỰC của tài khoản (khách đặt lịch cũng vậy: xác thực một lần cho mỗi số,
+   * đổi số mới phải OTP lại). Số client nhập khác số đã lưu ⇒ dùng số đó, không tin cậy.
+   */
+  private async signingPhone(landlordId: string, phoneRaw?: string): Promise<{ phone: string; trusted: boolean }> {
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: landlordId },
+      select: { phoneEnc: true, isPhoneVerified: true },
+    });
+    const typed = phoneRaw ? this.phones.normalize(phoneRaw) : null;
+    if (phoneRaw && !typed) throw new BadRequestException('Số điện thoại không đúng định dạng Việt Nam.');
+    const stored = profile?.phoneEnc ? this.phones.decrypt(profile.phoneEnc) : null;
+    if (typed && typed !== stored) return { phone: typed, trusted: false };
+    if (stored) return { phone: stored, trusted: !!profile?.isPhoneVerified };
+    throw new BadRequestException('Nhập số điện thoại hợp lệ để nhận mã OTP ký ủy quyền.');
   }
 
-  /** Xác thực OTP ký. Hồ sơ chưa có SĐT thì OTP đúng đồng thời gắn SĐT (đã xác thực) vào hồ sơ. */
-  private async verifySignOtp(landlordId: string, code: string, phoneRaw?: string) {
-    const profile = await this.prisma.profile.findUnique({ where: { id: landlordId }, select: { phoneEnc: true } });
-    const phone = await this.signingPhone(landlordId, phoneRaw);
-    if (!profile?.phoneEnc) {
-      await this.phoneVerification.verifyAndBind(landlordId, phone, code, {});
-      return;
-    }
+  /**
+   * Xác nhận người ký, trả số đã ký. Số đã xác thực của tài khoản ⇒ không cần OTP (`otpSkipped`). Ngược lại bắt buộc OTP.
+   * KHÔNG gắn số vào tài khoản (và không kiểm trùng số với tài khoản khác): số ký lưu mã hoá trong hồ sơ ký gửi
+   * (`signedPhoneEnc`); xác thực số vào tài khoản là việc của `/auth/phone/verify`.
+   */
+  private async verifySignOtp(landlordId: string, code: string | undefined, phoneRaw?: string): Promise<{ phone: string; otpSkipped: boolean }> {
+    const { phone, trusted } = await this.signingPhone(landlordId, phoneRaw);
+    if (trusted) return { phone, otpSkipped: true };
+    if (!code) throw new BadRequestException('Cần mã OTP gửi tới số điện thoại này để ký ủy quyền.');
     const verified = await this.otp.verify({ phone, purpose: OtpPurpose.PHONE_VERIFY, code });
     await this.otp.consume(verified.id);
+    return { phone, otpSkipped: false };
   }
 
   private toDto(mandate: MandateWithUnit) {

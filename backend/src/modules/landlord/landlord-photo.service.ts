@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { ConsignmentMetaStore } from './consignment-meta.store';
 import { LandlordAccessService } from './landlord-access.service';
 import { LandlordPhotoStorage, sniffImage } from './landlord-photo-storage.service';
 import {
   ConsignmentPhoto,
+  ConsignmentStage,
   MAX_PHOTOS,
   MAX_PHOTO_BYTES,
   consignmentStage,
   readConsignmentMeta,
-  withConsignmentMeta,
 } from './landlord.mappers';
 
 /** Phần của file multer mà service cần (không phụ thuộc kiểu `Express.Multer.File`). */
@@ -32,10 +32,10 @@ export function displayName(raw: string): string {
 @Injectable()
 export class LandlordPhotoService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly access: LandlordAccessService,
     private readonly storage: LandlordPhotoStorage,
     private readonly audit: AuditService,
+    private readonly metaStore: ConsignmentMetaStore,
   ) {}
 
   /** Danh sách ảnh kèm URL xem có hạn; ảnh ký URL lỗi thì `url: null`. */
@@ -49,21 +49,20 @@ export class LandlordPhotoService {
     return photos.map((p) => ({ id: p.id, name: p.name, size: p.size, uploadedAt: p.uploadedAt, url: urls.get(p.path) ?? null }));
   }
 
+  /** Ký URL xem (1 giờ) theo đường dẫn lưu — dùng cho ảnh thẩm định hiển thị ở hồ sơ của chủ nhà. */
+  signPaths(paths: string[]) {
+    return this.storage.signedUrls(paths);
+  }
+
   async add(landlordId: string, id: string, files: UploadedImage[]) {
     const mandate = await this.access.ownedMandate(landlordId, id);
-    const stage = consignmentStage(mandate);
-    // Sau khi Host nhận ca thẩm định thì hồ sơ đã khóa — ảnh bổ sung phải qua Host/Admin.
-    if (stage !== 'draft' && stage !== 'awaiting_host') {
-      throw new ConflictException('Hồ sơ đang thẩm định hoặc đã chốt, không thể thêm ảnh.');
-    }
+    // Kiểm sớm (rẻ) để khỏi tải file lên rồi mới bị từ chối; bản kiểm có hiệu lực nằm TRONG khóa dòng bên dưới.
+    this.assertEditable(consignmentStage(mandate), 'thêm');
     if (!files.length) throw new BadRequestException('Chưa chọn ảnh nào.');
 
     const meta = readConsignmentMeta(mandate.doorAccessConfig);
     if (!meta) throw new NotFoundException('Hồ sơ ký gửi không có dữ liệu biểu mẫu.');
-    const existing = meta.photos ?? [];
-    if (existing.length + files.length > MAX_PHOTOS) {
-      throw new BadRequestException(`Tối đa ${MAX_PHOTOS} ảnh mỗi hồ sơ (hiện có ${existing.length}).`);
-    }
+    this.assertQuota(meta.photos ?? [], files.length);
 
     // Kiểm tra TOÀN BỘ trước khi tải lên: một file hỏng thì không file nào được lưu.
     const checked = files.map((f) => {
@@ -74,15 +73,21 @@ export class LandlordPhotoService {
       return { f, name, type };
     });
 
+    // Tải Storage NGOÀI khóa (chậm, không giữ khóa dòng); lỗi ở bất kỳ bước nào ⇒ xóa file vừa tải.
     const uploaded: ConsignmentPhoto[] = [];
+    let all: ConsignmentPhoto[];
     try {
       for (const { f, name, type } of checked) {
         const path = await this.storage.upload(landlordId, mandate.id, f.buffer, type);
         uploaded.push({ id: randomUUID(), path, name, size: f.size, mime: type.mime, uploadedAt: new Date().toISOString() });
       }
-      await this.prisma.exclusiveMandate.update({
-        where: { id: mandate.id },
-        data: { doorAccessConfig: withConsignmentMeta(mandate.doorAccessConfig, { ...meta, photos: [...existing, ...uploaded] }) as object },
+      all = await this.metaStore.mutate(mandate.id, async (locked, current) => {
+        // Re-check TRONG khóa: Inspector có thể đã nhận ca giữa lúc ta tải ảnh (sửa H9).
+        this.assertEditable(consignmentStage(locked), 'thêm');
+        const existing = current.photos ?? [];
+        this.assertQuota(existing, uploaded.length);
+        const next = [...existing, ...uploaded];
+        return { meta: { ...current, photos: next }, result: next };
       });
     } catch (err) {
       // Không để lại file mồ côi trong Storage khi một bước giữa chừng thất bại.
@@ -98,25 +103,34 @@ export class LandlordPhotoService {
       entityId: mandate.id,
       newValue: { count: uploaded.length },
     });
-    return this.withUrls([...existing, ...uploaded]);
+    return this.withUrls(all);
   }
 
   async remove(landlordId: string, id: string, photoId: string) {
     const mandate = await this.access.ownedMandate(landlordId, id);
-    const stage = consignmentStage(mandate);
-    if (stage !== 'draft' && stage !== 'awaiting_host') {
-      throw new ConflictException('Hồ sơ đang thẩm định hoặc đã chốt, không thể xóa ảnh.');
-    }
-    const meta = readConsignmentMeta(mandate.doorAccessConfig);
-    const photo = meta?.photos?.find((p) => p.id === photoId);
-    if (!meta || !photo) throw new NotFoundException('Không tìm thấy ảnh.');
+    this.assertEditable(consignmentStage(mandate), 'xóa');
 
-    const rest = (meta.photos ?? []).filter((p) => p.id !== photoId);
-    await this.prisma.exclusiveMandate.update({
-      where: { id: mandate.id },
-      data: { doorAccessConfig: withConsignmentMeta(mandate.doorAccessConfig, { ...meta, photos: rest }) as object },
+    const { rest, photo } = await this.metaStore.mutate(mandate.id, async (locked, meta) => {
+      this.assertEditable(consignmentStage(locked), 'xóa');
+      const found = meta.photos?.find((p) => p.id === photoId);
+      if (!found) throw new NotFoundException('Không tìm thấy ảnh.');
+      const left = (meta.photos ?? []).filter((p) => p.id !== photoId);
+      return { meta: { ...meta, photos: left }, result: { rest: left, photo: found } };
     });
     await this.storage.remove([photo.path]);
     return this.withUrls(rest);
+  }
+
+  /** Sau khi Inspector nhận ca thẩm định thì hồ sơ đã khóa — ảnh bổ sung phải qua Inspector. */
+  private assertEditable(stage: ConsignmentStage, verb: 'thêm' | 'xóa') {
+    if (stage !== 'draft' && stage !== 'awaiting_host') {
+      throw new ConflictException(`Hồ sơ đang thẩm định hoặc đã chốt, không thể ${verb} ảnh.`);
+    }
+  }
+
+  private assertQuota(existing: ConsignmentPhoto[], adding: number) {
+    if (existing.length + adding > MAX_PHOTOS) {
+      throw new BadRequestException(`Tối đa ${MAX_PHOTOS} ảnh mỗi hồ sơ (hiện có ${existing.length}).`);
+    }
   }
 }

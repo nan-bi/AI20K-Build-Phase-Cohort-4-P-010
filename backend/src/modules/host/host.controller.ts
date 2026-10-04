@@ -1,7 +1,6 @@
-import { Controller, Get, Patch, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiCookieAuth } from '@nestjs/swagger';
 import { HostService } from './host.service';
-import { AcceptInspectionDto, SubmitInspectionReportDto } from './dto/host.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { HostRoles } from '../../common/decorators/host-roles.decorator';
 import { SetDutyDto } from '../host-viewings/dto/host-viewings.dto';
@@ -35,31 +34,6 @@ export class HostController {
   })
   async setDuty(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetDutyDto) {
     return this.hostService.setDuty(user.id, dto.status);
-  }
-
-  @Public()
-  @Get('inspections')
-  @ApiOperation({ summary: 'Danh sách căn ký gửi cần Host phân khu thẩm định' })
-  @ApiQuery({ name: 'hostId', required: false })
-  async getInspections(@Query('hostId') hostId?: string) {
-    return this.hostService.getInspections(hostId);
-  }
-
-  @Public()
-  @Post('inspections/:consignmentId/accept')
-  @ApiOperation({ summary: 'Host nhận việc thẩm định căn ký gửi' })
-  async acceptInspection(@Param('consignmentId') consignmentId: string, @Body() dto: AcceptInspectionDto) {
-    return this.hostService.acceptInspection(consignmentId, dto);
-  }
-
-  @Public()
-  @Post('inspections/:consignmentId/report')
-  @ApiOperation({ summary: 'Host nộp báo cáo thẩm định (kiểm kê 32 hạng mục, đối chiếu thông tin)' })
-  async submitInspectionReport(
-    @Param('consignmentId') consignmentId: string,
-    @Body() dto: SubmitInspectionReportDto,
-  ) {
-    return this.hostService.submitInspectionReport(consignmentId, dto);
   }
 
   @Public()
