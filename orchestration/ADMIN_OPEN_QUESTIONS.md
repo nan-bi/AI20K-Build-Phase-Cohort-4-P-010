@@ -66,3 +66,30 @@ Backlog: hàng đợi eKYC NEEDS_REVIEW cho compliance_officer (cần portal đ�
 - `POST /admin/contracts/:id/void-hold`: `:id` là id của HoldingDeposit (giữ đường dẫn cũ để không vỡ frontend).
 - Mã khóa: rotate sinh PIN 6 số, mã hóa bằng `PhoneService.encrypt` (AES) rồi lưu `vaultSecretRef`; PIN không trả về cho admin nên chưa có kênh gửi mã mới cho Host/khách (cần quyết định luồng).
 - Chưa làm: hàng đợi eKYC `NEEDS_REVIEW` cho compliance_officer (role chưa có trong RolesGuard); `GET /admin/contracts/:id`, `complete-exit`, `remind-renewal` vẫn là dữ liệu giả (getContractById chứa SĐT/CCCD giả).
+
+## Câu hỏi mở cho Bước 6 — test xuyên vai trò (2026-10-04)
+
+Mặc định theo SAD_v2; mục này chỉ định oracle kiểm thử, không cho phép đổi contract/schema.
+
+| # | Chủ đề | Bất nhất / bằng chứng | Mặc định cho test | Cần duyệt |
+|---|---|---|---|---|
+| 1 | Giữ chỗ | SAD_v2=7 ngày; PRD gốc=24h; PRD §3.5 ở `0334ebf` + AGENTS.md=48h; FeeConfig seed=7 ngày; Bước 2 chốt đọc `holding_duration_days` | FeeConfig `holding_duration_days`, mặc định 7 ngày; không hard-code 24/48h | Xác nhận giữ quyết định Bước 2 |
+| 2 | Dispatch SLA | SAD_v2=5p→3p (≤500m)→broadcast; PRD=3p nhận việc, tier 1 ≤200m; booking hiện tạo 300s | SAD_v2 tier 1=300s, tier 2=180s; không đo khoảng cách/broadcast nếu code chưa có | Không, trừ khi đổi SAD_v2 |
+| 3 | OTP | PRD=4 số; SAD_v2 ký=6 số | 6 số; không tạo OTP mới trong Bước 6 | Không, trừ khi đổi SAD_v2 |
+| 4 | Webhook SLA | SAD_v2≤5s; PRD AC≤10s | ≤5s theo SAD_v2; mock Prisma không đo hiệu năng thật | Xác nhận có đưa performance test thật vào bước này không |
+| 5 | HandoverItem | Yêu cầu nói thiếu `isNormalWear`/`deductionCost`; schema hiện có cả hai trường | Đã giải quyết theo `backend/prisma/schema.prisma`; không sửa schema | Không |
+| 6 | eKYC/compliance | Kịch bản cần compliance approve `NEEDS_REVIEW`; quyết định Bước 1 để hàng đợi compliance backlog, không sửa auth; role chưa được RolesGuard hỗ trợ | Không giả lập API chưa tồn tại. Kịch bản 5 BLOCKED/deferred; chỉ kiểm PII nếu có contract thực tế | **Có**: mở backlog compliance/auth hay chấp nhận 5/6 scenario được nghiệm thu |
+| 7 | Payout sau webhook | Bước 2 chốt không móc `accrueDeposit` vào webhook; dùng `POST /admin/payouts/sweep`; `transRef` chưa unique trong DB | Scenario 2 gọi webhook rồi sweep/accrue trên mock chung; retry chỉ xác nhận idempotency tuần tự, không khẳng định chống race liên tiến trình | Xác nhận sweep là hợp đồng tích hợp |
+| 8 | Mã mới sau rotate | Bước 5: PIN mã hóa, không trả plaintext; chưa có kênh gửi PIN mới cho Host/khách | Chỉ xác nhận Host không thấy mã cũ, response không có plaintext; không yêu cầu nhận PIN mới | Xác nhận chấp nhận giới hạn này |
+| 9 | Trạng thái thực tế webhook và key Host | `DepositService.processWebhook` hiện cộng cứng 450.000, giữ cứng 48h, không hủy viewing trùng và catch lỗi DB rồi trả success giả; `DispatchService.revealDoorKey` đang trả PIN giả cố định, chưa đọc key vault | Scenario 2/6 là kiểm thử yêu cầu nhưng chưa thể pass với code hiện hành; lỗi thuộc deposit/dispatch ngoài Admin, ghi cross-module fix và không sửa tại P06 | **Có**: xác nhận các lỗi cross-module là prerequisite/deferred hay mở riêng phạm vi sửa |
+| 10 | Payout oracle | Bước 2 chốt công thức theo viewing fee + deal commission và tính lúc sự kiện; `AdminPayoutService` tách `accrueViewing` và `accrueDeposit`, còn webhook hiện tự cộng số cố định | Assert mỗi thành phần theo đúng API payout đã chốt, không cộng lặp thành phần viewing/deposit; wallet delta phải được mô tả rõ trong test | Xác nhận payout sweep là bước sau webhook và tổng delta mong đợi |
+
+Đối chiếu `0334ebf` và `a1a7d0e`: PRD/Dynamic Pricing bổ sung vận hành/pricing, không thay các quyết định Admin ở cập nhật Bước 1–5; `a1a7d0e` chỉ cập nhật mô hình tài chính.
+
+### Tiêu chí nghiệm thu chung được bổ sung (2026-10-04)
+
+- Route guard: mọi `/admin/*` có test 401/403/200.
+- Contract: không rename/xóa route hoặc đổi response; kiểm bằng `git diff`.
+- AuditLog: mọi mutation/config update và sensitive read phải có audit.
+- Regression: người dùng cung cấp baseline 9 suite/149 test; `ADMIN_AUDIT.md` ghi 12 suite/234 test. Chạy baseline tại HEAD trước thi công để xác nhận số đo thật; yêu cầu pass không giảm, fail/skip bằng 0.
+- Scope: không đổi file ngoài phạm vi đã duyệt; ngoại lệ module khác chỉ là phần nhỏ được nêu trong kế hoạch.
