@@ -89,6 +89,35 @@ export function setApiCacheOwner(userId: string | null | undefined) {
   cacheOwner = userId;
 }
 
+// ─── Làm mới / ghi đè theo KHOÁ (không đụng các query khác) ─────────────────────────────────────
+const keyedBump = new Map<string, Set<() => void>>();
+const keyedPut = new Map<string, Set<(data: unknown) => void>>();
+
+function addTo<V>(map: Map<string, Set<V>>, key: string, fn: V) {
+  let set = map.get(key);
+  if (!set) map.set(key, (set = new Set()));
+  set.add(fn);
+  return () => {
+    set!.delete(fn);
+    if (!set!.size) map.delete(key);
+  };
+}
+
+/**
+ * Tải lại ĐÚNG một query (mọi nơi đang dùng khoá đó cùng nhận dữ liệu mới từ MỘT request). Đang có request bay cho
+ * khoá này thì bỏ qua — nên gọi dồn dập (poll, sau hành động) không bao giờ chồng request.
+ */
+export function refreshApi(key: string) {
+  if (inflight.has(key)) return;
+  for (const bump of Array.from(keyedBump.get(key) ?? [])) bump();
+}
+
+/** Ghi thẳng dữ liệu mới vào cache và mọi nơi đang dùng khoá đó, không cần gọi lại API (vd. phản hồi của hành động). */
+export function primeApiData<T>(key: string, data: T) {
+  cache.set(key, data);
+  for (const put of Array.from(keyedPut.get(key) ?? [])) put(data);
+}
+
 const initial = <T>(key: string): QueryState<T> =>
   cache.has(key) ? { status: "ready", data: cache.get(key) as T, refreshing: true } : { status: "loading" };
 
@@ -96,7 +125,7 @@ const initial = <T>(key: string): QueryState<T> =>
  * Tải dữ liệu API qua cơ chế stale-while-revalidate.
  * `enabled=false` ⇒ KHÔNG gọi mạng (dùng khi màn hình chưa cần dữ liệu đó); có cache sẵn thì vẫn hiển thị.
  */
-export function useApiQuery<T>(def: ApiQueryDef<T>, enabled = true): Query<T> {
+export function useApiQuery<T>(def: ApiQueryDef<T>, enabled = true, options: { pollMs?: number | null | ((data: T | null) => number | null) } = {}): Query<T> {
   const { key } = def;
   const [entry, setEntry] = useState<{ key: string; state: QueryState<T> }>(() => ({ key, state: initial<T>(key) }));
   const [tick, setTick] = useState(0);
@@ -109,6 +138,38 @@ export function useApiQuery<T>(def: ApiQueryDef<T>, enabled = true): Query<T> {
       listeners.delete(bump);
     };
   }, []);
+
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    const put = (data: unknown) => setEntry({ key, state: { status: "ready", data: data as T, refreshing: false } });
+    const offBump = addTo(keyedBump, key, bump);
+    const offPut = addTo(keyedPut, key, put);
+    return () => {
+      offBump();
+      offPut();
+    };
+  }, [key]);
+
+  // Poll: hẹn lần tải kế tiếp `pollMs` SAU KHI đã có phản hồi (không phải mỗi N giây bất kể request trước đã xong
+  // chưa) ⇒ không bao giờ chồng request khi mạng/DB chậm. Tab ẩn thì dừng, hiện lại thì tải ngay.
+  const pollMs = typeof options.pollMs === "function" ? options.pollMs(state.status === "ready" ? state.data : null) : options.pollMs;
+  useEffect(() => {
+    if (!enabled || !pollMs || state.status === "loading") return;
+    const fire = () => {
+      if (document.visibilityState === "visible") refreshApi(key);
+    };
+    const timer = setTimeout(fire, pollMs);
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      refreshApi(key);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [state, pollMs, enabled, key]);
 
   useEffect(() => {
     if (!enabled) return;
