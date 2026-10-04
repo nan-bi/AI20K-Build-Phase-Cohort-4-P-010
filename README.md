@@ -1,194 +1,145 @@
-# AI20K Agent Template
+# VinStay AI
 
-Template chính thức cho học viên VinUni AI20K Build Phase: cấu trúc dự án, code
-mẫu và hướng dẫn kỹ thuật để xây dựng một AI Agent hoàn chỉnh — từ kiến trúc,
-code, test cho đến deploy và nộp bài Demo Day.
+> Chủ nhà ở nội thành mất 15–30 ngày trống phòng và phải đi 20–30 km để mở cửa cho khách xem → VinStay AI lọc căn theo chi phí All-in, điều phối Field Host nội khu đón khách và khoá căn bằng cọc VietQR, cho chủ nhà, khách thuê và đội vận hành tại **Vinhomes Ocean Park (Gia Lâm, Hà Nội)**.
 
-Technical Guidebook: <https://phoenix.note.transformerlabs.ai/technical-book>
+Đội **P-010** — VinUni AI20K Build Phase. Repo khởi tạo từ AI20K Agent Template; template gốc vẫn còn ở `src/` (dành cho AI Engine sau này) và `docs/guide/`.
 
-## Template có sẵn những gì
+## Vấn đề
 
-- **Cấu trúc thư mục tách lớp** — `agents/`, `api/`, `services/`, `models/` đã
-  chia sẵn, không phải bàn lại từ đầu.
-- **Code mẫu chạy được** — LangGraph agent (state, node, tool), FastAPI routes,
-  Pydantic settings, schema.
-- **Docker và CI** — Dockerfile multi-stage, `docker-compose.yml`, workflow
-  GitHub Actions chạy `ruff` + `pytest` khi push lên `main`/`develop` và khi mở
-  pull request vào `main`.
-- **Technical Guidebook 10 chương** trong `docs/guide/`, đồng thời đọc được
-  online.
-- **Checklist 10 deliverables** của Demo Day.
-- **AI usage logging** — hook cài sẵn cho 6 công cụ AI, log tự động gửi lên
-  grading server mỗi lần `git push`.
+Chi tiết và số liệu ở [`AGENTS.md`](AGENTS.md) (4 nỗi đau chủ nhà, 5 nỗi đau khách thuê, 5 điểm nghẽn vận hành):
 
-## Yêu cầu
+- **Chủ nhà:** trống phòng 15–30 ngày giữa hai kỳ thuê, mất 6–12 triệu/tháng; đi xa mở cửa nhưng khách bỏ hẹn; tranh chấp hư hao nội thất khi trả phòng.
+- **Khách thuê:** tin đăng ảo, chi phí ẩn (phí quản lý, gửi xe, điện nước) đẩy tổng chi vượt 20–30% ngân sách, bị lừa cọc.
+- **Vận hành:** rổ hàng không đồng bộ, khách và chủ nhà "cắt cầu", Field Host chờ khách no-show.
 
-- Python 3.11 (phiên bản CI đang dùng)
-- Git
-- Docker — tuỳ chọn, chỉ cần nếu chạy `docker compose`
+## Giải pháp
 
-## Bắt đầu
+| Tính năng | Trạng thái |
+|---|---|
+| Catalog căn Verified + bảng **All-in Cost** + badge **"Căn hời phân khu"** (rẻ ≥ 10%) | Đã chạy (API thật) |
+| Đặt lịch xem có **xác thực SĐT bằng OTP**, Field Host nhận ticket theo phân khu, đón khách ở sảnh, mở cửa bằng mã cấp trong app (không lockbox) | Đã chạy; gửi OTP Zalo/SMS chưa nối nhà cung cấp |
+| **Cọc giữ chỗ 2.000.000đ qua VietQR**, First-to-Pay Wins | Đã chạy với VietQR giả lập |
+| **eKYC CCCD** + Hợp đồng thuê PDF (cọc chuyển 100% vào Tiền cọc bảo đảm) | Đã chạy với eKYC giả lập |
+| **Ký gửi độc quyền** → Inspector thẩm định 32 hạng mục → đạt thì tự niêm yết | Đã chạy |
+| Cổng Admin: quản lý Field Host | Đã chạy; các màn Admin khác còn mock |
+| Chat "VinStay AI" trang chủ | Lọc căn bằng luật trong trình duyệt — **chưa có AI agent/LLM** ([TC-02](docs/qa/TC-02_ai-apartment-qa.md)) |
 
-### 1. Clone repo của đội
+## Người dùng
 
-Khi đội được chốt, hệ thống tự sinh repo cho đội từ template này, nằm trong org
-GitHub của khoá bạn đang học và đặt tên theo mã đội. Copy URL ở trang đội trên
-Phoenix rồi clone về:
+- **Chính:** chủ nhà ký gửi căn tại Ocean Park; khách thuê tìm căn theo ngân sách.
+- **Phụ:** Field Host nội khu (vai Sale và Thẩm định), Admin vận hành.
 
-```bash
-git clone https://github.com/<ORG-CỦA-KHOÁ>/<MÃ-ĐỘI>.git
-cd <MÃ-ĐỘI>
-```
-
-Không cần `rm -rf .git`, `git init` hay `git remote add`: repo sinh từ template
-đã bắt đầu bằng lịch sử riêng của đội và remote trỏ sẵn đúng chỗ. Chưa thấy repo
-của đội thì báo BTC — repo tự tạo nằm ngoài org sẽ không được chấm.
-
-### 2. Cài môi trường
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 3. Cấu hình biến môi trường
-
-```bash
-cp .env.example .env
-```
-
-Mở `.env` và điền `OPENAI_API_KEY`. Riêng `AI_LOG_API_KEY`, mỗi thành viên tự
-tạo key riêng tại [dashboard Phoenix](https://phoenix.note.transformerlabs.ai/api-keys)
-rồi thay vào chỗ `<get-your-api-key-from-dashboard-phoenix>` — giá trị trong
-`.env.example` chỉ là placeholder, để nguyên thì log không vào được hệ thống chấm.
-
-### 4. Cài hook ghi log AI
-
-```bash
-bash scripts/setup_hooks.sh                                      # Linux / macOS / Git Bash
-powershell -ExecutionPolicy Bypass -File scripts\setup_hooks.ps1 # Windows PowerShell
-```
-
-Chạy một lần sau khi clone. Hook ghi lại prompt khi bạn dùng Claude Code, Cursor,
-Codex CLI, Gemini CLI, Antigravity hoặc GitHub Copilot, và cài pre-push hook để
-đẩy log lên server.
-
-### 5. Chạy server
-
-```bash
-uvicorn src.main:app --reload --port 8000
-```
-
-Swagger UI ở <http://localhost:8000/docs>. Hoặc dùng `make run`, `make test`,
-`make lint` — xem `Makefile`.
-
-## Cấu trúc thư mục
+## Kiến trúc
 
 ```
-src/
-  agents/            LangGraph agent
-    graph.py         State graph (nodes + edges)
-    state.py         State schema (TypedDict)
-    nodes/           Node functions
-    tools/           Agent tools (@tool)
-  api/routes.py      FastAPI endpoints
-  models/schemas.py  Pydantic schemas
-  services/llm.py    LLM client
-  config.py          Pydantic Settings
-  main.py            App entry point
-tests/               pytest suite
-scripts/             Hook ghi log AI + installer
-docs/
-  guide/             Technical Guidebook (nguồn của bản online)
-  architecture_diagram.md
-eval/                Kết quả evaluation
-presentation/        Slide và video Demo Day
-.claude/ .codex/ .cursor/ .gemini/ .agents/ .github/hooks/
-                     Config hook cho từng công cụ
-.github/workflows/   CI
-Dockerfile           Multi-stage build
-docker-compose.yml   Chạy backend bằng Docker
-README_boilerplate.md  Khung README cho dự án của đội
+Trình duyệt ─▶ apps/web (Next.js 16, :3000) ─/api/v1/*─▶ backend (NestJS 10, :4000) ─▶ Supabase PostgreSQL + Storage
+                                                                   src/ (FastAPI + LangGraph, :8000) — chưa nối
 ```
 
-## Technical Guidebook
-
-| Chương | Nội dung | Thời gian |
-|---|---|---|
-| 1 | Lời mở đầu — mục tiêu, cách sử dụng | 15 phút |
-| 2 | Khởi tạo dự án — clone, setup, git workflow | 4 giờ |
-| 3 | Thiết kế kiến trúc — 3-tier, diagram, ADR | 6 giờ |
-| 4 | LangGraph Agent — state, node, edge, tool, RAG | 8 giờ |
-| 5 | FastAPI — routes, validation, error handling, streaming | 6 giờ |
-| 6 | Giao diện — Next.js và Streamlit | 6 giờ |
-| 7 | DevOps — Docker, CI/CD, deploy, logging | 6 giờ |
-| 8 | Kiểm thử — unit test, integration test, RAGAS | 4 giờ |
-| 9 | Demo Day — 10 deliverables, checklist | 2 giờ |
-| 10 | Tài nguyên — khoá học, tài liệu, BMAD method | tham khảo |
-
-Đọc online tại <https://phoenix.note.transformerlabs.ai/technical-book>: đăng
-nhập bằng GitHub (đúng account đã được BTC mời vào org của khoá), chọn tab
-**Technical Book** ở sidebar trái. Bản offline nằm trong `docs/guide/`, mở được
-bằng bất kỳ markdown viewer nào.
-
-## 10 deliverables cho Demo Day
-
-| # | Deliverable | Vị trí | Template lo tới đâu |
-|---|---|---|---|
-| 1 | Source code | `src/` | Khung sẵn |
-| 2 | README | copy `README_boilerplate.md` thành `README.md` | Khung sẵn |
-| 3 | Architecture diagram | `docs/architecture_diagram.md` | Khung sẵn |
-| 4 | AI logs | LangSmith (3 biến môi trường) + auto AI usage logging | Cấu hình sẵn |
-| 5 | Live URL | deploy lên Render/Vercel | CI/CD sẵn |
-| 6 | Video demo | `presentation/` | Đội tự làm |
-| 7 | Pitch deck | `presentation/` | Đội tự làm |
-| 8 | Development journal | `JOURNAL.md` | Khung sẵn |
-| 9 | Worklog | `WORKLOG.md` | Khung sẵn |
-| 10 | Evaluation evidence | `eval/` | Đội tự làm |
+- Sơ đồ theo mã nguồn hiện tại: [`docs/architecture_diagram.md`](docs/architecture_diagram.md)
+- Kiến trúc mục tiêu, 4 engine, ADR: [`ARCHITECTURE.md`](ARCHITECTURE.md), [`docs/SAD_v2.md`](docs/SAD_v2.md)
+- Danh mục API: [`backend/README.md`](backend/README.md) · Route web: [`apps/web/README.md`](apps/web/README.md)
 
 ## Tech stack
 
 | Lớp | Công nghệ |
 |---|---|
-| Agent | LangGraph + LangChain 0.3 |
-| Backend | FastAPI 0.115 + Uvicorn |
-| LLM | OpenAI, mặc định `gpt-4o-mini` (đổi trong `src/config.py`) |
-| Giao diện | Next.js hoặc Streamlit (đội tự chọn, hướng dẫn ở chương 6) |
-| Lint / test | ruff + pytest 8 |
-| DevOps | Docker + GitHub Actions |
+| Web | Next.js 16.3 · React 19.2 · TypeScript · Vitest (pnpm) |
+| Backend | NestJS 10 · Prisma 5 · class-validator · Passport (Google) · pdfkit (npm) |
+| Dữ liệu | PostgreSQL + Storage trên Supabase; schema: `backend/prisma/schema.prisma` |
+| Đăng nhập | Email + mật khẩu (scrypt) và Google OAuth → JWT phiên trong cookie httpOnly; vai trò đọc từ DB |
+| AI Engine (dự kiến) | FastAPI · LangGraph · OpenAI `gpt-4o-mini` — hiện là khung template |
+| CI | GitHub Actions: `ruff` + `pytest` cho `src/` |
+
+## Chạy local
+
+Yêu cầu: Node.js, npm, pnpm, Python 3.11 (chỉ cho `src/`), một project Supabase.
+
+```bash
+# 1. Backend — :4000, Swagger http://localhost:4000/api/docs
+cd backend
+npm install
+cp .env.example .env          # điền DATABASE_URL, DIRECT_URL, SUPABASE_*, JWT_SECRET, AES_SECRET_KEY…
+npx prisma generate
+npx prisma db push
+npm run seed:auth -- --demo   # admin + 4 tài khoản demo (cần AUTH_DEMO_MODE=true để dùng nút 1-chạm)
+npm run start:dev
+
+# 2. Web — http://localhost:3000 (gọi backend qua BACKEND_URL, mặc định http://localhost:4000)
+cd apps/web
+pnpm install
+pnpm dev
+
+# 3. (Tuỳ chọn) AI service — :8000
+python3.11 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+make run
+```
+
+Biến demo hữu ích trong `backend/.env` (chỉ dev, bị chặn khi `NODE_ENV=production`): `AUTH_DEMO_MODE`, `OTP_ECHO_DEV_CODE`, `DEMO_TOOLS`. Seed catalog căn: `npm run seed:catalog`.
+
+## Kiểm thử
+
+| Phần | Lệnh |
+|---|---|
+| Backend | `cd backend && npm test` |
+| Web | `cd apps/web && pnpm lint && pnpm typecheck && pnpm test` |
+| AI service | `make lint && make test` |
+| Smoke backend (cần backend đang chạy) | `npm run smoke:tenant`, `smoke:sale-auth`, `smoke:host-viewing`, `smoke:inspection` |
+
+Kiểm thử thủ công TC-01 → TC-05 và danh sách bug: [`docs/qa/tonghop.md`](docs/qa/tonghop.md).
+
+## Cấu trúc thư mục
+
+```
+apps/web/        Next.js — 4 cổng Khách thuê / Chủ nhà / Field Host / Admin
+backend/         NestJS + Prisma — toàn bộ đăng nhập, phân quyền, dữ liệu
+  prisma/        schema.prisma (nguồn chân lý DB), seed
+src/             FastAPI + LangGraph — khung cho AI Engine (chưa nối)
+docs/            PRD, SAD_v2, UI_FLOW_SPEC, architecture_diagram, qa/ (báo cáo test)
+legal/           Mẫu hợp đồng, chính sách (uỷ quyền, cọc, Nghị định 13/2023)
+presentation/    Pitch deck, prototype, slide kiến trúc
+planning/        Bộ SPEC theo từng đợt
+eval/            Bằng chứng đánh giá
+scripts/         Hook ghi log AI + tiện ích dữ liệu
+```
+
+## Deliverables Demo Day
+
+| # | Deliverable | Vị trí |
+|---|---|---|
+| 1 | Source code | `apps/web/`, `backend/`, `src/` |
+| 2 | README | file này |
+| 3 | Architecture diagram | [`docs/architecture_diagram.md`](docs/architecture_diagram.md) |
+| 4 | AI logs | `.ai-log/` (tự gửi ở `git push`, xem mục dưới) |
+| 5 | Live URL | chưa deploy |
+| 6 | Video demo | chưa có (dự kiến `presentation/`) |
+| 7 | Pitch deck | [`presentation/PITCH_DECK_GATE_1.md`](presentation/PITCH_DECK_GATE_1.md) |
+| 8 | Development journal | [`JOURNAL.md`](JOURNAL.md) |
+| 9 | Worklog | [`WORKLOG.md`](WORKLOG.md) |
+| 10 | Evaluation evidence | [`eval/results/report.md`](eval/results/report.md), [`docs/qa/`](docs/qa/) |
 
 ## AI usage logging
 
-Mọi prompt được ghi vào `.ai-log/session.jsonl` và tự động gửi lên grading server
-ở bước pre-push.
+Hook ghi mỗi prompt vào `.ai-log/session.jsonl`; `pre-push` hook gửi log lên grading server rồi chuyển vào `.ai-log/archive/`.
 
-| Công cụ | Cấu hình | Thời điểm ghi |
-|---|---|---|
-| Claude Code | `.claude/settings.json` | mỗi prompt (`UserPromptSubmit`) |
-| Cursor | `.cursor/hooks.json` | mỗi prompt và khi dừng |
-| OpenAI Codex CLI | `.codex/hooks.json` | mỗi prompt và khi dừng |
-| Gemini CLI | `.gemini/settings.json` | mỗi lượt agent chạy |
-| GitHub Copilot | `.github/hooks/hooks.json` | mỗi prompt và cuối session |
-| Antigravity IDE | `.agents/hooks.json` | mỗi prompt, kèm lần quét lại lúc `git push` |
+1. Cài hook một lần sau khi clone: `bash scripts/setup_hooks.sh` (hoặc `powershell -ExecutionPolicy Bypass -File scripts\setup_hooks.ps1`).
+2. Điền `AI_LOG_SERVER` và `AI_LOG_API_KEY` (key cá nhân từ [dashboard Phoenix](https://phoenix.note.transformerlabs.ai/api-keys)) vào **`.env` ở thư mục gốc** — `scripts/submit_log.py` chỉ đọc file này. Thiếu thì hook báo `AI_LOG_SERVER not set` và bỏ qua.
+3. Gửi tay khi cần: `bash scripts/_pyrun.sh scripts/submit_log.py`. Công cụ không có hook: `bash scripts/_pyrun.sh scripts/log_manual.py --tool chatgpt --prompt "…"`.
 
-Dùng ChatGPT hay công cụ web khác thì log thủ công:
+Hook có sẵn cho Claude Code (`.claude/settings.json`), Cursor, Codex CLI, Gemini CLI, GitHub Copilot và Antigravity.
 
-```bash
-bash scripts/_pyrun.sh scripts/log_manual.py --tool chatgpt --prompt "What you asked"
-```
+## Nhóm
 
-## Đóng góp
+Theo tên tác giả commit trong git (vai trò và mã học viên: xem `WORKLOG.md`):
 
-Repo này là open source. Đọc [CONTRIBUTING.md](CONTRIBUTING.md) trước khi mở PR.
-
-Nội dung trong `docs/guide/` là nguồn của Technical Book và được đồng bộ lên bản
-online, nên mọi thay đổi ở đó cần review của
-[@AI20K-Build-Phase/book-maintainers](https://github.com/orgs/AI20K-Build-Phase/teams/book-maintainers)
-— xem [.github/CODEOWNERS](.github/CODEOWNERS).
-
-Báo lỗ hổng bảo mật theo [SECURITY.md](SECURITY.md), đừng mở public issue.
+| Thành viên (tên trong commit) | Tên viết tắt trong WORKLOG |
+|---|---|
+| Tran Thu Phuong | Phương |
+| Nguyen Khanh Duy | Duy |
+| NamDev / NguyenPhuongNam-VNUA | Nam (namnp) |
+| Trần Thị Lan / nan-bi | lan (nan-bi) |
 
 ## License
 
-[MIT](LICENSE) — dùng tự do cho mục đích giáo dục.
+[MIT](LICENSE)
