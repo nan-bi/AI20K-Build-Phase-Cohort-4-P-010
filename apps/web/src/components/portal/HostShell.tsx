@@ -7,6 +7,7 @@ import { DEMO_USERS } from "@/lib/mock/actors";
 import { useMock } from "@/lib/mock/store";
 import type { HostRole } from "@/lib/mock/units";
 import { HostSideTools } from "@/components/host/HostSideTools";
+import { useHostBoard } from "@/lib/host/api";
 import { PortalShell, type PortalNavItem } from "./PortalShell";
 
 export function hostNavItems(
@@ -51,8 +52,11 @@ export function HostShell({ children }: { children: React.ReactNode }) {
   // Vai lấy từ phiên thật (Admin gán ở /admin/hosts); chưa tải xong phiên ⇒ chưa hiện menu theo vai.
   const roles: HostRole[] = session.user?.hostRoles ?? [];
 
-  // TODO hồ sơ 15: badge đếm lấy từ API, hiện tạm đọc mock theo Host mẫu.
-  const pending = state.bookings.filter((b) => b.hostId === hostId && b.status === "pending").length;
+  // Badge "Lịch & yêu cầu" = số yêu cầu mới thật từ `GET /host/board` (chỉ gọi khi có vai Sale). Badge Thẩm định
+  // còn đọc mock (hồ sơ thẩm định).
+  const isSale = roles.includes("sale");
+  const board = useHostBoard(isSale, true); // MỘT nơi duy nhất poll bảng; DispatchBoard/HostSideTools dùng chung khoá
+  const pending = isSale && board.state.status === "ready" ? board.state.data.kpis.pending : 0;
   const awaitingInspect = state.consignments.filter(
     (c) => c.hostId === hostId && c.status === "awaiting_host",
   ).length;
@@ -68,7 +72,7 @@ export function HostShell({ children }: { children: React.ReactNode }) {
       userName={session.user?.fullName ?? session.user?.email ?? u.name}
       userMeta={userMeta}
       signOutHref={loginPathFor("host")}
-      sideSlot={<HostSideTools />}
+      sideSlot={<HostSideTools sale={isSale} />}
       nav={nav}
     >
       {children}

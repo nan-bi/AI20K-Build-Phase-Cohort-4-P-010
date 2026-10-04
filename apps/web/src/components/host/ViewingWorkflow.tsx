@@ -1,34 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Phone, Radio } from "lucide-react";
+import { Check, Phone } from "lucide-react";
 import { STATUS_META } from "@/components/booking/status";
+import { UnitPhoto } from "@/components/landlord/UnitPhoto";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { toast } from "@/components/ui/Toast";
-import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
-import { hostAccept } from "@/lib/mock/actions";
+import { useHostViewing } from "@/lib/host/api";
+import type { HostViewingDetail } from "@/lib/host/types";
 import { dayLabel, fmtPhone, fmtTime, normalizePhone } from "@/lib/mock/format";
-import { bookingById } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import type { Booking, Notice } from "@/lib/mock/types";
-import { unitAddress, unitById, zoneById } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
-import {
-  AwaitDepositStep,
-  AwaitLeaseStep,
-  ClosedStep,
-  DoneStep,
-  GreetStep,
-  ViewStep,
-} from "./WorkflowSteps";
+import { AwaitDepositStep, AwaitLeaseStep, ClosedStep, DoneStep, GreetStep, ViewStep } from "./WorkflowSteps";
 import styles from "./Workflow.module.css";
 
 const RAIL = ["Đón khách", "Xem phòng", "Chờ cọc", "Hợp đồng"] as const;
 
-function railIndex(b: Booking): number {
-  switch (b.status) {
+function railIndex(status: HostViewingDetail["status"]): number {
+  switch (status) {
     case "confirmed":
     case "lobby":
       return 0;
@@ -46,24 +35,29 @@ function railIndex(b: Booking): number {
   }
 }
 
-const AUDIENCE: Record<Notice["audience"], string> = {
-  tenant: "Zalo → Khách",
-  landlord: "Zalo → Chủ nhà",
-  admin: "Admin",
-  host: "Push → Bạn",
-};
+const TIMELINE: [keyof HostViewingDetail["timeline"], string][] = [
+  ["confirmedAt", "Nhận ca"],
+  ["reminderSentAt", "Nhắc hẹn T-10"],
+  ["lateRequestedAt", "Khách xin trễ"],
+  ["lobbyCheckInAt", "Khách có mặt tại sảnh"],
+  ["receivingAt", "Bắt đầu dẫn khách"],
+  ["viewingStartedAt", "Mở cửa"],
+  ["viewEndedAt", "Kết thúc buổi xem"],
+  ["completedAt", "Đóng ca"],
+];
 
 export function ViewingWorkflow({ id }: { id: string }) {
-  const state = useMock();
+  const query = useHostViewing(id);
   const now = useNow(1000);
 
-  if (!state.ready || !now) return <div className="skeleton" style={{ height: 300 }} />;
-  const booking = bookingById(state, id);
-  if (!booking) {
+  if (query.state.status === "loading" || !now) return <div className="skeleton" style={{ height: 300 }} />;
+  if (query.state.status === "error") {
+    const gone = query.state.httpStatus === 404;
     return (
       <div className={styles.page}>
         <PageHeader
-          title="Không tìm thấy lịch"
+          title={gone ? "Không tìm thấy lịch" : "Không tải được ca xem"}
+          description={gone ? "Lịch không tồn tại hoặc không thuộc bạn." : query.state.message}
           back={{ href: "/host/dispatch", label: "Lịch & yêu cầu" }}
           actions={
             <Link href="/host/dispatch" className="btn btn-primary">
@@ -75,27 +69,26 @@ export function ViewingWorkflow({ id }: { id: string }) {
     );
   }
 
-  const unit = unitById(booking.unitId)!;
-  const meta = STATUS_META[booking.status];
-  const idx = railIndex(booking);
-  const props = { booking, unit, now };
-  const log = state.notices
-    .filter((n) => n.bookingId === booking.id)
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 8);
+  const v = query.state.data;
+  const meta = STATUS_META[v.status];
+  const idx = railIndex(v.status);
+  const props = { v, now };
+  const events = TIMELINE.filter(([k]) => v.timeline[k]).sort((a, b) => Date.parse(v.timeline[b[0]]!) - Date.parse(v.timeline[a[0]]!));
 
   return (
     <div className={styles.page}>
       <PageHeader
-        title={booking.tenant.name}
-        description={`${unitAddress(unit)} · ${zoneById(unit.zoneId).short} · ${fmtTime(booking.slot)} ${dayLabel(booking.slot, now)} · mã ${booking.ref}`}
+        title={v.tenant.name}
+        description={`${v.unit.building} · Tầng ${v.unit.floor} · ${v.unit.zone} · ${fmtTime(v.slot)} ${dayLabel(v.slot, now)} · mã ${v.ref}`}
         back={{ href: "/host/dispatch", label: "Lịch & yêu cầu" }}
         actions={
           <div className={styles.headActions}>
             <span className={`badge ${meta.badge}`}>{meta.label}</span>
-            <a className="btn btn-quiet btn-sm" href={`tel:${normalizePhone(booking.tenant.phone)}`}>
-              <Phone size={15} /> {fmtPhone(booking.tenant.phone)}
-            </a>
+            {v.tenant.phone && (
+              <a className="btn btn-quiet btn-sm" href={`tel:${normalizePhone(v.tenant.phone)}`}>
+                <Phone size={15} /> {fmtPhone(v.tenant.phone)}
+              </a>
+            )}
           </div>
         }
       />
@@ -117,63 +110,35 @@ export function ViewingWorkflow({ id }: { id: string }) {
 
       <div className={styles.layout}>
         <div className={styles.mainCol}>
-          {booking.status === "pending" && (
-            <section className={`card ${styles.step}`}>
-              <div className={styles.stepHead}>
-                <div className={styles.stepIcon}>
-                  <Radio size={22} />
-                </div>
-                <div>
-                  <h2>Bạn chưa nhận ca này</h2>
-                  <p className="muted">Nhận ca để gửi Zalo xác nhận cho khách và kích hoạt quy trình đón tiếp tại sảnh.</p>
-                </div>
-              </div>
-              <div style={{ marginTop: 6 }}>
-                <button
-                  type="button"
-                  className="btn btn-success btn-lg"
-                  onClick={() => {
-                    hostAccept(booking.id);
-                    toast(`Đã nhận ca, Zalo gửi cho ${booking.tenant.name}`, "success");
-                  }}
-                >
-                  <Check size={19} /> Nhận ca đón tiếp
-                </button>
-              </div>
-            </section>
-          )}
-          {(booking.status === "confirmed" || booking.status === "lobby") && <GreetStep {...props} />}
-          {(booking.status === "receiving" || booking.status === "viewing") && <ViewStep {...props} />}
-          {booking.status === "closing" && <AwaitDepositStep {...props} />}
-          {booking.status === "holding" && <AwaitLeaseStep {...props} />}
-          {booking.status === "leased" && <DoneStep {...props} />}
-          {["completed", "no_show", "cancelled", "rejected"].includes(booking.status) && <ClosedStep {...props} />}
+          {(v.status === "confirmed" || v.status === "lobby") && <GreetStep {...props} />}
+          {(v.status === "receiving" || v.status === "viewing") && <ViewStep {...props} />}
+          {v.status === "closing" && <AwaitDepositStep {...props} />}
+          {v.status === "holding" && <AwaitLeaseStep {...props} />}
+          {v.status === "leased" && <DoneStep {...props} />}
+          {["completed", "no_show", "cancelled", "rejected"].includes(v.status) && <ClosedStep {...props} />}
         </div>
 
         <div className={styles.sideCol}>
           <Section title="Căn hộ">
-            <VerifiedPhoto unit={unit} sizes="340px" stamp="none" className={styles.sidePhoto} />
+            <UnitPhoto url={v.unit.photo} alt={v.unit.code} sizes="340px" className={styles.sidePhoto} />
             <KeyValue
               items={[
-                { label: "Căn hộ", value: unitAddress(unit) },
-                { label: "Phân khu", value: zoneById(unit.zoneId).name },
-                {
-                  label: "Loại khoá",
-                  value: unit.lock === "smart" ? "Khoá điện tử" : "Chìa cơ · quầy phân khu",
-                },
+                { label: "Căn hộ", value: `${v.unit.building} · Tầng ${v.unit.floor} · ${v.unit.code.slice(-2)}` },
+                { label: "Phân khu", value: v.unit.zone },
+                { label: "Loại khoá", value: v.unit.lockType === "ELECTRONIC_PIN" ? "Khoá điện tử" : "Chìa cơ · quầy phân khu" },
+                ...(v.tenant.note ? [{ label: "Ghi chú của khách", value: v.tenant.note }] : []),
               ]}
             />
           </Section>
 
-          {log.length > 0 && (
-            <Section title="Thông báo đã gửi" flush>
+          {events.length > 0 && (
+            <Section title="Mốc thời gian" flush>
               <ul className={styles.log}>
-                {log.map((n) => (
-                  <li key={n.id}>
-                    <span className="badge badge-plain">{AUDIENCE[n.audience]}</span>
+                {events.map(([k, label]) => (
+                  <li key={k}>
+                    <span className="badge badge-plain">{fmtTime(v.timeline[k]!)}</span>
                     <div>
-                      <b>{n.title}</b>
-                      <span className="xs muted"> · {fmtTime(n.at)}</span>
+                      <b>{label}</b>
                     </div>
                   </li>
                 ))}

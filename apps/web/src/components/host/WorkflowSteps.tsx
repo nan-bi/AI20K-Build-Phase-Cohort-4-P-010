@@ -15,31 +15,18 @@ import {
   LifeBuoy,
   LoaderCircle,
   Lock,
-  ShieldAlert,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "@/components/ui/Toast";
-import {
-  confirmDepositPaid,
-  hostConfirmViewing,
-  hostEmergency,
-  hostMarkNoShow,
-  hostNotInterested,
-  hostStartDeposit,
-  hostStartReceiving,
-  sendReminder,
-  tenantCheckIn,
-} from "@/lib/mock/actions";
-import { dayLabel, fmtTime, vnd } from "@/lib/mock/format";
-import { holdHoursFor, holdMsLeft, hostEarnings, isHoldForfeited } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import type { Booking } from "@/lib/mock/types";
-import { hostById, zoneById, type Unit } from "@/lib/mock/units";
+import { hostApi } from "@/lib/host/api";
+import { hostErrorText } from "@/lib/host/logic";
+import type { DoorAccessView, HostViewingDetail } from "@/lib/host/types";
+import { useHostAction } from "@/lib/host/useHostAction";
+import { dayLabel, fmtPhone, fmtTime } from "@/lib/mock/format";
 import styles from "./Workflow.module.css";
 
 interface StepProps {
-  booking: Booking;
-  unit: Unit;
+  v: HostViewingDetail;
   now: number;
 }
 
@@ -60,48 +47,60 @@ function StepHead({ icon, title, hint }: { icon: React.ReactNode; title: string;
   );
 }
 
+const DEPOSIT_TEXT: Record<string, string> = {
+  PENDING_PAYMENT: "Khách đã đồng ý điều khoản, đang chờ quét VietQR",
+  UNC_PENDING_REVIEW: "Đang đối soát chuyển khoản",
+  PAID_HOLDING: "Đã nhận cọc 2.000.000đ — căn đang được giữ",
+  QR_EXPIRED: "Mã VietQR đã hết hạn, khách cần tạo lại",
+  CONVERTED_TO_CONTRACT: "Cọc đã chuyển thành tiền cọc bảo đảm",
+  REFUNDED: "Cọc đã hoàn",
+  FORFEITED: "Khách mất cọc do hết hạn giữ chỗ",
+};
+
 // ─── 1. Đón khách tại sảnh ────────────────────────────────────────────────────────────────────
 
-export function GreetStep({ booking, unit, now }: StepProps) {
-  const slotMs = new Date(booking.slot).getTime();
-  const lobby = booking.status === "lobby";
-  const overdue = booking.status === "confirmed" && now - slotMs > 15 * 60_000;
+export function GreetStep({ v, now }: StepProps) {
+  const { busy, run } = useHostAction(v.ref);
+  const slotMs = Date.parse(v.slot);
+  const lobby = v.status === "lobby";
+  const overdue = v.canNoShow;
+  const t = v.timeline;
   return (
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<Footprints size={22} />}
-        title={`Đón khách tại sảnh toà ${unit.building}`}
+        title={`Đón khách tại sảnh toà ${v.unit.building}`}
         hint="Xuống sảnh trước giờ hẹn 10 phút, mặc đồng phục VinStay và mang thẻ cư dân."
       />
 
       <div
-        className={`${styles.presence} ${lobby ? styles.presenceOn : booking.lateRequested ? styles.presenceLate : ""}`}
+        className={`${styles.presence} ${lobby ? styles.presenceOn : t.lateRequestedAt ? styles.presenceLate : ""}`}
         role="status"
       >
         {lobby ? <CheckCircle2 size={22} /> : <Clock size={22} />}
         <div>
-          <b>{lobby ? "Khách đã có mặt tại sảnh" : booking.lateRequested ? "Khách xin trễ 10 phút" : "Khách chưa báo có mặt"}</b>
+          <b>{lobby ? "Khách đã có mặt tại sảnh" : t.lateRequestedAt ? "Khách xin trễ 10 phút" : "Khách chưa báo có mặt"}</b>
           <p className="small">
-            {lobby && booking.lobbyAt
-              ? `Khách bấm "Tôi đã tới sảnh" lúc ${fmtTime(booking.lobbyAt)}. Hãy xuống đón ngay.`
-              : booking.lateRequested
-                ? "Khách đang trên đường tới sảnh. Ca trực tự giải phóng nếu quá 15 phút sau giờ hẹn."
+            {lobby && t.lobbyCheckInAt
+              ? `Khách bấm "Tôi đã tới sảnh" lúc ${fmtTime(t.lobbyCheckInAt)}. Hãy xuống đón ngay.`
+              : t.lateRequestedAt
+                ? "Khách đang trên đường tới sảnh. Ca trực có thể giải phóng nếu quá 15 phút sau giờ hẹn."
                 : slotMs > now
-                  ? `Còn ${mmss(slotMs - now)} tới giờ hẹn ${fmtTime(booking.slot)}.`
+                  ? `Còn ${mmss(slotMs - now)} tới giờ hẹn ${fmtTime(v.slot)}.`
                   : `Đã qua giờ hẹn ${Math.floor((now - slotMs) / 60_000)} phút.`}
           </p>
         </div>
       </div>
 
       <ul className={styles.checklist}>
-        <li className={booking.reminderSentAt ? styles.ok : ""}>
+        <li className={t.reminderSentAt ? styles.ok : ""}>
           <AlarmClock size={16} />
-          {booking.reminderSentAt
-            ? `Đã gửi nhắc hẹn kép T-10 lúc ${fmtTime(booking.reminderSentAt)}: push cho bạn và Zalo có nút 1-chạm cho khách`
-            : "Nhắc hẹn kép T-10 sẽ tự gửi khi còn 10 phút tới giờ hẹn"}
+          {t.reminderSentAt
+            ? `Đã ghi nhận nhắc hẹn T-10 lúc ${fmtTime(t.reminderSentAt)}`
+            : "Nhắc hẹn T-10 tự ghi nhận khi còn 10 phút tới giờ hẹn (mở bảng lịch lúc đó, hoặc bấm tay bên dưới)"}
         </li>
-        <li className={booking.confirmedAt ? styles.ok : ""}>
-          <BadgeCheck size={16} /> SĐT khách đã xác thực OTP Zalo: {booking.tenant.phone.replace(/^(\d{4})(\d{3})(\d{3})$/, "$1 $2 $3")}
+        <li className={t.confirmedAt ? styles.ok : ""}>
+          <BadgeCheck size={16} /> SĐT khách đã xác thực OTP Zalo: {v.tenant.phone ? fmtPhone(v.tenant.phone) : "—"}
         </li>
       </ul>
 
@@ -110,14 +109,12 @@ export function GreetStep({ booking, unit, now }: StepProps) {
           <CircleAlert size={18} />
           <div>
             <b>Quá 15 phút, khách chưa có mặt</b>
-            <p className="small">Giải phóng ca để nhận khách khác. SĐT khách sẽ bị gắn cờ uy tín.</p>
+            <p className="small">Giải phóng ca để nhận khách khác.</p>
             <button
               type="button"
               className="btn btn-danger btn-sm"
-              onClick={() => {
-                hostMarkNoShow(booking.id);
-                toast("Đã giải phóng ca trực");
-              }}
+              disabled={busy}
+              onClick={() => void run(() => hostApi.noShow(v.ref), "Đã giải phóng ca trực", (d) => d)}
             >
               Giải phóng ca (khách bỏ hẹn)
             </button>
@@ -128,25 +125,23 @@ export function GreetStep({ booking, unit, now }: StepProps) {
       <button
         type="button"
         className="btn btn-primary btn-lg btn-block"
-        onClick={() => {
-          hostStartReceiving(booking.id);
-          toast(`Đã ghi nhận lượt dẫn khách lúc ${fmtTime(new Date())}`, "success");
-        }}
+        disabled={busy}
+        onClick={() => void run(() => hostApi.receive(v.ref), `Đã ghi nhận lượt dẫn khách lúc ${fmtTime(new Date())}`, (d) => d)}
       >
-        <Footprints size={19} /> Bắt đầu dẫn khách
+        <Footprints size={19} /> Đã đón khách — bắt đầu dẫn
       </button>
 
-      {booking.status === "confirmed" && (
+      {v.status === "confirmed" && (
         <div className={styles.demoRow}>
-          <span className="xs muted">Demo</span>
-          {!booking.reminderSentAt && (
-            <button type="button" className={styles.demo} onClick={() => sendReminder(booking.id)}>
-              Gửi nhắc hẹn T-10 ngay
-            </button>
-          )}
-          <button type="button" className={styles.demo} onClick={() => tenantCheckIn(booking.id)}>
-            Giả lập khách bấm “Tôi đã có mặt”
+          <button
+            type="button"
+            className={styles.demo}
+            disabled={busy || !v.canRemind || Boolean(t.reminderSentAt)}
+            onClick={() => void run(() => hostApi.remind(v.ref), "Đã ghi nhận nhắc hẹn T-10", (d) => d)}
+          >
+            Ghi nhận nhắc hẹn T-10
           </button>
+          {!v.canRemind && <span className="xs muted">(chỉ trong 10 phút trước giờ hẹn)</span>}
         </div>
       )}
     </section>
@@ -162,15 +157,77 @@ const NOT_DECIDED = [
   "Khách chưa cần thuê ngay",
 ];
 
-export function ViewStep({ booking, unit, now }: StepProps) {
+export function NotInterestedModal({
+  v,
+  open,
+  onClose,
+  title,
+  cta,
+}: {
+  v: HostViewingDetail;
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  cta: string;
+}) {
+  const { busy, run } = useHostAction(v.ref);
+  const [reason, setReason] = useState(NOT_DECIDED[0]);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      variant="sheet"
+      title={title}
+      description="Ca xem được đóng và ghi lý do vào nhật ký."
+      footer={
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={busy}
+          onClick={async () => {
+            const res = await run(() => hostApi.notInterested(v.ref, reason), "Đã kết thúc buổi xem", (d) => d);
+            if (res.ok) onClose();
+          }}
+        >
+          {cta}
+        </button>
+      }
+    >
+      <div className={styles.sosList}>
+        {NOT_DECIDED.map((r) => (
+          <label key={r} className="check">
+            <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} />
+            <span>{r}</span>
+          </label>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+export function ViewStep({ v, now }: StepProps) {
+  const { busy, run } = useHostAction(v.ref);
   const [emergency, setEmergency] = useState(false);
   const [decline, setDecline] = useState(false);
-  const [reason, setReason] = useState(NOT_DECIDED[0]);
-  const smart = unit.lock === "smart";
-  const zone = zoneById(unit.zoneId);
+  // CẤM lưu PIN vào kho lưu trữ của trình duyệt hay cache truy vấn: chỉ giữ trong state của component, mất khi rời trang.
+  const [door, setDoor] = useState<DoorAccessView | null>(null);
+  const smart = v.unit.lockType === "ELECTRONIC_PIN";
+  const doorLeft = door ? Date.parse(door.expiresAt) - now : 0;
+  const pinVisible = Boolean(door?.pin) && doorLeft > 0;
 
-  // Khi đang ở trạng thái receiving (chưa tới cửa mở phòng)
-  if (booking.status === "receiving") {
+  async function openDoor() {
+    const res = await run(() => hostApi.openDoor(v.ref), "Đã mở quyền truy cập mã cửa", (d) => d.viewing);
+    if (res.ok) setDoor(res.data.door);
+    else if (res.code === "door_code_missing") setEmergency(true);
+  }
+
+  async function revealAgain() {
+    const res = await run(() => hostApi.doorCode(v.ref));
+    if (res.ok) setDoor(res.data);
+    else if (res.code === "door_code_missing") setEmergency(true);
+  }
+
+  if (v.status === "receiving") {
     return (
       <section className={`card ${styles.step}`}>
         <StepHead
@@ -179,76 +236,68 @@ export function ViewStep({ booking, unit, now }: StepProps) {
           hint="Dẫn khách tới trước cửa căn hộ rồi bấm nút xác nhận để lấy mã mở cửa."
         />
 
-        {booking.receivingAt && (
+        {v.timeline.receivingAt && (
           <div className={styles.presence} role="status">
             <Footprints size={20} />
             <div>
               <b>Đang dẫn khách</b>
-              <p className="small">Bắt đầu dẫn khách lúc {fmtTime(booking.receivingAt)}.</p>
+              <p className="small">Bắt đầu dẫn khách lúc {fmtTime(v.timeline.receivingAt)}.</p>
             </div>
           </div>
         )}
 
         <div className={styles.lockInfo}>
           <p className="small" style={{ lineHeight: 1.6 }}>
-            Quẹt thẻ cư dân lên tầng {unit.floor}, tới trước cửa căn {unit.door} rồi bấm nút dưới.
-            {!smart && ` Nhận chìa tại quầy phân khu ${zone.short}.`}
+            Quẹt thẻ cư dân lên tầng {v.unit.floor}, tới trước cửa căn {v.unit.code.slice(-2)} rồi bấm nút dưới.
+            {!smart && ` Nhận chìa tại quầy phân khu ${v.unit.zone}.`}
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-amber btn-lg btn-block"
-          onClick={() => {
-            hostConfirmViewing(booking.id);
-            toast("Đã mở quyền truy cập mã cửa", "success");
-          }}
-        >
+        <button type="button" className="btn btn-amber btn-lg btn-block" disabled={busy} onClick={() => void openDoor()}>
           <DoorOpen size={19} /> Đã tới cửa — lấy mã cửa
         </button>
-        <p className="muted xs">Khi bạn bấm xác nhận, hệ thống cấp mã mở cửa và tự động thông báo cho chủ nhà qua Zalo.</p>
+        <p className="muted xs">Khi bạn bấm xác nhận, hệ thống cấp mã mở cửa và ghi lượt mở cửa vào nhật ký để chủ nhà xem lại.</p>
+        <EmergencyModal v={v} smart={smart} open={emergency} onClose={() => setEmergency(false)} />
       </section>
     );
   }
-
-  // Khi đã ở trạng thái viewing (đã mở cửa, đang xem phòng)
-  const exp = booking.doorCodeExpiresAt ? new Date(booking.doorCodeExpiresAt).getTime() : 0;
-  const left = exp - now;
 
   return (
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<Lock size={22} />}
         title="Xem phòng cùng khách"
-        hint="Khách xem thoải mái, không ép cọc. Khi khách ưng ý, bấm “Khách cọc căn này”."
+        hint="Khách xem thoải mái, không ép cọc. Khi khách ưng ý, bấm “Khách muốn cọc”."
       />
 
       {smart ? (
-        <div className={`${styles.code} ${left <= 0 ? styles.codeGone : ""}`}>
-          <span className="small">Mã cửa căn {unit.door}</span>
-          {left > 0 ? (
+        <div className={`${styles.code} ${pinVisible ? "" : styles.codeGone}`}>
+          <span className="small">Mã cửa căn {v.unit.code.slice(-2)}</span>
+          {pinVisible ? (
             <>
-              <b className={`num ${styles.digits}`}>{booking.doorCode?.split("").join(" ")} #</b>
-              <span className="small">Tự ẩn sau {mmss(left)}</span>
+              <b className={`num ${styles.digits}`}>{door!.pin!.split("").join(" ")} #</b>
+              <span className="small">Tự ẩn sau {mmss(doorLeft)}</span>
             </>
           ) : (
-            <b className={styles.expired}>Mã đã ẩn sau 10 phút</b>
+            <>
+              <b className={styles.expired}>{door ? "Mã đã ẩn sau 10 phút" : "Mã đang được ẩn"}</b>
+              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => void revealAgain()}>
+                <KeyRound size={15} /> Xem lại mã
+              </button>
+            </>
           )}
         </div>
       ) : (
         <div className={styles.code}>
           <KeyRound size={26} />
-          <b>Dùng chìa cơ đã nhận tại quầy phân khu {zone.short}</b>
+          <b>Dùng chìa cơ đã nhận tại quầy phân khu {v.unit.zone}</b>
           <span className="small">Trả chìa sau khi kết thúc buổi xem.</span>
         </div>
       )}
 
       <ul className={styles.notified}>
         <li>
-          <CheckCircle2 size={15} /> Đã báo chủ nhà qua Zalo{booking.viewingAt ? ` lúc ${fmtTime(booking.viewingAt)}` : ""}
-        </li>
-        <li>
-          <CheckCircle2 size={15} /> Đã ghi lượt mở cửa lên bảng điều khiển Admin
+          <CheckCircle2 size={15} /> Đã ghi lượt mở cửa{v.doorRevealedAt ? ` lúc ${fmtTime(v.doorRevealedAt)}` : ""} vào nhật ký của chủ nhà
         </li>
       </ul>
 
@@ -260,237 +309,115 @@ export function ViewStep({ booking, unit, now }: StepProps) {
         <button
           type="button"
           className="btn btn-success btn-lg btn-block"
-          onClick={() => {
-            hostStartDeposit(booking.id);
-            toast("Đã gửi yêu cầu cọc sang app của khách", "success");
-          }}
+          disabled={busy}
+          onClick={() => void run(() => hostApi.startDeposit(v.ref), "Khách đã được chuyển sang bước cọc trên app của họ", (d) => d)}
         >
-          <BadgeCheck size={20} /> Khách cọc căn này
+          <BadgeCheck size={20} /> Khách muốn cọc
         </button>
         <button type="button" className="btn btn-quiet btn-block" onClick={() => setDecline(true)}>
           Khách chưa quyết định
         </button>
       </div>
 
-      <Modal
-        open={emergency}
-        onClose={() => setEmergency(false)}
-        variant="sheet"
-        title="Hỗ trợ khẩn cấp"
-        description="Chọn tình huống, hệ thống báo đúng người xử lý."
-      >
-        <div className={styles.sosList}>
-          <button
-            type="button"
-            className="btn btn-quiet btn-block"
-            disabled={!smart}
-            onClick={() => {
-              hostEmergency(booking.id, "smart_lock");
-              setEmergency(false);
-              toast("Đang kết nối cuộc gọi bảo mật tới chủ nhà để lấy mã khẩn cấp", "success");
-            }}
-          >
-            Khoá điện tử báo lỗi: gọi bảo mật tới chủ nhà
-          </button>
-          <button
-            type="button"
-            className="btn btn-quiet btn-block"
-            onClick={() => {
-              hostEmergency(booking.id, "physical_key");
-              setEmergency(false);
-              toast("Area Lead sẽ mang chìa dự phòng tới trong ≤ 5 phút", "success");
-            }}
-          >
-            Chìa cơ thất lạc: báo Area Lead mang chìa dự phòng
-          </button>
-        </div>
-      </Modal>
-
-      <Modal
-        open={decline}
-        onClose={() => setDecline(false)}
-        variant="sheet"
-        title="Khách chưa quyết định"
-        description="Zalo sẽ cảm ơn khách kèm gợi ý 2 căn tương đương."
-        footer={
-          <button
-            type="button"
-            className="btn btn-primary btn-block"
-            onClick={() => {
-              hostNotInterested(booking.id, reason);
-              setDecline(false);
-            }}
-          >
-            Kết thúc buổi xem
-          </button>
-        }
-      >
-        <div className={styles.sosList}>
-          {NOT_DECIDED.map((r) => (
-            <label key={r} className="check">
-              <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} />
-              <span>{r}</span>
-            </label>
-          ))}
-        </div>
-      </Modal>
+      <EmergencyModal v={v} smart={smart} open={emergency} onClose={() => setEmergency(false)} />
+      <NotInterestedModal v={v} open={decline} onClose={() => setDecline(false)} title="Khách chưa quyết định" cta="Kết thúc buổi xem" />
     </section>
   );
 }
 
-// ─── 3. Chờ cọc (AwaitDepositStep - KHÔNG có VietQR) ──────────────────────────────────────────
+function EmergencyModal({ v, smart, open, onClose }: { v: HostViewingDetail; smart: boolean; open: boolean; onClose: () => void }) {
+  const { busy, run } = useHostAction(v.ref);
+  async function send(kind: "smart_lock" | "physical_key") {
+    const res = await run(() => hostApi.emergency(v.ref, kind));
+    if (res.ok) {
+      toast(res.data.message, "success");
+      onClose();
+    } else {
+      toast(hostErrorText(res));
+    }
+  }
+  return (
+    <Modal open={open} onClose={onClose} variant="sheet" title="Hỗ trợ khẩn cấp" description="Chọn tình huống để ghi vào nhật ký ca xem.">
+      <div className={styles.sosList}>
+        <button type="button" className="btn btn-quiet btn-block" disabled={!smart || busy} onClick={() => void send("smart_lock")}>
+          Khoá điện tử báo lỗi / chưa có mã hợp lệ
+        </button>
+        <button type="button" className="btn btn-quiet btn-block" disabled={busy} onClick={() => void send("physical_key")}>
+          Chìa cơ thất lạc
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
-export function AwaitDepositStep({ booking, unit }: StepProps) {
-  const state = useMock();
-  const holdHours = holdHoursFor(state, unit.id);
-  const consentOk = Boolean(booking.depositConsentAt);
-  const paidOk = Boolean(booking.deposit?.paidAt);
+// ─── 3. Chờ cọc (CHỈ ĐỌC — khách tự quét VietQR, Host không đụng tiền) ──────────────────────────
 
+export function AwaitDepositStep({ v }: StepProps) {
+  const [decline, setDecline] = useState(false);
+  const dep = v.deposit;
   return (
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<Clock size={22} />}
         title="Đang chờ khách thanh toán cọc"
-        hint={`Khách đồng ý điều khoản và quét VietQR trên lịch hẹn ${booking.ref} của họ. Căn tự khoá ${holdHours} giờ khi tiền về.`}
+        hint={`Khách đồng ý điều khoản và quét VietQR trên lịch hẹn ${v.ref} của họ. Căn tự khoá khi tiền về qua webhook ngân hàng.`}
       />
 
       <div className={styles.waiting} role="status">
         <LoaderCircle size={22} className={styles.spin} />
         <div>
-          <b>Đang chờ khách quét VietQR trên thiết bị của họ</b>
-          <p className="small">
-            Khoản cọc 2.000.000đ sẽ chuyển vào tài khoản định danh nền tảng và giữ căn trong {holdHours} giờ.
-          </p>
+          <b>{dep ? (DEPOSIT_TEXT[dep.status] ?? dep.status) : "Đang chờ khách quét VietQR trên thiết bị của họ"}</b>
+          <p className="small">Khoản cọc 2.000.000đ vào tài khoản định danh nền tảng. Bạn không cần (và không thể) xác nhận thanh toán thay khách.</p>
         </div>
       </div>
-
-      <ul className={styles.checklist}>
-        <li className={consentOk ? styles.ok : ""}>
-          {consentOk ? <CheckCircle2 size={16} /> : <Clock size={16} />}
-          <span>
-            {consentOk
-              ? `Khách đã đồng ý điều khoản cọc lúc ${fmtTime(booking.depositConsentAt!)}`
-              : "Khách đang đọc và đồng ý điều khoản đặt cọc"}
-          </span>
-        </li>
-        <li className={paidOk ? styles.ok : ""}>
-          {paidOk ? <CheckCircle2 size={16} /> : <Clock size={16} />}
-          <span>
-            {paidOk
-              ? `Ngân hàng đã báo có lúc ${fmtTime(booking.deposit!.paidAt!)}`
-              : "Đang chờ chuyển khoản 2.000.000đ"}
-          </span>
-        </li>
-      </ul>
 
       <p className="muted small">
         Khoản 2.000.000đ chuyển 100% thành một phần của Tiền cọc bảo đảm tài sản khi ký hợp đồng chính thức, tuyệt đối không trừ vào tiền thuê tháng đầu.
       </p>
 
-      <div className={styles.demoRow}>
-        <span className="xs muted">Demo</span>
-        <button
-          type="button"
-          className={styles.demo}
-          disabled={!consentOk}
-          onClick={() => {
-            confirmDepositPaid(booking.id, "webhook");
-            toast(`Ngân hàng báo có: căn đã khoá ${holdHours} giờ`, "success");
-          }}
-        >
-          Giả lập ngân hàng báo có
-        </button>
-        {!consentOk && (
-          <span className="xs muted" style={{ fontStyle: "italic" }}>
-            (Chờ khách đồng ý điều khoản trên app)
-          </span>
-        )}
-        <button
-          type="button"
-          className={styles.demo}
-          onClick={() => {
-            confirmDepositPaid(booking.id, "host_receipt");
-            toast("Đã xác nhận thấy UNC: căn chuyển sang giữ tạm để đối soát");
-          }}
-        >
-          Webhook chậm: xác nhận đã thấy UNC
-        </button>
-      </div>
+      <button type="button" className="btn btn-quiet btn-block" onClick={() => setDecline(true)}>
+        Khách không cọc nữa
+      </button>
+      <NotInterestedModal v={v} open={decline} onClose={() => setDecline(false)} title="Khách không cọc nữa" cta="Đóng ca xem" />
     </section>
   );
 }
 
-// ─── 4. Chờ ký thỏa thuận cọc (AwaitAgreementStep - holding) ────────────────────────────────────
+// ─── 4. Chờ hợp đồng thuê (holding — CHỈ ĐỌC) ───────────────────────────────────────────────────
 
-// ─── 5. Chờ hợp đồng thuê (AwaitLeaseStep - holding) ───────────────────────────────────────────
-
-export function AwaitLeaseStep({ booking, now }: StepProps) {
-  const forfeited = isHoldForfeited(booking, now);
-  const holdHours = booking.deposit?.holdHours ?? 48;
-  const hoursLeft = Math.max(0, Math.ceil(holdMsLeft(booking, now) / 3_600_000));
-  const hasKyc = Boolean(booking.kyc);
-  const hasMismatch = Boolean(booking.kyc?.mismatch);
-
+export function AwaitLeaseStep({ v, now }: StepProps) {
+  const expires = v.deposit?.holdExpiresAt ? Date.parse(v.deposit.holdExpiresAt) : null;
+  const hoursLeft = expires ? Math.max(0, Math.ceil((expires - now) / 3_600_000)) : null;
   return (
     <section className={`card ${styles.step}`}>
       <StepHead
         icon={<FileText size={22} />}
-        title={`Đã cọc giữ chỗ ${holdHours} giờ`}
-        hint={`Khách đã thanh toán cọc giữ chỗ 2.000.000đ qua VietQR (mã COC-${booking.ref}).`}
+        title="Đã cọc giữ chỗ"
+        hint={`Khách đã thanh toán cọc giữ chỗ 2.000.000đ qua VietQR (lịch ${v.ref}).`}
       />
-
-      {forfeited ? (
-        <div className={styles.warn} role="alert">
-          <ShieldAlert size={20} />
-          <div>
-            <b>Hết hạn giữ căn — khách mất cọc, căn đã mở lại.</b>
-            <p className="small">Thời hạn {holdHours} giờ đã kết thúc mà khách chưa ký Hợp đồng thuê.</p>
-          </div>
+      <div className={styles.presence} role="status">
+        <Clock size={20} />
+        <div>
+          <b>{hoursLeft == null ? "Đang chờ khách làm hợp đồng thuê" : `Còn ${hoursLeft} giờ để khách làm hợp đồng thuê`}</b>
+          <p className="small">
+            Khách tự thực hiện eKYC (xác minh CCCD 2 mặt) và ký số hợp đồng thuê trên app của khách. Hết hạn mà chưa ký thì khách mất cọc và căn tự mở lại.
+          </p>
         </div>
-      ) : (
-        <div className={styles.presence} role="status">
-          <Clock size={20} />
-          <div>
-            <b>Còn {hoursLeft} giờ để khách làm hợp đồng thuê</b>
-            <p className="small">
-              Khách sẽ tự thực hiện eKYC (xác minh CCCD 2 mặt) và ký số hợp đồng thuê trên app của khách. Hết hạn mà chưa ký thì khách mất cọc và căn tự mở lại.
-            </p>
-          </div>
-        </div>
-      )}
-
-      <ul className={styles.checklist}>
-        <li className={styles.ok}>
-          <CheckCircle2 size={16} /> Đã ký Thỏa thuận đặt cọc
-        </li>
-        {hasKyc && !hasMismatch && (
+      </div>
+      {v.contract && (
+        <ul className={styles.checklist}>
           <li className={styles.ok}>
-            <CheckCircle2 size={16} /> Khách đã xác minh CCCD
+            <CheckCircle2 size={16} /> Hợp đồng thuê đã được tạo ({v.contract.status})
           </li>
-        )}
-        {hasMismatch && (
-          <li style={{ color: "var(--amber-700, #b45309)" }}>
-            <CircleAlert size={16} /> Thông tin CCCD lệch với thỏa thuận cọc — Admin đang kiểm tra
-          </li>
-        )}
-        {!hasKyc && !forfeited && (
-          <li>
-            <Clock size={16} /> Đang chờ khách thực hiện eKYC và ký HĐ thuê trên điện thoại
-          </li>
-        )}
-      </ul>
+        </ul>
+      )}
     </section>
   );
 }
 
-// ─── 6. Hoàn tất & đóng ───────────────────────────────────────────────────────────────────────
+// ─── 5. Hoàn tất & đóng ───────────────────────────────────────────────────────────────────────
 
-export function DoneStep({ booking, unit }: StepProps) {
-  const state = useMock();
-  const host = hostById(booking.hostId)!;
-  const e = hostEarnings(state, host, state.fees);
-  const commission = Math.round(state.fees.dealCommission * e.multiplier);
-
+export function DoneStep({ v }: StepProps) {
   return (
     <section className={`card ${styles.step} ${styles.doneCard}`}>
       <span className={styles.bigCheck}>
@@ -498,50 +425,30 @@ export function DoneStep({ booking, unit }: StepProps) {
       </span>
       <h2>Chốt deal thành công</h2>
       <p className="muted">
-        Hợp đồng {booking.lease?.docId} đã ký số. Căn {unit.code} chuyển sang “đã cho thuê”; chủ nhà và Admin đã nhận thông báo.
-      </p>
-
-      <dl className={styles.payout}>
-        <div>
-          <dt>Hoa hồng chốt cọc</dt>
-          <dd className="num">
-            {vnd(commission)}đ
-            {e.multiplier > 1 && <span className="muted xs"> (×{String(e.multiplier).replace(".", ",")} vì đánh giá ≥ 4,8★)</span>}
-          </dd>
-        </div>
-        <div>
-          <dt>Thù lao lượt dẫn</dt>
-          <dd className="num">{vnd(state.fees.baseViewingFee)}đ</dd>
-        </div>
-      </dl>
-      <p className="muted xs">
-        Tự động cộng vào ví tuần này theo cấu hình của Admin. Việc tiếp theo: hẹn khách lập Hộ chiếu bàn giao số 10 hạng mục khi nhận nhà.
+        Căn {v.unit.code} đã được thuê. Việc tiếp theo: hẹn khách lập Hộ chiếu bàn giao số 10 hạng mục khi nhận nhà.
       </p>
       <div className={styles.row2}>
-        <Link href="/host/dispatch" className="btn btn-quiet">
+        <Link href="/host/dispatch" className="btn btn-primary">
           Về lịch
-        </Link>
-        <Link href="/host/earnings" className="btn btn-primary">
-          Xem thu nhập
         </Link>
       </div>
     </section>
   );
 }
 
-export function ClosedStep({ booking, now }: StepProps) {
+export function ClosedStep({ v, now }: StepProps) {
   const label: Record<string, string> = {
     completed: "Buổi xem đã kết thúc",
     no_show: "Khách bỏ hẹn, ca đã giải phóng",
     cancelled: "Lịch đã bị huỷ",
-    rejected: "Bạn đã từ chối ticket này",
+    rejected: "Lịch đã bị từ chối",
   };
   return (
     <section className={`card ${styles.step}`}>
-      <h2>{label[booking.status]}</h2>
-      {booking.closedReason && <p className="muted">{booking.closedReason}</p>}
+      <h2>{label[v.status] ?? "Ca đã đóng"}</h2>
+      {v.closedReason && <p className="muted">{v.closedReason}</p>}
       <p className="muted small">
-        Lịch {booking.ref} · {fmtTime(booking.slot)} {dayLabel(booking.slot, now).toLowerCase()}
+        Lịch {v.ref} · {fmtTime(v.slot)} {dayLabel(v.slot, now).toLowerCase()}
       </p>
       <Link href="/host/dispatch" className="btn btn-primary">
         Về danh sách lịch

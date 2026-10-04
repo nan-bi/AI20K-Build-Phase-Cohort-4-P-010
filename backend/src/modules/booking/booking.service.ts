@@ -18,12 +18,10 @@ import {
   RescheduleBookingDto,
   RateBookingDto,
 } from './dto/booking.dto';
-import {
-  ViewingStatus,
-  UnitStatus,
-  HostDutyStatus,
-  TicketStatus,
-} from '@prisma/client';
+import { ViewingStatus, UnitStatus, TicketStatus } from '@prisma/client';
+import { DispatchAssignerService } from '../dispatch/dispatch-assigner.service';
+import { ViewingFlowService } from '../host-viewings/viewing-flow.service';
+import type { HostActor } from '../host-viewings/host-viewings.types';
 import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
 import { TenantBooking } from '../tenant/tenant.types';
 import { isValidSlotTimeVN } from '../tenant/slots.helper';
@@ -46,6 +44,8 @@ export class BookingService {
     private readonly bookingAccess: BookingAccessService,
     private readonly phones: PhoneService,
     private readonly actionTokens: ActionTokenService,
+    private readonly assigner: DispatchAssignerService,
+    private readonly flow: ViewingFlowService,
   ) {}
 
   /**
@@ -245,41 +245,11 @@ export class BookingService {
         },
       });
 
-      // Điều phối: Tìm host rảnh trong phân khu
-      const host = await tx.fieldHost.findFirst({
-        where: {
-          dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
-          assignedZone: { contains: unit.building.zoneName },
-          tickets: {
-            none: {
-              status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
-              viewing: {
-                viewingSlot: slotDate,
-                status: {
-                  in: [
-                    ViewingStatus.PENDING_CONFIRMATION,
-                    ViewingStatus.CONFIRMED,
-                    ViewingStatus.LOBBY,
-                    ViewingStatus.RECEIVING,
-                    ViewingStatus.VIEWING,
-                    ViewingStatus.CLOSING,
-                  ],
-                },
-              },
-            },
-          },
-        },
-        include: { profile: true },
-      });
-
-      await tx.dispatchTicket.create({
-        data: {
-          viewingId: v.id,
-          hostId: host ? host.id : null,
-          tier: host ? 1 : 2,
-          slaSeconds: 180, // SLA 180s (3 phút)
-          status: TicketStatus.OFFERED,
-        },
+      // Điều phối (hồ sơ 15): Sale đúng vai/phân khu/đang trực/không trùng lịch; không ai ⇒ ticket vào Open Pool.
+      await this.assigner.offer(tx, {
+        viewingId: v.id,
+        zoneName: unit.building.zoneName,
+        slot: slotDate,
       });
 
       return v;
@@ -391,7 +361,7 @@ export class BookingService {
           viewingId: viewing.id,
           status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
         },
-        data: { status: TicketStatus.CANCELLED },
+        data: { status: TicketStatus.CANCELLED, closedAt: new Date() },
       }),
     ]);
 
@@ -482,42 +452,13 @@ export class BookingService {
           viewingId: viewing.id,
           status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
         },
-        data: { status: TicketStatus.CANCELLED },
+        data: { status: TicketStatus.CANCELLED, closedAt: new Date() },
       });
 
-      const host = await tx.fieldHost.findFirst({
-        where: {
-          dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
-          assignedZone: { contains: viewing.unit.building.zoneName },
-          tickets: {
-            none: {
-              status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
-              viewing: {
-                viewingSlot: newSlot,
-                status: {
-                  in: [
-                    ViewingStatus.PENDING_CONFIRMATION,
-                    ViewingStatus.CONFIRMED,
-                    ViewingStatus.LOBBY,
-                    ViewingStatus.RECEIVING,
-                    ViewingStatus.VIEWING,
-                    ViewingStatus.CLOSING,
-                  ],
-                },
-              },
-            },
-          },
-        },
-      });
-
-      await tx.dispatchTicket.create({
-        data: {
-          viewingId: viewing.id,
-          hostId: host ? host.id : null,
-          tier: host ? 1 : 2,
-          slaSeconds: 180,
-          status: TicketStatus.OFFERED,
-        },
+      await this.assigner.offer(tx, {
+        viewingId: viewing.id,
+        zoneName: viewing.unit.building.zoneName,
+        slot: newSlot,
       });
     });
 
@@ -605,135 +546,6 @@ export class BookingService {
     await this.prisma.viewing.update({
       where: { id: viewing.id },
       data: { tenantRating: Math.round(dto.stars) },
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  // =========================================================================
-  // HOST STEP TRANSITIONS (Đ16: Logic đặt tại BookingService, DemoController chỉ gọi)
-  // =========================================================================
-
-  async hostAccept(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    if (viewing.status !== ViewingStatus.PENDING_CONFIRMATION) {
-      throw new ConflictException({
-        message: 'Lịch hẹn không ở trạng thái chờ xác nhận.',
-        code: 'bad_status',
-        expected: 'pending',
-        actual: statusToWeb(viewing.status),
-      });
-    }
-
-    const host =
-      (await this.prisma.fieldHost.findFirst({
-        where: { dutyStatus: HostDutyStatus.ONLINE_AVAILABLE },
-      })) ?? (await this.prisma.fieldHost.findFirst());
-
-    await this.prisma.$transaction([
-      this.prisma.viewing.update({
-        where: { id: viewing.id },
-        data: {
-          status: ViewingStatus.CONFIRMED,
-          confirmedAt: new Date(),
-        },
-      }),
-      this.prisma.dispatchTicket.updateMany({
-        where: { viewingId: viewing.id },
-        data: {
-          status: TicketStatus.ACCEPTED,
-          acceptedAt: new Date(),
-          hostId: host?.id || null,
-        },
-      }),
-    ]);
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  async sendReminder(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    if (viewing.status !== ViewingStatus.CONFIRMED) {
-      throw new ConflictException({
-        message: 'Lịch hẹn chưa được xác nhận.',
-        code: 'bad_status',
-      });
-    }
-
-    await this.prisma.viewing.update({
-      where: { id: viewing.id },
-      data: { reminderSentAt: new Date() },
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  async hostReceive(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    if (viewing.status !== ViewingStatus.LOBBY) {
-      throw new ConflictException({
-        message: 'Khách chưa có mặt tại sảnh.',
-        code: 'bad_status',
-        expected: 'lobby',
-        actual: statusToWeb(viewing.status),
-      });
-    }
-
-    await this.prisma.viewing.update({
-      where: { id: viewing.id },
-      data: {
-        status: ViewingStatus.RECEIVING,
-        receivingAt: new Date(),
-      },
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  async hostView(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    if (viewing.status !== ViewingStatus.RECEIVING) {
-      throw new ConflictException({
-        message: 'Host chưa đón khách tại sảnh.',
-        code: 'bad_status',
-        expected: 'receiving',
-        actual: statusToWeb(viewing.status),
-      });
-    }
-
-    await this.prisma.viewing.update({
-      where: { id: viewing.id },
-      data: {
-        status: ViewingStatus.VIEWING,
-        viewingStartedAt: new Date(),
-      },
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  async hostStartDeposit(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    if (viewing.status !== ViewingStatus.VIEWING) {
-      throw new ConflictException({
-        message: 'Chưa bắt đầu ca xem phòng.',
-        code: 'bad_status',
-        expected: 'viewing',
-        actual: statusToWeb(viewing.status),
-      });
-    }
-
-    await this.prisma.viewing.update({
-      where: { id: viewing.id },
-      data: {
-        status: ViewingStatus.CLOSING,
-        viewEndedAt: new Date(),
-      },
     });
 
     const updated = await this.bookingAccess.loadOwned(ref, user);
@@ -852,18 +664,30 @@ export class BookingService {
     return toTenantBooking(updated);
   }
 
+  /**
+   * Công cụ demo A21. Các bước phía Host đi qua `ViewingFlowService` (B7) với "Host giả lập" = chủ ticket hiện
+   * tại của ca (không có ⇒ chọn Sale phù hợp; vẫn không có ⇒ 409 `no_host_available`). Bỏ ràng buộc về giờ.
+   */
   async executeDemoStep(ref: string, step: string, user: { id: string }): Promise<TenantBooking> {
     switch (step) {
-      case 'host-accept':
-        return this.hostAccept(ref, user);
+      case 'host-accept': {
+        const { host, ticket } = await this.demoHost(ref, user, [TicketStatus.OFFERED]);
+        await this.flow.claim(ticket.id, host);
+        break;
+      }
       case 'reminder':
-        return this.sendReminder(ref, user);
+        await this.flow.remind(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
+        break;
       case 'host-receive':
-        return this.hostReceive(ref, user);
+        await this.flow.receive(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
+        break;
       case 'host-view':
-        return this.hostView(ref, user);
+        // Mở cửa thật (kiểm mã, ghi audit) nhưng KHÔNG đưa mã cho khách.
+        await this.flow.openDoor(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
+        break;
       case 'host-start-deposit':
-        return this.hostStartDeposit(ref, user);
+        await this.flow.startDeposit(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
+        break;
       case 'bank-paid':
         return this.demoBankPaid(ref, user);
       case 'expire-hold':
@@ -874,5 +698,48 @@ export class BookingService {
           code: 'invalid_request',
         });
     }
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  private async demoHost(
+    ref: string,
+    user: { id: string },
+    wanted: TicketStatus[],
+  ): Promise<{ host: HostActor; ticket: { id: string } }> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    const ticket = [...(viewing.tickets ?? [])].reverse().find((t: any) => wanted.includes(t.status));
+    if (!ticket) {
+      throw new ConflictException({
+        message: 'Lịch hẹn không ở trạng thái phù hợp cho bước demo này.',
+        code: 'bad_status',
+      });
+    }
+    let hostId: string | null = ticket.hostId;
+    if (!hostId) {
+      const picked = await this.assigner.pickHost(this.prisma, {
+        zoneName: viewing.unit.building.zoneName,
+        slot: new Date(viewing.viewingSlot),
+        excludeViewingId: viewing.id,
+      });
+      hostId = picked?.id ?? null;
+    }
+    const row = hostId ? await this.prisma.fieldHost.findUnique({ where: { id: hostId } }) : null;
+    if (!row) {
+      throw new ConflictException({
+        message: 'Không có Sale phù hợp để thao tác thay (công cụ demo).',
+        code: 'no_host_available',
+      });
+    }
+    return {
+      ticket: { id: ticket.id },
+      host: {
+        hostId: row.id,
+        profileId: row.profileId,
+        assignedZone: row.assignedZone,
+        rating: Number(row.rating),
+        dutyStatus: row.dutyStatus,
+      },
+    };
   }
 }

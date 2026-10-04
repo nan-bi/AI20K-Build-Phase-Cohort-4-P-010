@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HostDutyStatus, TicketStatus, ViewingStatus } from '@prisma/client';
+import { hostConflict } from '../host-viewings/host-viewings.errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import { authError } from '../auth/auth.errors';
 import { toHostRoleCodes } from '../auth/host-roles';
@@ -34,6 +36,28 @@ export class HostService {
       rating: Number(host.rating),
       joinedAt: host.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Bật/tắt trực (H1). Chỉ Host ONLINE mới được giao ticket tầng 1. Đang dẫn khách (RECEIVING/VIEWING) ⇒ không tắt
+   * được (`host_busy`); bật trực khi đang dẫn thì giữ BUSY_VIEWING — trạng thái tự trả về ONLINE khi xong phần dẫn.
+   */
+  async setDuty(profileId: string, status: 'ONLINE_AVAILABLE' | 'OFF_DUTY') {
+    const host = await this.prisma.fieldHost.findUnique({ where: { profileId } });
+    if (!host) throw authError('host_not_provisioned');
+    const guiding = await this.prisma.dispatchTicket.count({
+      where: {
+        hostId: host.id,
+        status: TicketStatus.ACCEPTED,
+        viewing: { status: { in: [ViewingStatus.RECEIVING, ViewingStatus.VIEWING] } },
+      },
+    });
+    if (guiding > 0) {
+      if (status === 'OFF_DUTY') throw hostConflict('host_busy');
+      return { dutyStatus: HostDutyStatus.BUSY_VIEWING };
+    }
+    await this.prisma.fieldHost.update({ where: { id: host.id }, data: { dutyStatus: status } });
+    return { dutyStatus: status };
   }
 
   async getInspections(hostId?: string) {
