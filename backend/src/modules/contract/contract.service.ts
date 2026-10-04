@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateMandateDto } from './dto/contract.dto';
 import { MandateStatus } from '@prisma/client';
+import { DoorCodeService } from '../door/door-code.service';
 
 @Injectable()
 export class ContractService {
@@ -10,7 +11,8 @@ export class ContractService {
 
   constructor(
     private prisma: PrismaService,
-    @Optional() private auditService?: AuditService,
+    @Optional() private auditService: AuditService | undefined,
+    private readonly doorCodes: DoorCodeService,
   ) {}
 
   async createMandate(dto: CreateMandateDto, landlordId?: string) {
@@ -31,13 +33,13 @@ export class ContractService {
     await this.prisma.doorAccessKey.upsert({
       where: { unitId: unit.id },
       update: {
-        vaultSecretRef: `vault:aes256:pin:${doorPin}`,
+        vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
         lastRotatedAt: new Date(),
       },
       create: {
         unitId: unit.id,
         keyType: 'ELECTRONIC_PIN',
-        vaultSecretRef: `vault:aes256:pin:${doorPin}`,
+        vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
       },
     });
 
