@@ -2,142 +2,23 @@ import { Injectable, NotFoundException, Logger, BadRequestException } from '@nes
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
-  UpdateCommissionParamDto,
   CreateFieldHostDto,
   UpdateFieldHostDto,
   ApproveConsignmentDto,
   RejectConsignmentDto,
   ReassignBookingDto,
   VoidHoldDto,
-  UpdateHoldPolicyDto,
 } from './dto/admin.dto';
 import { MandateStatus, UnitStatus, TicketStatus, HostDutyStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
-  private holdPolicy = {
-    defaultHours: 48,
-    byUnit: {} as Record<string, number>,
-  };
 
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
   ) {}
-
-  // ==========================================
-  // MODULE 1: BI FUNNEL & OCCUPANCY HEATMAP
-  // ==========================================
-  async getBiFunnelAndHeatmap() {
-    let totalUnits = 128;
-    let rentedUnits = 85;
-    let holdingUnits = 12;
-    let availableUnits = 31;
-
-    try {
-      totalUnits = await this.prisma.unit.count();
-      rentedUnits = await this.prisma.unit.count({ where: { status: UnitStatus.RENTED } });
-      holdingUnits = await this.prisma.unit.count({ where: { status: UnitStatus.HOLDING } });
-      availableUnits = await this.prisma.unit.count({ where: { status: UnitStatus.AVAILABLE } });
-    } catch (err) {
-      this.logger.warn(`Prisma DB offline, using simulated BI metrics`);
-    }
-
-    const funnel = {
-      stages: [
-        { stage: '1. Truy cập & All-in Calculator', count: 12450, dropRate: '0%' },
-        { stage: '2. Quét AI Matchmaker 30s', count: 4210, dropRate: '66.2%' },
-        { stage: '3. Đặt lịch OTP xác thực SĐT', count: 1080, dropRate: '74.3%' },
-        { stage: '4. Check-in 1-chạm Sảnh đón', count: 1039, dropRate: '3.8%' },
-        { stage: '5. Quét VietQR Cọc 2M', count: 320, dropRate: '69.2%' },
-        { stage: '6. Ký Thỏa thuận & Hợp đồng số', count: 312, dropRate: '2.5%' },
-      ],
-      noShowRate: '3.8%',
-      avgDecisionTimeMinutes: 24,
-    };
-
-    const occupancyHeatmap = [
-      { buildingCode: 'S1.01', zone: 'The Sapphire 1', total: 650, rented: 611, occupancyRate: '94.0%', alert: 'NORMAL' },
-      { buildingCode: 'S1.02', zone: 'The Sapphire 1', total: 620, rented: 564, occupancyRate: '91.0%', alert: 'NORMAL' },
-      { buildingCode: 'S1.05', zone: 'The Sapphire 1', total: 580, rented: 510, occupancyRate: '87.9%', alert: 'NORMAL' },
-      { buildingCode: 'S2.01', zone: 'The Sapphire 2', total: 720, rented: 612, occupancyRate: '85.0%', alert: 'NORMAL' },
-      { buildingCode: 'S2.05', zone: 'The Sapphire 2', total: 680, rented: 490, occupancyRate: '72.1%', alert: 'ATTENTION_NEEDED' },
-    ];
-
-    return {
-      funnel,
-      occupancyHeatmap,
-      portfolioStatus: {
-        totalUnits,
-        rentedUnits,
-        holdingUnits,
-        availableUnits,
-      },
-    };
-  }
-
-  // ==========================================
-  // MODULE 2: RỔ HÀNG ĐỘC QUYỀN
-  // ==========================================
-  async getExclusiveInventory() {
-    try {
-      const units = await this.prisma.unit.findMany({
-        include: {
-          building: true,
-          landlord: true,
-          mandates: { orderBy: { createdAt: 'desc' }, take: 1 },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (units.length > 0) {
-        return units.map((u) => ({
-          id: u.id,
-          unitCode: u.unitCode,
-          building: u.building.buildingCode,
-          zone: u.building.zoneName,
-          layout: u.layoutType,
-          carpetAreaM2: Number(u.carpetAreaM2),
-          baseRentPrice: Number(u.baseRentPrice),
-          status: u.status,
-          landlordName: u.landlord?.fullName || 'Chủ nhà Ocean Park',
-          mandateStatus: u.mandates[0]?.status || 'NONE',
-          exitCountdownDays: u.mandates[0]?.exitEffectiveAt ? 15 : null,
-        }));
-      }
-    } catch (err) {
-      this.logger.warn(`Prisma DB offline, returning mock exclusive inventory`);
-    }
-
-    return [
-      {
-        id: 'u1',
-        unitCode: 'VHOP-S1.02-12A08',
-        building: 'S1.02',
-        zone: 'The Sapphire 1',
-        layout: 'ONE_BED_PLUS',
-        carpetAreaM2: 47,
-        baseRentPrice: 6500000,
-        status: 'AVAILABLE',
-        landlordName: 'Nguyễn Văn Minh',
-        mandateStatus: 'ACTIVE',
-        exitCountdownDays: null,
-      },
-      {
-        id: 'u2',
-        unitCode: 'VHOP-S1.05-0804',
-        building: 'S1.05',
-        zone: 'The Sapphire 1',
-        layout: 'STUDIO',
-        carpetAreaM2: 32.5,
-        baseRentPrice: 4800000,
-        status: 'AVAILABLE',
-        landlordName: 'Trần Thị Loan',
-        mandateStatus: 'ACTIVE',
-        exitCountdownDays: null,
-      },
-    ];
-  }
 
   async approveConsignment(id: string, dto: ApproveConsignmentDto) {
     this.logger.log(`[ADMIN] Đã duyệt hồ sơ ký gửi #${id}: ${dto.note || 'Hợp lệ'}`);
@@ -159,61 +40,6 @@ export class AdminService {
       rejectedAt: new Date().toISOString(),
       note: dto.note,
       message: 'Đã từ chối hồ sơ ký gửi.',
-    };
-  }
-
-  // ==========================================
-  // MODULE 3: ĐIỀU PHỐI & SLA
-  // ==========================================
-  async getDispatchSlaMonitoring() {
-    try {
-      const tickets = await this.prisma.dispatchTicket.findMany({
-        include: {
-          host: { include: { profile: true } },
-          viewing: { include: { unit: { include: { building: true } } } },
-        },
-        orderBy: { offeredAt: 'desc' },
-      });
-      if (tickets.length > 0) {
-        return tickets.map((t) => ({
-          ticketId: t.id,
-          unitCode: t.viewing.unit.unitCode,
-          building: t.viewing.unit.building.buildingCode,
-          hostName: t.host?.profile?.fullName || 'Chưa gán Host',
-          tier: t.tier,
-          slaSeconds: t.slaSeconds,
-          status: t.status,
-          offeredAt: t.offeredAt.toISOString(),
-          isBreached: false,
-        }));
-      }
-    } catch (err) {
-      this.logger.warn(`SLA DB fallback: ${err.message}`);
-    }
-
-    return [
-      {
-        ticketId: 't-01',
-        unitCode: 'VHOP-S1.02-12A08',
-        building: 'S1.02',
-        hostName: 'Lê Quốc Bảo',
-        tier: 1,
-        slaSeconds: 300,
-        status: 'ACCEPTED',
-        offeredAt: new Date(Date.now() - 600000).toISOString(),
-        isBreached: false,
-      },
-    ];
-  }
-
-  async reassignBooking(bookingId: string, dto: ReassignBookingDto) {
-    this.logger.log(`[ADMIN] Điều phối thủ công booking #${bookingId} sang Host #${dto.hostId}`);
-    return {
-      success: true,
-      bookingId,
-      newHostId: dto.hostId,
-      reassignedAt: new Date().toISOString(),
-      message: 'Đã điều phối lịch xem sang Field Host mới.',
     };
   }
 
@@ -323,38 +149,6 @@ export class AdminService {
   // ==========================================
   // MODULE 5: CONTRACTS & SỔ HỢP ĐỒNG
   // ==========================================
-  async getContracts() {
-    try {
-      const contracts = await this.prisma.contract.findMany({
-        include: {
-          unit: { include: { building: true } },
-          tenant: true,
-          landlord: true,
-          holdingDeposit: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (contracts.length > 0) return contracts;
-    } catch (err) {
-      this.logger.warn(`Contracts DB fallback: ${err.message}`);
-    }
-
-    return [
-      {
-        id: 'c1',
-        contractNumber: 'HDT-2026-VHOP-S102-001',
-        unitCode: 'VHOP-S1.02-12A08',
-        tenantName: 'Nguyễn Văn An',
-        landlordName: 'Nguyễn Văn Minh',
-        monthlyRentPrice: 6500000,
-        securityDepositAmount: 6500000,
-        startDate: '2026-10-01',
-        endDate: '2027-09-30',
-        status: 'ACTIVE',
-      },
-    ];
-  }
-
   async getContractById(id: string) {
     return {
       id,
@@ -369,20 +163,6 @@ export class AdminService {
       status: 'ACTIVE',
       evidenceSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       tsaTimestamp: new Date().toISOString(),
-    };
-  }
-
-  async voidHold(id: string, dto: VoidHoldDto) {
-    this.logger.log(`[ADMIN] Huỷ cọc giữ chỗ #${id}: ${dto.reason}, ghi chú: ${dto.note}`);
-    return {
-      success: true,
-      depositId: id,
-      status: 'FORFEITED',
-      reason: dto.reason,
-      note: dto.note,
-      message: dto.reason === 'landlord_breach'
-        ? 'Đã hủy cọc do Chủ nhà vi phạm: Hoàn 100% cọc cho khách + phạt vi phạm tương đương.'
-        : 'Đã hủy cọc do Bất khả kháng: Hoàn 100% tiền cọc cho khách thuê.',
     };
   }
 
@@ -442,71 +222,6 @@ export class AdminService {
       role: 'Nền tảng vận hành',
       address: 'Khu đô thị Vinhomes Ocean Park, Gia Lâm, Hà Nội',
       repName: 'CEO VinStay',
-    };
-  }
-
-  // ==========================================
-  // MODULE 6: DYNAMIC COMMISSION & HOLD POLICY
-  // ==========================================
-  async getCommissionEngine() {
-    try {
-      const configs = await this.prisma.feeConfig.findMany();
-      if (configs.length > 0) {
-        return {
-          configs: configs.map((c) => ({
-            id: c.id,
-            configKey: c.configKey,
-            paramValue: Number(c.paramValue),
-            paramUnit: c.paramUnit,
-            updatedAt: c.updatedAt,
-          })),
-        };
-      }
-    } catch (err) {
-      this.logger.warn(`Commission engine DB fallback: ${err.message}`);
-    }
-
-    return {
-      configs: [
-        { configKey: 'host_base_viewing_fee', paramValue: 50000, paramUnit: 'VND/lượt' },
-        { configKey: 'host_deal_commission', paramValue: 400000, paramUnit: 'VND/cọc' },
-        { configKey: 'host_rating_multiplier_5star', paramValue: 1.2, paramUnit: 'hệ số' },
-        { configKey: 'host_peak_hour_multiplier', paramValue: 1.15, paramUnit: 'hệ số' },
-      ],
-    };
-  }
-
-  async updateCommissionParam(dto: UpdateCommissionParamDto) {
-    const { configKey, paramValue, reason } = dto;
-    this.logger.log(`[COMMISSION] Cập nhật tham số [${configKey}] = ${paramValue}. Lý do: ${reason}`);
-
-    return {
-      success: true,
-      configKey,
-      newValue: paramValue,
-      updatedAt: new Date().toISOString(),
-      reason,
-      message: 'Đã cập nhật tham số biến phí và lưu nhật ký kiểm toán.',
-    };
-  }
-
-  getHoldPolicy() {
-    return this.holdPolicy;
-  }
-
-  updateHoldPolicy(dto: UpdateHoldPolicyDto) {
-    if (dto.unitId) {
-      this.holdPolicy.byUnit[dto.unitId] = dto.hours;
-    } else {
-      this.holdPolicy.defaultHours = dto.hours;
-    }
-
-    return {
-      success: true,
-      holdPolicy: this.holdPolicy,
-      message: dto.unitId
-        ? `Đã cập nhật thời hạn giữ chỗ cho căn #${dto.unitId}: ${dto.hours} giờ.`
-        : `Đã cập nhật thời hạn giữ chỗ mặc định toàn sàn: ${dto.hours} giờ.`,
     };
   }
 }

@@ -10,30 +10,33 @@ import styles from "./Charts.module.css";
 /** Phễu 6 giai đoạn: thứ tự là nghĩa → thang một hue sáng dần đến đậm (ordinal), không phải 6 màu rời. */
 export function Funnel({ steps }: { steps: FunnelStep[] }) {
   const tip = useChartTip();
-  const max = steps[0].value;
-  // Điểm rơi lớn nhất giữa hai giai đoạn liền kề.
-  const drops = steps.slice(1).map((s, i) => ({ i: i + 1, keep: s.value / steps[i].value }));
-  const worst = drops.reduce((a, b) => (b.keep < a.keep ? b : a));
+  const max = Math.max(1, ...steps.flatMap((s) => (s.value === null ? [] : [s.value])));
+  const drops = steps.slice(1).flatMap((s, i) => {
+    const previous = steps[i].value;
+    return s.value === null || previous === null || previous === 0 ? [] : [{ i: i + 1, keep: s.value / previous }];
+  });
+  const worst = drops.length > 0 ? drops.reduce((a, b) => (b.keep < a.keep ? b : a)) : null;
 
   return (
     <ChartFrame
       title="Phễu chuyển đổi 6 giai đoạn"
-      subtitle="Tuần này: từ lượt truy cập web đến ký thỏa thuận số"
-      table={{ head: ["Giai đoạn", "Số lượt", "Giữ lại so với giai đoạn trước"], rows: steps.map((s, i) => [s.label, s.value.toLocaleString("vi-VN"), i === 0 ? "—" : `${Math.round((s.value / steps[i - 1].value) * 100)}%`]) }}
+      subtitle="Số liệu từ backend; giai đoạn chưa có nguồn sẽ hiển thị riêng"
+      table={{ head: ["Giai đoạn", "Số lượt", "Giữ lại so với giai đoạn trước"], rows: steps.map((s, i) => [s.label, s.value === null ? "Chưa có nguồn" : s.value.toLocaleString("vi-VN"), i === 0 || s.value === null || steps[i - 1].value === null || steps[i - 1].value === 0 ? "—" : `${Math.round((s.value / steps[i - 1].value!) * 100)}%`]) }}
     >
       <div className={styles.plot} data-plot="">
         <ol className={styles.funnel}>
           {steps.map((s, i) => {
-            const pct = i === 0 ? 100 : Math.round((s.value / steps[i - 1].value) * 100);
+            const previous = i > 0 ? steps[i - 1].value : null;
+            const pct = i === 0 ? 100 : s.value === null || previous === null || previous === 0 ? null : Math.round((s.value / previous) * 100);
             return (
-              <li key={s.key} {...tip.bind(s.label, [{ label: i === 0 ? "lượt truy cập" : `giữ lại ${pct}% so với ${steps[i - 1].label.toLowerCase()}`, value: s.value.toLocaleString("vi-VN"), key: ORDINAL_6[i] }])}>
+              <li key={s.key} {...tip.bind(s.label, [{ label: i === 0 ? "lượt truy cập" : pct === null ? "Tỷ lệ giữ lại" : `giữ lại ${pct}% so với ${steps[i - 1].label.toLowerCase()}`, value: s.value === null ? "Chưa có nguồn dữ liệu" : s.value.toLocaleString("vi-VN"), key: ORDINAL_6[i] }])}>
                 <span className={styles.fLabel}>{s.label}</span>
                 <span className={styles.fTrack}>
-                  <span className={styles.fBar} style={{ width: `${Math.max(1.6, (s.value / max) * 100)}%`, background: ORDINAL_6[i] }} />
+                  {s.value !== null && <span className={styles.fBar} style={{ width: `${Math.max(1.6, (s.value / max) * 100)}%`, background: ORDINAL_6[i] }} />}
                 </span>
                 <span className={`tnum ${styles.fVal}`}>
-                  <b>{s.value.toLocaleString("vi-VN")}</b>
-                  {i > 0 && <em>{pct}%</em>}
+                  <b>{s.value === null ? "—" : s.value.toLocaleString("vi-VN")}</b>
+                  {i > 0 && <em>{pct === null ? "—" : `${pct}%`}</em>}
                 </span>
               </li>
             );
@@ -41,9 +44,13 @@ export function Funnel({ steps }: { steps: FunnelStep[] }) {
         </ol>
         {tip.node}
       </div>
-      <p className={`small ${styles.insight}`}>
-        <AlertTriangle size={15} /> Điểm rơi lớn nhất: từ “{steps[worst.i - 1].label}” xuống “{steps[worst.i].label}” chỉ giữ lại {Math.round(worst.keep * 100)}%.
-      </p>
+      {worst ? (
+        <p className={`small ${styles.insight}`}>
+          <AlertTriangle size={15} /> Điểm rơi lớn nhất: từ “{steps[worst.i - 1].label}” xuống “{steps[worst.i].label}” chỉ giữ lại {Math.round(worst.keep * 100)}%.
+        </p>
+      ) : (
+        <p className={`small ${styles.insight}`}>Chưa đủ dữ liệu liên tiếp để tính tỷ lệ chuyển đổi giữa các giai đoạn.</p>
+      )}
     </ChartFrame>
   );
 }
