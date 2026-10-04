@@ -1,26 +1,21 @@
 /**
  * Seed phần xác thực cho môi trường dev (thay `prisma:seed` cũ của apps/web):
  *  - Admin mặc định (SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD)
- *  - 2 lời mời Field Host (host tự đăng ký ở /admin/login bằng email này)
+ *  (Field Host do Admin tạo ở /admin/hosts; seed chỉ tạo Host demo khi có `--demo`)
  *  - Với `--demo`: 4 tài khoản demo cho nút "Trải nghiệm nhanh" (khớp AUTH_DEMO_MODE=true)
  *
- *   npm run seed:auth            # admin + lời mời host
+ *   npm run seed:auth            # chỉ admin
  *   npm run seed:auth -- --demo  # thêm tài khoản demo
  *
  * Chỉ cần DATABASE_URL (tài khoản nằm trong bảng profiles). Không chạy ở production.
  */
-import { HostDutyStatus } from '@prisma/client';
+import { HostDutyStatus, HostRole } from '@prisma/client';
 import { PORTAL_ROLE } from '../src/modules/auth/auth.constants';
-import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS, DEMO_HOST_RFID } from '../src/modules/auth/demo-accounts';
+import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from '../src/modules/auth/demo-accounts';
 import { ensureAccount, prisma, refuseInProduction, run } from './auth-helpers';
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@vinstay.test';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? '123456!';
-
-const HOST_INVITES = [
-  { email: 'host1@vinstay.test', assignedZone: 'The Sapphire 1', rfidCardNumber: 'RFID-S1-0001' },
-  { email: 'host2@vinstay.test', assignedZone: 'The Sapphire 2', rfidCardNumber: 'RFID-S2-0001' },
-];
 
 run(async () => {
   refuseInProduction('seed:auth');
@@ -33,11 +28,6 @@ run(async () => {
   });
   console.log(admin.created ? `Đã tạo admin ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}` : `Bỏ qua admin đã có ${ADMIN_EMAIL}`);
 
-  for (const invite of HOST_INVITES) {
-    await prisma.hostInvite.upsert({ where: { email: invite.email }, update: {}, create: invite });
-    console.log(`Lời mời Field Host: ${invite.email} (RFID ${invite.rfidCardNumber})`);
-  }
-
   if (!process.argv.includes('--demo')) return;
 
   const password = process.env.DEMO_PASSWORD ?? DEFAULT_DEMO_PASSWORD;
@@ -47,7 +37,7 @@ run(async () => {
     console.log(`${created ? 'Đã tạo' : 'Bỏ qua'} tài khoản demo ${portal}: ${email}`);
   }
 
-  // Host demo đã "nhập RFID" sẵn để vào thẳng dashboard.
+  // Host demo có sẵn hồ sơ Field Host với CẢ HAI vai để thấy đủ menu Sale + Thẩm định.
   const host = DEMO_ACCOUNTS.host;
   const { id, created } = await ensureAccount({
     email: host.email,
@@ -57,23 +47,12 @@ run(async () => {
   });
   await prisma.fieldHost.upsert({
     where: { profileId: id },
-    update: {},
+    update: { roles: [HostRole.SALE, HostRole.INSPECTOR] },
     create: {
       profileId: id,
       assignedZone: 'The Sapphire 1',
-      rfidCardNumber: DEMO_HOST_RFID,
+      roles: [HostRole.SALE, HostRole.INSPECTOR],
       dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
-    },
-  });
-  await prisma.hostInvite.upsert({
-    where: { email: host.email.toLowerCase() },
-    update: {},
-    create: {
-      email: host.email.toLowerCase(),
-      assignedZone: 'The Sapphire 1',
-      rfidCardNumber: DEMO_HOST_RFID,
-      claimedById: id,
-      claimedAt: new Date(),
     },
   });
   console.log(`${created ? 'Đã tạo' : 'Bỏ qua'} tài khoản demo host: ${host.email}`);

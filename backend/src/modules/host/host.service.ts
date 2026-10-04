@@ -1,12 +1,40 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { authError } from '../auth/auth.errors';
+import { toHostRoleCodes } from '../auth/host-roles';
+import { PhoneService } from '../auth/phone/phone.service';
+import { decryptPhoneForDisplay } from '../auth/phone/phone-display';
 import { AcceptInspectionDto, SubmitInspectionReportDto } from './dto/host.dto';
 
 @Injectable()
 export class HostService {
   private readonly logger = new Logger(HostService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly phones: PhoneService,
+  ) {}
+
+  /** Hồ sơ của CHÍNH Field Host đang đăng nhập. Không có số thẻ RFID, mật khẩu, mã hoá SĐT. */
+  async getMe(profileId: string) {
+    const host = await this.prisma.fieldHost.findUnique({
+      where: { profileId },
+      include: { profile: { select: { fullName: true, email: true, phoneEnc: true, isPhoneVerified: true } } },
+    });
+    if (!host) throw authError('host_not_provisioned');
+    return {
+      hostId: host.id,
+      fullName: host.profile.fullName,
+      email: host.profile.email,
+      phone: decryptPhoneForDisplay(this.phones, host.profile.phoneEnc),
+      isPhoneVerified: host.profile.isPhoneVerified,
+      assignedZone: host.assignedZone,
+      roles: toHostRoleCodes(host.roles),
+      dutyStatus: host.dutyStatus,
+      rating: Number(host.rating),
+      joinedAt: host.createdAt.toISOString(),
+    };
+  }
 
   async getInspections(hostId?: string) {
     try {

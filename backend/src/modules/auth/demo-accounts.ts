@@ -12,4 +12,3 @@ export const DEMO_ACCOUNTS: Record<Portal, { email: string; fullName: string }> 
 };
 
 export const DEFAULT_DEMO_PASSWORD = 'vinstay-demo-pass';
-export const DEMO_HOST_RFID = 'RFID-DEMO-0001';

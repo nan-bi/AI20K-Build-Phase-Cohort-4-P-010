@@ -4,7 +4,6 @@ import { BookOpenText, ClipboardCheck, Radio, UserRound, Wallet } from "lucide-r
 import { loginPathFor } from "@/lib/auth/portals";
 import { useSession } from "@/lib/auth/client";
 import { DEMO_USERS } from "@/lib/mock/actors";
-import { hostRoles } from "@/lib/mock/selectors";
 import { useMock } from "@/lib/mock/store";
 import type { HostRole } from "@/lib/mock/units";
 import { HostSideTools } from "@/components/host/HostSideTools";
@@ -49,15 +48,17 @@ export function HostShell({ children }: { children: React.ReactNode }) {
   const session = useSession();
   const u = DEMO_USERS.host;
   const hostId = u.refId!;
-  const roles = hostRoles(state, hostId);
+  // Vai lấy từ phiên thật (Admin gán ở /admin/hosts); chưa tải xong phiên ⇒ chưa hiện menu theo vai.
+  const roles: HostRole[] = session.user?.hostRoles ?? [];
 
+  // TODO hồ sơ 15: badge đếm lấy từ API, hiện tạm đọc mock theo Host mẫu.
   const pending = state.bookings.filter((b) => b.hostId === hostId && b.status === "pending").length;
   const awaitingInspect = state.consignments.filter(
     (c) => c.hostId === hostId && c.status === "awaiting_host",
   ).length;
 
   const roleText = roles.map((r) => (r === "sale" ? "Sale" : "Thẩm định")).join(" + ");
-  const userMeta = `Field Host · ${roleText || "Chưa gán vai"}`;
+  const userMeta = session.ready ? `Field Host · ${roleText || "Chưa gán vai"}` : "Field Host";
 
   const nav = hostNavItems(roles, { pending, awaitingInspect });
 
