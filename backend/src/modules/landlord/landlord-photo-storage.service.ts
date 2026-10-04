@@ -46,14 +46,32 @@ export class LandlordPhotoStorage {
 
   /** Tải một ảnh lên; trả đường dẫn lưu (dùng làm khóa khi xóa / ký URL). */
   async upload(landlordId: string, mandateId: string, buf: Buffer, type: ImageType): Promise<string> {
+    return this.uploadAt(`${landlordId}/${mandateId}/${randomUUID()}.${type.ext}`, buf, type);
+  }
+
+  /** Tải ảnh lên ĐÚNG đường dẫn cho trước (ảnh thẩm định: `inspections/<mandateId>/<uuid>.<ext>`, hồ sơ 16). */
+  async uploadAt(path: string, buf: Buffer, type: ImageType): Promise<string> {
     const bucket = await this.bucket();
-    const path = `${landlordId}/${mandateId}/${randomUUID()}.${type.ext}`;
     const { error } = await bucket.upload(path, buf, { contentType: type.mime, upsert: false });
     if (error) {
       this.logger.error(`Upload ảnh thất bại: ${error.message}`);
       throw new ServiceUnavailableException('Không lưu được ảnh, thử lại sau.');
     }
     return path;
+  }
+
+  /**
+   * Tải nội dung ảnh về. File không tồn tại ⇒ `null`; mọi lỗi Storage khác ⇒ 503 (caller không được cache lỗi).
+   */
+  async download(path: string): Promise<Buffer | null> {
+    const bucket = await this.bucket();
+    const { data, error } = await bucket.download(path);
+    if (error) {
+      if (/not found|404|does not exist/i.test(error.message)) return null;
+      this.logger.error(`Tải ảnh thất bại: ${error.message}`);
+      throw new ServiceUnavailableException('Không đọc được ảnh, thử lại sau.');
+    }
+    return data ? Buffer.from(await data.arrayBuffer()) : null;
   }
 
   async remove(paths: string[]): Promise<void> {

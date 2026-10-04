@@ -8,10 +8,9 @@ import { KeyValue } from "@/components/ui/KeyValue";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConsignTimeline } from "@/components/consign/ConsignTimeline";
-import { InspectionReportView } from "@/components/consign/InspectionReportView";
+import { InspectionReportPanel } from "@/components/consign/InspectionReportPanel";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { fmtDateTime, vnd } from "@/lib/mock/format";
-import type { InspectionReport } from "@/lib/mock/types";
 import { FURNISHING_LABEL } from "@/lib/mock/units";
 import { queries } from "@/lib/landlord/queries";
 import { LAYOUT_LABEL, LEASE_TERM_LABEL } from "@/lib/landlord/labels";
@@ -34,8 +33,9 @@ function ConsignmentBody({ c }: { c: Consignment }) {
   const now = useNow(10_000);
   const meta = CONSIGN_STATUS_META[c.status];
   const can = `${c.building} · Tầng ${c.floor} · Căn ${c.door ?? "—"}`;
-  // Báo cáo thẩm định do module Host ghi; nhận đúng cấu trúc InspectionReport (null khi Host chưa nộp).
-  const report = (c.report ?? undefined) as InspectionReport | undefined;
+  // Phiếu thẩm định do Inspector nộp (E10): kèm ảnh, link ký 1h. null khi chưa nộp.
+  const inspection = c.inspection ?? null;
+  const report = inspection?.report;
   const timeline = {
     status: c.status,
     signedAt: c.signedAt ?? undefined,
@@ -43,7 +43,7 @@ function ConsignmentBody({ c }: { c: Consignment }) {
     decidedAt: c.decidedAt ?? undefined,
     note: c.decisionNote ?? undefined,
     inspectDueAt: c.inspectDueAt ?? undefined,
-    report,
+    report: inspection ? { submittedAt: inspection.submittedAt } : undefined,
   };
   const lockText =
     c.locks.includes("smart") && c.locks.includes("physical")
@@ -78,8 +78,8 @@ function ConsignmentBody({ c }: { c: Consignment }) {
           style={{ background: "var(--danger-050)", borderColor: "var(--danger)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--s-3)" }}
         >
           <div>
-            <b style={{ color: "var(--danger)" }}>Lý do không duyệt ký gửi:</b>
-            <p style={{ margin: "var(--s-1) 0 0", color: "var(--ink)", fontSize: "var(--fs-13)" }}>{c.decisionNote || "Không đạt điều kiện tiếp nhận của phân khu."}</p>
+            <b style={{ color: "var(--danger)" }}>Lý do thẩm định không đạt:</b>
+            <p style={{ margin: "var(--s-1) 0 0", color: "var(--ink)", fontSize: "var(--fs-13)" }}>{c.decisionNote || inspection?.report.note || "Không đạt điều kiện tiếp nhận của phân khu."}</p>
           </div>
           <Link href="/landlord/consign" className="btn btn-primary btn-sm">
             <RefreshCw size={14} /> Ký gửi lại
@@ -126,7 +126,7 @@ function ConsignmentBody({ c }: { c: Consignment }) {
       </Section>
 
       {(c.photos?.length ?? 0) > 0 && (
-        <Section title={`Ảnh bạn đính kèm (${c.photos!.length})`} description="Ảnh tham khảo cho Field Host và Admin — không phải ảnh niêm yết chính thức.">
+        <Section title={`Ảnh bạn đính kèm (${c.photos!.length})`} description="Ảnh tham khảo cho Field Host — không phải ảnh niêm yết chính thức.">
           <div className={styles.photoGrid}>
             {c.photos!.map((p) => (
               <a key={p.id} className={styles.photoItem} href={p.url ?? undefined} target="_blank" rel="noopener noreferrer" aria-label={`Mở ảnh ${p.name}`}>
@@ -146,10 +146,17 @@ function ConsignmentBody({ c }: { c: Consignment }) {
       )}
 
       <Section title="Kết quả thẩm định thực tế">
-        {report ? (
-          <InspectionReportView c={{ building: c.building, floor: c.floor, door: c.door ?? "", layout: c.layoutKind, areaM2: c.areaM2, furnished: c.furnished ?? true, locks: c.locks, report }} />
+        {inspection ? (
+          <InspectionReportPanel unit={c} report={inspection.report} photos={inspection.photos} hostName={inspection.hostName} />
         ) : (
-          <EmptyState title="Field Host chưa nộp báo cáo" description="Field Host phân khu đang tiếp nhận và sẽ kiểm tra thực tế trong vòng 48 giờ." />
+          <EmptyState title="Field Host chưa nộp báo cáo" description="Field Host thẩm định phân khu đang tiếp nhận và sẽ kiểm tra thực tế trong vòng 48 giờ." />
+        )}
+        {c.status === "approved" && (
+          <div style={{ marginTop: "var(--s-4)" }}>
+            <Link href={`/landlord/units/${c.unitId}`} className="btn btn-primary btn-sm">
+              Xem căn <ArrowRight size={14} />
+            </Link>
+          </div>
         )}
       </Section>
     </>

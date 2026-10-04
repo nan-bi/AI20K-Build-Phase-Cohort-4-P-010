@@ -6,7 +6,6 @@ import { authError } from '../auth/auth.errors';
 import { toHostRoleCodes } from '../auth/host-roles';
 import { PhoneService } from '../auth/phone/phone.service';
 import { decryptPhoneForDisplay } from '../auth/phone/phone-display';
-import { AcceptInspectionDto, SubmitInspectionReportDto } from './dto/host.dto';
 
 @Injectable()
 export class HostService {
@@ -58,91 +57,6 @@ export class HostService {
     }
     await this.prisma.fieldHost.update({ where: { id: host.id }, data: { dutyStatus: status } });
     return { dutyStatus: status };
-  }
-
-  async getInspections(hostId?: string) {
-    try {
-      const mandates = await this.prisma.exclusiveMandate.findMany({
-        // Chỉ hồ sơ chủ nhà đã ký ủy quyền mới thành ca thẩm định; bản nháp chưa ký thì Host không thấy.
-        where: { status: 'PENDING_INSPECTION', signedAt: { not: null } },
-        include: { unit: { include: { building: true, landlord: true } } },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (mandates.length > 0) {
-        return mandates.map((m) => ({
-          consignmentId: m.id,
-          unitId: m.unitId,
-          unitCode: m.unit.unitCode,
-          building: m.unit.building.buildingCode,
-          zone: m.unit.building.zoneName,
-          floor: m.unit.floorNumber,
-          layout: m.unit.layoutType,
-          carpetAreaM2: Number(m.unit.carpetAreaM2),
-          askRent: Number(m.unit.baseRentPrice),
-          status: 'awaiting_host',
-          createdAt: m.createdAt.toISOString(),
-          landlordName: m.unit.landlord?.fullName || 'Chủ nhà Ocean Park',
-        }));
-      }
-    } catch (err) {
-      this.logger.warn(`Inspections DB fallback: ${err.message}`);
-    }
-
-    // Fallback demo inspection items
-    return [
-      {
-        consignmentId: 'cons-001',
-        unitId: 'u1111111-1111-1111-1111-111111111111',
-        unitCode: 'VHOP-S1.02-12A08',
-        building: 'S1.02',
-        zone: 'The Sapphire 1',
-        floor: 12,
-        layout: 'ONE_BED_PLUS',
-        carpetAreaM2: 47,
-        askRent: 6500000,
-        status: 'awaiting_host',
-        createdAt: new Date().toISOString(),
-        landlordName: 'Nguyễn Thị Mai',
-      },
-      {
-        consignmentId: 'cons-002',
-        unitId: 'u2222222-2222-2222-2222-222222222222',
-        unitCode: 'VHOP-S1.05-0804',
-        building: 'S1.05',
-        zone: 'The Sapphire 1',
-        floor: 8,
-        layout: 'STUDIO',
-        carpetAreaM2: 32.5,
-        askRent: 4800000,
-        status: 'inspecting',
-        createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-        landlordName: 'Trần Văn Hùng',
-      },
-    ];
-  }
-
-  async acceptInspection(consignmentId: string, dto: AcceptInspectionDto) {
-    this.logger.log(`[HOST INSPECTION] Host ${dto.hostId || 'default'} đã nhận thẩm định hồ sơ: ${consignmentId}`);
-    return {
-      success: true,
-      consignmentId,
-      status: 'inspecting',
-      acceptedAt: new Date().toISOString(),
-      message: 'Đã nhận việc thẩm định căn hộ. Vui lòng kiểm tra thực tế và nộp biên bản kiểm kê.',
-    };
-  }
-
-  async submitInspectionReport(consignmentId: string, dto: SubmitInspectionReportDto) {
-    this.logger.log(`[HOST INSPECTION] Đã nộp báo cáo thẩm định cho hồ sơ: ${consignmentId}, đề xuất: ${dto.recommendation}`);
-    return {
-      success: true,
-      consignmentId,
-      status: 'reviewing',
-      submittedAt: new Date().toISOString(),
-      recommendation: dto.recommendation,
-      note: dto.note || 'Báo cáo thẩm định đã hoàn tất và chuyển Admin phê duyệt.',
-      payoutBonus: 100000, // Thưởng 100k cho lượt thẩm định
-    };
   }
 
   async getEarnings(hostId?: string) {

@@ -61,7 +61,8 @@ export function toUiMandateStatus(status: MandateStatus): UiMandateStatus {
 
 // ─── Hồ sơ ký gửi (lưu trong ExclusiveMandate.doorAccessConfig.consignment) ────────────────────
 
-export type ConsignmentStage = 'draft' | 'awaiting_host' | 'inspecting' | 'reviewing' | 'approved' | 'rejected';
+/** Chuỗi hợp lệ duy nhất: draft → awaiting_host → inspecting → approved | rejected (không còn bước Admin duyệt — hồ sơ 16). */
+export type ConsignmentStage = 'draft' | 'awaiting_host' | 'inspecting' | 'approved' | 'rejected';
 
 export interface ConsignmentForm {
   building: string;
@@ -77,8 +78,9 @@ export interface ConsignmentForm {
 }
 
 /**
- * Phần mở rộng của hồ sơ ký gửi mà schema chưa có cột riêng. Các bước sau (Host nhận/nộp báo cáo, Admin duyệt)
- * ghi `stage`, `hostAcceptedAt`, `report`, `decidedAt`, `decidedBy`, `decisionNote` vào cùng khóa này.
+ * Phần mở rộng của hồ sơ ký gửi mà schema chưa có cột riêng. Các bước sau (Inspector nhận/nộp phiếu thẩm định)
+ * ghi `stage`, `hostAcceptedAt`, `inspection`, `report`, `decidedAt`, `decidedBy`, `decisionNote` vào cùng khóa này.
+ * Mọi lần ghi phải đi qua `ConsignmentMetaStore.mutate()` (khóa dòng) — không ghi đọc-sửa-ghi trần.
  * TUYỆT ĐỐI không lưu mã cửa ở đây — mã cửa nằm trong DoorAccessKey.vaultSecretRef (đã mã hóa).
  */
 /** Ảnh tham khảo chủ nhà đính kèm hồ sơ. KHÔNG phải ảnh Verified: ảnh niêm yết chính thức do Host chụp khi thẩm định. */
@@ -96,15 +98,85 @@ export const MAX_PHOTOS = 8;
 /** Trần dung lượng MỖI ảnh lưu trên Storage (bản free của Supabase có hạn mức lưu trữ nhỏ). Web nén ảnh xuống dưới mức này trước khi gửi. */
 export const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
+/** Ô ảnh: `listing` = ảnh niêm yết; `1`..`32` = hạng mục Điều 5; `X1`..`X10` = hạng mục phát sinh. */
+export type PhotoSlot = 'listing' | `${number}` | `X${number}`;
+export type ListingRoom = 'living_room' | 'bedroom' | 'kitchen' | 'bathroom' | 'balcony' | 'view' | 'other';
+
+/** Ảnh do Inspector chụp lúc thẩm định. `uploadedAt` là giờ MÁY CHỦ — mốc timestamp chính thức; các số đo do máy Host tính chỉ để tham khảo. */
+export interface InspectionPhoto {
+  id: string;
+  /** `inspections/<mandateId>/<id>.<ext>` — chỉ backend dùng. */
+  path: string;
+  slot: PhotoSlot;
+  /** Chỉ khi slot = 'listing'. */
+  room?: ListingRoom;
+  mime: string;
+  size: number;
+  width: number;
+  height: number;
+  /** Phương sai Laplacian do máy Host tính (tham khảo). */
+  sharpness: number | null;
+  /** Độ sáng trung bình 0..255 (tham khảo). */
+  brightness: number | null;
+  takenAt: string | null;
+  uploadedAt: string;
+  hostId: string;
+}
+
+export interface InspectionMeta {
+  photos: InspectionPhoto[];
+  doorRevealedAt?: string[];
+}
+
+/** Trách nhiệm hạng mục theo catalog Điều 5: lỗi do dùng, hoặc hao mòn/lỗi dùng. (01-CONTRACTS ghi `wear|misuse` nhưng catalog thật dùng `wear_or_misuse` — theo catalog, xem report R02.) */
+export type Liability = 'misuse' | 'wear_or_misuse';
+
+export interface InventoryLineReport {
+  code: string;
+  group: 'I' | 'II' | 'III' | 'IV' | 'V' | 'VI' | 'VII' | 'VIII';
+  name: string;
+  present: boolean;
+  qty?: number;
+  /** Bội của 10, 0..100. */
+  condition?: number;
+  spec?: string;
+  note?: string;
+  liability: Liability;
+  compensation?: number;
+  photoIds: string[];
+}
+
+export interface InspectionReport {
+  hostId: string;
+  submittedAt: string;
+  declared: { field: 'identity' | 'layout' | 'areaM2' | 'furnishing' | 'lock'; ok: boolean; actual?: string }[];
+  inventory: InventoryLineReport[];
+  functions: { ac: boolean; kitchen: boolean; waterHeater: boolean; drainage: boolean };
+  netAreaM2: number;
+  furnishing: 'full' | 'basic' | 'empty';
+  /** Thứ tự hiển thị trên tin. */
+  listingPhotoIds: string[];
+  recommendation: 'approve' | 'reject';
+  note?: string;
+  /** Server tính, không nhận từ client. */
+  avgCondition: number;
+}
+
 export interface ConsignmentMeta {
   form: ConsignmentForm;
   photos?: ConsignmentPhoto[];
   stage?: ConsignmentStage;
   ownershipWarrantedAt?: string;
+  /** SĐT đã ký OTP, mã hoá AES (cùng `PhoneService`); KHÔNG gắn vào Profile. */
+  signedPhoneEnc?: string;
   inspectDueAt?: string;
+  /** FieldHost.id được GIAO (lúc ký) hoặc NHẬN (accept/claim). */
   hostId?: string;
+  /** Mốc giao cho `hostId` — tính tầng Open Pool. */
+  offeredAt?: string;
   hostAcceptedAt?: string;
-  report?: unknown;
+  inspection?: InspectionMeta;
+  report?: InspectionReport;
   decidedAt?: string;
   decidedBy?: string;
   decisionNote?: string;

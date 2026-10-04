@@ -1,6 +1,6 @@
 {
   "name": "vinstay-backend",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "VinStay AI - NestJS Backend Platform for Asset-Light Residential Leasing at Vinhomes Ocean Park",
   "author": "Team T-010 (AI20K Cohort 4)",
   "license": "UNLICENSED",
@@ -26,6 +26,7 @@
     "smoke:tenant": "ts-node --transpile-only scripts/smoke-tenant-flow.ts",
     "smoke:sale-auth": "ts-node --transpile-only scripts/smoke-sale-auth.ts",
     "smoke:host-viewing": "ts-node --transpile-only scripts/smoke-host-viewing.ts",
+    "smoke:inspection": "ts-node --transpile-only scripts/smoke-inspection.ts",
     "rekey:door-codes": "ts-node --transpile-only scripts/rekey-door-codes.ts",
     "audit:tenant": "ts-node --transpile-only scripts/audit-tenant-attacks.ts"
   },

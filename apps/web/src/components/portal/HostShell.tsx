@@ -4,10 +4,11 @@ import { BookOpenText, ClipboardCheck, Radio, UserRound, Wallet } from "lucide-r
 import { loginPathFor } from "@/lib/auth/portals";
 import { useSession } from "@/lib/auth/client";
 import { DEMO_USERS } from "@/lib/mock/actors";
-import { useMock } from "@/lib/mock/store";
 import type { HostRole } from "@/lib/mock/units";
 import { HostSideTools } from "@/components/host/HostSideTools";
 import { useHostBoard } from "@/lib/host/api";
+import { useInspectionBoard } from "@/lib/inspection/api";
+import { boardBadge } from "@/lib/inspection/logic";
 import { PortalShell, type PortalNavItem } from "./PortalShell";
 
 export function hostNavItems(
@@ -45,21 +46,19 @@ export function hostNavItems(
 }
 
 export function HostShell({ children }: { children: React.ReactNode }) {
-  const state = useMock();
   const session = useSession();
   const u = DEMO_USERS.host;
-  const hostId = u.refId!;
   // Vai lấy từ phiên thật (Admin gán ở /admin/hosts); chưa tải xong phiên ⇒ chưa hiện menu theo vai.
   const roles: HostRole[] = session.user?.hostRoles ?? [];
 
-  // Badge "Lịch & yêu cầu" = số yêu cầu mới thật từ `GET /host/board` (chỉ gọi khi có vai Sale). Badge Thẩm định
-  // còn đọc mock (hồ sơ thẩm định).
+  // Badge "Lịch & yêu cầu" = số yêu cầu mới thật từ `GET /host/board` (chỉ gọi khi có vai Sale). Badge Thẩm định =
+  // `mine + open` từ `GET /host/inspections` (chỉ gọi khi có vai Thẩm định; poll 30 giây ở đây, InspectionList dùng chung khoá).
   const isSale = roles.includes("sale");
   const board = useHostBoard(isSale, true); // MỘT nơi duy nhất poll bảng; DispatchBoard/HostSideTools dùng chung khoá
   const pending = isSale && board.state.status === "ready" ? board.state.data.kpis.pending : 0;
-  const awaitingInspect = state.consignments.filter(
-    (c) => c.hostId === hostId && c.status === "awaiting_host",
-  ).length;
+  const isInspector = roles.includes("inspector");
+  const inspections = useInspectionBoard(isInspector, true);
+  const awaitingInspect = isInspector && inspections.state.status === "ready" ? boardBadge(inspections.state.data) : 0;
 
   const roleText = roles.map((r) => (r === "sale" ? "Sale" : "Thẩm định")).join(" + ");
   const userMeta = session.ready ? `Field Host · ${roleText || "Chưa gán vai"}` : "Field Host";
