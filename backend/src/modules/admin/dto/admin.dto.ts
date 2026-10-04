@@ -160,3 +160,36 @@ export class PayoutQueryDto {
   @IsString()
   period?: string;
 }
+
+export class ResolveUncDto {
+  @ApiProperty({ enum: ['APPROVE', 'REJECT'], description: 'Duyệt hoặc từ chối UNC (từ chối ⇒ QR_EXPIRED)' })
+  @IsIn(['APPROVE', 'REJECT'])
+  decision: 'APPROVE' | 'REJECT';
+
+  @ApiProperty({ example: 'Đã đối soát sao kê', description: 'Lý do (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class KeyReasonDto {
+  @ApiProperty({ example: 'Khách cũ trả phòng', description: 'Lý do (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class DepositQueryDto {
+  @ApiPropertyOptional({ example: 'UNC_PENDING_REVIEW' })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  pageSize?: number;
+}

@@ -149,38 +149,6 @@ export class AdminService {
   // ==========================================
   // MODULE 5: CONTRACTS & SỔ HỢP ĐỒNG
   // ==========================================
-  async getContracts() {
-    try {
-      const contracts = await this.prisma.contract.findMany({
-        include: {
-          unit: { include: { building: true } },
-          tenant: true,
-          landlord: true,
-          holdingDeposit: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (contracts.length > 0) return contracts;
-    } catch (err) {
-      this.logger.warn(`Contracts DB fallback: ${err.message}`);
-    }
-
-    return [
-      {
-        id: 'c1',
-        contractNumber: 'HDT-2026-VHOP-S102-001',
-        unitCode: 'VHOP-S1.02-12A08',
-        tenantName: 'Nguyễn Văn An',
-        landlordName: 'Nguyễn Văn Minh',
-        monthlyRentPrice: 6500000,
-        securityDepositAmount: 6500000,
-        startDate: '2026-10-01',
-        endDate: '2027-09-30',
-        status: 'ACTIVE',
-      },
-    ];
-  }
-
   async getContractById(id: string) {
     return {
       id,
@@ -195,20 +163,6 @@ export class AdminService {
       status: 'ACTIVE',
       evidenceSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       tsaTimestamp: new Date().toISOString(),
-    };
-  }
-
-  async voidHold(id: string, dto: VoidHoldDto) {
-    this.logger.log(`[ADMIN] Huỷ cọc giữ chỗ #${id}: ${dto.reason}, ghi chú: ${dto.note}`);
-    return {
-      success: true,
-      depositId: id,
-      status: 'FORFEITED',
-      reason: dto.reason,
-      note: dto.note,
-      message: dto.reason === 'landlord_breach'
-        ? 'Đã hủy cọc do Chủ nhà vi phạm: Hoàn 100% cọc cho khách + phạt vi phạm tương đương.'
-        : 'Đã hủy cọc do Bất khả kháng: Hoàn 100% tiền cọc cho khách thuê.',
     };
   }
 

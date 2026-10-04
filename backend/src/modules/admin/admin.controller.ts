@@ -7,6 +7,8 @@ import { AdminPayoutService } from './admin-payout.service';
 import { AdminDispatchService } from './admin-dispatch.service';
 import { AdminBiService } from './admin-bi.service';
 import { AdminInventoryService } from './admin-inventory.service';
+import { AdminDepositService } from './admin-deposit.service';
+import { AdminKeyService } from './admin-key.service';
 import {
   TerminateMandateDto,
   UpdateCommissionParamDto,
@@ -17,6 +19,9 @@ import {
   VoidHoldDto,
   UpdateHoldPolicyDto,
   PayoutQueryDto,
+  ResolveUncDto,
+  KeyReasonDto,
+  DepositQueryDto,
 } from './dto/admin.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -32,6 +37,8 @@ export class AdminController {
     private readonly dispatchService: AdminDispatchService,
     private readonly biService: AdminBiService,
     private readonly inventoryService: AdminInventoryService,
+    private readonly depositService: AdminDepositService,
+    private readonly keyService: AdminKeyService,
   ) {}
 
   @Get('bi-funnel')
@@ -100,10 +107,39 @@ export class AdminController {
     return this.dispatchService.reassign(id, dto, user);
   }
 
+  @Get('deposits')
+  @ApiOperation({ summary: 'Giám sát cọc giữ chỗ (lọc theo trạng thái, phân trang)' })
+  async listDeposits(@Query() q: DepositQueryDto) {
+    return this.depositService.listDeposits(q);
+  }
+
+  @Post('deposits/:id/resolve-unc')
+  @ApiOperation({ summary: 'Duyệt/từ chối UNC thủ công (409 nếu căn không còn AVAILABLE)' })
+  async resolveUnc(@Param('id') id: string, @Body() dto: ResolveUncDto, @CurrentUser() user: any) {
+    return this.depositService.resolveUnc(id, dto, user);
+  }
+
+  @Get('door-keys')
+  @ApiOperation({ summary: 'Danh sách mã khóa cửa (chỉ metadata, không trả mã)' })
+  async listDoorKeys() {
+    return this.keyService.listKeys();
+  }
+
+  @Post('door-keys/:id/rotate')
+  @ApiOperation({ summary: 'Xoay mã khóa điện tử (không trả plaintext)' })
+  async rotateDoorKey(@Param('id') id: string, @Body() dto: KeyReasonDto, @CurrentUser() user: any) {
+    return this.keyService.rotateKey(id, dto, user);
+  }
+
+  @Post('door-keys/:id/revoke')
+  @ApiOperation({ summary: 'Thu hồi mã khóa cửa' })
+  async revokeDoorKey(@Param('id') id: string, @Body() dto: KeyReasonDto, @CurrentUser() user: any) {
+    return this.keyService.revokeKey(id, dto, user);
+  }
   @Get('contracts')
   @ApiOperation({ summary: 'Sổ hợp đồng toàn hệ thống (Ủy quyền, Giữ chỗ, Thuê)' })
   async getContracts() {
-    return this.adminService.getContracts();
+    return this.depositService.getContracts();
   }
 
   @Get('contracts/:id')
@@ -114,8 +150,8 @@ export class AdminController {
 
   @Post('contracts/:id/void-hold')
   @ApiOperation({ summary: 'Hủy cọc giữ chỗ (Chủ nhà vi phạm hoặc Bất khả kháng)' })
-  async voidHold(@Param('id') id: string, @Body() dto: VoidHoldDto) {
-    return this.adminService.voidHold(id, dto);
+  async voidHold(@Param('id') id: string, @Body() dto: VoidHoldDto, @CurrentUser() user: any) {
+    return this.depositService.voidHold(id, dto, user);
   }
 
   @Post('contracts/:id/complete-exit')
