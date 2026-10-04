@@ -10,13 +10,13 @@ Nguồn: `backend/src/modules/**/*.controller.ts` trên `main` `0334ebf`, sinh b
 - Vai trò hợp lệ (`auth.constants.ts`): `tenant`, `landlord`, `field_host`, `ops_admin`.
 
 ## Tổng kết
-- Route: 88; có `@Public`: 84; có `@Roles`: 3; còn lại cần đăng nhập nhưng không giới hạn vai trò: 1.
+- Route: 101; có `@Public`: 65; có `@Roles`: 33; còn lại cần đăng nhập nhưng không giới hạn vai trò: 1. (Cập nhật Bước 2: toàn bộ `/admin/*` khóa `ops_admin`, thêm 5 route; Bước 3 thêm 2 route dispatch; Bước 4 thêm 1 route `POST /admin/mandates/:id/terminate`; Bước 5 thêm 5 route deposits/door-keys; số liệu bảng module admin đã chỉnh, các cột khác chưa tính lại.)
 - Checklist cần gắn (`[ ]`, public và chưa `@Roles`, không tính `auth`): 74; `auth` cần xem xét (`(?)`): 10.
 
 | Module | Route | PUBLIC | ROLES | Cần gắn @Roles |
 |---|---:|---:|---:|---:|
 | account | 8 | 8 | 0 | 8 |
-| admin | 19 | 19 | 0 | 19 |
+| admin | 32 | 0 | 32 | 0 |
 | auth | 14 | 10 | 3 | xem xét |
 | booking | 9 | 9 | 0 | 9 |
 | contract | 3 | 3 | 0 | 3 |
@@ -50,25 +50,38 @@ Cột `Gợi ý` chỉ là đề xuất theo tên module để người duyệt;
 
 | ✓ | Method | Path | Handler | File:dòng | @Public | @Roles | @UseGuards | Trạng thái | Gợi ý |
 |---|---|---|---|---|---|---|---|---|---|
-| [ ] | GET | `/admin/bi-funnel` | getBiFunnel | backend/src/modules/admin/admin.controller.ts:20 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/exclusive-inventory` | getInventory | backend/src/modules/admin/admin.controller.ts:30 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/consignments/:id/approve` | approveConsignment | backend/src/modules/admin/admin.controller.ts:40 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/consignments/:id/reject` | rejectConsignment | backend/src/modules/admin/admin.controller.ts:47 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/dispatch-sla` | getDispatchSla | backend/src/modules/admin/admin.controller.ts:54 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/bookings/:id/reassign` | reassignBooking | backend/src/modules/admin/admin.controller.ts:64 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contracts` | getContracts | backend/src/modules/admin/admin.controller.ts:71 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contracts/:id` | getContractById | backend/src/modules/admin/admin.controller.ts:78 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/contracts/:id/void-hold` | voidHold | backend/src/modules/admin/admin.controller.ts:85 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/contracts/:id/complete-exit` | completeExit | backend/src/modules/admin/admin.controller.ts:92 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/contracts/:id/remind-renewal` | remindRenewal | backend/src/modules/admin/admin.controller.ts:99 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contract-templates` | getContractTemplates | backend/src/modules/admin/admin.controller.ts:106 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contract-templates/:id` | getContractTemplateById | backend/src/modules/admin/admin.controller.ts:113 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contract-parties` | getContractParties | backend/src/modules/admin/admin.controller.ts:120 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/contract-parties/:id` | getContractPartyById | backend/src/modules/admin/admin.controller.ts:127 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/commission-engine` | getCommissionEngine | backend/src/modules/admin/admin.controller.ts:134 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/commission-engine/config` | updateCommissionParam | backend/src/modules/admin/admin.controller.ts:144 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | GET | `/admin/settings/hold-policy` | getHoldPolicy | backend/src/modules/admin/admin.controller.ts:154 | có | không | — | PUBLIC: không xác thực | ops_admin |
-| [ ] | POST | `/admin/settings/hold-policy` | updateHoldPolicy | backend/src/modules/admin/admin.controller.ts:161 | có | không | — | PUBLIC: không xác thực | ops_admin |
+| [ ] | GET | `/admin/bi-funnel` | getBiFunnel | backend/src/modules/admin/admin.controller.ts:20 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/exclusive-inventory` | getInventory | backend/src/modules/admin/admin.controller.ts:30 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/mandates/:id/terminate` | terminateMandate | backend/src/modules/admin/admin.controller.ts:30 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/consignments/:id/approve` | approveConsignment | backend/src/modules/admin/admin.controller.ts:40 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/consignments/:id/reject` | rejectConsignment | backend/src/modules/admin/admin.controller.ts:47 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/dispatch-sla` | getDispatchSla | backend/src/modules/admin/admin.controller.ts:54 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/bookings/:id/reassign` | reassignBooking | backend/src/modules/admin/admin.controller.ts:64 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/dispatch-sla/summary` | getDispatchSlaSummary | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/dispatch/:ticketId/escalate` | escalateTicket | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contracts` | getContracts | backend/src/modules/admin/admin.controller.ts:71 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contracts/:id` | getContractById | backend/src/modules/admin/admin.controller.ts:78 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/contracts/:id/void-hold` | voidHold | backend/src/modules/admin/admin.controller.ts:85 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/contracts/:id/complete-exit` | completeExit | backend/src/modules/admin/admin.controller.ts:92 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/contracts/:id/remind-renewal` | remindRenewal | backend/src/modules/admin/admin.controller.ts:99 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/deposits` | listDeposits | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/deposits/:id/resolve-unc` | resolveUnc | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/door-keys` | listDoorKeys | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/door-keys/:id/rotate` | rotateDoorKey | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/door-keys/:id/revoke` | revokeDoorKey | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contract-templates` | getContractTemplates | backend/src/modules/admin/admin.controller.ts:106 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contract-templates/:id` | getContractTemplateById | backend/src/modules/admin/admin.controller.ts:113 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contract-parties` | getContractParties | backend/src/modules/admin/admin.controller.ts:120 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/contract-parties/:id` | getContractPartyById | backend/src/modules/admin/admin.controller.ts:127 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/commission-engine` | getCommissionEngine | backend/src/modules/admin/admin.controller.ts:134 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/commission-engine/config` | updateCommissionParam | backend/src/modules/admin/admin.controller.ts:144 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/settings/hold-policy` | getHoldPolicy | backend/src/modules/admin/admin.controller.ts:154 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/settings/hold-policy` | updateHoldPolicy | backend/src/modules/admin/admin.controller.ts:161 | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | PUT | `/admin/commission-engine/config` | updateCommissionParam | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | PUT | `/admin/settings/hold-policy` | updateHoldPolicy | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/payouts` | getPayouts | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | GET | `/admin/payouts.csv` | exportPayoutsCsv | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
+| [ ] | POST | `/admin/payouts/sweep` | sweepPayouts | backend/src/modules/admin/admin.controller.ts | không | 'ops_admin' | — | Đăng nhập + vai trò 'ops_admin' | ops_admin |
 
 ### auth
 

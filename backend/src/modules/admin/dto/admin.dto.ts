@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, IsIn, Max, Min } from 'class-validator';
+import { IsArray, IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsIn, Max, Min } from 'class-validator';
 
 export class UpdateCommissionParamDto {
   @ApiProperty({ example: 'host_deal_commission', description: 'Mã tham số biến phí' })
@@ -95,6 +95,25 @@ export class ReassignBookingDto {
   @IsNotEmpty()
   @IsString()
   hostId: string;
+
+  @ApiProperty({ example: 'Host cũ kẹt thang', description: 'Lý do can thiệp (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class TerminateMandateDto {
+  @ApiProperty({ example: 'Chủ nhà đã báo trước đủ 15 ngày', description: 'Lý do chấm dứt ủy quyền (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class EscalateTicketDto {
+  @ApiProperty({ example: 'Host không phản hồi', description: 'Lý do leo thang (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
 }
 
 export class VoidHoldDto {
@@ -110,14 +129,67 @@ export class VoidHoldDto {
 }
 
 export class UpdateHoldPolicyDto {
-  @ApiPropertyOptional({ example: 'u1111111-1111-1111-1111-111111111111', description: 'Unit ID nếu cài riêng cho từng căn (null nếu toàn sàn)' })
+  @ApiPropertyOptional({ description: 'Không còn hỗ trợ cấu hình riêng từng căn; nếu gửi sẽ bị từ chối' })
   @IsOptional()
   @IsString()
   unitId?: string;
 
-  @ApiProperty({ example: 48, description: 'Số giờ giữ chỗ (12 - 72 giờ)' })
+  @ApiPropertyOptional({ example: 7, description: 'Số ngày giữ chỗ (nguyên, 1–14); ghi vào FeeConfig holding_duration_days' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(14)
+  days?: number;
+
+  @ApiPropertyOptional({ example: 48, description: 'Tương thích cũ: số giờ (12–72), quy đổi lên số ngày nguyên. Bỏ qua nếu có days' })
+  @IsOptional()
   @IsNumber()
   @Min(12)
   @Max(72)
-  hours: number;
+  hours?: number;
+
+  @ApiPropertyOptional({ example: 'Mùa cao điểm', description: 'Lý do thay đổi (lưu Audit)' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class PayoutQueryDto {
+  @ApiPropertyOptional({ example: '2026-W41', description: 'Tuần ISO; mặc định tuần hiện tại' })
+  @IsOptional()
+  @IsString()
+  period?: string;
+}
+
+export class ResolveUncDto {
+  @ApiProperty({ enum: ['APPROVE', 'REJECT'], description: 'Duyệt hoặc từ chối UNC (từ chối ⇒ QR_EXPIRED)' })
+  @IsIn(['APPROVE', 'REJECT'])
+  decision: 'APPROVE' | 'REJECT';
+
+  @ApiProperty({ example: 'Đã đối soát sao kê', description: 'Lý do (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class KeyReasonDto {
+  @ApiProperty({ example: 'Khách cũ trả phòng', description: 'Lý do (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class DepositQueryDto {
+  @ApiPropertyOptional({ example: 'UNC_PENDING_REVIEW' })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  pageSize?: number;
 }
