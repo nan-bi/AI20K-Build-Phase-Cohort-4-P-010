@@ -30,6 +30,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let message = 'Lỗi máy chủ nội bộ';
     let errors: any = null;
     let code: string | undefined;
+    let field: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -40,6 +41,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = (res as any).message || message;
         errors = (res as any).errors || null;
         code = (res as any).code;
+        field = (res as any).field; // ô lỗi của phiếu thẩm định (report_invalid) — web đọc ở gốc body
       }
     } else if (exception instanceof Error && process.env.NODE_ENV !== 'production') {
       // Production không đưa lỗi nội bộ (vd. câu lệnh Prisma) ra ngoài; chi tiết vẫn có trong log.
@@ -61,6 +63,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
       code,
+      ...(field ? { field } : {}),
       message,
       errors,
     });

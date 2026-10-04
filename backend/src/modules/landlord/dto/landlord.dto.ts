@@ -116,19 +116,20 @@ export class SignConsignmentDto {
   @IsBoolean()
   ownershipWarranted: boolean;
 
-  @ApiProperty({ example: '4829', description: 'OTP Zalo gửi tới SĐT đã xác thực của chủ nhà (gửi trước bằng POST /auth/otp/send, purpose PHONE_VERIFY)' })
+  @ApiPropertyOptional({ example: '4829', description: 'OTP Zalo — KHÔNG cần khi ký bằng số đã xác thực của tài khoản; bắt buộc khi nhập số khác hoặc tài khoản chưa có số (gửi trước bằng POST /landlord/consignments/:id/send-otp)' })
+  @IsOptional()
   @IsString()
   @Matches(/^\d{4}$/, { message: 'OTP gồm 4 chữ số' })
-  otp: string;
+  otp?: string;
 
-  @ApiPropertyOptional({ example: '0901234567', description: 'Chỉ cần khi hồ sơ chủ nhà chưa có SĐT: OTP đúng sẽ gắn SĐT này vào hồ sơ' })
+  @ApiPropertyOptional({ example: '0901234567', description: 'Bỏ trống ⇒ dùng số đã xác thực của tài khoản (không cần OTP). Nhập số KHÁC (hoặc tài khoản chưa có số) ⇒ phải OTP; số ký chỉ lưu (mã hoá) trong hồ sơ ký gửi, KHÔNG gắn vào tài khoản' })
   @IsOptional()
   @IsString()
   phone?: string;
 }
 
 export class SendConsignmentOtpDto {
-  @ApiPropertyOptional({ example: '0901234567', description: 'Chỉ cần khi hồ sơ chủ nhà chưa có SĐT; đã có thì bỏ qua và gửi tới SĐT đã lưu' })
+  @ApiPropertyOptional({ example: '0901234567', description: 'Bỏ trống ⇒ số đã xác thực của tài khoản (trả `otpRequired:false`, không gửi mã). Nhập số khác ⇒ gửi OTP tới số đó' })
   @IsOptional()
   @IsString()
   phone?: string;
