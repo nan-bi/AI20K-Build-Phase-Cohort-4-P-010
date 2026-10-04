@@ -125,11 +125,12 @@ Màn: tổng quan, rổ hàng ký gửi, lịch hẹn & điều phối, sổ h�
 | `POST /admin/contracts/:id/complete-exit` | ops_admin | hoàn tất thoát uỷ quyền sau 15 ngày | ⬜ |
 | `POST /admin/contracts/:id/remind-renewal` | ops_admin | nhắc gia hạn HĐ thuê sắp hết hạn | ⬜ |
 | `GET /admin/contract-templates[/:id]` · `GET /admin/contract-parties[/:id]` | ops_admin | thư viện mẫu văn bản, danh bạ bên ký | ⬜ |
-| `GET /admin/field-hosts` | ops_admin | danh sách Field Host | ✅ |
-| `POST /admin/field-hosts` `{email, phone, name, assignedZone, roles[], rfidCardNumber?}` | ops_admin | Admin tạo thẳng tài khoản Field Host (không qua lời mời) → hệ thống gửi thông tin đăng nhập + mật khẩu tạm cho Sale qua email; lần đầu đăng nhập bắt buộc đổi mật khẩu | ⚠️ đang là cơ chế mời — phải viết lại |
-| `GET /admin/field-hosts/:id` | ops_admin | chi tiết Host: ticket, thẩm định, thu nhập, đánh giá | ⬜ |
-| `PATCH /admin/field-hosts/:id` `{name?, phone?, assignedZone?, roles?: (sale \| inspector)[], rfidCardNumber?}` | ops_admin | sửa thông tin, đổi phân khu, phân vai, thay thẻ RFID | ⬜ |
-| `DELETE /admin/field-hosts/:id` | ops_admin | khoá Host (xoá mềm — giữ lịch sử ticket, cọc, chi trả) | ⬜ |
+| `GET /admin/field-hosts` `?q&role=sale\|inspector\|both&zone&active=true\|false` | ops_admin | danh sách Field Host (tìm theo tên/email/SĐT, lọc vai, phân khu, tài khoản khoá) | ✅ |
+| `GET /admin/field-hosts/zones` | ops_admin | phân khu hợp lệ để gán cho Host | ✅ |
+| `POST /admin/field-hosts` `{email, fullName, assignedZone, roles[1..2], password?}` | ops_admin | Admin tạo Host: Profile `field_host` + hồ sơ Host cùng 1 giao dịch. Không có SĐT (Host tự xác thực OTP), không có số thẻ. Email là Profile `field_host` chưa có hồ sơ Host ⇒ nhận vào. Bỏ `password` ⇒ Host chỉ đăng nhập Google | ✅ |
+| `GET /admin/field-hosts/:id` | ops_admin | hồ sơ Host + `ticketStats` (7 trạng thái ticket); thu nhập/lịch xem chi tiết ở hồ sơ 15 | ✅ |
+| `PATCH /admin/field-hosts/:id` `{fullName?, assignedZone?, roles?, password?, isActive?}` | ops_admin | sửa tên/phân khu, đổi vai (AuditLog `HOST_ROLES_UPDATE`), đặt lại mật khẩu, khoá/mở. Email không sửa được. Phiên của Host đọc lại ngay | ✅ |
+| `DELETE /admin/field-hosts/:id` | ops_admin | khoá mềm (giữ lịch sử ticket/cọc/chi trả); Host đang có ticket OFFERED/ACCEPTED/CHECKED ⇒ 409 `host_has_active_tickets` | ✅ |
 | `GET /admin/commission-engine` · `POST /admin/commission-engine/config` | ops_admin | cấu hình biến phí + nhật ký thay đổi | ✅ |
 | `GET /admin/settings/hold-policy` · `PUT /admin/settings/hold-policy` `{unitId?, hours}` | ops_admin | thời hạn giữ chỗ toàn sàn / riêng từng căn + nhật ký | ⬜ |
 | `GET /contracts/:id/evidence-package` | ops_admin | gói chứng cứ hợp đồng | ✅ |
@@ -169,7 +170,8 @@ backend/
 │   │   └── interceptors/      # LoggingInterceptor, TransformInterceptor
 │   │
 │   └── modules/
-│       ├── auth/              # Đăng nhập, Google, phiên, OTP Zalo, xác thực RFID, tài khoản Field Host (§4)
+│       ├── auth/              # Đăng nhập, Google, phiên (kèm `hostRoles`), OTP Zalo (§4)
+│       ├── field-hosts/       # Admin CRUD Field Host + vai Sale/Thẩm định (§1.5)
 │       ├── property/          # Toà, căn hộ, All-in Cost
 │       ├── matchmaker/        # AI Matchmaker & badge "Căn hời"
 │       ├── booking/           # Lịch xem, check-in sảnh
@@ -237,8 +239,9 @@ npm run start:dev
 
 ```bash
 npm run create:admin -- you@example.com 'mat-khau-manh' "Ten"   # Admin (không có đăng ký trên UI)
-npm run seed:auth                # admin dev + 2 lời mời Field Host (host1/host2@vinstay.test, RFID-S1-0001/RFID-S2-0001)
-npm run seed:auth -- --demo      # thêm 4 tài khoản demo (bật AUTH_DEMO_MODE=true để dùng nút 1-click)
+npm run seed:auth                # admin dev (Field Host do Admin tạo ở /admin/hosts)
+npm run seed:auth -- --demo      # thêm 4 tài khoản demo (Host demo có cả 2 vai); bật AUTH_DEMO_MODE=true để dùng nút 1-click
+npm run smoke:sale-auth          # 17 bước đăng nhập Host + Admin CRUD Host (backend đang chạy, AUTH_DEMO_MODE=true; tự dọn dữ liệu sale.smoke+)
 npm test                         # unit + HTTP test (Prisma/Supabase giả)
 ```
 
@@ -254,19 +257,19 @@ tạo Profile rồi đăng nhập luôn; email đã có tài khoản (kể cả 
 API client có thể dùng `Authorization: Bearer <token>`. Vai trò đọc từ DB (`profiles.role`). Supabase chỉ còn dùng cho
 Postgres + Storage ảnh hồ sơ ký gửi.
 
-Hai cổng đăng nhập trên UI: `/login` (Khách thuê / Chủ nhà) và `/admin/login` (Sale – Field Host / Quản trị).
+Hai cổng đăng nhập trên UI: `/login` (Khách thuê / Chủ nhà) và `/admin/login` (Field Host – Sale / Thẩm định · Quản trị).
 
 | Endpoint | Mô tả |
 |---|---|
 | `POST /auth/login` `{email,password,portal}` | portal = tenant / landlord / host / admin |
-| `POST /auth/signup` | tenant / landlord (và Host đã được Admin mời email) — đăng ký xong đăng nhập luôn, không xác nhận email |
+| `POST /auth/signup` | tenant / landlord — đăng ký xong đăng nhập luôn, không xác nhận email. Host/Admin ⇒ 403 `signup_not_allowed` |
 | `POST /auth/demo-login` | đăng nhập 1-click tài khoản demo (chỉ khi `AUTH_DEMO_MODE=true`) |
 | `GET /auth/google?portal=` → `GET /auth/google/callback` | Google OAuth (Passport; `state` = `portal.nonce`, nonce nằm trong cookie httpOnly `vs_oauth`; luôn hiện màn chọn tài khoản; nhận `login_hint=<email>` để chọn sẵn tài khoản; thành công thì set cookie không-httpOnly `vs_google_hint` {name,email} để FE hiện "Tiếp tục bằng tên …") |
 | `GET /auth/session`, `POST /auth/logout` | phiên hiện tại, đăng xuất (xoá cookie) |
 | `npm run set:password -- <email> <mật khẩu>` | script đặt/đặt lại mật khẩu cho Profile có sẵn (tài khoản cũ chưa có `password_hash`); `create:admin` / `seed:auth` chỉ tạo mới |
-| `POST /auth/verify-rfid` | Field Host nhập RFID lần đầu; chưa xong thì bị chặn mọi quyền Host |
+| `GET /host/me` | Field Host xem hồ sơ của chính mình (vai, phân khu, SĐT đã xác thực, ca trực). Không có số thẻ/mật khẩu |
 | `POST /auth/otp/send`, `/otp/verify`, `/phone/verify` | OTP xác thực SĐT (không phải đăng nhập); Khách thuê nhận action token dùng một lần |
-| `/admin/field-hosts` (ops_admin) | quản lý Field Host — xem §1.5 |
+| `/admin/field-hosts` (ops_admin) | Admin CRUD Field Host — xem §1.5. Host chỉ đăng nhập (email+mật khẩu hoặc Google); Profile `field_host` chưa có hồ sơ Host ⇒ 403 `host_not_provisioned`. Vai con: `@HostRoles('sale' \| 'inspector')` (guard `RolesGuard`, lỗi `host_role_missing`) |
 
 Portal `host` ↔ role `field_host`, `admin` ↔ `ops_admin`. Google: điền `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`JWT_SECRET` trong `.env`
 và thêm `${WEB_APP_URL}/api/v1/auth/google/callback` vào *Authorized redirect URIs* của OAuth client (Google Cloud Console) — không cần

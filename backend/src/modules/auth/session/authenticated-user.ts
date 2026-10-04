@@ -1,4 +1,5 @@
 import { Portal } from '../auth.constants';
+import { HostRoleCode } from '../host-roles';
 
 /** Người dùng đã xác thực, gắn vào `request.user` bởi SupabaseAuthGuard. */
 export interface AuthenticatedUser {
@@ -9,12 +10,11 @@ export interface AuthenticatedUser {
   role: string | null;
   portal: Portal | null;
   isPhoneVerified: boolean;
-  /** Field Host đã nhập đúng RFID (có bản ghi FieldHost). Vai trò khác luôn là false. */
+  /** Field Host đã có hồ sơ `field_hosts` (do Admin tạo). Vai trò khác luôn là false. */
   isHostVerified: boolean;
+  /** Vai của Field Host (đọc từ `field_hosts.roles`, không nằm trong JWT). [] nếu không phải Host hoặc chưa có hồ sơ. */
+  hostRoles: HostRoleCode[];
 }
 
 /** Phiên trả cho FE — không bao giờ chứa token (token chỉ nằm trong cookie httpOnly). */
-export interface AuthUserView extends AuthenticatedUser {
-  /** Id lời mời Field Host đang chờ nhập RFID (dùng để dựng lại bước RFID sau khi tải lại trang). */
-  pendingHostId?: string;
-}
+export type AuthUserView = AuthenticatedUser;

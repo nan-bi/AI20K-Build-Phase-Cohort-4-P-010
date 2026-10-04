@@ -2,14 +2,12 @@ import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } fro
 import { ApiCookieAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { PORTALS } from './auth.constants';
 import { AuthService, LoginOutcome, RequestContext } from './auth.service';
-import { LoginDto, PortalQueryDto, SignupDto, VerifyRfidDto } from './dto/auth.dto';
+import { LoginDto, PortalQueryDto, SignupDto } from './dto/auth.dto';
 import { GoogleAuthGuard, GoogleCallbackGuard } from './google/google-auth.guard';
 import { GoogleIdentity } from './google/google.strategy';
-import { AuthenticatedUser } from './session/authenticated-user';
 import { SessionCookieService } from './session/session-cookies.service';
 
 const perMinute = (limit: number) => ({ default: { limit, ttl: 60_000 } });
@@ -34,8 +32,8 @@ export class AuthController {
     private readonly cookies: SessionCookieService,
   ) {}
 
-  private loginBody({ user, needsRfidVerification, hostId }: LoginOutcome) {
-    return { user, needsRfidVerification, ...(hostId ? { hostId } : {}) };
+  private loginBody({ user }: LoginOutcome) {
+    return { user };
   }
 
   @Public()
@@ -45,8 +43,8 @@ export class AuthController {
   @ApiOperation({
     summary: 'Đăng nhập email + mật khẩu vào một cổng (tenant / landlord / host / admin)',
     description:
-      'Set cookie phiên httpOnly. Field Host lần đầu trả `needsRfidVerification` + `hostId`: phiên đã có ' +
-      'nhưng chỉ dùng được `POST /auth/verify-rfid` cho tới khi nhập đúng thẻ RFID.',
+      'Set cookie phiên httpOnly. Field Host do Admin tạo: tài khoản chưa có hồ sơ Field Host ⇒ 403 `host_not_provisioned`; ' +
+      '`user.hostRoles` cho biết vai Sale / Thẩm định.',
   })
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const outcome = await this.auth.login(dto, requestContext(req));
@@ -59,11 +57,11 @@ export class AuthController {
   @HttpCode(200)
   @Throttle(perMinute(5))
   @ApiOperation({
-    summary: 'Đăng ký tài khoản (tenant / landlord / host được mời) bằng email + mật khẩu',
+    summary: 'Đăng ký tài khoản (tenant / landlord) bằng email + mật khẩu',
     description:
       'Không xác nhận email: đăng ký xong đăng nhập luôn (set cookie phiên, response giống `POST /auth/login`). ' +
       'Email đã có tài khoản (kể cả Google) → 409 `email_already_registered`. ' +
-      'Host chỉ đăng ký được nếu Admin đã mời email đó. Admin không có đăng ký.',
+      'Field Host do Admin tạo (`POST /admin/field-hosts`) và Admin tạo bằng script ⇒ cả hai trả 403 `signup_not_allowed`.',
   })
   async signup(@Body() dto: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const outcome = await this.auth.signup(dto, requestContext(req));
@@ -138,18 +136,5 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     this.cookies.clear(res);
     return { loggedOut: true };
-  }
-
-  @Post('verify-rfid')
-  @HttpCode(200)
-  @Throttle(perMinute(5))
-  @ApiCookieAuth('session-cookie')
-  @ApiOperation({
-    summary: 'Field Host nhập mã thẻ RFID Admin đã cấp để hoàn tất đăng nhập lần đầu',
-    description: 'Tạo bản ghi FieldHost và nhận lời mời. Sau bước này Host mới dùng được các API của Field Host.',
-  })
-  async verifyRfid(@CurrentUser() user: AuthenticatedUser, @Body() dto: VerifyRfidDto, @Req() req: Request) {
-    await this.auth.verifyRfid(user, dto, requestContext(req));
-    return { verified: true };
   }
 }

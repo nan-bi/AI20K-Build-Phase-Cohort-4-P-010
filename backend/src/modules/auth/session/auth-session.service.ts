@@ -5,19 +5,21 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { portalForRole } from '../auth.constants';
 import { authError } from '../auth.errors';
 import { AuthenticatedUser } from './authenticated-user';
+import { toHostRoleCodes } from '../host-roles';
 import { SessionTokenService } from './session-token.service';
 
 export type ProfileWithRole = Prisma.ProfileGetPayload<{
-  include: { role: true; hostProfile: { select: { id: true } } };
+  include: { role: true; hostProfile: { select: { id: true; roles: true } } };
 }>;
 
-export const PROFILE_INCLUDE = { role: true, hostProfile: { select: { id: true } } } as const;
+export const PROFILE_INCLUDE = { role: true, hostProfile: { select: { id: true, roles: true } } } as const;
 
 export function toAuthenticatedUser(
   identity: { id: string; email?: string | null },
   profile: ProfileWithRole | null,
 ): AuthenticatedUser {
   const role = profile?.role?.code ?? null;
+  const isHostVerified = role === 'field_host' && Boolean(profile?.hostProfile);
   return {
     id: identity.id,
     email: profile?.email ?? identity.email ?? null,
@@ -25,7 +27,8 @@ export function toAuthenticatedUser(
     role,
     portal: portalForRole(role),
     isPhoneVerified: profile?.isPhoneVerified ?? false,
-    isHostVerified: role === 'field_host' && Boolean(profile?.hostProfile),
+    isHostVerified,
+    hostRoles: isHostVerified ? toHostRoleCodes(profile.hostProfile.roles) : [],
   };
 }
 

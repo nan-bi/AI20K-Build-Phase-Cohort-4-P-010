@@ -69,7 +69,6 @@ model Profile {
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   role              Role                   @relation(fields: [roleId], references: [id])
-  claimedHostInvite HostInvite?            @relation("HostInviteClaim")
   ownedUnits        Unit[]                 @relation("LandlordUnits")
   hostProfile       FieldHost?
   viewings          Viewing[]              @relation("TenantViewings")
@@ -81,23 +80,6 @@ model Profile {
   favoriteUnits     FavoriteUnit[]
 
   @@map("profiles")
-}
-
-/// Allowlist của Field Host: Admin tạo trước (email + mã thẻ RFID). Người có email đó
-/// đăng ký/đăng nhập rồi nhập đúng mã RFID thì `claimedAt` được set và bản ghi FieldHost
-/// được tạo. Email không có invite thì không đăng ký được vai trò Field Host.
-model HostInvite {
-  id             String    @id @default(uuid()) @db.Uuid
-  email          String    @unique @db.VarChar(100)
-  assignedZone   String    @default("The Sapphire 1") @map("assigned_zone") @db.VarChar(50)
-  rfidCardNumber String    @map("rfid_card_number") @db.VarChar(50)
-  claimedById    String?   @unique @map("claimed_by_id") @db.Uuid
-  claimedAt      DateTime? @map("claimed_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  claimedBy Profile? @relation("HostInviteClaim", fields: [claimedById], references: [id], onDelete: SetNull)
-
-  @@map("host_invites")
 }
 
 enum OtpPurpose {
@@ -403,6 +385,12 @@ model ExclusiveMandate {
 // 6. FIELD HOST & DISPATCH SYSTEM
 // ====================================================================
 
+/// Vai của Field Host (UI_FLOW_SPEC §5 Màn 4). Một Host có thể có cả hai.
+enum HostRole {
+  SALE
+  INSPECTOR
+}
+
 enum HostDutyStatus {
   ONLINE_AVAILABLE
   BUSY_VIEWING
@@ -413,6 +401,7 @@ model FieldHost {
   id               String         @id @default(uuid()) @db.Uuid
   profileId        String         @unique @map("profile_id") @db.Uuid
   assignedZone     String         @map("assigned_zone") @db.VarChar(50)
+  roles            HostRole[]     @default([SALE]) // Admin sửa qua PATCH /admin/field-hosts/:id → AuditLog HOST_ROLES_UPDATE
   rfidCardNumber   String?        @map("rfid_card_number") @db.VarChar(50)
   dutyStatus       HostDutyStatus @default(OFF_DUTY) @map("duty_status")
   currentLatitude  Decimal?       @map("current_latitude") @db.Decimal(10, 7)
