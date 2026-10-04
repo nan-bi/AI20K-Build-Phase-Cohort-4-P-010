@@ -337,7 +337,6 @@ P-010/
 │       └── README.md (4.1 KB; 17 dòng)
 ├── P-010/
 ├── presentation/
-│   ├── BACKEND_SHOW.html
 │   ├── PITCH_DECK_GATE_1.md (21.8 KB; 226 dòng)
 │   ├── prototype.html
 │   ├── README.md (0.8 KB; 26 dòng)

@@ -4,7 +4,7 @@ Hệ thống API Backend toàn diện cho nền tảng thuê căn hộ Asset-Lig
 
 > **Công nghệ:** NestJS 10 + Prisma ORM + Supabase (PostgreSQL + Auth + Storage).  
 > **Tuân thủ chuẩn:** [SAD v2.0](../docs/SAD_v2.md), bộ văn bản pháp lý [`legal/`](../legal/) và [Interactive Prototype Guide](../docs/PROTOTYPE_GUIDE.md).  
-> **🎯 TRÌNH DIỄN SƠ ĐỒ & TÀI LIỆU BACKEND:** Mở tệp tin [`backend/BACKEND_SHOW.html`](./BACKEND_SHOW.html) (hoặc [`presentation/BACKEND_SHOW.html`](../presentation/BACKEND_SHOW.html)) để xem tài liệu cơ bản và bấm nút **"Mở Trình Chiếu Sơ Đồ (Show Mode)"** để xem 6 sơ đồ kiến trúc tương tác!
+> **🎯 TRÌNH DIỄN SƠ ĐỒ & TÀI LIỆU BACKEND:** Mở tệp tin [`backend/BACKEND_SHOW.html`](./BACKEND_SHOW.html) để xem tài liệu cơ bản và bấm nút **"Mở Trình Chiếu Sơ Đồ (Show Mode)"** để xem 6 sơ đồ kiến trúc tương tác!
 
 ---
 
