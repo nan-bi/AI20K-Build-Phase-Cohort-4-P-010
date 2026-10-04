@@ -4,14 +4,13 @@ import { useState } from "react";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { loginPathFor } from "@/lib/auth/portals";
-import { DEMO_USERS } from "@/lib/mock/actors";
 import { signOut } from "@/lib/auth/client";
-import { hostById, zoneById } from "@/lib/mock/units";
+import { useHostMe } from "@/lib/host/api";
 import styles from "./Host.module.css";
+import { PhoneVerifyCard } from "./PhoneVerifyCard";
 
-const HOST = DEMO_USERS.host;
+const ROLE_LABEL = { sale: "Sale", inspector: "Thẩm định" } as const;
 
 const SHIFTS = [
   { id: "morning", label: "Ca sáng", time: "08:30–11:30" },
@@ -24,10 +23,24 @@ const RULES = [
   "Có sự cố tại căn: chỉ giới thiệu danh bạ thợ ngoài, khách và thợ tự thoả thuận.",
 ];
 
-/** Hồ sơ Field Host: thông tin cá nhân, thẻ RFID, ca trực và quy tắc cốt lõi. */
+/** Hồ sơ Field Host: dữ liệu thật từ `GET /host/me`; ca trực và quy tắc cốt lõi giữ nguyên (ca trực: hồ sơ 15). */
 export function AccountView() {
-  const host = hostById(HOST.refId!)!;
+  const me = useHostMe();
   const [onShift, setOnShift] = useState<Record<string, boolean>>({ morning: true, afternoon: true });
+
+  if (me.state.status === "loading") return <div className="skeleton" style={{ height: 360 }} />;
+  if (me.state.status === "error") {
+    return (
+      <div className={styles.page}>
+        <PageHeader title="Tài khoản" />
+        <p role="alert">{me.state.message}</p>
+        <button type="button" className="btn btn-quiet" onClick={me.reload}>
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+  const host = me.state.data;
 
   return (
     <div className={styles.page}>
@@ -38,23 +51,16 @@ export function AccountView() {
           <Section title="Thông tin cá nhân">
             <KeyValue
               items={[
-                { label: "Họ tên", value: host.name },
-                { label: "Số điện thoại", value: host.phone },
-                { label: "Khu phụ trách", value: host.zones.map((z) => zoneById(z).short).join(" & ") },
+                { label: "Họ tên", value: host.fullName ?? "—" },
+                { label: "Email", value: host.email ?? "—" },
+                { label: "Khu phụ trách", value: host.assignedZone },
+                { label: "Vai", value: host.roles.map((r) => ROLE_LABEL[r]).join(" + ") || "Chưa gán vai" },
                 { label: "Đánh giá", value: `${String(host.rating).replace(".", ",")} ★` },
               ]}
             />
           </Section>
 
-          <Section title="Thẻ cư dân RFID">
-            <KeyValue
-              items={[
-                { label: "Số thẻ", value: "VS-0412" },
-                { label: "Trạng thái", value: <StatusBadge tone="ok">Đã xác minh</StatusBadge> },
-              ]}
-            />
-            <p className="muted small">Thẻ do Ban quản lý cấp, dùng để đưa khách lên tầng. Mất thẻ báo ngay trưởng khu.</p>
-          </Section>
+          <PhoneVerifyCard me={host} onVerified={me.reload} />
         </div>
 
         <div className={styles.stack}>

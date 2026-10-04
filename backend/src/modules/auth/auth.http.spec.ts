@@ -10,6 +10,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { TransformInterceptor } from '../../common/interceptors/transform.interceptor';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FieldHostsModule } from '../field-hosts/field-hosts.module';
+import { HostModule } from '../host/host.module';
 import { AuthModule } from './auth.module';
 import { SESSION_TTL_SECONDS } from './auth.constants';
 import { GoogleStrategy } from './google/google.strategy';
@@ -59,7 +61,7 @@ async function createApp(prisma: FakePrisma, env: Record<string, string | undefi
   class FakeInfraModule {}
 
   @Module({
-    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => env] }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]), FakeInfraModule, AuthModule],
+    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => env] }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]), FakeInfraModule, AuthModule, FieldHostsModule, HostModule],
     providers: [
       { provide: APP_GUARD, useClass: SupabaseAuthGuard },
       { provide: APP_GUARD, useClass: RolesGuard },
@@ -116,7 +118,7 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       const res = await login(request(app.getHttpServer()) as any, 'landlord');
 
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ success: true, data: { needsRfidVerification: false, user: { portal: 'landlord', role: 'landlord' } } });
+      expect(res.body).toMatchObject({ success: true, data: { user: { portal: 'landlord', role: 'landlord' } } });
 
       const access = cookieValue(res, 'vs_access')!;
       const token = access.split(';')[0].slice('vs_access='.length);
@@ -203,7 +205,7 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       const res = await signup(agent, {});
 
       expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ needsRfidVerification: false, user: { email: 'n@example.com', fullName: 'Nguyễn An', portal: 'tenant' } });
+      expect(res.body.data).toMatchObject({ user: { email: 'n@example.com', fullName: 'Nguyễn An', portal: 'tenant' } });
       expect('needsEmailConfirmation' in res.body.data).toBe(false);
       expect(cookieValue(res, 'vs_access')).toMatch(/HttpOnly/i);
       expect(prisma.profile.rows[0].passwordHash).toMatch(/^scrypt\$/);
@@ -227,23 +229,17 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       expect(prisma.profile.rows[0].passwordHash).toBe(passwordHash);
     });
 
-    it('admin → 400 (DTO không cho cổng admin; service còn chặn thêm signup_not_allowed); Host chưa được mời → 403 not_authorized', async () => {
+    it('admin → 400 (DTO không cho cổng admin); Host không có đăng ký (Admin tạo) → 403 signup_not_allowed, không tạo Profile', async () => {
       const admin = await signup(request(app.getHttpServer()), { portal: 'admin' });
       expect(admin.status).toBe(400);
       expect(admin.body.code).toBe('invalid_request');
 
       const host = await signup(request(app.getHttpServer()), { portal: 'host' });
       expect(host.status).toBe(403);
-      expect(host.body.code).toBe('not_authorized');
+      expect(host.body.code).toBe('signup_not_allowed');
       expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('Host được mời → có phiên, needsRfidVerification + hostId', async () => {
-      const invite = await prisma.hostInvite.create({ data: { email: 'n@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      const res = await signup(request(app.getHttpServer()), { portal: 'host' });
-      expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ needsRfidVerification: true, hostId: invite.id, user: { isHostVerified: false } });
-    });
 
     it('body sai (mật khẩu quá ngắn / thiếu tên) → 400 invalid_request, không tạo Profile', async () => {
       const res = await signup(request(app.getHttpServer()), { password: '123', fullName: '' });
@@ -335,52 +331,142 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       expect((await agent.get('/api/v1/admin/field-hosts')).status).toBe(403);
     });
 
-    it('ops_admin mời Field Host, trùng email → 409, danh sách có `registered`', async () => {
+    it('ops_admin: tạo Host → Profile field_host + FieldHost cùng lúc; danh sách/hồ sơ không lộ băm mật khẩu', async () => {
       seedUser('admin@example.com', 'ops_admin');
+      prisma.building.rows.push({ id: 'b1', zoneName: 'The Sapphire 1' });
       const agent = request.agent(app.getHttpServer());
       expect((await login(agent, 'admin', 'admin@example.com')).status).toBe(200);
 
-      const created = await agent.post('/api/v1/admin/field-hosts').send({ email: 'Host@Example.com', rfidCardNumber: 'RFID-1' });
-      expect(created.status).toBe(201);
-      expect(created.body.data).toMatchObject({ email: 'host@example.com', rfidCardNumber: 'RFID-1', assignedZone: 'The Sapphire 1' });
+      const created = await agent
+        .post('/api/v1/admin/field-hosts')
+        .send({ email: 'Host@Example.com', fullName: ' Phương Nam ', assignedZone: 'The Sapphire 1', roles: ['inspector', 'sale'], password: 'Matkhau-123' });
+      expect(created.status).toBe(200);
+      expect(created.body.data).toMatchObject({
+        email: 'host@example.com',
+        fullName: 'Phương Nam',
+        roles: ['sale', 'inspector'],
+        isActive: true,
+        hasPassword: true,
+        ticketStats: { OFFERED: 0, ACCEPTED: 0, CHECKED: 0, COMPLETED: 0, EXPIRED: 0, ESCALATED: 0, CANCELLED: 0 },
+      });
+      expect(prisma.fieldHost.rows).toHaveLength(1);
+      expect(JSON.stringify(created.body)).not.toMatch(/scrypt\$|passwordHash/);
 
-      const dup = await agent.post('/api/v1/admin/field-hosts').send({ email: 'host@example.com', rfidCardNumber: 'RFID-2' });
+      const dup = await agent.post('/api/v1/admin/field-hosts').send({ email: 'host@example.com', fullName: 'X', assignedZone: 'The Sapphire 1', roles: ['sale'] });
       expect(dup.status).toBe(409);
-      expect(dup.body.code).toBe('email_already_registered');
+      expect(dup.body.code).toBe('host_already_exists');
 
       const list = await agent.get('/api/v1/admin/field-hosts');
-      expect(list.body.data).toEqual([expect.objectContaining({ email: 'host@example.com', registered: false, fullName: null })]);
+      expect(list.body.data).toEqual([expect.objectContaining({ email: 'host@example.com', phone: null })]);
+      expect(JSON.stringify(list.body)).not.toMatch(/scrypt\$|passwordHash/);
     });
 
-    it('validate DTO: thiếu RFID → 400', async () => {
+    it('validate DTO: roles rỗng / lạ / trùng, mật khẩu ngắn, thiếu tên → 400; PATCH có email hoặc body rỗng → 400', async () => {
       seedUser('admin@example.com', 'ops_admin');
       const agent = request.agent(app.getHttpServer());
       await login(agent, 'admin', 'admin@example.com');
-      expect((await agent.post('/api/v1/admin/field-hosts').send({ email: 'h@example.com' })).status).toBe(400);
+      const base = { email: 'h@example.com', fullName: 'H', assignedZone: 'Z', roles: ['sale'] };
+      for (const bad of [{ roles: [] }, { roles: ['admin'] }, { roles: ['sale', 'sale'] }, { password: '1234567' }, { fullName: undefined }]) {
+        expect((await agent.post('/api/v1/admin/field-hosts').send({ ...base, ...bad })).status).toBe(400);
+      }
+      const host = seedProfile(prisma, { email: 'h@example.com', roleCode: 'field_host', withFieldHost: true });
+      const id = prisma.fieldHost.rows.find((f: any) => f.profileId === host.id).id;
+      expect((await agent.patch(`/api/v1/admin/field-hosts/${id}`).send({ email: 'other@example.com' })).status).toBe(400);
+      expect((await agent.patch(`/api/v1/admin/field-hosts/${id}`).send({})).status).toBe(400);
+      expect((await agent.patch('/api/v1/admin/field-hosts/not-a-uuid').send({ fullName: 'A' })).status).toBe(400);
     });
+
+    it('Host (đã đăng nhập) không gọi được bất kỳ route /admin/field-hosts nào → 403', async () => {
+      seedUser('h@example.com', 'field_host', { withFieldHost: true });
+      prisma.building.rows.push({ id: 'b1', zoneName: 'The Sapphire 1' });
+      const agent = request.agent(app.getHttpServer());
+      await login(agent, 'host', 'h@example.com');
+      const id = prisma.fieldHost.rows[0].id;
+      expect((await agent.get('/api/v1/admin/field-hosts')).status).toBe(403);
+      expect((await agent.get('/api/v1/admin/field-hosts/zones')).status).toBe(403);
+      expect((await agent.get(`/api/v1/admin/field-hosts/${id}`)).status).toBe(403);
+      expect((await agent.post('/api/v1/admin/field-hosts').send({ email: 'x@example.com', fullName: 'X', assignedZone: 'The Sapphire 1', roles: ['sale'] })).status).toBe(403);
+      expect((await agent.patch(`/api/v1/admin/field-hosts/${id}`).send({ roles: ['inspector'] })).status).toBe(403);
+      expect((await agent.delete(`/api/v1/admin/field-hosts/${id}`)).status).toBe(403);
+      expect(prisma.fieldHost.rows[0].roles).toEqual(['SALE']);
+    });
+
   });
 
-  describe('Field Host: RFID', () => {
-    it('đăng nhập lần đầu → nhập RFID sai/đúng → session báo đã xác nhận', async () => {
-      const invite = await prisma.hostInvite.create({ data: { email: 'h@example.com', rfidCardNumber: 'RFID-S1-0001', assignedZone: 'The Sapphire 1' } });
-      seedUser('h@example.com', 'field_host');
+  describe('Field Host: đăng nhập + GET /host/me', () => {
+    it('Host do Admin tạo: login → phiên có hostRoles; /host/me không lộ số thẻ, băm mật khẩu hay SĐT mã hoá', async () => {
+      const profile = seedUser('h@example.com', 'field_host', { withFieldHost: true });
+      prisma.fieldHost.rows[0].rfidCardNumber = 'SECRET-CARD-0001'; // cột cũ còn trong DB
+      prisma.profile.rows.find((p: any) => p.id === profile.id).phoneEnc = 'v1:not-decryptable';
       const agent = request.agent(app.getHttpServer());
 
       const loginRes = await login(agent, 'host', 'h@example.com');
-      expect(loginRes.body.data).toMatchObject({ needsRfidVerification: true, hostId: invite.id, user: { isHostVerified: false } });
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.data).toMatchObject({ user: { portal: 'host', isHostVerified: true, hostRoles: ['sale'] } });
+      expect(loginRes.body.data).not.toHaveProperty('needsRfidVerification');
 
-      const wrong = await agent.post('/api/v1/auth/verify-rfid').send({ hostId: invite.id, rfid: 'nope' });
-      expect(wrong.status).toBe(403);
-      expect(wrong.body.code).toBe('rfid_mismatch');
-
-      const ok = await agent.post('/api/v1/auth/verify-rfid').send({ hostId: invite.id, rfid: 'rfid-s1-0001' });
-      expect(ok.status).toBe(200);
-      expect((await agent.get('/api/v1/auth/session')).body.data.user).toMatchObject({ portal: 'host', isHostVerified: true });
+      const me = await agent.get('/api/v1/host/me');
+      expect(me.status).toBe(200);
+      expect(me.body.data).toMatchObject({ email: 'h@example.com', roles: ['sale'], assignedZone: 'The Sapphire 1', dutyStatus: 'OFF_DUTY', phone: null });
+      expect(JSON.stringify(me.body)).not.toMatch(/SECRET-CARD|rfid|scrypt\$|passwordHash|phoneEnc|not-decryptable/i);
     });
 
-    it('verify-rfid cần đăng nhập', async () => {
+    it('/host/me: tenant → 403, chưa đăng nhập → 401, Host chưa có hồ sơ → 403 host_not_provisioned', async () => {
+      expect((await request(app.getHttpServer()).get('/api/v1/host/me')).status).toBe(401);
+      seedUser('t@example.com', 'tenant');
+      const tenant = request.agent(app.getHttpServer());
+      await login(tenant, 'tenant', 't@example.com');
+      expect((await tenant.get('/api/v1/host/me')).status).toBe(403);
+
+      seedUser('orphan@example.com', 'field_host'); // Profile field_host nhưng Admin chưa tạo hồ sơ Host
+      const orphan = request.agent(app.getHttpServer());
+      const res = await login(orphan, 'host', 'orphan@example.com');
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('host_not_provisioned');
+      expect(cookiesOf(res)).toHaveLength(0);
+    });
+
+    it('route verify-rfid đã bị xoá → 404', async () => {
       const res = await request(app.getHttpServer()).post('/api/v1/auth/verify-rfid').send({ hostId: '11111111-1111-4111-8111-111111111111', rfid: 'x' });
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(404);
+    });
+
+    it('Admin tạo Host từ Profile field_host mồ côi → Host đăng nhập được bằng chính tài khoản đó (ca lỗi Google chủ tịch gặp)', async () => {
+      const orphan = seedUser('orphan@example.com', 'field_host');
+      seedUser('admin@example.com', 'ops_admin');
+      prisma.building.rows.push({ id: 'b1', zoneName: 'The Sapphire 1' });
+      const admin = request.agent(app.getHttpServer());
+      await login(admin, 'admin', 'admin@example.com');
+
+      const created = await admin
+        .post('/api/v1/admin/field-hosts')
+        .send({ email: 'orphan@example.com', fullName: 'Phương Nam', assignedZone: 'The Sapphire 1', roles: ['sale', 'inspector'] });
+      expect(created.status).toBe(200);
+      expect(created.body.data.profileId).toBe(orphan.id);
+      expect(prisma.profile.rows.filter((p: any) => p.email === 'orphan@example.com')).toHaveLength(1);
+
+      const host = request.agent(app.getHttpServer());
+      const res = await login(host, 'host', 'orphan@example.com');
+      expect(res.status).toBe(200);
+      expect(res.body.data.user).toMatchObject({ hostRoles: ['sale', 'inspector'], isHostVerified: true });
+    });
+
+    it('Admin khoá Host → phiên đang mở mất hiệu lực ngay; mở khoá → đăng nhập lại được', async () => {
+      seedUser('admin@example.com', 'ops_admin');
+      seedUser('h@example.com', 'field_host', { withFieldHost: true });
+      const id = prisma.fieldHost.rows[0].id;
+      const admin = request.agent(app.getHttpServer());
+      await login(admin, 'admin', 'admin@example.com');
+      const host = request.agent(app.getHttpServer());
+      await login(host, 'host', 'h@example.com');
+      expect((await host.get('/api/v1/host/me')).status).toBe(200);
+
+      expect((await admin.delete(`/api/v1/admin/field-hosts/${id}`)).body.data).toMatchObject({ isActive: false, dutyStatus: 'OFF_DUTY' });
+      expect((await host.get('/api/v1/auth/session')).body.data.user).toBeNull();
+      expect((await login(request.agent(app.getHttpServer()), 'host', 'h@example.com')).body.code).toBe('account_suspended');
+
+      expect((await admin.patch(`/api/v1/admin/field-hosts/${id}`).send({ isActive: true })).body.data).toMatchObject({ isActive: true });
+      expect((await login(request.agent(app.getHttpServer()), 'host', 'h@example.com')).status).toBe(200);
     });
   });
 
@@ -503,9 +589,8 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       expect(JSON.stringify(session.body)).not.toContain(token);
 
       // Route cần đăng nhập (guard toàn cục) chấp nhận token backend qua Bearer.
-      const guarded = await request(app.getHttpServer()).post('/api/v1/auth/verify-rfid').set('Authorization', `Bearer ${token}`).send({ hostId: '11111111-1111-4111-8111-111111111111', rfid: 'x' });
-      expect(guarded.status).toBe(400); // qua guard, bị nghiệp vụ từ chối vì không phải Field Host
-      expect(guarded.body.code).toBe('invalid_host');
+      const guarded = await request(app.getHttpServer()).get('/api/v1/host/me').set('Authorization', `Bearer ${token}`);
+      expect(guarded.status).toBe(403); // qua guard xác thực (không phải 401), bị phân quyền từ chối vì không phải Field Host
 
       const out = await request(app.getHttpServer()).post('/api/v1/auth/logout').set('Cookie', access);
       expect(out.status).toBe(200);
@@ -563,16 +648,25 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
     });
 
-    it('Field Host được mời nhưng chưa nhập RFID → có phiên, redirect kèm rfidPending; session báo pendingHostId', async () => {
-      const invite = await prisma.hostInvite.create({ data: { email: 'g@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
+    it('Field Host có hồ sơ (Admin tạo) đăng nhập Google → redirect trang đích theo vai; session có hostRoles', async () => {
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'field_host', withFieldHost: true, hostRoles: ['INSPECTOR'] });
       fakeGoogle(googleProfile());
       const { state, cookie } = await startFlow('host');
 
       const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
-      expect(res.headers.location).toBe(`http://localhost:3000/admin/login?tab=host&rfidPending=${invite.id}`);
+      expect(res.headers.location).toBe('http://localhost:3000/host/inspections');
       const access = cookiesOf(res).find((c) => c.startsWith('vs_access='))!.split(';')[0];
       const session = await request(app.getHttpServer()).get('/api/v1/auth/session').set('Cookie', access);
-      expect(session.body.data.user).toMatchObject({ portal: 'host', isHostVerified: false, pendingHostId: invite.id });
+      expect(session.body.data.user).toMatchObject({ portal: 'host', isHostVerified: true, hostRoles: ['inspector'] });
+    });
+
+    it('Google cổng host, Profile field_host chưa có hồ sơ → host_not_provisioned (không phải not_authorized), không có phiên', async () => {
+      seedProfile(prisma, { email: 'g@example.com', roleCode: 'field_host' });
+      fakeGoogle(googleProfile());
+      const { state, cookie } = await startFlow('host');
+      const res = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
+      expect(res.headers.location).toBe('http://localhost:3000/admin/login?error=host_not_provisioned&tab=host');
+      expect(cookiesOf(res).find((c) => c.startsWith('vs_access='))).toBeUndefined();
     });
   });
 
@@ -641,7 +735,7 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       seedUser('khachthue.demo@vinstay.vn', 'tenant');
       const res = await request(demo.getHttpServer()).post('/api/v1/auth/demo-login').send({ portal: 'tenant' });
       expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ needsRfidVerification: false, user: { portal: 'tenant', email: 'khachthue.demo@vinstay.vn' } });
+      expect(res.body.data).toMatchObject({ user: { portal: 'tenant', email: 'khachthue.demo@vinstay.vn' } });
       expect(cookieValue(res, 'vs_access')).toMatch(/HttpOnly/i);
     } finally {
       await demo.close();

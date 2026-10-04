@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import { hostRoles } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import type { HostRole } from "@/lib/mock/units";
+import { useSession } from "@/lib/auth/client";
+import type { HostRoleCode as HostRole } from "@/lib/auth/portals";
 
 interface RoleGateProps {
   role: HostRole;
@@ -13,11 +11,10 @@ interface RoleGateProps {
 }
 
 export function RoleGate({ role, children }: RoleGateProps) {
-  const state = useMock();
-  if (!state.ready) return <div className="skeleton" style={{ height: 320 }} />;
+  const session = useSession();
+  if (!session.ready) return <div className="skeleton" style={{ height: 320 }} />;
 
-  const hostId = DEMO_USERS.host.refId!;
-  const roles = hostRoles(state, hostId);
+  const roles: HostRole[] = session.user?.hostRoles ?? [];
 
   if (roles.includes(role)) {
     return <>{children}</>;

@@ -52,17 +52,6 @@ export class PortalQueryDto {
   portal: Portal;
 }
 
-export class VerifyRfidDto {
-  @ApiProperty({ description: 'Id lời mời Field Host (trả về khi đăng nhập: hostId)' })
-  @IsUUID()
-  hostId: string;
-
-  @ApiProperty({ example: 'RFID-S1-0001' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(50)
-  rfid: string;
-}
 
 export class SendOtpDto {
   @ApiProperty({ example: '0912345678' })
@@ -101,24 +90,4 @@ export class VerifyPhoneDto {
   @ApiProperty({ example: '4829' })
   @Matches(OTP_CODE, { message: 'code phải gồm 4 chữ số' })
   code: string;
-}
-
-export class CreateHostInviteDto {
-  @ApiProperty({ example: 'host1@vinstay.test' })
-  @IsEmail()
-  @MaxLength(EMAIL_MAX)
-  email: string;
-
-  @ApiProperty({ example: 'RFID-S1-0001', description: 'Mã thẻ cư dân RFID — Host phải nhập đúng khi đăng nhập lần đầu' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(50)
-  rfidCardNumber: string;
-
-  @ApiPropertyOptional({ example: 'The Sapphire 1', default: 'The Sapphire 1' })
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(50)
-  assignedZone?: string;
 }

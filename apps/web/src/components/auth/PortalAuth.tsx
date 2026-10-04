@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PORTAL_HOME, type Portal } from "@/lib/auth/portals";
+import { PORTAL_HOME, hostHome, type HostRoleCode, type Portal, type SessionUser } from "@/lib/auth/portals";
 import { hintDisplayName, useGoogleHint } from "@/lib/auth/googleHint";
 import { GoogleMark } from "./GoogleMark";
-import { RfidVerifyStep } from "./RfidVerifyStep";
 import { API_BASE, errorMessage, postJson } from "./authApi";
 import styles from "./auth.module.css";
 
@@ -18,21 +17,22 @@ interface PortalAuthProps {
   initialNotice?: string | null;
   /** Trang quay lại sau khi đăng nhập (đã qua safeNext). */
   next?: string;
+  /** Mặc định theo cổng (khách thuê/chủ nhà tự đăng ký); tab Field Host/Admin truyền `false`. */
+  allowSignup?: boolean;
 }
 
 interface LoginData {
-  needsRfidVerification?: boolean;
-  hostId?: string;
+  user?: Pick<SessionUser, "hostRoles">;
 }
 
 /**
  * Login (+ signup where allowed) for one role, by Google or email + password.
  * Admin is email + password only and cannot sign up.
- * Host (on first login) must verify their RFID card number.
+ * Field Host: Admin creates the account, so login only.
  */
-export function PortalAuth({ portal, label, initialError, initialNotice, next }: PortalAuthProps) {
+export function PortalAuth({ portal, label, initialError, initialNotice, next, allowSignup }: PortalAuthProps) {
   const router = useRouter();
-  const canSignup = portal !== "admin";
+  const canSignup = allowSignup ?? portal !== "admin";
   const canGoogle = portal !== "admin"; // Admin chỉ đăng nhập email + mật khẩu
   const demoEnabled = process.env.NEXT_PUBLIC_DEMO_LOGIN === "true";
 
@@ -43,11 +43,10 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
   const [error, setError] = useState<string | null>(initialError ? errorMessage(initialError) : null);
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [loading, setLoading] = useState(false);
-  const [pendingRfid, setPendingRfid] = useState<string | null>(null);
   const googleHint = useGoogleHint();
 
-  function enter() {
-    router.push(next ?? PORTAL_HOME[portal]);
+  function enter(roles?: HostRoleCode[]) {
+    router.push(next ?? (portal === "host" ? hostHome(roles ?? []) : PORTAL_HOME[portal]));
     router.refresh();
   }
 
@@ -71,8 +70,7 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
       const body = mode === "login" ? { email, password, portal } : { email, password, fullName, portal };
       const { ok, data, code } = await postJson<LoginData>(path, body);
       if (!ok) return setError(errorMessage(code));
-      if (portal === "host" && data.needsRfidVerification && data.hostId) return setPendingRfid(data.hostId);
-      return enter();
+      return enter(data.user?.hostRoles);
     } finally {
       setLoading(false);
     }
@@ -84,16 +82,11 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next }:
     try {
       const { ok, data, code } = await postJson<LoginData>("/auth/demo-login", { portal });
       if (!ok) return setError(errorMessage(code));
-      if (data.needsRfidVerification && data.hostId) return setPendingRfid(data.hostId);
-      enter();
+      enter(data.user?.hostRoles);
     } finally {
       setLoading(false);
     }
   };
-
-  if (pendingRfid) {
-    return <RfidVerifyStep hostId={pendingRfid} onDone={enter} />;
-  }
 
   return (
     <>

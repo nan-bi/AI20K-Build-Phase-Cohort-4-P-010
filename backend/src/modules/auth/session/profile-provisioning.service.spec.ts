@@ -1,11 +1,12 @@
 import { createFakePrisma, seedProfile } from '../testing/fake-prisma';
 import { ProfileProvisioningService, ProvisionUser } from './profile-provisioning.service';
+import { RoleIdService } from './role-ids.service';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 
 const setup = () => {
   const prisma = createFakePrisma();
-  return { prisma, service: new ProfileProvisioningService(prisma as any) };
+  return { prisma, service: new ProfileProvisioningService(prisma as any, new RoleIdService(prisma as any)) };
 };
 
 const user = (overrides: Partial<ProvisionUser> = {}): ProvisionUser => ({ id: USER_ID, email: 'New.User@Example.com', ...overrides });
@@ -41,7 +42,7 @@ describe('ProfileProvisioningService.ensureProfile', () => {
     const { prisma, service } = setup();
     const result = await service.ensureProfile(user({ fullName: 'Nguyễn Văn An' }), portal);
 
-    expect(result).toMatchObject({ ok: true, created: true, needsRfidVerification: false });
+    expect(result).toMatchObject({ ok: true, created: true });
     const profile = prisma.profile.rows[0];
     expect(profile).toMatchObject({ email: 'new.user@example.com', fullName: 'Nguyễn Văn An' });
     expect(prisma.role.rows.find((r: any) => r.id === profile.roleId).code).toBe(roleCode);
@@ -85,46 +86,33 @@ describe('ProfileProvisioningService.ensureProfile', () => {
     expect(await service.ensureProfile(supa, 'landlord')).toEqual({ ok: false, error: 'wrong_portal' });
   });
 
-  describe('host', () => {
-    it('email không có lời mời → not_authorized và không tạo Profile', async () => {
+  describe('host (do Admin tạo, không tự tạo ở đây)', () => {
+    it('email chưa có tài khoản → not_authorized và KHÔNG tạo Profile', async () => {
       const { prisma, service } = setup();
       expect(await service.ensureProfile(user(), 'host')).toEqual({ ok: false, error: 'not_authorized' });
       expect(prisma.profile.rows).toHaveLength(0);
     });
 
-    it('có lời mời → tạo Profile field_host và yêu cầu RFID (chưa có FieldHost)', async () => {
+    it('Profile field_host chưa có FieldHost → host_not_provisioned, không cập nhật lastLoginAt', async () => {
       const { prisma, service } = setup();
-      const invite = await prisma.hostInvite.create({ data: { email: 'new.user@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-
-      const result = await service.ensureProfile(user(), 'host');
-      expect(result).toMatchObject({ ok: true, created: true, needsRfidVerification: true, hostId: invite.id });
-      expect(prisma.fieldHost.rows).toHaveLength(0);
+      const supa = user();
+      seedProfile(prisma, { id: supa.id, email: 'new.user@example.com', roleCode: 'field_host' });
+      expect(await service.ensureProfile(supa, 'host')).toEqual({ ok: false, error: 'host_not_provisioned' });
+      expect(prisma.profile.update).not.toHaveBeenCalled();
     });
 
-    it('đăng nhập lại khi chưa nhập RFID vẫn bị giữ ở bước RFID', async () => {
-      const { prisma, service } = setup();
-      const invite = await prisma.hostInvite.create({ data: { email: 'new.user@example.com', rfidCardNumber: 'R1', assignedZone: 'Z' } });
-      await service.ensureProfile(user(), 'host');
-
-      expect(await service.ensureProfile(user(), 'host')).toMatchObject({
-        ok: true,
-        created: false,
-        needsRfidVerification: true,
-        hostId: invite.id,
-      });
-    });
-
-    it('lời mời đã được nhận thì người khác không dùng lại được', async () => {
-      const { prisma, service } = setup();
-      await prisma.hostInvite.create({ data: { email: 'new.user@example.com', rfidCardNumber: 'R1', assignedZone: 'Z', claimedAt: new Date() } });
-      expect(await service.ensureProfile(user(), 'host')).toEqual({ ok: false, error: 'not_authorized' });
-    });
-
-    it('Host đã xác nhận RFID (có FieldHost) vào thẳng', async () => {
+    it('Host có hồ sơ Field Host vào thẳng', async () => {
       const { prisma, service } = setup();
       const supa = user();
       seedProfile(prisma, { id: supa.id, email: 'new.user@example.com', roleCode: 'field_host', withFieldHost: true });
-      expect(await service.ensureProfile(supa, 'host')).toMatchObject({ ok: true, needsRfidVerification: false });
+      expect(await service.ensureProfile(supa, 'host')).toMatchObject({ ok: true, created: false });
+    });
+
+    it('Host bị khoá → account_suspended (ưu tiên hơn host_not_provisioned)', async () => {
+      const { prisma, service } = setup();
+      const supa = user();
+      seedProfile(prisma, { id: supa.id, email: 'new.user@example.com', roleCode: 'field_host', isActive: false });
+      expect(await service.ensureProfile(supa, 'host')).toEqual({ ok: false, error: 'account_suspended' });
     });
   });
 
