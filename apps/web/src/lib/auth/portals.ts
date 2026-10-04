@@ -1,5 +1,8 @@
 export type Portal = "tenant" | "landlord" | "host" | "admin";
 
+/** Vai của Field Host — trùng `HostRoleCode` của backend (`auth/host-roles.ts`). */
+export type HostRoleCode = "sale" | "inspector";
+
 export const PORTAL_HOME: Record<Portal, string> = {
   tenant: "/",
   landlord: "/landlord/dashboard",
@@ -28,8 +31,22 @@ export interface SessionUser {
   fullName: string | null;
   role: string | null;
   portal: Portal | null;
+  /** Field Host: Profile đã có hồ sơ `field_hosts` (do Admin tạo). */
   isHostVerified: boolean;
-  pendingHostId?: string;
+  hostRoles: HostRoleCode[];
+}
+
+/** Trang đích cổng Host theo vai — trùng `hostHome` của backend. */
+export function hostHome(roles: readonly HostRoleCode[]): string {
+  if (roles.includes("sale")) return "/host/dispatch";
+  if (roles.includes("inspector")) return "/host/inspections";
+  return "/host/account";
+}
+
+/** Host đã đăng nhập nhưng chưa có hồ sơ Field Host ⇒ chuyển về trang đăng nhập kèm lỗi; null = cho vào. */
+export function hostGateRedirect(user: Pick<SessionUser, "portal" | "isHostVerified">): string | null {
+  if (user.portal !== "host" || user.isHostVerified) return null;
+  return "/admin/login?tab=host&error=host_not_provisioned";
 }
 
 /** Chỉ cho phép chuyển hướng nội bộ, tránh open-redirect qua `next`. */

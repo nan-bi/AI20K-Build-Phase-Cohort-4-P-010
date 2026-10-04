@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { parseSetCookie } from "@/lib/auth/setCookie";
-import { PORTAL_HOME, loginPathFor, portalForPath, type Portal, type SessionUser } from "@/lib/auth/portals";
+import { rebuildCookieHeader } from "@/lib/auth/setCookie";
+import { PORTAL_HOME, hostGateRedirect, loginPathFor, portalForPath, type Portal, type SessionUser } from "@/lib/auth/portals";
 
 const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
@@ -42,16 +42,16 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  // Cập nhật cookie của request đang xử lý để Server Component thấy token mới ngay lượt này.
-  const jar = new Map(request.cookies.getAll().map((c) => [c.name, c.value]));
-  for (const raw of setCookies) {
-    const parsed = parseSetCookie(raw);
-    if (!parsed) continue;
-    if (parsed.expired) jar.delete(parsed.name);
-    else jar.set(parsed.name, parsed.value);
+  const gate = required === "host" ? hostGateRedirect(user) : null;
+  if (gate) {
+    const redirect = NextResponse.redirect(new URL(gate, request.url));
+    for (const c of setCookies) redirect.headers.append("set-cookie", c);
+    return redirect;
   }
+
+  // Cập nhật cookie của request đang xử lý để Server Component thấy token mới ngay lượt này.
   const headers = new Headers(request.headers);
-  headers.set("cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "));
+  headers.set("cookie", rebuildCookieHeader(request.headers.get("cookie") ?? "", setCookies));
   const response = NextResponse.next({ request: { headers } });
   for (const c of setCookies) response.headers.append("set-cookie", c);
   return response;

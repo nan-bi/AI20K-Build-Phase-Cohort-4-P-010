@@ -1,74 +1,84 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Search, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, UserPlus } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
-import { fmtPhone, initials, isValidVnPhone, vnd } from "@/lib/mock/format";
-import { hostEarnings, hostRoles } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
+import type { HostRoleCode } from "@/lib/auth/portals";
 import {
-  HOSTS,
-  ZONES,
-  zoneById,
-  type FieldHost,
-  type HostRole,
-  type HostStatus,
-} from "@/lib/mock/units";
+  adminHostsApi,
+  hostErrorText,
+  invalidateHosts,
+  useHostList,
+  useHostZones,
+  type HostAdminView,
+  type HostFilters,
+} from "@/lib/admin/hosts";
 import styles from "./Admin.module.css";
 
-const STATUS: Record<HostStatus, { label: string; badge: string }> = {
-  active: { label: "Đang trực", badge: "badge-kelp" },
-  busy: { label: "Đang bận", badge: "badge-amber-soft" },
-  off_duty: { label: "Nghỉ ca", badge: "badge-plain" },
+export const DUTY_LABEL: Record<HostAdminView["dutyStatus"], { label: string; badge: string }> = {
+  ONLINE_AVAILABLE: { label: "Đang trực", badge: "badge-kelp" },
+  BUSY_VIEWING: { label: "Đang bận", badge: "badge-amber-soft" },
+  OFF_DUTY: { label: "Nghỉ ca", badge: "badge-plain" },
 };
 
-const mm = (s: number) => `${Math.floor(s / 60)}′${String(s % 60).padStart(2, "0")}″`;
+export const ROLE_LABEL: Record<HostRoleCode, string> = { sale: "Sale", inspector: "Thẩm định" };
 
 type RoleFilter = "all" | "sale" | "inspector" | "both";
+type ActiveFilter = "all" | "true" | "false";
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(-2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+
+const fmtLogin = (iso: string | null) => (iso ? new Date(iso).toLocaleString("vi-VN") : "Chưa đăng nhập");
 
 export function AdminHosts() {
-  const state = useMock();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<HostStatus | "all">("all");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [active, setActive] = useState<ActiveFilter>("all");
   const [zone, setZone] = useState("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [invite, setInvite] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  if (!state.ready) return <div className="skeleton" style={{ height: 360 }} />;
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const list = HOSTS.filter((h) => {
-    const roles = hostRoles(state, h.id);
-    const roleMatch =
-      roleFilter === "all" ||
-      (roleFilter === "both" && roles.includes("sale") && roles.includes("inspector")) ||
-      (roleFilter === "sale" && roles.includes("sale") && !roles.includes("inspector")) ||
-      (roleFilter === "inspector" && roles.includes("inspector") && !roles.includes("sale"));
+  const filters: HostFilters = {
+    q: debouncedQ,
+    role: roleFilter === "all" ? undefined : roleFilter,
+    zone: zone === "all" ? undefined : zone,
+    active: active === "all" ? undefined : active === "true",
+  };
+  const list = useHostList(filters);
+  const zones = useHostZones();
+  const zoneOptions = zones.state.status === "ready" ? zones.state.data : [];
 
-    return (
-      (status === "all" || h.status === status) &&
-      (zone === "all" || h.zones.includes(zone as never)) &&
-      roleMatch &&
-      (q === "" ||
-        h.name.toLowerCase().includes(q.toLowerCase()) ||
-        h.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")))
-    );
-  });
-
-  const active = HOSTS.filter((h) => h.status === "active").length;
-  const saleCount = HOSTS.filter((h) => hostRoles(state, h.id).includes("sale")).length;
-  const inspectorCount = HOSTS.filter((h) => hostRoles(state, h.id).includes("inspector")).length;
+  const rows = list.state.status === "ready" ? list.state.data : [];
+  const sale = rows.filter((h) => h.roles.includes("sale")).length;
+  const inspector = rows.filter((h) => h.roles.includes("inspector")).length;
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Danh sách Field Host"
-        description={`${HOSTS.length} Host · ${saleCount} Sale · ${inspectorCount} Thẩm định · ${active} đang trực · thù lao là biến phí, không lương cứng`}
+        description={
+          list.state.status === "ready"
+            ? `${rows.length} Host · ${sale} Sale · ${inspector} Thẩm định · thù lao là biến phí, không lương cứng`
+            : "Đang tải…"
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setInvite(true)}>
-            <UserPlus size={17} /> Mời Field Host
+          <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+            <UserPlus size={17} /> Thêm Field Host
           </button>
         }
       />
@@ -79,21 +89,20 @@ export function AdminHosts() {
           <span className="sr-only">Tìm Host</span>
           <input
             className="input"
-            placeholder="Tìm theo tên hoặc số điện thoại"
+            placeholder="Tìm theo tên, email hoặc số điện thoại"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
         <select
           className="select"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as HostStatus | "all")}
-          aria-label="Lọc theo trạng thái"
+          value={active}
+          onChange={(e) => setActive(e.target.value as ActiveFilter)}
+          aria-label="Lọc theo tài khoản"
         >
-          <option value="all">Mọi trạng thái</option>
-          <option value="active">Đang trực</option>
-          <option value="busy">Đang bận</option>
-          <option value="off_duty">Nghỉ ca</option>
+          <option value="all">Mọi tài khoản</option>
+          <option value="true">Đang hoạt động</option>
+          <option value="false">Đã khoá</option>
         </select>
         <select
           className="select"
@@ -106,189 +115,157 @@ export function AdminHosts() {
           <option value="inspector">Thẩm định</option>
           <option value="both">Cả hai</option>
         </select>
-        <select
-          className="select"
-          value={zone}
-          onChange={(e) => setZone(e.target.value)}
-          aria-label="Lọc theo phân khu"
-        >
+        <select className="select" value={zone} onChange={(e) => setZone(e.target.value)} aria-label="Lọc theo phân khu">
           <option value="all">Mọi phân khu</option>
-          {ZONES.map((z) => (
-            <option key={z.id} value={z.id}>
-              {z.name}
+          {zoneOptions.map((z) => (
+            <option key={z} value={z}>
+              {z}
             </option>
           ))}
         </select>
       </div>
 
-      <DataTable<FieldHost>
-        columns={
-          [
-            {
-              key: "host",
-              header: "Field Host",
-              render: (h) => (
-                <span className={styles.person}>
-                  <span className={styles.avatar}>{initials(h.name)}</span>
-                  <span>
-                    <b>{h.name}</b>
-                    <span className="muted xs">{fmtPhone(h.phone)}</span>
+      {list.state.status === "loading" && <div className="skeleton" style={{ height: 360 }} />}
+      {list.state.status === "error" && (
+        <div role="alert">
+          <p>{list.state.message}</p>
+          <button type="button" className="btn btn-quiet" onClick={list.reload}>
+            Thử lại
+          </button>
+        </div>
+      )}
+      {list.state.status === "ready" && (
+        <DataTable<HostAdminView>
+          columns={
+            [
+              {
+                key: "host",
+                header: "Field Host",
+                render: (h) => (
+                  <span className={styles.person}>
+                    <span className={styles.avatar}>{initials(h.fullName ?? h.email ?? "?")}</span>
+                    <span>
+                      <b>{h.fullName ?? "(chưa có tên)"}</b>
+                      <span className="muted xs">{h.email}</span>
+                      <span className="muted xs">{h.phone ?? "Chưa xác thực SĐT"}</span>
+                    </span>
                   </span>
-                </span>
-              ),
-            },
-            {
-              key: "zone",
-              header: "Phân khu",
-              render: (h) => h.zones.map((z) => zoneById(z).short).join(", "),
-            },
-            {
-              key: "roles",
-              header: "Vai",
-              render: (h) => {
-                const roles = hostRoles(state, h.id);
-                return (
+                ),
+              },
+              { key: "zone", header: "Phân khu", render: (h) => h.assignedZone },
+              {
+                key: "roles",
+                header: "Vai",
+                render: (h) => (
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {roles.includes("sale") && <span className="badge badge-kelp">Sale</span>}
-                    {roles.includes("inspector") && (
-                      <span className="badge badge-plain">Thẩm định</span>
-                    )}
+                    {h.roles.map((r) => (
+                      <span key={r} className={`badge ${r === "sale" ? "badge-kelp" : "badge-plain"}`}>
+                        {ROLE_LABEL[r]}
+                      </span>
+                    ))}
                   </div>
-                );
+                ),
               },
-            },
-            {
-              key: "status",
-              header: "Trạng thái",
-              render: (h) => (
-                <span className={`badge ${STATUS[h.status].badge}`}>{STATUS[h.status].label}</span>
-              ),
-            },
-            {
-              key: "tickets",
-              header: "Ticket",
-              align: "right",
-              render: (h) => hostEarnings(state, h, state.fees).viewings,
-            },
-            {
-              key: "deals",
-              header: "Deal",
-              align: "right",
-              render: (h) => hostEarnings(state, h, state.fees).deals,
-            },
-            {
-              key: "accept",
-              header: "Nhận ca TB",
-              render: (h) => {
-                const slow = h.avgAcceptSec > 180;
-                return (
-                  <span className={`${slow ? styles.warnText : styles.okText} tnum`}>
-                    {slow ? (
-                      <AlertTriangle size={14} aria-label="Vượt SLA" />
-                    ) : (
-                      <CheckCircle2 size={14} aria-label="Đạt SLA" />
-                    )}
-                    {mm(h.avgAcceptSec)}
-                  </span>
-                );
+              {
+                key: "status",
+                header: "Trạng thái",
+                render: (h) =>
+                  h.isActive ? (
+                    <span className={`badge ${DUTY_LABEL[h.dutyStatus].badge}`}>{DUTY_LABEL[h.dutyStatus].label}</span>
+                  ) : (
+                    <span className="badge badge-plain">Đã khoá</span>
+                  ),
               },
-            },
-            {
-              key: "noshow",
-              header: "Bỏ hẹn",
-              align: "right",
-              render: (h) => `${Math.round(h.noShowRate * 100)}%`,
-            },
-            {
-              key: "rating",
-              header: "Đánh giá",
-              align: "right",
-              render: (h) => `${String(h.rating).replace(".", ",")}★`,
-            },
-            {
-              key: "earn",
-              header: "Thu nhập tuần",
-              align: "right",
-              render: (h) => <b>{vnd(hostEarnings(state, h, state.fees).total)}đ</b>,
-            },
-          ] satisfies DataTableColumn<FieldHost>[]
-        }
-        rows={list}
-        rowHref={(h) => `/admin/hosts/${h.id}`}
-        empty={<span className="muted">Không có Host nào khớp bộ lọc.</span>}
-      />
+              { key: "login", header: "Đăng nhập gần nhất", render: (h) => fmtLogin(h.lastLoginAt) },
+              {
+                key: "rating",
+                header: "Đánh giá",
+                align: "right",
+                render: (h) => `${String(h.rating).replace(".", ",")}★`,
+              },
+            ] satisfies DataTableColumn<HostAdminView>[]
+          }
+          rows={rows}
+          rowHref={(h) => `/admin/hosts/${h.id}`}
+          empty={<span className="muted">Không có Host nào khớp bộ lọc.</span>}
+        />
+      )}
 
-      <InviteModal open={invite} onClose={() => setInvite(false)} />
+      <CreateHostModal open={creating} zones={zoneOptions} onClose={() => setCreating(false)} />
     </div>
   );
 }
 
-function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [zone, setZone] = useState<string>(ZONES[0].id);
-  const [roles, setRoles] = useState<HostRole[]>(["sale"]);
+function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: string[]; onClose: () => void }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [zone, setZone] = useState("");
+  const [roles, setRoles] = useState<HostRoleCode[]>(["sale"]);
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const toggleRole = (r: HostRole) => {
+  const chosenZone = zone || zones[0] || "";
+  const toggleRole = (r: HostRoleCode) =>
     setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
-  };
+
+  async function submit() {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()) || fullName.trim().length < 2) {
+      return setErr("Nhập email và họ tên hợp lệ.");
+    }
+    if (!chosenZone) return setErr("Chọn phân khu phụ trách.");
+    if (roles.length === 0) return setErr("Chọn ít nhất một vai cho Field Host.");
+    if (password && password.length < 8) return setErr("Mật khẩu tối thiểu 8 ký tự (hoặc để trống).");
+    setBusy(true);
+    setErr("");
+    const res = await adminHostsApi.create({
+      email: email.trim(),
+      fullName: fullName.trim(),
+      assignedZone: chosenZone,
+      roles,
+      ...(password ? { password } : {}),
+    });
+    setBusy(false);
+    if (!res.ok) return setErr(hostErrorText(res));
+    toast(`Đã thêm Field Host ${res.data.fullName ?? res.data.email}`, "success");
+    invalidateHosts();
+    setEmail("");
+    setFullName("");
+    setPassword("");
+    setRoles(["sale"]);
+    onClose();
+    router.push(`/admin/hosts/${res.data.id}`);
+  }
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       variant="sheet"
-      title="Mời Field Host mới"
-      description="Host nhận lời mời qua Zalo, đăng nhập và kích hoạt tài khoản theo vai được gán."
+      title="Thêm Field Host"
+      description="Admin tạo tài khoản. Host đăng nhập bằng email này (Google hoặc mật khẩu) và tự xác thực số điện thoại trong hồ sơ."
       footer={
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          onClick={() => {
-            if (name.trim().length < 2 || !isValidVnPhone(phone)) {
-              setErr("Nhập họ tên và số điện thoại hợp lệ.");
-              return;
-            }
-            if (roles.length === 0) {
-              setErr("Chọn ít nhất một vai cho Field Host.");
-              return;
-            }
-            toast(
-              `Đã gửi lời mời vai ${roles.map((r) => (r === "sale" ? "Sale" : "Thẩm định")).join(" + ")} qua Zalo tới ${name.trim()}`,
-              "success",
-            );
-            setName("");
-            setPhone("");
-            setRoles(["sale"]);
-            setErr("");
-            onClose();
-          }}
-        >
-          Gửi lời mời
+        <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={submit}>
+          Thêm Host
         </button>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <label className="field">
-          <span className="label">Họ và tên</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <span className="label">Email đăng nhập</span>
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="field">
-          <span className="label">Số điện thoại Zalo</span>
-          <input
-            className="input"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          <span className="label">Họ và tên</span>
+          <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </label>
         <label className="field">
           <span className="label">Phân khu phụ trách</span>
-          <select className="select" value={zone} onChange={(e) => setZone(e.target.value)}>
-            {ZONES.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
+          <select className="select" value={chosenZone} onChange={(e) => setZone(e.target.value)}>
+            {zones.map((z) => (
+              <option key={z} value={z}>
+                {z}
               </option>
             ))}
           </select>
@@ -296,27 +273,35 @@ function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 
         <div className="field">
           <span className="label">Vai đảm nhiệm</span>
-          <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+          <div style={{ display: "flex", gap: 16, marginTop: 4, flexWrap: "wrap" }}>
             <label className="check">
-              <input
-                type="checkbox"
-                checked={roles.includes("sale")}
-                onChange={() => toggleRole("sale")}
-              />
+              <input type="checkbox" checked={roles.includes("sale")} onChange={() => toggleRole("sale")} />
               <span>Sale (Dẫn khách xem phòng)</span>
             </label>
             <label className="check">
-              <input
-                type="checkbox"
-                checked={roles.includes("inspector")}
-                onChange={() => toggleRole("inspector")}
-              />
+              <input type="checkbox" checked={roles.includes("inspector")} onChange={() => toggleRole("inspector")} />
               <span>Thẩm định (Kiểm tra 32 hạng mục)</span>
             </label>
           </div>
         </div>
 
-        {err && <p className="field-error">{err}</p>}
+        <label className="field">
+          <span className="label">Mật khẩu ban đầu (tuỳ chọn)</span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <span className="muted xs">Để trống nếu Host chỉ đăng nhập bằng Google.</span>
+        </label>
+
+        {err && (
+          <p className="field-error" role="alert">
+            {err}
+          </p>
+        )}
       </div>
     </Modal>
   );
