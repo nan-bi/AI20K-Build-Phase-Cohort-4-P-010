@@ -1,13 +1,27 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiCookieAuth } from '@nestjs/swagger';
 import { HostService } from './host.service';
 import { AcceptInspectionDto, SubmitInspectionReportDto } from './dto/host.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/session/authenticated-user';
 
 @ApiTags('4.1. Field Host & Thẩm định (/host)')
 @Controller('host')
 export class HostController {
   constructor(private readonly hostService: HostService) {}
+
+  @Get('me')
+  @Roles('field_host')
+  @ApiCookieAuth('session-cookie')
+  @ApiOperation({
+    summary: 'Hồ sơ của chính Field Host đang đăng nhập (vai, phân khu, SĐT đã xác thực, ca trực)',
+    description: 'Không trả số thẻ RFID, mật khẩu hay SĐT dạng mã hoá. Xác thực SĐT: `POST /auth/otp/send` (PHONE_VERIFY) → `POST /auth/phone/verify`.',
+  })
+  async getMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.hostService.getMe(user.id);
+  }
 
   @Public()
   @Get('inspections')

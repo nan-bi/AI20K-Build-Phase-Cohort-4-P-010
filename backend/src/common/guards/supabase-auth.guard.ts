@@ -46,6 +46,7 @@ export class SupabaseAuthGuard implements CanActivate {
           portal: portalForRole(demoRole),
           isPhoneVerified: true,
           isHostVerified: true,
+          hostRoles: demoRole === 'field_host' ? ['sale', 'inspector'] : [],
         };
         return true;
       }
