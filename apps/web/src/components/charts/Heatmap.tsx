@@ -13,15 +13,15 @@ export interface HeatRow {
 const stepFor = (rate: number) => Math.min(SEQ.length - 1, Math.floor(rate * SEQ.length));
 const darkFill = (i: number) => i >= 4;
 
-/** Bản đồ nhiệt tỷ lệ lấp đầy theo toà: một hue, càng đậm càng đầy; số hiện trong ô, tooltip nêu số căn. */
+/** Bản đồ nhiệt tỷ lệ căn đã thuê theo toà: một hue, càng đậm càng đầy; số hiện trong ô, tooltip nêu số căn. */
 export function Heatmap({ rows }: { rows: HeatRow[] }) {
   const tip = useChartTip();
   return (
     <ChartFrame
       title="Tỷ lệ lấp đầy theo toà"
-      subtitle="Ô nhạt là toà còn nhiều căn trống, nên đẩy chiến dịch tiếp thị vào đó"
+      subtitle="Tỷ lệ tính từ số căn đã thuê trong dữ liệu backend; ô nhạt là toà còn nhiều căn trống"
       table={{
-        head: ["Phân khu", "Toà", "Đã thuê hoặc giữ chỗ", "Tổng căn", "Tỷ lệ lấp đầy"],
+        head: ["Phân khu", "Toà", "Đã thuê", "Tổng căn", "Tỷ lệ lấp đầy"],
         rows: rows.flatMap((r) => r.cells.map((c) => [r.zone, c.building, c.used, c.total, `${Math.round((c.used / c.total) * 100)}%`])),
       }}
     >
@@ -40,7 +40,7 @@ export function Heatmap({ rows }: { rows: HeatRow[] }) {
                       className={styles.cell}
                       style={{ background: SEQ[i], color: darkFill(i) ? "#fff" : "var(--ink)" }}
                       {...tip.bind(`Toà ${c.building}`, [
-                        { label: `lấp đầy (${c.used}/${c.total} căn)`, value: `${Math.round(rate * 100)}%` },
+                        { label: `đã thuê (${c.used}/${c.total} căn)`, value: `${Math.round(rate * 100)}%` },
                         { label: "căn còn trống", value: String(c.total - c.used) },
                       ])}
                     >
