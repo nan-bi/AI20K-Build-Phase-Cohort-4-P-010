@@ -1,6 +1,6 @@
 # VinStay AI — Web (Next.js)
 
-Giao diện 4 cổng (Khách thuê, Chủ nhà, Field Host, Admin). **Cổng Chủ nhà và Khách thuê đã nối backend NestJS thật** (`/api/v1/*`); cổng Field Host và Admin tiếp tục dùng mock phục vụ demo vận hành.
+Giao diện 4 cổng (Khách thuê, Chủ nhà, Field Host, Admin). **Cổng Chủ nhà và Khách thuê đã nối backend NestJS thật** (`/api/v1/*`); cổng Field Host và Admin vẫn dùng mock cho dữ liệu nghiệp vụ (lịch, thẩm định, thu nhập, hợp đồng…), nhưng **đăng nhập Field Host, vai Sale/Thẩm định, `/host/account` và `/admin/hosts` đã dùng API thật** (hồ sơ 14).
 
 ## Chạy
 
@@ -39,7 +39,9 @@ pnpm install && pnpm dev   # http://localhost:3000 (yêu cầu backend NestJS ch
 - Hồ sơ ký gửi (`/landlord/consignments/[id]`), tài chính (`/landlord/finance`), yêu cầu thoát ủy quyền (`/landlord/exit-request`).
 
 ### 3. Cổng Field Host & Admin — Mock hỗ trợ demo
-- **Field Host**: Nhận ticket điều phối tự động 3 tầng (`/host/dispatch`), dẫn khách xem phòng và cấp mã cửa tức thì (`/host/viewing/[id]`), kiểm định bàn giao 10 hạng mục (`/host/inspections`), theo dõi thu nhập biến phí (`/host/earnings`).
+- **Field Host — phần đã thật (hồ sơ 14)**: tab Field Host ở `/admin/login` chỉ có đăng nhập (email + mật khẩu hoặc Google; tài khoản do Admin tạo, không có đăng ký/nhập RFID); menu và RoleGate theo vai Sale/Thẩm định lấy từ `GET /auth/session`; `/host/account` đọc `GET /host/me` và Host tự xác thực SĐT bằng OTP; Host chưa có hồ sơ bị `proxy.ts` đưa về trang đăng nhập (`host_not_provisioned`).
+- **Admin — phần đã thật (hồ sơ 14)**: `/admin/hosts` (danh sách, lọc, thêm Host, không có ô SĐT/thẻ RFID) và `/admin/hosts/[id]` (đổi vai, sửa tên/phân khu, đặt lại mật khẩu, khoá/mở khoá, thống kê ticket) gọi `/api/v1/admin/field-hosts*`.
+- **Field Host (mock)**: Nhận ticket điều phối tự động 3 tầng (`/host/dispatch`), dẫn khách xem phòng và cấp mã cửa tức thì (`/host/viewing/[id]`), kiểm định bàn giao 10 hạng mục (`/host/inspections`), theo dõi thu nhập biến phí (`/host/earnings`).
 - **Admin**: Bảng điều khiển rổ hàng (`/admin/inventory`), quản lý lịch hẹn (`/admin/bookings`), quản lý hợp đồng và tranh chấp cọc (`/admin/contracts`), cài đặt hoa hồng biến phí (`/admin/commission`).
 
 ## Biến môi trường (`apps/web/.env.local`)
@@ -57,5 +59,5 @@ NEXT_PUBLIC_DEMO_TOOLS=true
 | Xác thực | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/admin/login` | Đã nối Auth backend |
 | Khách thuê | `/booking`, `/booking/[ref]`, `/account`, `/account/bookings`, `/account/saved`, `/account/contracts` | Đã nối API backend A6–A21 |
 | Chủ nhà | `/landlord/dashboard`, `/landlord/units`, `/landlord/units/[id]`, `/landlord/consign`, `/landlord/consignments/[id]`, `/landlord/finance`, `/landlord/exit-request`, `/landlord/account` | Đã nối API backend Landlord |
-| Field Host | `/host/dispatch`, `/host/viewing/[id]`, `/host/inspections`, `/host/earnings`, `/host/handbook`, `/host/account` | Mock hỗ trợ demo |
-| Admin | `/admin/dashboard`, `/admin/inventory`, `/admin/bookings`, `/admin/contracts`, `/admin/commission`, `/admin/settings` | Mock hỗ trợ demo |
+| Field Host | `/host/dispatch`, `/host/viewing/[id]`, `/host/inspections`, `/host/earnings`, `/host/handbook` | Mock hỗ trợ demo; đăng nhập + vai + `/host/account` đã thật |
+| Admin | `/admin/dashboard`, `/admin/inventory`, `/admin/bookings`, `/admin/contracts`, `/admin/commission`, `/admin/settings` | Mock hỗ trợ demo; `/admin/hosts` đã nối API thật |
