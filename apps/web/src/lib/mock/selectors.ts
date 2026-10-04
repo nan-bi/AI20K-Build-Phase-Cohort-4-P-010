@@ -342,7 +342,7 @@ export function hostEarnings(state: MockState, host: FieldHost, fees: FeeConfig)
 export interface FunnelStep {
   key: string;
   label: string;
-  value: number;
+  value: number | null;
 }
 
 /** Phễu 6 giai đoạn (PRD AC 4.3.1): số nền của tuần + số thực phát sinh trong phiên demo. */

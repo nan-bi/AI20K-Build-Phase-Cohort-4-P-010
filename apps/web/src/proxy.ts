@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { rebuildCookieHeader } from "@/lib/auth/setCookie";
+import { parseSetCookie } from "@/lib/auth/setCookie";
 import { PORTAL_HOME, hostGateRedirect, loginPathFor, portalForPath, type Portal, type SessionUser } from "@/lib/auth/portals";
 
 const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/+$/, "");
@@ -49,12 +49,18 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  // Cập nhật cookie của request đang xử lý để Server Component thấy token mới ngay lượt này.
-  const headers = new Headers(request.headers);
-  headers.set("cookie", rebuildCookieHeader(request.headers.get("cookie") ?? "", setCookies));
-  const response = NextResponse.next({ request: { headers } });
+  // Đồng bộ cookie backend trả về vào request hiện tại để Server Component thấy phiên mới ngay lượt này.
+  // Dùng API NextRequest.cookies thay vì tự ghi header `cookie` (Next 16 có thể từ chối header này).
+  for (const raw of setCookies) {
+    const parsed = parseSetCookie(raw);
+    if (!parsed) continue;
+    if (parsed.expired) request.cookies.delete(parsed.name);
+    else request.cookies.set(parsed.name, parsed.value);
+  }
+  const response = NextResponse.next({ request: { headers: new Headers(request.headers) } });
   for (const c of setCookies) response.headers.append("set-cookie", c);
   return response;
+
 }
 
 export const config = {
