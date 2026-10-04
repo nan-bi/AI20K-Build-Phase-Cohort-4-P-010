@@ -1,306 +1,878 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  UnprocessableEntityException,
+  ForbiddenException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RequestBookingOtpDto, ConfirmBookingDto, CreateBookingDto, CancelBookingDto, RescheduleBookingDto, RateBookingDto } from './dto/booking.dto';
-import { ViewingStatus, TicketStatus, HostDutyStatus } from '@prisma/client';
+import { BookingAccessService } from '../tenant/booking-access.service';
+import { PhoneService } from '../auth/phone/phone.service';
+import { ActionTokenService } from '../auth/otp/action-token.service';
+import { authError } from '../auth/auth.errors';
+import {
+  CreateBookingDto,
+  CancelBookingDto,
+  RescheduleBookingDto,
+  RateBookingDto,
+} from './dto/booking.dto';
+import {
+  ViewingStatus,
+  UnitStatus,
+  HostDutyStatus,
+  TicketStatus,
+} from '@prisma/client';
+import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
+import { TenantBooking } from '../tenant/tenant.types';
+import { isValidSlotTimeVN } from '../tenant/slots.helper';
+
+function generateBookingRefCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'VS-';
+  for (let i = 0; i < 5; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
-  private otpStore = new Map<string, { otp: string; expiresAt: number; fullName: string }>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bookingAccess: BookingAccessService,
+    private readonly phones: PhoneService,
+    private readonly actionTokens: ActionTokenService,
+  ) {}
 
-  async requestOtp(dto: RequestBookingOtpDto) {
-    const { phone, fullName } = dto;
-    const otp = phone === '0912345678' ? '4829' : Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+  /**
+   * A6: Đặt lịch xem phòng (bắt buộc vai tenant).
+   */
+  async createBooking(user: { id: string }, dto: CreateBookingDto): Promise<TenantBooking> {
+    // 1. Kiểm tra khung giờ xem phòng
+    const slotDate = new Date(dto.slot);
+    const now = Date.now();
+    if (isNaN(slotDate.getTime()) || !isValidSlotTimeVN(slotDate)) {
+      throw new UnprocessableEntityException({
+        message: 'Khung giờ đặt lịch không thuộc SLOT_TIMES khả dụng (08:30–11:30, 14:30–17:30).',
+        code: 'slot_invalid',
+      });
+    }
 
-    this.otpStore.set(phone, { otp, expiresAt, fullName });
-    this.logger.log(`[ZALO ZNS] Đã gửi mã OTP [${otp}] tới số điện thoại: ${phone}`);
+    const leadMs = slotDate.getTime() - now;
+    if (leadMs < 30 * 60 * 1000) {
+      throw new UnprocessableEntityException({
+        message: 'Chỉ được đặt lịch xem phòng trước giờ xem tối thiểu 30 phút.',
+        code: 'slot_invalid',
+      });
+    }
 
-    return {
-      message: 'Mã xác thực OTP đã được gửi qua Zalo / SMS',
-      phone,
-      expiresInSeconds: 300,
-      testHint: 'Đối với bản demo/pilot, mã OTP tự điền là 4829',
-    };
-  }
+    if (leadMs > 14 * 24 * 60 * 60 * 1000) {
+      throw new UnprocessableEntityException({
+        message: 'Chỉ được đặt lịch xem phòng trong cửa sổ tối đa 14 ngày tới.',
+        code: 'slot_invalid',
+      });
+    }
 
-  async confirmBooking(dto: ConfirmBookingDto) {
-    const { phone, otp, unitId, viewingSlot } = dto;
+    // 2. Kiểm tra căn hộ
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        dto.unitCode,
+      );
+    const unit = await this.prisma.unit.findFirst({
+      where: {
+        ...(isUuid
+          ? {
+              OR: [
+                { unitCode: { equals: dto.unitCode, mode: 'insensitive' } },
+                { id: dto.unitCode },
+              ],
+            }
+          : { unitCode: { equals: dto.unitCode, mode: 'insensitive' } }),
+        isVerified: true,
+        media: { some: {} },
+      },
+      include: { building: true },
+    });
 
-    const storedOtpData = this.otpStore.get(phone);
-    if (!storedOtpData || storedOtpData.otp !== otp || Date.now() > storedOtpData.expiresAt) {
-      if (otp !== '4829') {
-        throw new BadRequestException('Mã xác thực OTP không chính xác hoặc đã hết hạn!');
+    if (!unit) {
+      throw new NotFoundException({
+        message: 'Không tìm thấy căn hộ hoặc căn hộ không còn khả dụng.',
+        code: 'unit_not_found',
+      });
+    }
+
+    if (unit.status !== UnitStatus.AVAILABLE) {
+      throw new ConflictException({
+        message: 'Căn hộ hiện không ở trạng thái sẵn sàng để đặt lịch xem.',
+        code: 'unit_not_available',
+      });
+    }
+
+    // 3. Kiểm tra trùng slot với viewing sống khác của cùng căn
+    const conflictViewing = await this.prisma.viewing.findFirst({
+      where: {
+        unitId: unit.id,
+        viewingSlot: slotDate,
+        status: {
+          in: [
+            ViewingStatus.PENDING_CONFIRMATION,
+            ViewingStatus.CONFIRMED,
+            ViewingStatus.LOBBY,
+            ViewingStatus.RECEIVING,
+            ViewingStatus.VIEWING,
+            ViewingStatus.CLOSING,
+          ],
+        },
+      },
+    });
+
+    if (conflictViewing) {
+      throw new ConflictException({
+        message: 'Khung giờ này vừa có người đặt xem phòng.',
+        code: 'slot_taken',
+      });
+    }
+
+    // 4. Xác thực số điện thoại
+    const normPhone = this.phones.normalize(dto.phone);
+    if (!normPhone) {
+      throw new BadRequestException({
+        message: 'Số điện thoại không đúng định dạng Việt Nam.',
+        code: 'invalid_request',
+      });
+    }
+
+    if (dto.actionToken) {
+      const payload = await this.actionTokens.redeem(dto.actionToken, 'TENANT_VIEWING');
+      const payloadNorm = this.phones.normalize(payload.phone);
+      if (payloadNorm !== normPhone) {
+        throw authError('action_token_invalid');
+      }
+    } else {
+      const profile = await this.prisma.profile.findUnique({ where: { id: user.id } });
+      const expectedHash = this.phones.hash(normPhone);
+      if (!profile?.isPhoneVerified || profile.phoneHash !== expectedHash) {
+        throw new ForbiddenException({
+          message: 'Vui lòng xác thực số điện thoại qua OTP trước khi đặt lịch.',
+          code: 'otp_required',
+        });
       }
     }
 
-    return this.createBooking({
-      unitId,
-      slot: viewingSlot,
-      name: storedOtpData?.fullName || 'Khách thuê VinStay',
-      phone,
-      persons: 2,
+    // 5. Gắn SĐT vào hồ sơ nếu hồ sơ chưa có SĐT
+    const profile = await this.prisma.profile.findUnique({ where: { id: user.id } });
+    if (profile && !profile.phoneHash) {
+      const targetHash = this.phones.hash(normPhone);
+      const phoneTaken = await this.prisma.profile.findFirst({
+        where: { phoneHash: targetHash, NOT: { id: user.id } },
+      });
+      if (phoneTaken) {
+        throw authError('phone_already_registered');
+      }
+
+      await this.prisma.profile.update({
+        where: { id: user.id },
+        data: {
+          phoneEnc: this.phones.encrypt(normPhone),
+          phoneHash: targetHash,
+          isPhoneVerified: true,
+        },
+      });
+    }
+
+    // 6. Sinh bookingRefCode duy nhất (VS-XXXXX)
+    let refCode = '';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateBookingRefCode();
+      const existing = await this.prisma.viewing.findUnique({
+        where: { bookingRefCode: candidate },
+        select: { id: true },
+      });
+      if (!existing) {
+        refCode = candidate;
+        break;
+      }
+    }
+    if (!refCode) {
+      refCode = `VS-${Date.now().toString().slice(-5)}`;
+    }
+
+    const contactPhoneEnc = this.phones.encrypt(normPhone);
+    const contactPhoneHash = this.phones.hash(normPhone);
+
+    // 7. Tạo Viewing và điều phối trong transaction
+    const createdViewing = await this.prisma.$transaction(async (tx) => {
+      // Re-check conflict
+      const reCheck = await tx.viewing.findFirst({
+        where: {
+          unitId: unit.id,
+          viewingSlot: slotDate,
+          status: {
+            in: [
+              ViewingStatus.PENDING_CONFIRMATION,
+              ViewingStatus.CONFIRMED,
+              ViewingStatus.LOBBY,
+              ViewingStatus.RECEIVING,
+              ViewingStatus.VIEWING,
+              ViewingStatus.CLOSING,
+            ],
+          },
+        },
+      });
+      if (reCheck) {
+        throw new ConflictException({
+          message: 'Khung giờ này vừa có người đặt xem phòng.',
+          code: 'slot_taken',
+        });
+      }
+
+      const v = await tx.viewing.create({
+        data: {
+          bookingRefCode: refCode,
+          unitId: unit.id,
+          tenantId: user.id,
+          contactName: dto.contactName.trim(),
+          contactPhoneEnc,
+          contactPhoneHash,
+          partySize: dto.partySize || 1,
+          tenantNote: dto.note?.trim() || null,
+          viewingSlot: slotDate,
+          status: ViewingStatus.PENDING_CONFIRMATION,
+        },
+      });
+
+      // Điều phối: Tìm host rảnh trong phân khu
+      const host = await tx.fieldHost.findFirst({
+        where: {
+          dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
+          assignedZone: { contains: unit.building.zoneName },
+          tickets: {
+            none: {
+              status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
+              viewing: {
+                viewingSlot: slotDate,
+                status: {
+                  in: [
+                    ViewingStatus.PENDING_CONFIRMATION,
+                    ViewingStatus.CONFIRMED,
+                    ViewingStatus.LOBBY,
+                    ViewingStatus.RECEIVING,
+                    ViewingStatus.VIEWING,
+                    ViewingStatus.CLOSING,
+                  ],
+                },
+              },
+            },
+          },
+        },
+        include: { profile: true },
+      });
+
+      await tx.dispatchTicket.create({
+        data: {
+          viewingId: v.id,
+          hostId: host ? host.id : null,
+          tier: host ? 1 : 2,
+          slaSeconds: 180, // SLA 180s (3 phút)
+          status: TicketStatus.OFFERED,
+        },
+      });
+
+      return v;
+    });
+
+    const fullViewing = await this.bookingAccess.loadOwned(createdViewing.bookingRefCode, user);
+    return toTenantBooking(fullViewing, { rawPhone: normPhone });
+  }
+
+  /**
+   * A7: Danh sách lịch hẹn xem phòng của tenant đang đăng nhập.
+   */
+  async getMyBookings(user: { id: string }): Promise<TenantBooking[]> {
+    const viewings = await this.prisma.viewing.findMany({
+      where: { tenantId: user.id },
+      include: {
+        unit: {
+          include: {
+            building: true,
+            media: true,
+          },
+        },
+        tenant: true,
+        tickets: {
+          include: {
+            host: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+          orderBy: { offeredAt: 'asc' },
+        },
+        deposit: {
+          include: {
+            identity: true,
+            contract: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return viewings.map((v) => {
+      let rawPhone: string | undefined = undefined;
+      if (v.contactPhoneEnc) {
+        try {
+          rawPhone = this.phones.decrypt(v.contactPhoneEnc);
+        } catch {
+          rawPhone = undefined;
+        }
+      }
+      return toTenantBooking(v, { rawPhone });
     });
   }
 
-  async createBooking(dto: CreateBookingDto) {
-    const { unitId, slot, name, phone, persons, note } = dto;
+  /**
+   * A8: Chi tiết lịch hẹn xem phòng theo mã ref.
+   */
+  async getBookingByRef(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    let rawPhone: string | undefined = undefined;
+    if (viewing.contactPhoneEnc) {
+      try {
+        rawPhone = this.phones.decrypt(viewing.contactPhoneEnc);
+      } catch {
+        rawPhone = undefined;
+      }
+    }
+    return toTenantBooking(viewing, { rawPhone });
+  }
 
-    try {
-      const unit = await this.prisma.unit.findFirst({
-        where: { OR: [{ id: unitId }, { unitCode: unitId }] },
-        include: { building: true },
+  /**
+   * A9: Hủy lịch hẹn xem phòng.
+   */
+  async cancelBooking(ref: string, user: { id: string }, dto: CancelBookingDto): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    if (
+      viewing.status !== ViewingStatus.PENDING_CONFIRMATION &&
+      viewing.status !== ViewingStatus.CONFIRMED
+    ) {
+      throw new ConflictException({
+        message: 'Không thể hủy lịch hẹn ở trạng thái hiện tại.',
+        code: 'bad_status',
+        expected: 'pending|confirmed',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    const leadMs = new Date(viewing.viewingSlot).getTime() - Date.now();
+    if (leadMs < 2 * 60 * 60 * 1000) {
+      throw new ConflictException({
+        message: 'Chỉ được hủy lịch hẹn trước giờ xem tối thiểu 2 giờ.',
+        code: 'too_late_to_modify',
+      });
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.viewing.update({
+        where: { id: viewing.id },
+        data: {
+          status: ViewingStatus.CANCELLED,
+          closedReason: dto.reason.trim(),
+        },
+      }),
+      this.prisma.dispatchTicket.updateMany({
+        where: {
+          viewingId: viewing.id,
+          status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
+        },
+        data: { status: TicketStatus.CANCELLED },
+      }),
+    ]);
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  /**
+   * A10: Đổi khung giờ xem phòng.
+   */
+  async rescheduleBooking(ref: string, user: { id: string }, dto: RescheduleBookingDto): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    if (
+      viewing.status !== ViewingStatus.PENDING_CONFIRMATION &&
+      viewing.status !== ViewingStatus.CONFIRMED
+    ) {
+      throw new ConflictException({
+        message: 'Không thể đổi lịch hẹn ở trạng thái hiện tại.',
+        code: 'bad_status',
+      });
+    }
+
+    const leadMs = new Date(viewing.viewingSlot).getTime() - Date.now();
+    if (leadMs < 2 * 60 * 60 * 1000) {
+      throw new ConflictException({
+        message: 'Chỉ được đổi lịch hẹn trước giờ xem tối thiểu 2 giờ.',
+        code: 'too_late_to_modify',
+      });
+    }
+
+    const newSlot = new Date(dto.slot);
+    if (isNaN(newSlot.getTime()) || !isValidSlotTimeVN(newSlot)) {
+      throw new UnprocessableEntityException({
+        message: 'Khung giờ mới không thuộc SLOT_TIMES hợp lệ.',
+        code: 'slot_invalid',
+      });
+    }
+
+    const newLeadMs = newSlot.getTime() - Date.now();
+    if (newLeadMs < 30 * 60 * 1000 || newLeadMs > 14 * 24 * 60 * 60 * 1000) {
+      throw new UnprocessableEntityException({
+        message: 'Khung giờ mới phải cách hiện tại ít nhất 30 phút và trong vòng 14 ngày.',
+        code: 'slot_invalid',
+      });
+    }
+
+    // Check conflict (trừ chính viewing này)
+    const conflict = await this.prisma.viewing.findFirst({
+      where: {
+        unitId: viewing.unitId,
+        viewingSlot: newSlot,
+        id: { not: viewing.id },
+        status: {
+          in: [
+            ViewingStatus.PENDING_CONFIRMATION,
+            ViewingStatus.CONFIRMED,
+            ViewingStatus.LOBBY,
+            ViewingStatus.RECEIVING,
+            ViewingStatus.VIEWING,
+            ViewingStatus.CLOSING,
+          ],
+        },
+      },
+    });
+
+    if (conflict) {
+      throw new ConflictException({
+        message: 'Khung giờ mới đã có người đặt trước.',
+        code: 'slot_taken',
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.viewing.update({
+        where: { id: viewing.id },
+        data: {
+          viewingSlot: newSlot,
+          rescheduleCount: { increment: 1 },
+          status: ViewingStatus.PENDING_CONFIRMATION,
+          confirmedAt: null,
+        },
       });
 
-      if (unit) {
-        let role = await this.prisma.role.findUnique({ where: { code: 'tenant' } });
-        if (!role) {
-          role = await this.prisma.role.create({ data: { code: 'tenant', name: 'Khách thuê' } });
-        }
+      // Hủy ticket cũ và điều phối lại
+      await tx.dispatchTicket.updateMany({
+        where: {
+          viewingId: viewing.id,
+          status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
+        },
+        data: { status: TicketStatus.CANCELLED },
+      });
 
-        const phoneHash = `hash_${phone}`;
-        let profile = await this.prisma.profile.findUnique({ where: { phoneHash } });
-        if (!profile) {
-          profile = await this.prisma.profile.create({
-            data: {
-              id: `00000000-0000-0000-0000-${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-              roleId: role.id,
-              fullName: name,
-              phoneHash,
-              isPhoneVerified: true,
+      const host = await tx.fieldHost.findFirst({
+        where: {
+          dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
+          assignedZone: { contains: viewing.unit.building.zoneName },
+          tickets: {
+            none: {
+              status: { in: [TicketStatus.OFFERED, TicketStatus.ACCEPTED] },
+              viewing: {
+                viewingSlot: newSlot,
+                status: {
+                  in: [
+                    ViewingStatus.PENDING_CONFIRMATION,
+                    ViewingStatus.CONFIRMED,
+                    ViewingStatus.LOBBY,
+                    ViewingStatus.RECEIVING,
+                    ViewingStatus.VIEWING,
+                    ViewingStatus.CLOSING,
+                  ],
+                },
+              },
             },
-          });
-        }
+          },
+        },
+      });
 
-        const bookingRefCode = `VIEW-${unit.building.buildingCode}-${Date.now().toString().slice(-6)}`;
-        const viewing = await this.prisma.viewing.create({
+      await tx.dispatchTicket.create({
+        data: {
+          viewingId: viewing.id,
+          hostId: host ? host.id : null,
+          tier: host ? 1 : 2,
+          slaSeconds: 180,
+          status: TicketStatus.OFFERED,
+        },
+      });
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  /**
+   * A11: Xin trễ 10 phút.
+   */
+  async requestLate(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    if (viewing.status !== ViewingStatus.CONFIRMED) {
+      throw new ConflictException({
+        message: 'Chỉ có thể xin trễ khi lịch hẹn đã được xác nhận.',
+        code: 'bad_status',
+      });
+    }
+
+    if (!viewing.lateRequestedAt) {
+      await this.prisma.viewing.update({
+        where: { id: viewing.id },
+        data: { lateRequestedAt: new Date() },
+      });
+    }
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  /**
+   * A12: Check-in tại sảnh.
+   */
+  async lobbyCheckIn(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    if (viewing.status !== ViewingStatus.CONFIRMED) {
+      throw new ConflictException({
+        message: 'Chỉ có thể check-in sảnh khi lịch hẹn đã được xác nhận.',
+        code: 'bad_status',
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: {
+        status: ViewingStatus.LOBBY,
+        lobbyCheckInAt: new Date(),
+      },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  /**
+   * A13: Đánh giá chất lượng phục vụ của Field Host.
+   */
+  async rateBooking(ref: string, user: { id: string }, dto: RateBookingDto): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+
+    const allowed: ViewingStatus[] = [
+      ViewingStatus.VIEWING,
+      ViewingStatus.CLOSING,
+      ViewingStatus.HOLDING,
+      ViewingStatus.LEASED,
+      ViewingStatus.COMPLETED,
+    ];
+
+    if (!allowed.includes(viewing.status)) {
+      throw new ConflictException({
+        message: 'Không thể đánh giá Field Host ở trạng thái này.',
+        code: 'bad_status',
+      });
+    }
+
+    if (viewing.tenantRating !== null && viewing.tenantRating !== undefined) {
+      throw new ConflictException({
+        message: 'Lịch hẹn này đã được đánh giá.',
+        code: 'already_rated',
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: { tenantRating: Math.round(dto.stars) },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  // =========================================================================
+  // HOST STEP TRANSITIONS (Đ16: Logic đặt tại BookingService, DemoController chỉ gọi)
+  // =========================================================================
+
+  async hostAccept(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    if (viewing.status !== ViewingStatus.PENDING_CONFIRMATION) {
+      throw new ConflictException({
+        message: 'Lịch hẹn không ở trạng thái chờ xác nhận.',
+        code: 'bad_status',
+        expected: 'pending',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    const host =
+      (await this.prisma.fieldHost.findFirst({
+        where: { dutyStatus: HostDutyStatus.ONLINE_AVAILABLE },
+      })) ?? (await this.prisma.fieldHost.findFirst());
+
+    await this.prisma.$transaction([
+      this.prisma.viewing.update({
+        where: { id: viewing.id },
+        data: {
+          status: ViewingStatus.CONFIRMED,
+          confirmedAt: new Date(),
+        },
+      }),
+      this.prisma.dispatchTicket.updateMany({
+        where: { viewingId: viewing.id },
+        data: {
+          status: TicketStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          hostId: host?.id || null,
+        },
+      }),
+    ]);
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  async sendReminder(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    if (viewing.status !== ViewingStatus.CONFIRMED) {
+      throw new ConflictException({
+        message: 'Lịch hẹn chưa được xác nhận.',
+        code: 'bad_status',
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: { reminderSentAt: new Date() },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  async hostReceive(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    if (viewing.status !== ViewingStatus.LOBBY) {
+      throw new ConflictException({
+        message: 'Khách chưa có mặt tại sảnh.',
+        code: 'bad_status',
+        expected: 'lobby',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: {
+        status: ViewingStatus.RECEIVING,
+        receivingAt: new Date(),
+      },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  async hostView(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    if (viewing.status !== ViewingStatus.RECEIVING) {
+      throw new ConflictException({
+        message: 'Host chưa đón khách tại sảnh.',
+        code: 'bad_status',
+        expected: 'receiving',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: {
+        status: ViewingStatus.VIEWING,
+        viewingStartedAt: new Date(),
+      },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  async hostStartDeposit(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    if (viewing.status !== ViewingStatus.VIEWING) {
+      throw new ConflictException({
+        message: 'Chưa bắt đầu ca xem phòng.',
+        code: 'bad_status',
+        expected: 'viewing',
+        actual: statusToWeb(viewing.status),
+      });
+    }
+
+    await this.prisma.viewing.update({
+      where: { id: viewing.id },
+      data: {
+        status: ViewingStatus.CLOSING,
+        viewEndedAt: new Date(),
+      },
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
+  }
+
+  async demoBankPaid(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Cập nhật hoặc tạo cọc nếu chưa có
+      if (viewing.deposit) {
+        await tx.holdingDeposit.update({
+          where: { id: viewing.deposit.id },
           data: {
-            bookingRefCode,
-            unitId: unit.id,
-            tenantId: profile.id,
-            viewingSlot: new Date(slot),
-            status: ViewingStatus.CONFIRMED,
+            paymentStatus: 'PAID_HOLDING',
+            paidAt: now,
+            expiresAt,
+            holdHours: 48,
           },
         });
-
-        const host = await this.prisma.fieldHost.findFirst({
-          where: {
-            dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
-            assignedZone: { contains: unit.building.zoneName },
-          },
-          include: { profile: true },
-        });
-
-        const ticket = await this.prisma.dispatchTicket.create({
+      } else {
+        await tx.holdingDeposit.create({
           data: {
+            depositCode: `DEP-${viewing.bookingRefCode}`,
             viewingId: viewing.id,
-            hostId: host?.id || null,
-            tier: 1,
-            slaSeconds: 300,
-            status: TicketStatus.OFFERED,
+            unitId: viewing.unitId,
+            amount: 2000000,
+            vietqrRef: `VQ-DEMO-${Date.now().toString().slice(-6)}`,
+            paymentStatus: 'PAID_HOLDING',
+            paidAt: now,
+            expiresAt,
+            holdHours: 48,
           },
         });
-
-        this.logger.log(`[DISPATCH] Tạo lịch xem ${bookingRefCode} và kích hoạt Ticket ca trực #${ticket.id}`);
-
-        return {
-          success: true,
-          bookingId: viewing.id,
-          bookingRefCode: viewing.bookingRefCode,
-          viewingSlot: viewing.viewingSlot,
-          unitCode: unit.unitCode,
-          buildingCode: unit.building.buildingCode,
-          status: 'confirmed',
-          lobbyLocation: {
-            lat: Number(unit.building.lobbyLatitude),
-            lng: Number(unit.building.lobbyLongitude),
-            address: `Sảnh tòa ${unit.building.buildingCode}, ${unit.building.zoneName}, Vinhomes Ocean Park`,
-          },
-          hostAssigned: host
-            ? {
-                id: host.id,
-                fullName: host.profile.fullName,
-                phone: '0912345678',
-                rating: Number(host.rating),
-              }
-            : { message: 'Đang điều phối Field Host trực sảnh...' },
-          nextStepInstruction: 'Đúng giờ hẹn, hệ thống Zalo sẽ gửi tin nhắn T-10m kèm nút [📍 Tôi đã có mặt tại sảnh] để Host đón lên phòng.',
-        };
       }
-    } catch (err) {
-      this.logger.warn(`Create booking DB fallback: ${err.message}`);
-    }
 
-    const refCode = `VIEW-S1.02-${Date.now().toString().slice(-6)}`;
-    return {
-      success: true,
-      bookingId: 'v-demo-' + Date.now(),
-      bookingRefCode: refCode,
-      viewingSlot: slot,
-      unitCode: 'VHOP-S1.02-12A08',
-      buildingCode: 'S1.02',
-      status: 'confirmed',
-      lobbyLocation: {
-        lat: 20.998412,
-        lng: 105.945281,
-        address: 'Sảnh tòa S1.02, The Sapphire 1, Vinhomes Ocean Park',
-      },
-      hostAssigned: {
-        id: 'h1111111-1111-1111-1111-111111111111',
-        fullName: 'Lê Quốc Bảo',
-        phone: '0912345678',
-        rating: 4.95,
-      },
-      nextStepInstruction: 'Đúng giờ hẹn, hệ thống Zalo sẽ gửi tin nhắn T-10m kèm nút [📍 Tôi đã có mặt tại sảnh] để Host đón lên phòng.',
-    };
-  }
+      await tx.unit.update({
+        where: { id: viewing.unitId },
+        data: { status: UnitStatus.HOLDING },
+      });
 
-  async lobbyCheckIn(viewingId: string) {
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id: viewingId }, { bookingRefCode: viewingId }] },
-        include: {
-          unit: { include: { building: true } },
-          tickets: { include: { host: { include: { profile: true } } } },
+      await tx.viewing.update({
+        where: { id: viewing.id },
+        data: { status: ViewingStatus.HOLDING },
+      });
+
+      // Cancel other viewings for the same unit
+      await tx.viewing.updateMany({
+        where: {
+          unitId: viewing.unitId,
+          id: { not: viewing.id },
+          status: {
+            in: [
+              ViewingStatus.PENDING_CONFIRMATION,
+              ViewingStatus.CONFIRMED,
+              ViewingStatus.LOBBY,
+            ],
+          },
+        },
+        data: {
+          status: ViewingStatus.CANCELLED,
+          closedReason: 'auto_cancelled_due_to_deposit',
         },
       });
 
-      if (viewing) {
-        const updated = await this.prisma.viewing.update({
-          where: { id: viewing.id },
-          data: { lobbyCheckInAt: new Date() },
-        });
-
-        const activeHost = viewing.tickets[0]?.host?.profile?.fullName || 'Field Host phụ trách';
-        return {
-          message: 'Đã thông báo Field Host thành công!',
-          lobbyCheckInAt: updated.lobbyCheckInAt,
-          instruction: `Field Host ${activeHost} đang di chuyển ra sảnh tòa ${viewing.unit.building.buildingCode} để quẹt thẻ cư dân thang máy đón bạn lên phòng.`,
-        };
-      }
-    } catch (err) {
-      this.logger.warn(`Lobby check-in DB fallback: ${err.message}`);
-    }
-
-    return {
-      message: 'Đã thông báo Field Host thành công!',
-      lobbyCheckInAt: new Date().toISOString(),
-      instruction: 'Field Host Lê Quốc Bảo đang di chuyển ra sảnh tòa S1.02 để quẹt thẻ cư dân thang máy đón bạn lên phòng.',
-    };
-  }
-
-  async getViewingDetails(id: string) {
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id }, { bookingRefCode: id }] },
-        include: {
-          unit: { include: { building: true, media: true } },
-          tenant: true,
-          tickets: { include: { host: { include: { profile: true } } } },
-          deposit: true,
+      // Expire other pending deposits for the same unit
+      await tx.holdingDeposit.updateMany({
+        where: {
+          unitId: viewing.unitId,
+          paymentStatus: 'PENDING_PAYMENT',
+          id: viewing.deposit ? { not: viewing.deposit.id } : undefined,
+        },
+        data: {
+          paymentStatus: 'QR_EXPIRED',
         },
       });
-      if (viewing) return viewing;
-    } catch (err) {
-      this.logger.warn(`Get viewing details DB fallback: ${err.message}`);
-    }
+    });
 
-    return {
-      id,
-      bookingRefCode: id.startsWith('VIEW-') ? id : 'VIEW-S1.02-839201',
-      viewingSlot: new Date(Date.now() + 3600000 * 2).toISOString(),
-      status: 'CONFIRMED',
-      unit: {
-        id: 'u1111111-1111-1111-1111-111111111111',
-        unitCode: 'VHOP-S1.02-12A08',
-        baseRentPrice: 6500000,
-        building: { buildingCode: 'S1.02', zoneName: 'The Sapphire 1' },
-      },
-      host: {
-        fullName: 'Lê Quốc Bảo',
-        phone: '0912345678',
-        rating: 4.95,
-      },
-    };
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
   }
 
-  async getByRef(ref: string) {
-    return this.getViewingDetails(ref);
-  }
+  async demoExpireHold(ref: string, user: { id: string }): Promise<TenantBooking> {
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    const past = new Date(Date.now() - 1000);
 
-  async cancelBooking(id: string, dto: CancelBookingDto) {
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id }, { bookingRefCode: id }] },
-      });
-      if (viewing) {
-        await this.prisma.viewing.update({
-          where: { id: viewing.id },
+    await this.prisma.$transaction(async (tx) => {
+      if (viewing.deposit) {
+        await tx.holdingDeposit.update({
+          where: { id: viewing.deposit.id },
           data: {
-            status: ViewingStatus.CANCELLED,
-            cancelReason: dto.reason,
+            expiresAt: past,
+            paymentStatus: 'FORFEITED',
           },
         });
       }
-    } catch (err) {
-      this.logger.warn(`Cancel booking DB fallback: ${err.message}`);
-    }
 
-    return {
-      success: true,
-      message: 'Đã hủy lịch xem phòng thành công',
-      id,
-      status: 'CANCELLED',
-      reason: dto.reason,
-    };
+      await tx.unit.update({
+        where: { id: viewing.unitId },
+        data: { status: UnitStatus.AVAILABLE },
+      });
+
+      await tx.viewing.update({
+        where: { id: viewing.id },
+        data: {
+          status: ViewingStatus.COMPLETED,
+          closedReason: 'hold_expired',
+        },
+      });
+    });
+
+    const updated = await this.bookingAccess.loadOwned(ref, user);
+    return toTenantBooking(updated);
   }
 
-  async rescheduleBooking(id: string, dto: RescheduleBookingDto) {
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id }, { bookingRefCode: id }] },
-      });
-      if (viewing) {
-        await this.prisma.viewing.update({
-          where: { id: viewing.id },
-          data: { viewingSlot: new Date(dto.slot) },
+  async executeDemoStep(ref: string, step: string, user: { id: string }): Promise<TenantBooking> {
+    switch (step) {
+      case 'host-accept':
+        return this.hostAccept(ref, user);
+      case 'reminder':
+        return this.sendReminder(ref, user);
+      case 'host-receive':
+        return this.hostReceive(ref, user);
+      case 'host-view':
+        return this.hostView(ref, user);
+      case 'host-start-deposit':
+        return this.hostStartDeposit(ref, user);
+      case 'bank-paid':
+        return this.demoBankPaid(ref, user);
+      case 'expire-hold':
+        return this.demoExpireHold(ref, user);
+      default:
+        throw new BadRequestException({
+          message: `Bước demo '${step}' không hợp lệ.`,
+          code: 'invalid_request',
         });
-      }
-    } catch (err) {
-      this.logger.warn(`Reschedule booking DB fallback: ${err.message}`);
     }
-
-    return {
-      success: true,
-      message: 'Đã cập nhật khung giờ hẹn xem phòng mới',
-      id,
-      newViewingSlot: dto.slot,
-    };
-  }
-
-  async rateBooking(id: string, dto: RateBookingDto) {
-    try {
-      const viewing = await this.prisma.viewing.findFirst({
-        where: { OR: [{ id }, { bookingRefCode: id }] },
-      });
-      if (viewing) {
-        await this.prisma.viewing.update({
-          where: { id: viewing.id },
-          data: { tenantRating: dto.stars },
-        });
-      }
-    } catch (err) {
-      this.logger.warn(`Rate booking DB fallback: ${err.message}`);
-    }
-
-    return {
-      success: true,
-      message: 'Cảm ơn bạn đã đánh giá dịch vụ Field Host!',
-      id,
-      stars: dto.stars,
-      comment: dto.comment,
-    };
   }
 }

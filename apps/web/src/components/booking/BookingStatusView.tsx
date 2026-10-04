@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   Clock,
@@ -9,60 +9,33 @@ import {
   FileText,
   MapPin,
   MapPinCheck,
-  Phone,
   ShieldAlert,
-  ShieldCheck,
   Star,
   Wrench,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "@/components/ui/Toast";
 import { VietQR } from "@/components/payment/VietQR";
-import { ZaloThread } from "@/components/zalo/ZaloThread";
 import { UnitCard } from "@/components/unit/UnitCard";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
+import { DepositTermsBox } from "@/components/deal/DepositTermsBox";
 import { KycCapture } from "@/components/deal/KycCapture";
-import { LeaseForm } from "@/components/deal/LeaseForm";
-import {
-  cancelBooking,
-  confirmDepositPaid,
-  confirmFirstPayment,
-  demoExpireHold,
-  rateHost,
-  rescheduleBooking,
-  sendReminder,
-  tenantAcceptDepositTerms,
-  tenantCheckIn,
-  tenantRunningLate,
-} from "@/lib/mock/actions";
 import { DEFAULT_HOUSEHOLD, allInCost } from "@/lib/mock/cost";
 import {
   dayLabel,
   fmtDateTime,
-  fmtPhone,
   fmtTime,
-  normalizePhone,
   vnd,
   weekday,
 } from "@/lib/mock/format";
-import {
-  bookingByRef,
-  canTenantModify,
-  holdHoursFor,
-  holdMsLeft,
-  holdOutcome,
-  isOpenTicket,
-  noticesFor,
-  similarUnits,
-} from "@/lib/mock/selectors";
-import { HOUSE_RULES } from "@/lib/mock/house-rules";
-import { ownsBooking } from "@/lib/mock/selectors-tenant";
-import { useMock } from "@/lib/mock/store";
-import type { Booking } from "@/lib/mock/types";
-import { hostById, unitAddress, unitById, zoneById, type Unit } from "@/lib/mock/units";
+import { unitAddress, zoneOfBuilding } from "@/lib/mock/units";
 import { useNow } from "@/lib/useNow";
+import { useApiQuery } from "@/lib/query/useApiQuery";
+import { tenantQueries } from "@/lib/tenant/queries";
+import { tenantApi, errorText } from "@/lib/tenant/api";
+import { toBookingView, buildTimeline, toUnit } from "@/lib/tenant/adapters";
 import { SlotPicker } from "./SlotPicker";
-import { STATUS_META, TERMINAL, buildTimeline } from "./status";
+import { STATUS_META, TERMINAL } from "./status";
 import styles from "./Booking.module.css";
 
 function duration(ms: number): string {
@@ -79,11 +52,18 @@ const HANDYMEN = [
 ];
 
 export function BookingStatusView({ refCode }: { refCode: string }) {
-  const state = useMock();
   const now = useNow(1000);
-  const [modal, setModal] = useState<"cancel" | "reschedule" | "expireConfirm" | "leaseWizard" | null>(null);
+  const [modal, setModal] = useState<"cancel" | "reschedule" | "leaseWizard" | null>(null);
 
-  if (!state.ready || !now) {
+  const { state: bookingState, reload } = useApiQuery(tenantQueries.booking(refCode));
+  // Hợp đồng chỉ cần khi lịch đã chốt thuê; danh sách căn gợi ý chỉ cần khi lịch đã kết thúc. Chưa cần thì không gọi API.
+  const bookingStatus = bookingState.status === "ready" ? bookingState.data.status : null;
+  const { state: contractsState } = useApiQuery(tenantQueries.contracts(), bookingStatus === "leased" || bookingStatus === "completed");
+  const { state: unitsState } = useApiQuery(tenantQueries.units(), bookingStatus !== null && TERMINAL.includes(bookingStatus));
+
+  const showDemo = process.env.NEXT_PUBLIC_DEMO_TOOLS === "true";
+
+  if (bookingState.status === "loading" || !now) {
     return (
       <div className={`wrap ${styles.page}`}>
         <div className="skeleton" style={{ height: 220 }} />
@@ -91,9 +71,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
     );
   }
 
-  const booking = bookingByRef(state, refCode);
-
-  if (!booking) {
+  if (bookingState.status === "error" || bookingState.status !== "ready") {
     return (
       <div className={`wrap ${styles.notFound}`}>
         <h1 className={styles.h1}>Không tìm thấy lịch hẹn</h1>
@@ -107,35 +85,85 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
     );
   }
 
-  if (!ownsBooking(state, booking)) {
-    return (
-      <div className={`wrap ${styles.notFound}`}>
-        <h1 className={styles.h1}>Lịch hẹn không thuộc tài khoản này</h1>
-        <p className="muted">
-          Vui lòng đăng nhập bằng số điện thoại đã dùng để đặt lịch, hoặc kiểm tra lại mã lịch hẹn.
-        </p>
-        <Link href="/booking" className="btn btn-primary">
-          Về lịch của tôi
-        </Link>
-      </div>
-    );
-  }
-
-  const unit = unitById(booking.unitId)!;
-  const zone = zoneById(unit.zoneId);
-  const host = hostById(booking.hostId)!;
+  const rawBooking = bookingState.data;
+  const booking = toBookingView(rawBooking);
+  const unit = booking.unit;
+  const zone = zoneOfBuilding(unit.building);
   const meta = STATUS_META[booking.status];
   const steps = buildTimeline(booking);
   const terminal = TERMINAL.includes(booking.status);
   const current = terminal ? -1 : steps.findIndex((s) => !s.done);
   const slotMs = new Date(booking.slot).getTime();
   const slaLeft = 180_000 - (now - new Date(booking.createdAt).getTime());
-  const notices = noticesFor(state, "tenant", booking.tenant.phone).filter((n) => !n.bookingId || n.bookingId === booking.id);
-  const editable = canTenantModify(booking, now);
-  const similar = terminal ? similarUnits(state, unit, 2) : [];
+  const editable = booking.canModify;
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Sảnh toà ${unit.building} Vinhomes Ocean Park`)}`;
-  const holdHours = holdHoursFor(state, unit.id);
-  const outcome = holdOutcome(booking, now);
+  const holdHours = unit.holdHours ?? 48;
+
+  // Outcome check for holding
+  const deposit = booking.deposit;
+  const expiresMs = deposit?.expiresAt ? new Date(deposit.expiresAt).getTime() : 0;
+  const isHoldExpired = expiresMs > 0 && now >= expiresMs && booking.status === "holding";
+  const outcome = deposit?.outcome === "forfeited" || isHoldExpired
+    ? "forfeited"
+    : deposit?.outcome === "refunded"
+      ? "refunded"
+      : "active";
+
+  // Contract matching for leased status
+  const contract = contractsState.status === "ready"
+    ? contractsState.data.find((c) => c.bookingRef === booking.ref || (booking.contractId && c.id === booking.contractId))
+    : null;
+
+  // Similar units for terminal status
+  const similarUnits = terminal && unitsState.status === "ready"
+    ? unitsState.data
+        .filter((u) => u.code !== unit.code && u.status === "available")
+        .slice(0, 2)
+        .map(toUnit)
+    : [];
+
+  const handleLateRequest = async () => {
+    const res = await tenantApi.requestLate(booking.ref);
+    if (res.ok) {
+      toast("Đã báo Host: bạn xin đến muộn 10 phút", "success");
+      reload();
+    } else {
+      toast(errorText(res));
+    }
+  };
+
+  const handleLobbyCheckIn = async () => {
+    const res = await tenantApi.lobbyCheckIn(booking.ref);
+    if (res.ok) {
+      toast("Đã báo Host — Host đang xuống sảnh đón bạn", "success");
+      reload();
+    } else {
+      toast(errorText(res));
+    }
+  };
+
+  const handleRate = async (stars: number) => {
+    const res = await tenantApi.rateBooking(booking.ref, stars);
+    if (res.ok) {
+      toast("Cảm ơn bạn đã đánh giá Field Host", "success");
+      reload();
+    } else {
+      toast(errorText(res));
+    }
+  };
+
+  const handleDemoStep = async (
+    step: Parameters<typeof tenantApi.demoBookingStep>[1],
+    successMsg: string,
+  ) => {
+    const res = await tenantApi.demoBookingStep(booking.ref, step);
+    if (res.ok) {
+      toast(successMsg, "success");
+      reload();
+    } else {
+      toast(errorText(res));
+    }
+  };
 
   return (
     <div className={`wrap ${styles.page}`}>
@@ -166,7 +194,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             {booking.status === "pending" && (
               <p className={styles.clock}>
                 <Clock size={16} />
-                {isOpenTicket(booking)
+                {!booking.host
                   ? `Đang tìm Field Host rảnh lúc ${fmtTime(booking.slot)}`
                   : slaLeft > 0
                     ? `Host sẽ xác nhận trong khoảng ${Math.ceil(slaLeft / 60_000)} phút nữa`
@@ -181,50 +209,60 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               </p>
             )}
 
-            {/* ─── KHỐI VIỆC CẦN LÀM (THEO SPEC-P05 §2.3 & 01-CONTRACTS §6) ─── */}
+            {/* ─── KHỐI VIỆC CẦN LÀM THEO SPEC-P04 §4 ─── */}
 
-            {/* 1. closing & chưa đồng ý điều khoản: DepositTerms */}
-            {booking.status === "closing" && !booking.depositConsentAt && (
-              <DepositTermsBox bookingId={booking.id} unitId={unit.id} />
+            {/* 1. closing & chưa có deposit: DepositTermsBox */}
+            {booking.status === "closing" && !deposit && (
+              <DepositTermsBox
+                refCode={booking.ref}
+                unitCode={unit.code}
+                onSuccess={() => reload()}
+              />
             )}
 
-            {/* 2. closing & đã đồng ý: VietQR */}
-            {booking.status === "closing" && booking.depositConsentAt && booking.deposit && (
+            {/* 2. closing & đã có deposit: VietQR */}
+            {booking.status === "closing" && deposit && (
               <div className={styles.qr} style={{ padding: "16px 0", borderTop: "1px solid var(--line)" }}>
                 <VietQR
-                  amount={booking.deposit.amount}
-                  content={booking.deposit.content}
-                  qrRef={booking.deposit.qrRef}
+                  amount={deposit.amount}
+                  content={deposit.transferContent}
+                  qrRef={deposit.qrRef}
+                  paid={Boolean(deposit.paidAt)}
                 />
                 <div style={{ textAlign: "center", marginTop: 8 }}>
                   <b style={{ color: "var(--ink)" }}>Đang chờ thanh toán cọc...</b>
                   <p className="muted xs" style={{ maxWidth: 480, margin: "4px auto 0" }}>
                     Chuyển khoản 2.000.000đ vào tài khoản định danh nền tảng. Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có.
                   </p>
+                  {deposit.vietqr?.simulated && (
+                    <span className="badge badge-amber-soft xs" style={{ marginTop: 6, display: "inline-block" }}>
+                      Mô phỏng VietQR
+                    </span>
+                  )}
                 </div>
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                  <button
-                    type="button"
-                    className={styles.demoBtn}
-                    onClick={() => {
-                      confirmDepositPaid(booking.id, "webhook");
-                      toast(`Ngân hàng báo có: căn đã khoá ${holdHours} giờ`, "success");
-                    }}
-                  >
-                    Demo: Giả lập ngân hàng báo có
-                  </button>
-                </div>
+                {showDemo && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+                    <button
+                      type="button"
+                      className={styles.demoBtn}
+                      onClick={() => handleDemoStep("bank-paid", `Ngân hàng báo có: căn đã khoá ${holdHours} giờ`)}
+                    >
+                      Demo: Giả lập ngân hàng báo có (2.000.000đ)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             {/* 3. holding & active: Countdown + Action làm HĐ */}
-            {booking.status === "holding" && outcome.kind === "active" && (
+            {booking.status === "holding" && outcome === "active" && (
               <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
                 <CountdownBanner
-                  booking={booking}
+                  expiresAt={deposit?.expiresAt}
                   holdHours={holdHours}
                   now={now}
-                  onExpireDemo={() => setModal("expireConfirm")}
+                  showDemo={showDemo}
+                  onExpireDemo={() => handleDemoStep("expire-hold", "Đã tua hết hạn giữ căn")}
                 />
                 <div className="card" style={{ padding: 16, background: "var(--surface)", marginTop: 12 }}>
                   <div style={{ marginBottom: 12 }}>
@@ -245,16 +283,16 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             )}
 
             {/* 4. Forfeited: Hết hạn giữ căn */}
-            {outcome.kind === "forfeited" && (
+            {outcome === "forfeited" && (
               <div className="card" style={{ padding: 16, background: "var(--coral-50, #fff5f5)", border: "1px solid var(--coral-200, #fed7d7)" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--coral-800, #9b2c2c)" }}>
                   <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <b style={{ fontSize: 16 }}>Đã hết hạn giữ căn</b>
                     <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
-                      Hết thời hạn giữ chỗ {holdHours} giờ. Khoản cọc 2.000.000đ không được hoàn (Điều 6.1 Thỏa thuận đặt cọc): 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng.
+                      Hết thời hạn giữ chỗ {holdHours} giờ. Khoản cọc 2.000.000đ không được hoàn (Điều 6.1 Thỏa thuận đặt cọc & Điều 328 BLDS): 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng.
                     </p>
-                    <Link href={`/units/${unit.id}?book=1`} className="btn btn-amber btn-sm">
+                    <Link href={`/units/${unit.code}?book=1`} className="btn btn-amber btn-sm">
                       Đặt lịch căn khác
                     </Link>
                   </div>
@@ -262,35 +300,17 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               </div>
             )}
 
-            {/* 5. Refunded double: Chủ nhà bẻ cọc */}
-            {outcome.kind === "refunded_double" && (
-              <div className="card" style={{ padding: 16, background: "var(--lagoon-50, #f0fdfa)", border: "1px solid var(--lagoon-200, #99f6e4)" }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--lagoon-900, #134e4a)" }}>
-                  <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div>
-                    <b style={{ fontSize: 16 }}>Đã huỷ cọc giữ chỗ (Bồi thường)</b>
-                    <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
-                      Chủ nhà không giữ cam kết. VinStay hoàn bạn 4.000.000đ (2.000.000đ cọc + 2.000.000đ phạt cọc, Điều 328 BLDS) trong 24 giờ làm việc.
-                    </p>
-                    <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
-                      Tìm căn khác
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 6. Refunded: Bất khả kháng */}
-            {outcome.kind === "refunded" && (
+            {/* 5. Refunded: Đã huỷ cọc giữ căn */}
+            {outcome === "refunded" && (
               <div className="card" style={{ padding: 16, background: "var(--amber-50, #fef8ee)", border: "1px solid var(--amber-200, #fce1b2)" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "flex-start", color: "var(--amber-900, #78350f)" }}>
                   <ShieldAlert size={22} style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
-                    <b style={{ fontSize: 16 }}>Đã huỷ giữ căn</b>
+                    <b style={{ fontSize: 16 }}>Đã huỷ cọc giữ căn (Hoàn tiền)</b>
                     <p style={{ fontSize: 13.5, margin: "4px 0 10px" }}>
-                      Sự kiện bất khả kháng. VinStay hoàn 100% 2.000.000đ trong 24 giờ làm việc.
+                      Khoản cọc 2.000.000đ được xử lý hoàn trả theo đúng quy định điều khoản cọc và Điều 328 BLDS trong 24 giờ làm việc.
                     </p>
-                    <Link href={`/units/${unit.id}?book=1`} className="btn btn-primary btn-sm">
+                    <Link href={`/units/${unit.code}?book=1`} className="btn btn-primary btn-sm">
                       Tìm căn khác
                     </Link>
                   </div>
@@ -298,70 +318,82 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               </div>
             )}
 
-            {/* 7. Thanh toán kỳ đầu khi đã ký HĐ (leased) */}
-            {booking.status === "leased" && booking.lease && (
+            {/* 7. Khối leased theo SPEC-P04 §4 */}
+            {booking.status === "leased" && (
               <div className="card" style={{ padding: 18, background: "var(--surface)", border: "1px solid var(--line-strong)", marginTop: 12 }}>
-                <h3 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 700 }}>Thanh toán kỳ đầu trước khi nhận nhà</h3>
-                {booking.lease.firstPayment?.paidAt ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--kelp)", fontWeight: 600 }}>
-                    <Check size={18} />
-                    <span>Đã thanh toán kỳ đầu · {fmtDateTime(booking.lease.firstPayment.paidAt)}</span>
-                  </div>
-                ) : booking.lease.firstPayment ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <VietQR
-                      amount={booking.lease.firstPayment.total}
-                      content={booking.lease.firstPayment.content}
-                      qrRef={`${booking.ref}-FP`}
-                    />
-                    <div style={{ background: "var(--paper-2)", borderRadius: "var(--r)", padding: "12px 16px" }}>
-                      <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "1fr auto", gap: "8px 12px", fontSize: 13.5 }}>
-                        <dt className="muted">Tiền thuê kỳ 1 ({booking.lease.paymentCycle} tháng)</dt>
-                        <dd style={{ textAlign: "right", fontWeight: 600 }}>{vnd(booking.lease.firstPayment.rent)}đ</dd>
-
-                        <dt className="muted">Phần cọc bảo đảm còn thiếu</dt>
-                        <dd style={{ textAlign: "right", fontWeight: 600 }}>{vnd(booking.lease.firstPayment.depositTopUp)}đ</dd>
-
-                        <dt style={{ borderTop: "1px solid var(--line)", paddingTop: 8, fontWeight: 700 }}>Tổng thanh toán đợt đầu</dt>
-                        <dd style={{ borderTop: "1px solid var(--line)", paddingTop: 8, textAlign: "right", fontWeight: 700, color: "var(--primary, #0f4c81)" }}>
-                          {vnd(booking.lease.firstPayment.total)}đ
-                        </dd>
-                      </dl>
-                    </div>
-                    <p className="xs muted" style={{ margin: 0, textAlign: "center" }}>
-                      Khoản 2.000.000đ đã chuyển 100% vào cọc bảo đảm — không trừ vào tiền thuê.
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Thông tin Hợp đồng thuê</h3>
+                    <p className="muted small" style={{ margin: "4px 0 0" }}>
+                      Hợp đồng điện tử đã được xác lập thành công
                     </p>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      <button
-                        type="button"
-                        className={styles.demoBtn}
-                        onClick={() => {
-                          const res = confirmFirstPayment(booking.id);
-                          if (res.ok) {
-                            toast("Đã thanh toán kỳ đầu thành công (demo)", "success");
-                          } else {
-                            toast(res.reason);
-                          }
-                        }}
-                      >
-                        Demo: Ngân hàng báo có kỳ đầu
-                      </button>
-                    </div>
                   </div>
-                ) : null}
+                  {(booking.contractId || contract?.id) && (
+                    <a
+                      href={tenantApi.contractPdfUrl(booking.contractId || contract!.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="btn btn-primary btn-sm"
+                    >
+                      <FileText size={16} /> Tải hợp đồng PDF
+                    </a>
+                  )}
+                </div>
+
+                {contract ? (
+                  <div style={{ background: "var(--paper-2)", borderRadius: "var(--r)", padding: "12px 16px" }}>
+                    <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "1fr auto", gap: "8px 12px", fontSize: 13.5 }}>
+                      <dt className="muted">Số hợp đồng</dt>
+                      <dd style={{ textAlign: "right", fontWeight: 600 }}>{contract.contractNumber}</dd>
+
+                      <dt className="muted">Thời hạn thuê</dt>
+                      <dd style={{ textAlign: "right", fontWeight: 600 }}>
+                        {contract.months} tháng ({contract.startDate} → {contract.endDate})
+                      </dd>
+
+                      <dt className="muted">Giá thuê hàng tháng</dt>
+                      <dd style={{ textAlign: "right", fontWeight: 600 }}>{vnd(contract.monthlyRent)}đ/tháng</dd>
+
+                      <dt className="muted">Cọc bảo đảm tài sản</dt>
+                      <dd style={{ textAlign: "right", fontWeight: 600 }}>
+                        {vnd(contract.securityDeposit)}đ (gồm 2.000.000đ cọc giữ chỗ chuyển đổi 100%)
+                      </dd>
+
+                      <dt className="muted">Kỳ thanh toán</dt>
+                      <dd style={{ textAlign: "right", fontWeight: 600 }}>{contract.paymentCycle} tháng/kỳ</dd>
+
+                      <dt style={{ borderTop: "1px solid var(--line)", paddingTop: 8, fontWeight: 700 }}>
+                        Số tiền kỳ đầu cần thanh toán
+                      </dt>
+                      <dd style={{ borderTop: "1px solid var(--line)", paddingTop: 8, textAlign: "right", fontWeight: 700, color: "var(--primary, #0f4c81)" }}>
+                        {vnd(contract.firstPaymentDue.total)}đ
+                      </dd>
+                    </dl>
+                    <p className="xs muted" style={{ margin: "10px 0 0", textAlign: "center" }}>
+                      (Bao gồm: {vnd(contract.firstPaymentDue.rent)}đ tiền thuê kỳ 1 + {vnd(contract.firstPaymentDue.depositTopUp)}đ bù cọc bảo đảm. Khoản 2.000.000đ giữ chỗ đã chuyển 100% vào cọc bảo đảm).
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ background: "var(--paper-2)", borderRadius: "var(--r)", padding: "12px 16px" }}>
+                    <p className="small muted" style={{ margin: 0 }}>
+                      Hợp đồng đã ký kết. Giá thuê: {vnd(unit.rent)}đ/tháng. Khoản 2.000.000đ đã chuyển đổi 100% thành Tiền cọc bảo đảm tài sản.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
             {/* THÔNG TIN CĂN HỘ & HOST */}
             <div className={styles.unitRow}>
-              <Link href={`/units/${unit.id}`} className={styles.thumb} aria-label={`Xem căn ${unitAddress(unit)}`}>
+              <Link href={`/units/${unit.code}`} className={styles.thumb} aria-label={`Xem căn ${unitAddress(unit)}`}>
                 <VerifiedPhoto unit={unit} sizes="140px" stamp="none" className={styles.thumbFrame} />
               </Link>
               <dl className={styles.facts}>
                 <div>
                   <dt>Căn hộ</dt>
                   <dd>{unitAddress(unit)}</dd>
-                  <dd className="muted small">{zone.name}</dd>
+                  <dd className="muted small">{zone?.name ?? ""}</dd>
                 </div>
                 <div>
                   <dt>Thời gian</dt>
@@ -372,18 +404,17 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                 </div>
                 <div>
                   <dt>Field Host</dt>
-                  {isOpenTicket(booking) ? (
+                  {!booking.host ? (
                     <>
                       <dd className="muted">Đang phân bổ...</dd>
                       <dd className="muted small">Tự động chọn Host gần nhất</dd>
                     </>
                   ) : (
                     <>
-                      <dd>{host.name}</dd>
+                      <dd>{booking.host.name}</dd>
                       <dd className="muted small">
                         <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}
-                        {String(host.rating).replace(".", ",")}
-                        {booking.confirmedAt && ` · ${fmtPhone(host.phone)}`}
+                        {String(booking.host.rating).replace(".", ",")}
                       </dd>
                     </>
                   )}
@@ -398,13 +429,27 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                 <button
                   type="button"
                   className="btn btn-success"
-                  onClick={() => {
-                    tenantCheckIn(booking.id);
-                    toast("Đã báo Host — Host đang xuống sảnh đón bạn", "success");
-                  }}
+                  onClick={handleLobbyCheckIn}
                 >
                   <MapPinCheck size={18} /> Tôi đã tới sảnh
                 </button>
+              )}
+
+              {/* Nút xin trễ 10 phút */}
+              {booking.status === "confirmed" && !booking.lateRequestedAt && (
+                <button
+                  type="button"
+                  className="btn btn-quiet btn-sm"
+                  onClick={handleLateRequest}
+                >
+                  <Clock size={15} /> Xin trễ 10′
+                </button>
+              )}
+
+              {booking.lateRequestedAt && (
+                <span className="badge badge-amber-soft" style={{ padding: "6px 10px", fontSize: 13 }}>
+                  <Clock size={13} /> Đã xin trễ 10′
+                </span>
               )}
 
               {booking.status === "lobby" && (
@@ -416,12 +461,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               <a className="btn btn-quiet btn-sm" href={mapsUrl} target="_blank" rel="noreferrer">
                 <MapPin size={15} /> Chỉ đường tới sảnh {unit.building}
               </a>
-
-              {booking.confirmedAt && (
-                <a className="btn btn-quiet btn-sm" href={`tel:${normalizePhone(host.phone)}`}>
-                  <Phone size={15} /> Gọi Host
-                </a>
-              )}
 
               {/* Đổi giờ & Huỷ lịch */}
               {(booking.status === "pending" || booking.status === "confirmed") && (
@@ -446,55 +485,78 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                   </button>
                   {!editable && (
                     <span className="xs muted" style={{ display: "block", width: "100%" }}>
-                      Chỉ đổi/huỷ được trước giờ hẹn ít nhất 2 giờ — gọi Host nếu cần.
+                      Chỉ đổi/huỷ được trước giờ hẹn ít nhất 2 giờ.
                     </span>
                   )}
                 </>
               )}
 
               {terminal && (
-                <Link href={`/units/${unit.id}?book=1`} className="btn btn-amber btn-sm">
+                <Link href={`/units/${unit.code}?book=1`} className="btn btn-amber btn-sm">
                   Đặt lịch khác
                 </Link>
               )}
             </div>
 
-            {/* Nút Demo thông báo Zalo */}
-            {booking.status === "confirmed" && !booking.reminderSentAt && (
-              <button
-                type="button"
-                className={styles.demoBtn}
-                onClick={() => {
-                  sendReminder(booking.id);
-                  toast("Đã gửi tin nhắc hẹn Zalo", "success");
-                }}
-              >
-                Demo: gửi tin nhắc hẹn Zalo
-              </button>
+            {/* DEMO TOOLBAR (SPEC-P04 §4: A21) */}
+            {showDemo && (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--paper-2)", borderRadius: "var(--r)", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                <span className="xs muted" style={{ fontWeight: 600 }}>Công cụ Demo Host:</span>
+                {booking.status === "pending" && (
+                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-accept", "Demo: Host nhận lịch thành công")}>
+                    Host nhận lịch
+                  </button>
+                )}
+                {booking.status === "confirmed" && (
+                  <>
+                    <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("reminder", "Demo: Đã gửi nhắc hẹn Zalo")}>
+                      Nhắc hẹn Zalo
+                    </button>
+                    <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-receive", "Demo: Host đón khách tại sảnh")}>
+                      Host đón tại sảnh
+                    </button>
+                  </>
+                )}
+                {booking.status === "lobby" && (
+                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-receive", "Demo: Host đón khách tại sảnh")}>
+                    Host đón tại sảnh
+                  </button>
+                )}
+                {booking.status === "receiving" && (
+                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-view", "Demo: Mở cửa bắt đầu xem phòng")}>
+                    Mở cửa xem phòng
+                  </button>
+                )}
+                {booking.status === "viewing" && (
+                  <button type="button" className={styles.demoBtn} onClick={() => handleDemoStep("host-start-deposit", "Demo: Chốt căn & mở điều khoản cọc")}>
+                    Chốt căn (Mở cọc)
+                  </button>
+                )}
+              </div>
             )}
           </section>
 
           {/* HỒ SƠ CỦA BẠN (KHI ĐÃ KÝ HỢP ĐỒNG HOẶC eKYC) */}
-          {(booking.lease || booking.kyc) && (
+          {(booking.contractId || booking.kyc) && (
             <section className={`card ${styles.block}`}>
               <h2>Hồ sơ của bạn</h2>
               <ul className={styles.docs}>
-                {booking.lease && (
+                {booking.contractId && (
                   <li>
                     <FileText size={18} />
                     <div>
-                      <b>Hợp đồng thuê {booking.lease.docId}</b>
+                      <b>Hợp đồng thuê điện tử</b>
                       <p className="muted small">
-                        {booking.lease.months} tháng · {vnd(booking.lease.rent)}đ/tháng · cọc bảo đảm gồm 2.000.000đ
+                        Mã HĐ: {contract?.contractNumber ?? booking.contractId} · Cọc bảo đảm gồm 2.000.000đ
                       </p>
                     </div>
-                    <button
-                      type="button"
+                    <a
+                      href={tenantApi.contractPdfUrl(booking.contractId)}
+                      download
                       className="btn btn-quiet btn-sm"
-                      onClick={() => window.print()}
                     >
-                      In Hợp đồng
-                    </button>
+                      Tải PDF
+                    </a>
                   </li>
                 )}
                 {booking.kyc && (
@@ -511,7 +573,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
           )}
 
           {/* DANH BẠ THỢ KỸ THUẬT */}
-          {booking.lease && (
+          {booking.status === "leased" && (
             <section className={`card ${styles.block}`}>
               <h2>Danh bạ thợ kỹ thuật ngoài</h2>
               <p className="muted small">
@@ -535,9 +597,10 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
 
           {/* ĐÁNH GIÁ FIELD HOST */}
           {!booking.rating &&
+            booking.host &&
             ["viewing", "closing", "holding", "leased", "completed"].includes(booking.status) && (
               <section className={`card ${styles.block}`}>
-                <h2>Đánh giá Field Host {host.name}</h2>
+                <h2>Đánh giá Field Host {booking.host.name}</h2>
                 <div className={styles.stars} role="radiogroup" aria-label="Chấm sao">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
@@ -546,10 +609,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                       role="radio"
                       aria-checked={false}
                       aria-label={`${n} sao`}
-                      onClick={() => {
-                        rateHost(booking.id, n);
-                        toast("Cảm ơn bạn đã đánh giá", "success");
-                      }}
+                      onClick={() => handleRate(n)}
                     >
                       <Star size={30} />
                     </button>
@@ -559,19 +619,19 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             )}
 
           {/* CĂN TƯƠNG ĐƯƠNG */}
-          {similar.length > 0 && (
+          {similarUnits.length > 0 && (
             <section>
               <h2 className={styles.h2}>Căn tương đương bạn có thể xem</h2>
               <div className={styles.similar}>
-                {similar.map((u) => (
-                  <UnitCard key={u.id} unit={u} cost={allInCost(u, DEFAULT_HOUSEHOLD)} />
+                {similarUnits.map((u) => (
+                  <UnitCard key={u.code} unit={u} cost={allInCost(u, DEFAULT_HOUSEHOLD)} />
                 ))}
               </div>
             </section>
           )}
         </div>
 
-        {/* CỘT PHỤ (TIMELINE & ZALO) */}
+        {/* CỘT PHỤ (TIMELINE) */}
         <aside className={styles.side}>
           <section className={`card ${styles.block}`} aria-label="Tiến trình">
             <h2>Tiến trình</h2>
@@ -591,18 +651,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
               ))}
             </ol>
           </section>
-
-          <section aria-label="Tin nhắn Zalo">
-            <h2 className={styles.h2s}>Tin Zalo gửi tới {fmtPhone(booking.tenant.phone)}</h2>
-            <ZaloThread
-              notices={notices}
-              now={now}
-              onAction={(_, a) => (a.id === "arrived" ? tenantCheckIn(booking.id) : tenantRunningLate(booking.id))}
-              actionsDisabled={booking.status !== "confirmed"}
-              empty="Chưa có tin nhắn nào."
-              maxHeight={520}
-            />
-          </section>
         </aside>
       </div>
 
@@ -610,12 +658,14 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
       <CancelModal
         open={modal === "cancel"}
         onClose={() => setModal(null)}
-        onConfirm={(reason) => {
-          const res = cancelBooking(booking.id, reason);
-          if (!res.ok) toast(res.reason);
-          else {
+        onConfirm={async (reason) => {
+          const res = await tenantApi.cancelBooking(booking.ref, reason);
+          if (res.ok) {
             setModal(null);
-            toast("Đã huỷ lịch xem", "success");
+            toast("Đã huỷ lịch xem phòng", "success");
+            reload();
+          } else {
+            toast(errorText(res));
           }
         }}
       />
@@ -625,47 +675,20 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
         open={modal === "reschedule"}
         onClose={() => setModal(null)}
         now={now}
-        onConfirm={(slot) => {
-          const res = rescheduleBooking(booking.id, slot);
-          if (!res.ok) toast(res.reason);
-          else {
+        unitCode={unit.code}
+        onConfirm={async (slot) => {
+          const res = await tenantApi.rescheduleBooking(booking.ref, slot);
+          if (res.ok) {
             setModal(null);
             toast("Đã đổi giờ, Host sẽ xác nhận lại", "success");
+            reload();
+          } else {
+            toast(errorText(res));
           }
         }}
       />
 
-      {/* MODAL XÁC NHẬN TUA HẾT HẠN GIỮ CĂN (DEMO) */}
-      <Modal
-        open={modal === "expireConfirm"}
-        onClose={() => setModal(null)}
-        title="Xác nhận tua hết hạn giữ căn"
-        description="Thao tác demo: căn hộ sẽ chuyển sang trạng thái hết hạn, khách mất cọc 2.000.000đ và căn được mở lại."
-        footer={
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn btn-quiet" onClick={() => setModal(null)}>
-              Đóng
-            </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => {
-                demoExpireHold(booking.id);
-                setModal(null);
-                toast("Đã tua hết hạn giữ căn", "success");
-              }}
-            >
-              Tua hết hạn ngay
-            </button>
-          </div>
-        }
-      >
-        <p className="small muted">
-          Sau khi hết hạn, bạn sẽ thấy thông báo forfeited theo đúng quy chuẩn Điều 328 Bộ luật Dân sự 2015.
-        </p>
-      </Modal>
-
-      {/* MODAL LEASE WIZARD */}
+      {/* MODAL LEASE WIZARD (1 BƯỚC eKYC & KÝ HĐ THEO SPEC-P04 §4) */}
       <Modal
         open={modal === "leaseWizard"}
         onClose={() => setModal(null)}
@@ -673,108 +696,18 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
         title="Làm hợp đồng thuê căn hộ"
         description={`Ký hợp đồng thuê chính thức căn ${unitAddress(unit)}`}
       >
-        <LeaseWizardFlow booking={booking} unit={unit} now={now} onDone={() => setModal(null)} />
-      </Modal>
-    </div>
-  );
-}
-
-// ─── COMPONENT CON: ĐIỀU KHOẢN CỌC ────────────────────────────────────────────────────────────
-
-function DepositTermsBox({ bookingId, unitId }: { bookingId: string; unitId: string }) {
-  const state = useMock();
-  const [consent, setConsent] = useState(false);
-  const [showRules, setShowRules] = useState(false);
-  const holdHours = holdHoursFor(state, unitId);
-
-  return (
-    <div
-      className="card"
-      style={{
-        padding: 18,
-        background: "var(--surface)",
-        border: "1px solid var(--line-strong)",
-        borderRadius: "var(--r)",
-        marginTop: 10,
-      }}
-    >
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-        <ShieldCheck size={22} style={{ color: "var(--kelp)" }} />
-        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Điều khoản đặt cọc giữ căn</h3>
-      </div>
-
-      <ul style={{ paddingLeft: 20, margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)" }}>
-        <li>Khoản tiền cọc <b>2.000.000 VNĐ</b> được nộp vào tài khoản định danh của nền tảng VinStay AI.</li>
-        <li>Căn hộ được khóa trạng thái giữ chỗ trong vòng <b>{holdHours} giờ</b> kể từ khi nhận tiền.</li>
-        <li>
-          Quá thời hạn {holdHours} giờ mà khách thuê không tiến hành ký Hợp đồng thuê thì mất tiền cọc theo{" "}
-          <b>Điều 328 Bộ luật Dân sự 2015</b> (Điều 6.1 Thỏa thuận đặt cọc: 1.000.000đ bù chủ nhà, 1.000.000đ phí vận hành nền tảng).
-        </li>
-        <li>
-          Khi ký Hợp đồng thuê chính thức, khoản tiền này được chuyển đổi 100% thành một phần của{" "}
-          <b>Tiền cọc bảo đảm tài sản</b> (Security Deposit), tuyệt đối không trừ vào tiền thuê tháng đầu tiên.
-        </li>
-      </ul>
-
-      <div style={{ marginBottom: 14 }}>
-        <button
-          type="button"
-          className="btn btn-quiet btn-sm"
-          onClick={() => setShowRules((prev) => !prev)}
-          style={{ padding: "4px 8px", fontSize: 13 }}
-        >
-          {showRules ? "Ẩn nội quy căn hộ" : "Xem 6 nội quy căn hộ"}
-        </button>
-        {showRules && (
-          <div style={{ marginTop: 10, padding: 12, background: "var(--paper-2)", borderRadius: "var(--r)", fontSize: 13, lineHeight: 1.5 }}>
-            <ol style={{ paddingLeft: 18, margin: 0 }}>
-              {HOUSE_RULES.map((rule) => (
-                <li key={rule.id} style={{ marginBottom: 8 }}>
-                  <b>{rule.title}:</b> {rule.body} <span className="muted xs">({rule.source})</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-      </div>
-
-      <label
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "flex-start",
-          padding: "10px 12px",
-          background: "var(--paper-2)",
-          borderRadius: "var(--r)",
-          cursor: "pointer",
-          fontSize: 13,
-          lineHeight: 1.45,
-          marginBottom: 14,
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => setConsent(e.target.checked)}
-          style={{ marginTop: 2 }}
+        <KycCapture
+          refCode={booking.ref}
+          contactName={booking.contact.name}
+          minLeaseMonths={unit.minMonths}
+          onSuccess={() => {
+            setModal(null);
+            toast("Ký hợp đồng thuê thành công!", "success");
+            reload();
+          }}
+          onCancel={() => setModal(null)}
         />
-        <span>
-          Tôi đồng ý điều khoản cọc giữ chỗ và nội quy căn hộ theo <b>Điều 328 Bộ luật Dân sự 2015</b> và cho phép VinStay AI xử lý dữ liệu cá nhân theo <b>Nghị định 13/2023/NĐ-CP</b>.
-        </span>
-      </label>
-
-      <button
-        type="button"
-        className="btn btn-primary btn-lg btn-block"
-        disabled={!consent}
-        onClick={() => {
-          const res = tenantAcceptDepositTerms(bookingId);
-          if (!res.ok) toast(res.reason);
-          else toast("Đã đồng ý điều khoản, vui lòng quét VietQR để chuyển tiền cọc", "success");
-        }}
-      >
-        <Check size={18} /> Đồng ý và lấy mã VietQR
-      </button>
+      </Modal>
     </div>
   );
 }
@@ -782,18 +715,20 @@ function DepositTermsBox({ bookingId, unitId }: { bookingId: string; unitId: str
 // ─── COMPONENT CON: COUNTDOWN BANNER ──────────────────────────────────────────────────────────
 
 function CountdownBanner({
-  booking,
+  expiresAt,
   holdHours,
   now,
+  showDemo,
   onExpireDemo,
 }: {
-  booking: Booking;
+  expiresAt?: string;
   holdHours: number;
   now: number;
+  showDemo: boolean;
   onExpireDemo: () => void;
 }) {
-  const msLeft = holdMsLeft(booking, now);
-  const expiresAt = booking.deposit?.expiresAt;
+  const expiresMs = expiresAt ? new Date(expiresAt).getTime() : 0;
+  const msLeft = expiresMs > 0 ? expiresMs - now : 0;
 
   if (msLeft <= 0) {
     return (
@@ -826,9 +761,11 @@ function CountdownBanner({
           <Clock size={18} style={{ color: "var(--amber-700, #b45309)" }} />
           <b style={{ fontSize: 16, color: "var(--amber-900, #78350f)" }}>{timeLeftText}</b>
         </div>
-        <button type="button" className={styles.demoBtn} onClick={onExpireDemo}>
-          Demo: Tua hết hạn giữ căn
-        </button>
+        {showDemo && (
+          <button type="button" className={styles.demoBtn} onClick={onExpireDemo}>
+            Demo: Tua hết hạn giữ căn
+          </button>
+        )}
       </div>
 
       <div style={{ height: 6, background: "var(--amber-200, #fce1b2)", borderRadius: 999, overflow: "hidden", margin: "8px 0" }}>
@@ -839,66 +776,6 @@ function CountdownBanner({
         <p className="xs muted" style={{ margin: 0 }}>
           Giữ căn tới <b>{fmtDateTime(expiresAt)}</b>. Quá thời hạn này mà chưa hoàn tất ký Hợp đồng thuê thì căn hộ tự động mở lại.
         </p>
-      )}
-    </div>
-  );
-}
-
-// ─── COMPONENT CON: LEASE WIZARD FLOW ─────────────────────────────────────────────────────────
-
-function LeaseWizardFlow({
-  booking,
-  unit,
-  now,
-  onDone,
-}: {
-  booking: Booking;
-  unit: Unit;
-  now: number;
-  onDone: () => void;
-}) {
-  const [step, setStep] = useState<"kyc" | "lease">(booking.kyc ? "lease" : "kyc");
-
-  return (
-    <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
-          type="button"
-          className={`btn btn-sm ${step === "kyc" ? "btn-primary" : "btn-quiet"}`}
-          onClick={() => setStep("kyc")}
-        >
-          1. Xác minh CCCD {booking.kyc && <Check size={14} />}
-        </button>
-        <button
-          type="button"
-          className={`btn btn-sm ${step === "lease" ? "btn-primary" : "btn-quiet"}`}
-          disabled={!booking.kyc}
-          onClick={() => setStep("lease")}
-        >
-          2. Khai báo người cùng ở & 3. Ký hợp đồng {booking.lease && <Check size={14} />}
-        </button>
-      </div>
-
-      {step === "kyc" && (
-        <KycCapture
-          booking={booking}
-          onDone={() => {
-            toast("Đã lưu kết quả eKYC", "success");
-            setStep("lease");
-          }}
-        />
-      )}
-
-      {step === "lease" && (
-        <LeaseForm
-          booking={booking}
-          unit={unit}
-          now={now}
-          onSigned={() => {
-            toast("Ký hợp đồng thuê thành công!", "success");
-            onDone();
-          }}
-        />
       )}
     </div>
   );
@@ -950,14 +827,28 @@ function RescheduleModal({
   open,
   onClose,
   now,
+  unitCode,
   onConfirm,
 }: {
   open: boolean;
   onClose: () => void;
   now: number;
+  unitCode: string;
   onConfirm: (slot: string) => void;
 }) {
   const [slot, setSlot] = useState<string | null>(null);
+  const [busySlots, setBusySlots] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open && unitCode) {
+      tenantApi.busySlots(unitCode).then((res) => {
+        if (res.ok && res.data) {
+          setBusySlots(res.data.slots || []);
+        }
+      });
+    }
+  }, [open, unitCode]);
+
   return (
     <Modal
       open={open}
@@ -979,6 +870,7 @@ function RescheduleModal({
         now={now}
         value={slot}
         onChange={setSlot}
+        busySlots={busySlots}
       />
     </Modal>
   );

@@ -11,7 +11,7 @@ export type UnitDisplayStatus = UnitStatus | "viewing"; // + chỉ để hiển 
 export type LockType = "smart" | "physical";
 
 export type HostRole = "sale" | "inspector"; // +
-export const HOST_ROLE_LABEL: Record<HostRole, string> = { sale: "Sale", inspector: "Thẩm định" }; // +
+ // +
 
 export type LeaseTermPref = "mid" | "long" | "fixed"; // + Đ10
 export const LEASE_TERM_LABEL: Record<LeaseTermPref, string> = {
@@ -140,8 +140,6 @@ export const ITEM_LABEL: Record<ItemKey, string> = {
   balcony: "Ban công",
 };
 
-export const ALL_ITEMS = Object.keys(ITEM_LABEL) as ItemKey[];
-
 export interface Unit {
   id: string;
   code: string;
@@ -171,6 +169,7 @@ export interface Unit {
   title: string;
   description: string;
   items: ItemKey[];
+  photos?: string[];
 }
 
 interface UnitSeed extends Omit<Unit, "code" | "zoneId" | "layoutLabel" | "verifiedAt" | "door"> {
@@ -2250,7 +2249,8 @@ export const UNITS: Unit[] = seeds.map(({ door, plus, verifiedDay, ...u }) => {
 
 export const unitById = (id: string) => UNITS.find((u) => u.id === id);
 
-export const unitPhoto = (u: Pick<Unit, "id">, n: number) => `/units/${u.id}/${n}.jpg`;
+export const unitPhoto = (u: Pick<Unit, "id"> & { photos?: string[] }, n: number) =>
+  u.photos?.[n - 1] ?? `/units/${u.id}/${n}.jpg`;
 
 /** "S2.12 · Tầng 16 · Căn 08" — định danh chuẩn [Tòa-Tầng-Căn]. */
 export const unitAddress = (u: Pick<Unit, "building" | "floor" | "door">) => `${u.building} · Tầng ${u.floor} · Căn ${u.door}`;

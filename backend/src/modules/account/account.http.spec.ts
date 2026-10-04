@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { createFakePrisma, seedProfile } from '../auth/testing/fake-prisma';
 import { hashPassword } from '../auth/password-hasher';
+import { PhoneService } from '../auth/phone/phone.service';
 import { AccountModule } from './account.module';
 
 const ENV = {
@@ -24,6 +25,7 @@ const ENV = {
 
 const USER_A = '00000000-0000-4000-8000-00000000000a';
 const USER_B = '00000000-0000-4000-8000-00000000000b';
+const UNIT_ID = '11111111-1111-4111-8111-111111111111';
 
 describe('/me (Nest thật + Prisma giả)', () => {
   let app: INestApplication;
@@ -34,7 +36,37 @@ describe('/me (Nest thật + Prisma giả)', () => {
     prisma = createFakePrisma();
     prisma.viewing = { findMany: jest.fn(async () => []) };
     prisma.contract = { findMany: jest.fn(async () => []) };
-    prisma.unit = { findMany: jest.fn(async () => []) };
+    // Bảng `favorite_units` + `units` giả tối thiểu: đủ để kiểm tra việc lưu tách theo người dùng.
+    const unitRow = {
+      id: UNIT_ID,
+      unitCode: 'VHOP-S1.02-0803',
+      floorNumber: 8,
+      doorNumber: '03',
+      holdHoursOverride: null,
+      building: { buildingCode: 'S1.02' },
+      media: [],
+    };
+    const favRows: { profileId: string; unitId: string; createdAt: Date }[] = [];
+    prisma.unit = {
+      findMany: jest.fn(async () => []),
+      findFirst: jest.fn(async ({ where }: any) =>
+        where.OR.some((c: any) => c.unitCode?.equals?.toLowerCase() === unitRow.unitCode.toLowerCase() || c.id === unitRow.id) ? unitRow : null,
+      ),
+    };
+    prisma.favoriteUnit = {
+      upsert: jest.fn(async ({ create }: any) => {
+        if (!favRows.some((r) => r.profileId === create.profileId && r.unitId === create.unitId)) {
+          favRows.push({ ...create, createdAt: new Date() });
+        }
+      }),
+      deleteMany: jest.fn(async ({ where }: any) => {
+        const i = favRows.findIndex((r) => r.profileId === where.profileId && r.unitId === where.unitId);
+        if (i >= 0) favRows.splice(i, 1);
+      }),
+      findMany: jest.fn(async ({ where }: any) =>
+        favRows.filter((r) => r.profileId === where.profileId).map((r) => ({ ...r, unit: unitRow })),
+      ),
+    };
 
     @Global()
     @Module({
@@ -99,6 +131,16 @@ describe('/me (Nest thật + Prisma giả)', () => {
     expect(prisma.profile.findFirst).not.toHaveBeenCalled();
   });
 
+  it('GET /me/profile trả SĐT của chính chủ (dạng 0xxx), không lộ phoneEnc/phoneHash; chưa có SĐT ⇒ null', async () => {
+    const agent = await agentOf('b@example.com', USER_B, 'tenant');
+    expect((await agent.get('/api/v1/me/profile')).body.data.phone).toBeNull();
+
+    prisma.profile.rows.find((r: any) => r.id === USER_B).phoneEnc = app.get(PhoneService).encrypt('+84912345678');
+    const res = await agent.get('/api/v1/me/profile');
+    expect(res.body.data.phone).toBe('0912345678');
+    expect(JSON.stringify(res.body)).not.toMatch(/phoneEnc|phoneHash|v1:/);
+  });
+
   it('bookings và contracts luôn lọc theo người gọi, không trả dữ liệu mẫu khi rỗng', async () => {
     const agent = await agentOf('b@example.com', USER_B, 'tenant');
 
@@ -108,7 +150,7 @@ describe('/me (Nest thật + Prisma giả)', () => {
 
     const contracts = await agent.get('/api/v1/me/contracts');
     expect(prisma.contract.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { OR: [{ tenantId: USER_B }, { landlordId: USER_B }] } }),
+      expect.objectContaining({ where: { tenantId: USER_B } }),
     );
     expect(contracts.body.data).toEqual([]);
   });
@@ -123,15 +165,26 @@ describe('/me (Nest thật + Prisma giả)', () => {
     expect(prisma.profile.rows.find((r: any) => r.id === USER_A).fullName).toBe('Người A');
   });
 
-  it('yêu thích tách riêng theo người dùng', async () => {
+  it('yêu thích lưu theo tài khoản, nhận mã căn, idempotent và tách riêng từng người', async () => {
     const a = await agentOf('a@example.com', USER_A, 'tenant');
     const b = await agentOf('b@example.com', USER_B, 'tenant');
-    await a.put('/api/v1/me/favorites/unit-1').expect(200);
 
-    await b.get('/api/v1/me/favorites');
-    expect(prisma.unit.findMany).not.toHaveBeenCalled(); // B chưa lưu gì ⇒ không truy vấn, trả []
+    const put = await a.put('/api/v1/me/favorites/VHOP-S1.02-0803').expect(200);
+    expect(put.body.data).toMatchObject({ saved: true, unitId: 'VHOP-S1.02-0803' });
+    await a.put('/api/v1/me/favorites/vhop-s1.02-0803').expect(200); // hoa/thường + lưu lặp: không nhân đôi
 
-    await a.get('/api/v1/me/favorites');
-    expect(prisma.unit.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['unit-1'] } } }));
+    const mine = await a.get('/api/v1/me/favorites').expect(200);
+    expect(mine.body.data.map((u: any) => u.code)).toEqual(['VHOP-S1.02-0803']);
+    expect((await b.get('/api/v1/me/favorites')).body.data).toEqual([]);
+
+    await a.delete('/api/v1/me/favorites/VHOP-S1.02-0803').expect(200);
+    expect((await a.get('/api/v1/me/favorites')).body.data).toEqual([]);
+  });
+
+  it('lưu yêu thích căn không tồn tại ⇒ 404 unit_not_found', async () => {
+    const a = await agentOf('a@example.com', USER_A, 'tenant');
+    const res = await a.put('/api/v1/me/favorites/VHOP-KHONG-CO');
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('unit_not_found');
   });
 });

@@ -196,9 +196,9 @@ function passes(u: Unit, c: CriteriaState, ignoreBudget = false): boolean {
   return true;
 }
 
-export function searchUnits(c: CriteriaState, statusOf: StatusLookup): MatchResult[] {
+export function searchUnits(c: CriteriaState, statusOf: StatusLookup, units: Unit[] = UNITS): MatchResult[] {
   const out: MatchResult[] = [];
-  for (const unit of UNITS) {
+  for (const unit of units) {
     if (statusOf(unit) !== "available") continue;
     if (!passes(unit, c)) continue;
     const cost = allInCost(unit, c.household);
@@ -219,8 +219,8 @@ export function searchUnits(c: CriteriaState, statusOf: StatusLookup): MatchResu
 }
 
 /** Khi không có kết quả: gợi ý cách nới điều kiện để có căn. */
-export function relaxHint(c: CriteriaState, statusOf: StatusLookup): string {
-  const cheapest = UNITS.filter((u) => statusOf(u) === "available" && passes(u, c, true))
+export function relaxHint(c: CriteriaState, statusOf: StatusLookup, units: Unit[] = UNITS): string {
+  const cheapest = units.filter((u) => statusOf(u) === "available" && passes(u, c, true))
     .map((u) => ({ u, total: allInCost(u, c.household).total }))
     .sort((a, b) => a.total - b.total)[0];
   if (cheapest && c.budget) {
@@ -341,7 +341,7 @@ export type Interpretation =
   | { kind: "answer"; reply: string };
 
 /** Hiểu một tin nhắn: tìm căn (kèm kết quả) hoặc trả lời câu hỏi thường gặp, hoặc hỏi lại cho rõ. */
-export function interpret(text: string, base: CriteriaState, searched: boolean, statusOf: StatusLookup): Interpretation {
+export function interpret(text: string, base: CriteriaState, searched: boolean, statusOf: StatusLookup, units: Unit[] = UNITS): Interpretation {
   const { patch, hasSearchSignal } = parseQuery(text, base);
   let signal = hasSearchSignal;
   const t = fold(text);
@@ -362,8 +362,8 @@ export function interpret(text: string, base: CriteriaState, searched: boolean, 
 
   if (!wantsSearch) return { kind: "answer", reply: faq ?? CLARIFY_REPLY };
 
-  const total = UNITS.filter((u) => statusOf(u) === "available").length;
-  const results = searchUnits(patch, statusOf);
-  const reply = results.length ? searchReply(total, results.length, patch, results[0]) : `Mình đã quét ${total} căn đang mở nhưng chưa có căn nào khớp. ${relaxHint(patch, statusOf)}`;
+  const total = units.filter((u) => statusOf(u) === "available").length;
+  const results = searchUnits(patch, statusOf, units);
+  const reply = results.length ? searchReply(total, results.length, patch, results[0]) : `Mình đã quét ${total} căn đang mở nhưng chưa có căn nào khớp. ${relaxHint(patch, statusOf, units)}`;
   return { kind: "search", criteria: patch, results, total, reply };
 }

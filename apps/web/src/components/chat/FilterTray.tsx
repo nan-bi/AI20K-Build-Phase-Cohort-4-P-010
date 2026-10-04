@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import { RATES } from "@/lib/mock/cost";
 import { vndShort } from "@/lib/mock/format";
+import { useCatalog } from "@/lib/tenant/catalog";
 import { FLOOR_LABEL } from "@/lib/mock/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
-import { FURNISHING_LABEL, LAYOUT_LABEL, UNITS, ZONES, type Furnishing, type LayoutKind } from "@/lib/mock/units";
+import { FURNISHING_LABEL, LAYOUT_LABEL, ZONES, type Furnishing, type LayoutKind } from "@/lib/mock/units";
 import styles from "./FilterTray.module.css";
 
 interface FilterTrayProps {
@@ -122,7 +123,8 @@ export function FilterTray({ criteria: c, onChange, compact }: FilterTrayProps) 
   }, [open]);
 
   const set = (patch: Partial<CriteriaState>) => onChange({ ...c, ...patch });
-  const counts = Object.fromEntries(ZONES.map((z) => [z.id, UNITS.filter((u) => u.zoneId === z.id && u.baseStatus === "available").length]));
+  const { available } = useCatalog();
+  const counts = Object.fromEntries(ZONES.map((z) => [z.id, available.filter((u) => u.zoneId === z.id).length]));
   const zoneBuildings = ZONES.filter((z) => c.zones.includes(z.id)).flatMap((z) => z.buildings);
   const hh = c.household;
   const hhChanged = hh.persons !== 1 || hh.motorbikes !== 1 || hh.cars !== 0;
