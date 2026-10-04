@@ -1,11 +1,13 @@
 /** Kiểu dữ liệu trả về từ `/api/v1/landlord/*` — khớp backend/src/modules/landlord (landlord-*.service.ts). */
 
+import type { LandlordInspectionView } from "@/lib/inspection/types";
+
 export type UnitStatus = "available" | "viewing" | "holding" | "rented" | "unlisted" | "maintenance";
 export type MandateStatus = "pending_inspection" | "active" | "exiting" | "ended";
 export type LayoutKind = "Studio" | "1PN" | "2PN" | "3PN";
 export type LockKind = "smart" | "physical";
 export type LeaseTermPref = "mid" | "long" | "fixed";
-export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "reviewing" | "approved" | "rejected";
+export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "approved" | "rejected";
 
 export interface MandateSummary {
   id: string;
@@ -134,8 +136,8 @@ export interface Consignment {
   inspectDueAt: string | null;
   hostId: string | null;
   hostAcceptedAt: string | null;
-  /** Báo cáo thẩm định do Field Host nộp (cấu trúc do module Host quy định; null khi chưa có). */
-  report: unknown;
+  /** Phiếu thẩm định + ảnh (link ký 1h) — chỉ có ở `GET /landlord/consignments/:id`; null khi Host chưa nộp. */
+  inspection?: LandlordInspectionView | null;
   decidedAt: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
@@ -156,6 +158,8 @@ export interface CreateConsignmentInput {
 }
 
 export interface SignOtpInfo {
+  /** false ⇒ số đã xác thực của tài khoản, backend KHÔNG gửi mã và `sign` không cần OTP. */
+  otpRequired: boolean;
   maskedPhone: string | null;
   expiresInSeconds: number;
   /** Chỉ có khi backend bật OTP_ECHO_DEV_CODE (môi trường dev). */
@@ -213,5 +217,7 @@ export interface MyProfile {
   fullName: string | null;
   email: string | null;
   isPhoneVerified: boolean;
+  /** SĐT của chính chủ (dạng `0901234567`), null nếu chưa có. */
+  phone: string | null;
   createdAt: string;
 }

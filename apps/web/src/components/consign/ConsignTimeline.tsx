@@ -10,6 +10,9 @@ export type TimelineSource = Pick<Consignment, "status" | "signedAt" | "hostAcce
   report?: { submittedAt?: string };
 };
 
+/** Trạng thái cũ chỉ còn ở dữ liệu mock của màn Admin (không bao giờ từ API) — SPEC-P03 §5. */
+const ADMIN_MOCK_STATUS = "reviewing";
+
 interface ConsignTimelineProps {
   c: TimelineSource;
   now: number;
@@ -18,6 +21,10 @@ interface ConsignTimelineProps {
 export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
   const overdue = isInspectOverdue(c, now);
 
+  // 4 mốc (hồ sơ 16): không còn bước Admin duyệt. Dữ liệu mock Admin có thể mang trạng thái đã bỏ — coi như
+  // "Thẩm định" đã xong, "Kết quả" đang chờ.
+  const inspected = Boolean(c.report?.submittedAt) || c.status === ADMIN_MOCK_STATUS || c.status === "approved" || c.status === "rejected";
+  const decided = c.status === "approved" || c.status === "rejected";
   const steps = [
     {
       label: "Ký ủy quyền",
@@ -27,7 +34,7 @@ export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
       isDanger: false,
     },
     {
-      label: "Host nhận",
+      label: "Host nhận ca",
       time: c.hostAcceptedAt ? fmtDateTime(c.hostAcceptedAt) : undefined,
       isDone: Boolean(c.hostAcceptedAt),
       isCurrent: c.status === "awaiting_host",
@@ -36,22 +43,15 @@ export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
     {
       label: "Thẩm định",
       time: c.report?.submittedAt ? fmtDateTime(c.report.submittedAt) : undefined,
-      isDone: Boolean(c.report?.submittedAt),
+      isDone: inspected,
       isCurrent: c.status === "inspecting",
       isDanger: false,
     },
     {
-      label: "Admin duyệt",
+      label: c.status === "rejected" ? "Không đạt" : c.status === "approved" ? "Đã niêm yết" : "Kết quả",
       time: c.decidedAt ? fmtDateTime(c.decidedAt) : undefined,
-      isDone: c.status === "approved" || c.status === "rejected",
-      isCurrent: c.status === "reviewing",
-      isDanger: false,
-    },
-    {
-      label: c.status === "rejected" ? "Không duyệt" : c.status === "approved" ? "Đã ký gửi" : "Kết quả",
-      time: c.decidedAt ? fmtDateTime(c.decidedAt) : undefined,
-      isDone: c.status === "approved" || c.status === "rejected",
-      isCurrent: c.status === "approved" || c.status === "rejected",
+      isDone: decided,
+      isCurrent: decided || c.status === ADMIN_MOCK_STATUS,
       isDanger: c.status === "rejected",
       note: c.status === "rejected" ? c.note : undefined,
     },
