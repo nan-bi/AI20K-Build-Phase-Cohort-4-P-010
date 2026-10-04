@@ -75,7 +75,9 @@ backend/.env
 
 #harness
 brain4agent/
-planning/
+planning/*
+!planning/06_2026-10-04_Admin-Role-Flows/
+!planning/06_2026-10-04_Admin-Role-Flows/**
 .claude/agents/
 .claude/skills/
 .agents/

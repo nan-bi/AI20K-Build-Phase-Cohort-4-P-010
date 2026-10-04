@@ -42,17 +42,15 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  // Cập nhật cookie của request đang xử lý để Server Component thấy token mới ngay lượt này.
-  const jar = new Map(request.cookies.getAll().map((c) => [c.name, c.value]));
+  // Đồng bộ cookie backend trả về vào request hiện tại để Server Component thấy phiên mới ngay lượt này.
+  // Dùng API NextRequest.cookies thay vì tự ghi header `cookie` (Next 16 có thể từ chối header này).
   for (const raw of setCookies) {
     const parsed = parseSetCookie(raw);
     if (!parsed) continue;
-    if (parsed.expired) jar.delete(parsed.name);
-    else jar.set(parsed.name, parsed.value);
+    if (parsed.expired) request.cookies.delete(parsed.name);
+    else request.cookies.set(parsed.name, parsed.value);
   }
-  const headers = new Headers(request.headers);
-  headers.set("cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "));
-  const response = NextResponse.next({ request: { headers } });
+  const response = NextResponse.next({ request: { headers: new Headers(request.headers) } });
   for (const c of setCookies) response.headers.append("set-cookie", c);
   return response;
 }
