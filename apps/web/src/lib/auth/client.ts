@@ -22,7 +22,7 @@ function publish(next: SessionState) {
   for (const l of listeners) l();
 }
 
-async function load() {
+async function load(): Promise<SessionState> {
   try {
     const res = await fetch("/api/v1/auth/session", { credentials: "same-origin", cache: "no-store" });
     const body = res.ok ? ((await res.json()) as { data?: { user: SessionUser | null } }) : null;
@@ -30,6 +30,7 @@ async function load() {
   } catch {
     publish({ ready: true, user: null }); // backend không với tới được ⇒ coi như chưa đăng nhập
   }
+  return state;
 }
 
 /** Đọc lại phiên (sau khi đổi họ tên…) để header và các màn hình khác cập nhật ngay. */

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Users } from "lucide-react";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { toast } from "@/components/ui/Toast";
@@ -45,16 +45,22 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
 }
 
 import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth/client";
+import { refreshSession, useSession } from "@/lib/auth/client";
 
 export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBooking: boolean }) {
-  const { user } = useSession();
+  const { user, ready } = useSession();
   const router = useRouter();
   const zone = zoneById(unit.zoneId);
   const status = unit.baseStatus;
   const [hh, setHh] = useState<Household>(DEFAULT_HOUSEHOLD);
   const isTenant = user?.portal === "tenant";
-  const [booking, setBooking] = useState(autoOpenBooking && isTenant);
+  const [booking, setBooking] = useState(false);
+  const loginHref = `/login?next=${encodeURIComponent(`/units/${unit.code || unit.id}?book=1`)}`;
+
+  // Quay lại từ trang đăng nhập (?book=1): mở form đặt lịch ngay khi phiên tải xong và là Khách thuê.
+  useEffect(() => {
+    if (autoOpenBooking && ready && isTenant) setBooking(true);
+  }, [autoOpenBooking, ready, isTenant]);
   const cost = allInCost(unit, hh);
   const sv = savingsPct(unit);
   const bookable = status === "available";
@@ -63,9 +69,11 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
   const catalog = useCatalog(status !== "available");
   const similar = similarUnits(catalog.units, unit, 3);
 
-  const handleOpenBooking = () => {
-    if (!user || user.portal !== "tenant") {
-      router.push(`/login?next=/units/${encodeURIComponent(unit.code || unit.id)}?book=1`);
+  const handleOpenBooking = async () => {
+    // Phiên chưa tải xong thì đọc lại, không coi là chưa đăng nhập.
+    const session = ready ? { user } : await refreshSession();
+    if (session.user?.portal !== "tenant") {
+      router.push(loginHref);
       return;
     }
     setBooking(true);
