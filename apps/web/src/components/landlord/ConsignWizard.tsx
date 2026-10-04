@@ -78,7 +78,7 @@ export function ConsignWizard({ draftId }: { draftId?: string }) {
                       </section>
                     </div>
                   ) : (
-                    <Wizard key={d?.id ?? "new"} buildings={bs} phoneVerified={p.isPhoneVerified} draft={d ?? undefined} />
+                    <Wizard key={d?.id ?? "new"} buildings={bs} verifiedPhone={p.isPhoneVerified ? p.phone : null} draft={d ?? undefined} />
                   )}
                 </>
               )}
@@ -90,7 +90,7 @@ export function ConsignWizard({ draftId }: { draftId?: string }) {
   );
 }
 
-function Wizard({ buildings, phoneVerified, draft }: { buildings: BuildingOption[]; phoneVerified: boolean; draft?: Consignment }) {
+function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption[]; verifiedPhone: string | null; draft?: Consignment }) {
   const [step, setStep] = useState(draft ? 2 : 0);
   const [f, setF] = useState<Form>(
     draft
@@ -607,9 +607,9 @@ function Wizard({ buildings, phoneVerified, draft }: { buildings: BuildingOption
             </label>
 
             <div style={{ margin: "14px 0 6px" }}>
-              <ConsignOtpSign warranted={warranted} needPhone={!phoneVerified} ensureDraft={ensureDraft} onSigned={signed} onError={setErr} />
+              <ConsignOtpSign warranted={warranted} verifiedPhone={verifiedPhone} ensureDraft={ensureDraft} onSigned={signed} onError={setErr} />
               <p className="muted xs" style={{ textAlign: "center", marginTop: 8 }}>
-                Nhập OTP nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn), ký điện tử theo Luật Giao dịch điện tử 2023.
+                Bấm ký (hoặc nhập OTP khi dùng số mới) nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn), ký điện tử theo Luật Giao dịch điện tử 2023.
               </p>
             </div>
 
