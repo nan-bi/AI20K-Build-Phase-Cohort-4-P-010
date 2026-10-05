@@ -19,7 +19,6 @@ export interface TenantUnit {
   door: string;
   layout: 'Studio' | '1PN' | '2PN' | '3PN';
   layoutLabel: string;
-  bedrooms: number;
   bathrooms: number;
   areaM2: number;
   direction: string | null;

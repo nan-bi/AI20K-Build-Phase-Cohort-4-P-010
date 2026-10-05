@@ -71,7 +71,6 @@ interface WebCatalog {
     door: string;
     layout: string;
     layoutLabel: string;
-    bedrooms: number;
     bathrooms: number;
     areaM2: number;
     direction?: string;
@@ -339,7 +338,6 @@ export async function seedWebCatalog(options: { dryRun?: boolean } = {}) {
           data: {
             doorNumber: u.door,
             hasExtraRoom: u.layoutLabel.includes('+'),
-            bedrooms: u.bedrooms,
             bathrooms: u.bathrooms,
             direction: u.direction,
             viewLabel: u.view,
@@ -396,7 +394,6 @@ export async function seedWebCatalog(options: { dryRun?: boolean } = {}) {
             utilityCostEstimate: 600000,
             marketAvgPrice: u.marketAvg,
             doorLockType: u.lock === 'smart' ? DoorLockType.ELECTRONIC_PIN : DoorLockType.PHYSICAL_KEY,
-            bedrooms: u.bedrooms,
             bathrooms: u.bathrooms,
             direction: u.direction,
             viewLabel: u.view,

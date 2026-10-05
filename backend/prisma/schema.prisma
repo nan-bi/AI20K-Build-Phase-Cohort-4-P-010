@@ -214,7 +214,6 @@ model Unit {
   doorLockType        DoorLockType @default(ELECTRONIC_PIN) @map("door_lock_type")
   doorNumber          String?      @map("door_number") @db.VarChar(10)
   hasExtraRoom        Boolean      @default(false) @map("has_extra_room")
-  bedrooms            Int          @default(1)
   bathrooms           Int          @default(1)
   direction           String?      @db.VarChar(20)
   viewLabel           String?      @map("view_label") @db.VarChar(60)

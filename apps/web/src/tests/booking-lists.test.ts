@@ -13,7 +13,6 @@ const mockUnit: TenantUnit = {
   door: "08",
   layout: "1PN",
   layoutLabel: "1PN+",
-  bedrooms: 1,
   bathrooms: 1,
   areaM2: 48,
   direction: "Đông Nam",

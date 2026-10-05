@@ -186,7 +186,6 @@ export function Landing() {
             <Link href="/admin/login">Cổng Field Host</Link>
             <Link href="/login?as=admin">Quản trị</Link>
           </nav>
-          <p className={styles.footLegal}>Bản MVP trình diễn dùng dữ liệu mô phỏng. Ảnh căn hộ lấy từ tin đăng công khai, chỉ phục vụ minh hoạ.</p>
         </div>
       </footer>
     </>

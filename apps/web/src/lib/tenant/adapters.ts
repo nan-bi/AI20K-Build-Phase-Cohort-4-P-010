@@ -23,7 +23,6 @@ export function toUnit(dto: TenantUnit): UnitWithExtras {
     door: dto.door,
     layout: dto.layout,
     layoutLabel: dto.layoutLabel,
-    bedrooms: dto.bedrooms,
     bathrooms: dto.bathrooms,
     areaM2: dto.areaM2,
     direction: dto.direction ?? "Đông Nam",
