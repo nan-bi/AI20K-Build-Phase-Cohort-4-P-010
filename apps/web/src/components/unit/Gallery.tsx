@@ -30,7 +30,7 @@ export function Gallery({ unit }: { unit: Unit }) {
       <div className={styles.rail} aria-label="Ảnh căn hộ">
         {idx.map((i) => (
           <button key={i} type="button" className={styles.slide} onClick={() => setOpen(i)} aria-label={`Xem ảnh ${i} trên ${n}`}>
-            <VerifiedPhoto unit={unit} index={i} sizes="100vw" priority={i === 1} stamp={i === 1 ? "full" : "none"} className={styles.fill} />
+            <VerifiedPhoto unit={unit} index={i} sizes="(max-width: 760px) 88vw, 1px" priority={i === 1} stamp={i === 1 ? "full" : "none"} className={styles.fill} />
             <span className={styles.count}>
               {i}/{n}
             </span>

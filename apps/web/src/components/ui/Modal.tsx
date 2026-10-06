@@ -44,7 +44,7 @@ export function Modal({ open, onClose, title, description, variant = "center", c
       className={`
         backdrop:bg-background/80 backdrop:backdrop-blur-sm
         bg-transparent p-0 m-0 w-full h-full max-w-none max-h-none
-        fixed inset-0 z-50 flex items-center justify-center
+        fixed inset-0 z-50 hidden open:flex items-center justify-center
         open:animate-in open:fade-in-0 duration-200
         ${variant === "sheet" ? "items-end sm:items-center" : "items-center"}
       `}
