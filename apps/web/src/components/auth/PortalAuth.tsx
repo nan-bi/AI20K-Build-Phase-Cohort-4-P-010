@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PORTAL_HOME, hostHome, type HostRoleCode, type Portal, type SessionUser } from "@/lib/auth/portals";
 import { hintDisplayName, useGoogleHint } from "@/lib/auth/googleHint";
+import { refreshSession } from "@/lib/auth/client";
 import { GoogleMark } from "./GoogleMark";
 import { API_BASE, errorMessage, postJson } from "./authApi";
 import styles from "./auth.module.css";
@@ -44,7 +45,9 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
   const [loading, setLoading] = useState(false);
   const googleHint = useGoogleHint();
 
-  function enter(roles?: HostRoleCode[]) {
+  async function enter(roles?: HostRoleCode[]) {
+    // Store phiên ở client chỉ tự tải 1 lần mỗi lần mở trang; không đọc lại ở đây thì header vẫn "chưa đăng nhập".
+    await refreshSession();
     router.push(next ?? (portal === "host" ? hostHome(roles ?? []) : PORTAL_HOME[portal]));
     router.refresh();
   }

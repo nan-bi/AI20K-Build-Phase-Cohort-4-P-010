@@ -22,13 +22,17 @@ function publish(next: SessionState) {
   for (const l of listeners) l();
 }
 
+/** Số thứ tự lần đọc phiên gần nhất: lần đọc cũ về muộn (vd. tải lúc mở trang) không được ghi đè lần mới hơn. */
+let latestLoad = 0;
+
 async function load(): Promise<SessionState> {
+  const mine = ++latestLoad;
   try {
     const res = await fetch("/api/v1/auth/session", { credentials: "same-origin", cache: "no-store" });
     const body = res.ok ? ((await res.json()) as { data?: { user: SessionUser | null } }) : null;
-    publish({ ready: true, user: body?.data?.user ?? null });
+    if (mine === latestLoad) publish({ ready: true, user: body?.data?.user ?? null });
   } catch {
-    publish({ ready: true, user: null }); // backend không với tới được ⇒ coi như chưa đăng nhập
+    if (mine === latestLoad) publish({ ready: true, user: null }); // backend không với tới được ⇒ coi như chưa đăng nhập
   }
   return state;
 }
