@@ -37,7 +37,6 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   host_not_provisioned: [HttpStatus.FORBIDDEN, 'Tài khoản chưa có hồ sơ Field Host, liên hệ Admin để được thêm vào hệ thống'],
   oauth_failed: [HttpStatus.BAD_REQUEST, 'Đăng nhập bằng Google không thành công'],
   auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Đăng nhập Google chưa được cấu hình (thiếu GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)'],
-  demo_disabled: [HttpStatus.NOT_FOUND, 'Chế độ demo đang tắt'],
   rate_limited: [HttpStatus.TOO_MANY_REQUESTS, 'Quá nhiều yêu cầu, vui lòng thử lại sau'],
   invalid_phone: [HttpStatus.BAD_REQUEST, 'Số điện thoại không hợp lệ'],
   phone_already_registered: [HttpStatus.CONFLICT, 'Số điện thoại đã được dùng cho tài khoản khác'],

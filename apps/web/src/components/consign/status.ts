@@ -2,7 +2,7 @@ import type { ConsignmentStatus } from "@/lib/mock/types";
 import type { StatusTone } from "@/components/ui/StatusBadge";
 
 /**
- * Khoá `reviewing` GIỮ LẠI chỉ để màn Admin mock (có dữ liệu mock mang `reviewing`) còn chạy — dữ liệu từ API
+ * Khoá `reviewing` GIỮ LẠI để đọc các hồ sơ lịch sử — dữ liệu từ API hiện tại
  * không bao giờ mang trạng thái này (hồ sơ 16 bỏ bước Admin duyệt).
  */
 export const CONSIGN_STATUS_META: Record<

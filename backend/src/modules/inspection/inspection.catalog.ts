@@ -3,7 +3,7 @@ import type { CatalogItem } from './inspection.types';
 /**
  * 32 hạng mục trang thiết bị nội thất theo Điều 5 Hợp đồng thuê căn hộ chính thức
  * (legal/06_OFFICIAL_APARTMENT_LEASE_AGREEMENT.md Điều 5 khoản 2).
- * NGUỒN DUY NHẤT của catalog (hồ sơ 16): chép NGUYÊN VĂN từ `INVENTORY_CATALOG` ở `apps/web/src/lib/mock/inventory.ts`;
+ * Catalog kiểm định (hồ sơ 16), được duy trì theo danh mục tài sản của sản phẩm;
  * web nhận catalog qua `GET /host/inspections/:id` (trường `catalog`), không tự giữ bản sao cho luồng thật.
  */
 export const INSPECTION_CATALOG: ReadonlyArray<CatalogItem> = [

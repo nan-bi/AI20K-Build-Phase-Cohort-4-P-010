@@ -137,7 +137,7 @@ export function blankLine(item: { code: string; group: InventoryGroup; name: str
   };
 }
 
-/** Phiếu trắng: tick sẵn dòng 25–29; căn có nội thất ⇒ tick thêm 1–27 (quy tắc của mock cũ). */
+/** Quy tắc khởi tạo checklist theo loại hồ sơ và nội thất căn hộ. */
 export function blankDraft(detail: Pick<InspectionDetail, "catalog" | "areaM2" | "furnished">): InspectionDraft {
   const inventory = detail.catalog.map((item) => {
     const n = Number(item.code);

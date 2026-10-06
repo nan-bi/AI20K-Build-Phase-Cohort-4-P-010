@@ -7,7 +7,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fmtDateTime, vnd } from "@/lib/mock/format";
+import { fmtDateTime, vnd } from "@/lib/format";
 import { DECLARED_FIELDS, DECLARED_LABEL, FUNCTION_LABEL, FURNISHING_LABEL, GROUP_LABEL, LOW_CONDITION, ROOM_LABEL, declaredValue, liabilityLabel } from "@/lib/inspection/logic";
 import type { InspectionCard, InspectionPhotoView, InspectionReport, InventoryLineReport } from "@/lib/inspection/types";
 import styles from "@/components/host/inspection/Inspection.module.css";

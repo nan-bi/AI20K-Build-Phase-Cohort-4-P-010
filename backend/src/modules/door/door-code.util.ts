@@ -34,18 +34,20 @@ export function withAesPrefix(ciphertext: string): string {
 
 export type RekeyDecision =
   | { action: 'keep' }
-  | { action: 'rekey'; pin: string; source: 'plain' | 'random' };
+  | { action: 'rekey'; pin: string }
+  | { action: 'skip'; reason: 'placeholder' | 'missing' | 'unreadable_aes' };
 
 /**
  * Quyết định cho một dòng `door_access_keys` ELECTRONIC_PIN (script `rekey-door-codes`):
  *  - `aes:` đọc được ⇒ giữ nguyên (idempotent);
  *  - PIN để trần ⇒ mã hoá lại GIỮ NGUYÊN số;
- *  - chuỗi giữ chỗ / thiếu / `aes:` hỏng ⇒ PIN ngẫu nhiên mới (`genPin`).
+ *  - chuỗi giữ chỗ / thiếu / `aes:` không giải mã được ⇒ bỏ qua để tránh ghi một PIN giả.
  */
-export function planRekey(ref: string | null | undefined, aesReadable: boolean, genPin: () => string): RekeyDecision {
+export function planRekey(ref: string | null | undefined, aesReadable: boolean): RekeyDecision {
   const kind = classifyDoorRef(ref);
   if (kind === 'aes' && aesReadable) return { action: 'keep' };
+  if (kind === 'aes') return { action: 'skip', reason: 'unreadable_aes' };
   const plain = extractPlainPin(ref);
-  if (kind === 'plain_pin' && plain) return { action: 'rekey', pin: plain, source: 'plain' };
-  return { action: 'rekey', pin: genPin(), source: 'random' };
+  if (kind === 'plain_pin' && plain) return { action: 'rekey', pin: plain };
+  return { action: 'skip', reason: kind === 'placeholder' ? 'placeholder' : 'missing' };
 }

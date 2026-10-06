@@ -29,7 +29,7 @@ const enc = encodeURIComponent;
 export const hostApi = {
   me: () => api.get<HostMe>("/host/me"),
   sendPhoneOtp: (phone: string) =>
-    api.post<{ expiresInSeconds: number; devCode?: string }>("/auth/otp/send", { phone, purpose: "PHONE_VERIFY" }),
+    api.post<{ expiresInSeconds: number }>("/auth/otp/send", { phone, purpose: "PHONE_VERIFY" }),
   verifyPhone: (phone: string, code: string) => api.post<{ verified: boolean }>("/auth/phone/verify", { phone, code }),
 
   // ── Lịch & yêu cầu (hồ sơ 15) ──

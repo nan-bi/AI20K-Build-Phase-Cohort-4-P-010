@@ -1,152 +1,100 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
-import { setHoldHours } from "@/lib/mock/actions";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import { fmtDateTime } from "@/lib/mock/format";
-import { useMock } from "@/lib/mock/store";
-import type { HoldAudit } from "@/lib/mock/types";
-import { unitAddress, unitById } from "@/lib/mock/units";
+import { useSession } from "@/lib/auth/client";
+import { adminApi, useAdminHoldPolicy } from "@/lib/admin/api";
 import styles from "./Admin.module.css";
 
-function HoldHoursForm({ defaultHours, adminName }: { defaultHours: number; adminName: string }) {
-  const [hoursInput, setHoursInput] = useState<string>(String(defaultHours));
-  const [error, setError] = useState<string>("");
-
-  const handleSaveHours = (e: React.FormEvent) => {
-    e.preventDefault();
-    const val = Number(hoursInput);
-    const res = setHoldHours(null, val, adminName);
-    if (!res.ok) {
-      setError(res.reason);
-    } else {
-      setError("");
-      toast("Đã cập nhật thời gian giữ chỗ mặc định toàn sàn", "success");
-    }
-  };
-
-  return (
-    <form onSubmit={handleSaveHours} style={{ maxWidth: 480, display: "flex", flexDirection: "column", gap: 8 }}>
-      <label className="field">
-        <span className="label">Thời gian giữ chỗ mặc định (12 – 72 giờ)</span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input
-            type="number"
-            min={12}
-            max={72}
-            step={1}
-            className="input"
-            value={hoursInput}
-            onChange={(e) => {
-              setHoursInput(e.target.value);
-              setError("");
-            }}
-            style={{ width: 140 }}
-          />
-          <span className="small muted">giờ</span>
-          <button type="submit" className="btn btn-primary btn-sm">
-            Lưu cài đặt
-          </button>
-        </div>
-        {error && <p className="xs" style={{ color: "var(--danger)", margin: "4px 0 0" }}>{error}</p>}
-      </label>
-    </form>
-  );
-}
-
-/** Cài đặt: tài khoản quản trị và tham số nền tảng. */
 export function AdminSettings() {
-  const state = useMock();
-  const admin = DEMO_USERS.admin;
-  const defaultHours = state.holdPolicy?.defaultHours ?? 48;
+  const session = useSession();
+  const policy = useAdminHoldPolicy();
+  const [days, setDays] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const auditRows = (state.holdAudit ?? []).slice(0, 5);
+  const currentDays = policy.state.status === "ready" ? policy.state.data.holdingDurationDays : null;
+  const inputDays = days || (currentDays === null ? "" : String(currentDays));
 
-  const auditColumns: DataTableColumn<HoldAudit>[] = [
-    {
-      key: "at",
-      header: "Thời gian",
-      render: (a) => fmtDateTime(a.at),
-    },
-    {
-      key: "by",
-      header: "Người thực hiện",
-      render: (a) => a.by,
-    },
-    {
-      key: "scope",
-      header: "Phạm vi",
-      render: (a) => {
-        if (!a.unitId) return <b>Mặc định toàn sàn</b>;
-        const u = unitById(a.unitId);
-        return <span>Riêng căn {u ? unitAddress(u) : a.unitId}</span>;
-      },
-    },
-    {
-      key: "change",
-      header: "Thay đổi",
-      render: (a) => {
-        const fromStr = a.from !== null ? `${a.from}h` : "Mặc định";
-        const toStr = a.to !== null ? `${a.to}h` : "Mặc định";
-        return (
-          <span>
-            {fromStr} → <b>{toStr}</b>
-          </span>
-        );
-      },
-    },
-  ];
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const value = Number(inputDays);
+    if (!Number.isInteger(value) || value < 1 || value > 14) {
+      toast("Thời hạn giữ chỗ phải từ 1 đến 14 ngày.");
+      return;
+    }
+    if (!reason.trim()) {
+      toast("Vui lòng nhập lý do thay đổi.");
+      return;
+    }
+    setSaving(true);
+    const res = await adminApi.updateHoldPolicy(value, reason.trim());
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.message || "Không thể cập nhật thời hạn giữ chỗ.");
+      return;
+    }
+    setDays("");
+    setReason("");
+    policy.reload();
+    toast("Đã lưu thời hạn giữ chỗ vào hệ thống.", "success");
+  }
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Cài đặt" description="Tài khoản quản trị và các tham số vận hành nền tảng." />
+      <PageHeader title="Cài đặt" description="Thông tin phiên quản trị và tham số vận hành lấy từ hệ thống." />
 
       <Section title="Tài khoản quản trị">
         <KeyValue
           items={[
-            { label: "Họ và tên", value: admin.name },
-            { label: "Email", value: "ops@vinstay.vn" },
-            { label: "Vai trò", value: "Trưởng vận hành" },
+            { label: "Họ và tên", value: session.user?.fullName || "—" },
+            { label: "Email", value: session.user?.email || "—" },
+            { label: "Vai trò", value: session.user?.portal || "—" },
           ]}
         />
       </Section>
 
-      <Section title="Thời gian giữ chỗ toàn sàn (SPEC-P01)">
-        <HoldHoursForm key={defaultHours} defaultHours={defaultHours} adminName={admin.name} />
-      </Section>
-
-      <Section title="Nhật ký thay đổi thời hạn giữ chỗ (5 lần gần nhất)" flush>
-        <DataTable<HoldAudit>
-          columns={auditColumns}
-          rows={auditRows}
-          empty={<span className="muted">Chưa có lịch sử thay đổi thời hạn giữ chỗ.</span>}
-        />
-      </Section>
-
-      <Section title="Tham số nền tảng khác" description="Thay đổi tham số cần phê duyệt của ban điều hành.">
-        <KeyValue
-          items={[
-            { label: "Tiền giữ chỗ", value: "2.000.000 đ" },
-            { label: "SLA nhận ca", value: "3 phút" },
-            { label: "Open Pool bán kính", value: "500 m" },
-            { label: "Báo trước thoát uỷ quyền", value: "15 ngày" },
-            { label: "Ngưỡng Căn hời", value: "≥ 10%" },
-            { label: "Ngưỡng OCR nhập tay", value: "< 85%" },
-          ]}
-        />
-        <p className="small muted" style={{ marginTop: 12 }}>
-          Thù lao và hoa hồng Field Host chỉnh được tại{" "}
-          <Link href="/admin/commission" className="link">
-            Biến phí Host
-          </Link>
-          .
-        </p>
+      <Section title="Thời hạn giữ chỗ toàn sàn">
+        {policy.state.status === "loading" ? (
+          <div className="skeleton" style={{ height: 110, maxWidth: 520 }} />
+        ) : policy.state.status === "error" ? (
+          <div role="alert">
+            <p>{policy.state.message}</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={policy.reload}>Thử lại</button>
+          </div>
+        ) : (
+          <form onSubmit={save} style={{ maxWidth: 520, display: "grid", gap: 10 }}>
+            <label className="field">
+              <span className="label">Thời gian mặc định (1–14 ngày)</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={14}
+                  step={1}
+                  className="input"
+                  value={inputDays}
+                  onChange={(e) => setDays(e.target.value)}
+                  style={{ width: 120 }}
+                  required
+                />
+                <span className="small muted">ngày · hiện tại {currentDays} ngày ({policy.state.data.defaultHours} giờ)</span>
+              </div>
+            </label>
+            <label className="field">
+              <span className="label">Lý do thay đổi</span>
+              <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} required />
+            </label>
+            <div>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={saving || Number(inputDays) === currentDays}>
+                {saving ? "Đang lưu…" : "Lưu cài đặt"}
+              </button>
+            </div>
+          </form>
+        )}
       </Section>
     </div>
   );

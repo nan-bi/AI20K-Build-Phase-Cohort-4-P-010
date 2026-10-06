@@ -34,7 +34,6 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
   const router = useRouter();
   const canSignup = allowSignup ?? portal !== "admin";
   const canGoogle = portal !== "admin"; // Admin chỉ đăng nhập email + mật khẩu
-  const demoEnabled = process.env.NEXT_PUBLIC_DEMO_LOGIN === "true";
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [fullName, setFullName] = useState("");
@@ -71,76 +70,22 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
       const { ok, data, code } = await postJson<LoginData>(path, body);
       if (!ok) return setError(errorMessage(code));
       return enter(data.user?.hostRoles);
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") {
+        setError("Máy chủ đăng nhập phản hồi quá lâu. Kiểm tra backend rồi thử lại.");
+      } else {
+        setError("Không kết nối được máy chủ đăng nhập. Kiểm tra backend đang chạy rồi thử lại.");
+      }
     } finally {
       setLoading(false);
     }
   }
-
-  const handleQuickDemo = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { ok, data, code } = await postJson<LoginData>("/auth/demo-login", { portal });
-      if (!ok) return setError(errorMessage(code));
-      enter(data.user?.hostRoles);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <>
       <h1 className={styles.cardHeading}>
         {mode === "login" ? `Đăng nhập ${label}` : `Đăng ký ${label}`}
       </h1>
-
-      {demoEnabled && (
-      <div
-        style={{
-          margin: "0 0 16px 0",
-          padding: "12px 14px",
-          background: "linear-gradient(135deg, rgba(214,154,70,0.12) 0%, rgba(20,48,58,0.06) 100%)",
-          border: "1px solid rgba(214,154,70,0.35)",
-          borderRadius: 12,
-          textAlign: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-ink)", letterSpacing: "0.03em" }}>
-            ⚡ TRẢI NGHIỆM NHANH (1-CLICK DEMO)
-          </span>
-        </div>
-        <p style={{ fontSize: 12, color: "var(--slate)", marginBottom: 10, lineHeight: 1.4 }}>
-          Thử nghiệm ngay giao diện {label} mà không cần đăng ký tài khoản mới:
-        </p>
-        <button
-          type="button"
-          onClick={handleQuickDemo}
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "9px 14px",
-            background: "var(--accent)",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: loading ? "default" : "pointer",
-            boxShadow: "0 2px 6px rgba(214,154,70,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
-          {portal === "tenant" && "👉 Vào ngay vai Khách thuê (AI Matchmaker)"}
-          {portal === "landlord" && "👉 Vào ngay Dashboard Chủ nhà (4 Tenets)"}
-          {portal === "host" && "👉 Vào ngay Dashboard Field Host (SLA 3m)"}
-          {portal === "admin" && "👉 Vào ngay Dashboard Quản trị (BI & SLA)"}
-        </button>
-      </div>
-      )}
 
       {canGoogle && (
         <>
@@ -209,7 +154,7 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
           />
         </label>
         <button type="submit" className={styles.primaryButton} disabled={loading}>
-          {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+          {loading ? (mode === "login" ? "Đang đăng nhập…" : "Đang tạo tài khoản…") : mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
         </button>
       </form>
 

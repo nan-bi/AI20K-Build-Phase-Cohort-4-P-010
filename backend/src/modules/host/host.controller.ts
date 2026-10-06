@@ -1,7 +1,6 @@
-import { Controller, Get, Patch, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiCookieAuth } from '@nestjs/swagger';
+import { Controller, Get, Patch, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
 import { HostService } from './host.service';
-import { Public } from '../../common/decorators/public.decorator';
 import { HostRoles } from '../../common/decorators/host-roles.decorator';
 import { SetDutyDto } from '../host-viewings/dto/host-viewings.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,11 +35,10 @@ export class HostController {
     return this.hostService.setDuty(user.id, dto.status);
   }
 
-  @Public()
   @Get('earnings')
+  @Roles('field_host')
   @ApiOperation({ summary: 'Thống kê thu nhập Field Host (lượt dẫn, hoa hồng chốt cọc, thưởng)' })
-  @ApiQuery({ name: 'hostId', required: false })
-  async getEarnings(@Query('hostId') hostId?: string) {
-    return this.hostService.getEarnings(hostId);
+  async getEarnings(@CurrentUser() user: AuthenticatedUser) {
+    return this.hostService.getEarnings(user.id);
   }
 }

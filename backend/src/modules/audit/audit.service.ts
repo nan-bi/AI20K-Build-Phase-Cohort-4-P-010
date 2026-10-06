@@ -25,8 +25,7 @@ export class AuditService {
         `[AUDIT] Action: ${data.actionType} | Actor: ${data.actorRole} (${data.actorId || 'system'}) | Target: ${data.entityName}#${data.entityId}`,
       );
 
-      // Default system actor fallback if actorId not provided or foreign key issue
-      const actorId = data.actorId || '00000000-0000-0000-0000-000000000001';
+      const actorId = data.actorId || (await this.systemActorId());
 
       return await this.prisma.auditLog.create({
         data: {
@@ -44,6 +43,16 @@ export class AuditService {
     } catch (err) {
       this.logger.error(`Failed to write audit log: ${err.message}`);
     }
+  }
+
+  private async systemActorId(): Promise<string> {
+    const admin = await this.prisma.profile.findFirst({
+      where: { role: { code: 'ops_admin' } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!admin) throw new Error('Không có tài khoản Admin thật để ghi audit hệ thống.');
+    return admin.id;
   }
 
   async getRecentLogs(limit = 50) {

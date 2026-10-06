@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { vnd } from "@/lib/mock/format";
+import { vnd } from "@/lib/format";
 import { LAYOUT_LABEL, LEASE_TERM_LABEL, MANDATE_META, UNIT_STATUS_META, hoursLeft, unitLabel } from "@/lib/landlord/labels";
 import type { Consignment, UnitRow, UnitStatus } from "@/lib/landlord/types";
 import { queries } from "@/lib/landlord/queries";

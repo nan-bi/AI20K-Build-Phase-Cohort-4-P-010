@@ -4,7 +4,6 @@ import { AdminDepositService } from './admin-deposit.service';
 
 const ACTOR = { id: '11111111-1111-1111-1111-111111111111', role: 'ops_admin' };
 const NOW = new Date('2026-10-04T03:00:00Z');
-const DAY = 86400000;
 
 function deposit(over: any = {}) {
   return {
@@ -15,27 +14,54 @@ function deposit(over: any = {}) {
     paymentStatus: 'UNC_PENDING_REVIEW',
     paidAt: null,
     expiresAt: null,
+    holdHours: 48,
     attributedHostId: 'h1',
     unit: { id: 'u1', unitCode: 'VHOP-S1.02-12A08', status: 'AVAILABLE' },
     ...over,
   };
 }
 
-function build(opts: { deposit?: any; holdDays?: any; contracts?: any[]; failList?: boolean } = {}) {
+function build(opts: {
+  deposit?: any;
+  holdHours?: any;
+  competingDeposits?: any[];
+  uncUploads?: any[];
+  contracts?: any[];
+  failList?: boolean;
+  transactionError?: any;
+} = {}) {
   const dep = opts.deposit === undefined ? deposit() : opts.deposit;
+  const applyUnitUpdate = ({ where, data }: any) => {
+    const matches = dep?.unit?.id === where.id && (!where.status || dep.unit.status === where.status);
+    if (matches) Object.assign(dep.unit, data);
+    return { count: matches ? 1 : 0 };
+  };
   const prisma: any = {
     holdingDeposit: {
-      findMany: jest.fn(async () => (opts.failList ? Promise.reject(new Error('db down')) : dep ? [dep] : [])),
+      findMany: jest.fn(async ({ where }: any = {}) => {
+        if (opts.failList) throw new Error('db down');
+        if (where?.id?.not) return opts.competingDeposits ?? [];
+        return dep ? [dep] : [];
+      }),
       count: jest.fn(async () => (dep ? 1 : 0)),
       findUnique: jest.fn(async () => dep),
       update: jest.fn(async ({ data }: any) => Object.assign(dep, data)),
     },
-    unit: { update: jest.fn(async ({ data }: any) => Object.assign(dep.unit, data)) },
-    feeConfig: { findUnique: jest.fn(async () => (opts.holdDays === undefined ? null : { paramValue: opts.holdDays })) },
+    unit: {
+      update: jest.fn(async ({ data }: any) => Object.assign(dep.unit, data)),
+      updateMany: jest.fn(async (args: any) => applyUnitUpdate(args)),
+    },
+    auditLog: {
+      findMany: jest.fn(async () => opts.uncUploads ?? []),
+    },
+    feeConfig: { findUnique: jest.fn(async () => (opts.holdHours === undefined ? null : { paramValue: opts.holdHours })) },
     contract: {
       findMany: jest.fn(async () => (opts.failList ? Promise.reject(new Error('db down')) : opts.contracts ?? [])),
     },
-    $transaction: jest.fn(async (cb: any) => cb(prisma)),
+    $transaction: jest.fn(async (cb: any) => {
+      if (opts.transactionError) throw opts.transactionError;
+      return cb(prisma);
+    }),
   };
   const audit = { log: jest.fn(async () => ({})) };
   return { svc: new AdminDepositService(prisma, audit as any), prisma, audit, dep };
@@ -52,6 +78,22 @@ describe('AdminDepositService — giám sát cọc', () => {
     expect(r.items[0]).toMatchObject({ id: 'd1', depositCode: 'DEP-001', unitCode: 'VHOP-S1.02-12A08', amount: '2000000' });
   });
 
+  it('trả chứng từ UNC mới nhất cho admin duyệt', async () => {
+    const { svc, prisma } = build({
+      uncUploads: [
+        { entityId: 'd1', newValue: { receiptUrl: 'https://storage.example/unc.jpg', note: 'Đã chuyển đủ' } },
+      ],
+    });
+    const r: any = await svc.listDeposits({ status: 'UNC_PENDING_REVIEW' });
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ entityId: { in: ['d1'] } }) }),
+    );
+    expect(r.items[0]).toMatchObject({
+      receiptUrl: 'https://storage.example/unc.jpg',
+      receiptNote: 'Đã chuyển đủ',
+    });
+  });
+
   it('lỗi DB khi liệt kê ⇒ ném lỗi, không trả dữ liệu giả', async () => {
     const { svc } = build({ failList: true });
     await expect(svc.listDeposits({})).rejects.toThrow();
@@ -59,13 +101,18 @@ describe('AdminDepositService — giám sát cọc', () => {
 });
 
 describe('AdminDepositService.resolveUnc', () => {
-  it('APPROVE: PAID_HOLDING, Unit HOLDING, expiresAt = now + holding_duration_days, có audit', async () => {
-    const { svc, dep, prisma, audit } = build({ holdDays: '10' });
+  it('APPROVE: PAID_HOLDING, Unit HOLDING, giữ đúng số giờ của QR và có audit', async () => {
+    const { svc, dep, prisma, audit } = build({ deposit: deposit({ holdHours: 36 }) });
     await svc.resolveUnc('d1', { decision: 'APPROVE', reason: 'Đã đối soát sao kê' }, ACTOR, NOW);
     expect(prisma.$transaction).toHaveBeenCalled();
+    expect(prisma.unit.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', status: 'AVAILABLE' },
+      data: { status: 'HOLDING' },
+    });
     expect(dep.paymentStatus).toBe('PAID_HOLDING');
     expect(dep.paidAt).toEqual(NOW);
-    expect(dep.expiresAt).toEqual(new Date(NOW.getTime() + 10 * DAY));
+    expect(dep.holdHours).toBe(36);
+    expect(dep.expiresAt).toEqual(new Date(NOW.getTime() + 36 * 3_600_000));
     expect(dep.unit.status).toBe('HOLDING');
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -80,30 +127,83 @@ describe('AdminDepositService.resolveUnc', () => {
     );
   });
 
-  it('APPROVE: chưa có holding_duration_days ⇒ mặc định 7 ngày', async () => {
-    const { svc, dep } = build();
+  it('APPROVE UNC trên căn tạm HOLDING: giữ được khi khóa thuộc chính UNC và gia hạn đúng giờ', async () => {
+    const { svc, dep, prisma } = build({
+      deposit: deposit({
+        expiresAt: new Date(NOW.getTime() + 30 * 60_000),
+        unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' },
+      }),
+    });
     await svc.resolveUnc('d1', { decision: 'APPROVE', reason: 'ok' }, ACTOR, NOW);
-    expect(dep.expiresAt).toEqual(new Date(NOW.getTime() + 7 * DAY));
+    expect(dep.paymentStatus).toBe('PAID_HOLDING');
+    expect(dep.expiresAt).toEqual(new Date(NOW.getTime() + 48 * 3_600_000));
+    expect(prisma.unit.updateMany).not.toHaveBeenCalled();
   });
 
-  it('APPROVE khi căn không còn AVAILABLE (người khác cọc trước) ⇒ 409, không đổi gì', async () => {
-    const { svc, dep, audit } = build({ deposit: deposit({ unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' } }) });
+  it('APPROVE khi có khoản cọc khác còn hiệu lực ⇒ 409, không đổi gì', async () => {
+    const { svc, dep, audit } = build({
+      deposit: deposit({
+        expiresAt: new Date(NOW.getTime() + 30 * 60_000),
+        unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' },
+      }),
+      competingDeposits: [{ id: 'd2' }],
+    });
     await expect(svc.resolveUnc('d1', { decision: 'APPROVE', reason: 'ok' }, ACTOR, NOW)).rejects.toBeInstanceOf(ConflictException);
     expect(dep.paymentStatus).toBe('UNC_PENDING_REVIEW');
     expect(audit.log).not.toHaveBeenCalled();
   });
 
-  it('REJECT: chuyển QR_EXPIRED, không đụng Unit, có audit kèm lý do', async () => {
-    const { svc, dep, prisma, audit } = build();
+  it('REJECT: chuyển QR_EXPIRED, mở lại căn đang tạm giữ và ghi audit kèm lý do', async () => {
+    const { svc, dep, prisma, audit } = build({
+      deposit: deposit({
+        expiresAt: new Date(NOW.getTime() + 30 * 60_000),
+        unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' },
+      }),
+    });
     await svc.resolveUnc('d1', { decision: 'REJECT', reason: 'UNC giả' }, ACTOR, NOW);
     expect(dep.paymentStatus).toBe('QR_EXPIRED');
-    expect(prisma.unit.update).not.toHaveBeenCalled();
+    expect(dep.unit.status).toBe('AVAILABLE');
+    expect(prisma.unit.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', status: 'HOLDING' },
+      data: { status: 'AVAILABLE' },
+    });
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'DEPOSIT_UNC_REJECTED',
         newValue: expect.objectContaining({ paymentStatus: 'QR_EXPIRED', reason: 'UNC giả' }),
       }),
     );
+  });
+
+  it('không giải phóng căn khi còn khoản cọc khác đang giữ', async () => {
+    const { svc, dep } = build({
+      deposit: deposit({
+        expiresAt: new Date(NOW.getTime() + 30 * 60_000),
+        unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' },
+      }),
+      competingDeposits: [{ id: 'd2' }],
+    });
+    await svc.resolveUnc('d1', { decision: 'REJECT', reason: 'UNC giả' }, ACTOR, NOW);
+    expect(dep.paymentStatus).toBe('QR_EXPIRED');
+    expect(dep.unit.status).toBe('HOLDING');
+  });
+
+  it('UNC quá 30 phút: hết hạn, giải phóng căn và trả 409', async () => {
+    const { svc, dep, audit } = build({
+      deposit: deposit({
+        expiresAt: new Date(NOW.getTime() - 1),
+        unit: { id: 'u1', unitCode: 'X', status: 'HOLDING' },
+      }),
+    });
+    await expect(svc.resolveUnc('d1', { decision: 'APPROVE', reason: 'đã kiểm tra' }, ACTOR, NOW)).rejects.toBeInstanceOf(ConflictException);
+    expect(dep.paymentStatus).toBe('QR_EXPIRED');
+    expect(dep.unit.status).toBe('AVAILABLE');
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ actionType: 'DEPOSIT_UNC_EXPIRED' }));
+  });
+
+  it('P2034 ở transaction duyệt UNC được ánh xạ thành 409', async () => {
+    const { svc } = build({ transactionError: { code: 'P2034' } });
+    await expect(svc.resolveUnc('d1', { decision: 'APPROVE', reason: 'ok' }, ACTOR, NOW)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('idempotent: gọi lần hai (đã PAID_HOLDING) ⇒ 409, không khóa căn hay audit lần hai', async () => {

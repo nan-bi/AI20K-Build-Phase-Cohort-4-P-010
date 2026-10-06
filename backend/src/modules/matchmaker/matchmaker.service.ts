@@ -27,37 +27,55 @@ export class MatchmakerService {
     });
 
     const totalScanned = availableUnits.length;
+    const enrichedUnits = availableUnits.map((item) => {
+      const baseRent = Number(item.rent);
+      const managementFee = Number(item.managementFee);
+      const parkingFee = motorbikes * 150000 + cars * 1250000;
+      const utilityCost = occupants * 300000;
+      const allInTotal = baseRent + managementFee + parkingFee + utilityCost;
+      const marketAllInEstimate = Number(item.marketAvg) + managementFee + parkingFee + utilityCost;
+      const savingAmount = Math.max(0, marketAllInEstimate - allInTotal);
+      const savingPercentage = marketAllInEstimate > 0 ? Math.round((savingAmount / marketAllInEstimate) * 100) : 0;
+      return {
+        ...item,
+        allInCost: { baseRent, managementFee, parkingFee, utilityCost, allInTotal },
+        costComparison: {
+          marketAllInEstimate,
+          savingAmount,
+          savingPercentage,
+          isBargain: savingPercentage >= 10,
+        },
+      };
+    });
 
     // 2. Lọc cứng theo trần ngân sách All-in (Hard Constraints)
-    const eligibleUnits = availableUnits.filter(
-      (item: any) => item.allInCost.allInTotal <= maxAllInBudget,
-    );
+    const eligibleUnits = enrichedUnits.filter((item) => item.allInCost.allInTotal <= maxAllInBudget);
 
     const eliminatedCount = totalScanned - eligibleUnits.length;
 
     // 3. Xếp hạng Ranking (Ưu tiên mức tiết kiệm so với thị trường + độ tin cậy)
     eligibleUnits.sort((a: any, b: any) => {
       // Ưu tiên tỷ lệ tiết kiệm %
-      const diffSaving = (b.costComparison?.savingPercentage || 0) - (a.costComparison?.savingPercentage || 0);
+      const diffSaving = b.costComparison.savingPercentage - a.costComparison.savingPercentage;
       if (diffSaving !== 0) return diffSaving;
       // Nếu bằng nhau, ưu tiên giá All-in thấp hơn
       return a.allInCost.allInTotal - b.allInCost.allInTotal;
     });
 
     const top3 = eligibleUnits.slice(0, 3).map((item: any, index: number) => {
-      const savingMonthly = item.costComparison?.savingAmount || 0;
+      const savingMonthly = item.costComparison.savingAmount;
       return {
         rank: index + 1,
         unitId: item.id,
-        unitCode: item.unitCode,
-        buildingCode: item.building.buildingCode,
-        zoneName: item.building.zoneName,
-        layoutType: item.layoutType,
-        carpetAreaM2: item.carpetAreaM2,
+        unitCode: item.code,
+        buildingCode: item.building,
+        zoneName: item.zoneName,
+        layoutType: item.layout,
+        carpetAreaM2: item.areaM2,
         allInCost: item.allInCost,
         comparison: item.costComparison,
-        aiExplanation: `Căn ${item.unitCode} giúp bạn tiết kiệm ${savingMonthly.toLocaleString('vi-VN')} đ/tháng (${item.costComparison?.savingPercentage || 0}%) so với giá thuê tham chiếu cùng phân khu ${item.building.zoneName}, bao gồm toàn bộ phí BQL và định mức sinh hoạt.`,
-        verifiedImages: item.media?.map((m: any) => m.url) || [],
+        aiExplanation: `Căn ${item.code} giúp bạn tiết kiệm ${savingMonthly.toLocaleString('vi-VN')} đ/tháng (${item.costComparison.savingPercentage}%) so với giá thuê tham chiếu cùng phân khu ${item.zoneName}, bao gồm toàn bộ phí BQL và định mức sinh hoạt.`,
+        verifiedImages: item.photos,
       };
     });
 
@@ -65,8 +83,8 @@ export class MatchmakerService {
 
     return {
       scanSummary: {
-        totalScannedUnits: Math.max(totalScanned, 45), // Giả lập quét 45 căn nếu test data ít
-        eliminatedUnits: Math.max(eliminatedCount, 42),
+        totalScannedUnits: totalScanned,
+        eliminatedUnits: eliminatedCount,
         matchedUnits: top3.length,
         executionTimeSeconds: (executionTimeMs / 1000).toFixed(2),
       },

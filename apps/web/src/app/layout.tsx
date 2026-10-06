@@ -1,15 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
 import { ToastHost } from "@/components/ui/Toast";
 import "./globals.css";
-
-// Một họ chữ duy nhất cho toàn bộ giao diện: Be Vietnam Pro được thiết kế cho dấu tiếng Việt.
-const beVietnamPro = Be_Vietnam_Pro({
-  variable: "--font-sans",
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: { default: "VinStay AI — Thuê căn hộ Vinhomes Ocean Park", template: "%s — VinStay AI" },
@@ -17,14 +8,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A3D4A",
+  themeColor: "#105b53",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={beVietnamPro.variable}>
+    <html lang="vi" className="font-sans" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
         {children}
         <ToastHost />

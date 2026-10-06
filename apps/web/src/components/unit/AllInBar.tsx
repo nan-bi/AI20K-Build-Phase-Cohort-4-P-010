@@ -1,5 +1,5 @@
-import { vnd } from "@/lib/mock/format";
-import type { CostBreakdown } from "@/lib/mock/cost";
+import { vnd } from "@/lib/format";
+import type { CostBreakdown } from "@/lib/pricing/cost";
 import styles from "./AllInBar.module.css";
 
 const PARTS = [

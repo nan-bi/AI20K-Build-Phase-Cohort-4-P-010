@@ -1,9 +1,5 @@
 import type { TenantBooking, TenantUnit } from "./types";
-import {
-  zoneOfBuilding,
-  type ItemKey,
-  type Unit,
-} from "@/lib/mock/units";
+import { zoneOfName, type ItemKey, type Unit } from "@/lib/units";
 
 export type UnitWithExtras = Unit & {
   photos: string[];
@@ -12,13 +8,14 @@ export type UnitWithExtras = Unit & {
 };
 
 export function toUnit(dto: TenantUnit): UnitWithExtras {
-  const zone = zoneOfBuilding(dto.building);
+  const zone = zoneOfName(dto.zoneName);
   const photos = dto.photos && dto.photos.length > 0 ? dto.photos : [];
   return {
     id: dto.code,
     code: dto.code,
     building: dto.building,
-    zoneId: zone?.id ?? "sapphire1",
+    zoneId: zone?.id,
+    zoneName: dto.zoneName?.trim() || zone?.name || undefined,
     floor: dto.floor,
     door: dto.door,
     layout: dto.layout,
@@ -26,15 +23,17 @@ export function toUnit(dto: TenantUnit): UnitWithExtras {
     bedrooms: dto.bedrooms,
     bathrooms: dto.bathrooms,
     areaM2: dto.areaM2,
-    direction: dto.direction ?? "Đông Nam",
-    view: dto.view ?? "View nội khu",
+    managementFee: dto.managementFee,
+    parkingFeeEstimate: dto.parkingFeeEstimate,
+    utilityCostEstimate: dto.utilityCostEstimate,
+    direction: dto.direction ?? "Chưa cập nhật",
+    view: dto.view ?? "Chưa cập nhật",
     furnishing: dto.furnishing,
     rent: dto.rent,
     marketAvg: dto.marketAvg,
     baseStatus: dto.status,
     lock: dto.lock,
-    landlordId: "",
-    images: photos.length || 1,
+    images: photos.length,
     photos,
     interest24h: dto.interest24h,
     petFriendly: dto.petFriendly,
@@ -72,7 +71,7 @@ export interface TenantBookingView {
   };
   host: {
     name: string;
-    rating: number;
+    rating: number | null;
   } | null;
   canModify: boolean;
   deposit?: TenantBooking["deposit"];

@@ -1,16 +1,16 @@
 import { Check, Clock, X } from "lucide-react";
 import type { Consignment } from "@/lib/mock/types";
-import { fmtDateTime } from "@/lib/mock/format";
+import { fmtDateTime } from "@/lib/format";
 import { isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import styles from "./Consign.module.css";
 
-/** Chỉ các trường tiến trình cần — để cả hồ sơ mock (Admin/Host) lẫn hồ sơ từ API (Chủ nhà) đều dùng được. */
+/** Chỉ các trường tiến trình cần để hiển thị hồ sơ ký gửi từ API. */
 export type TimelineSource = Pick<Consignment, "status" | "signedAt" | "hostAcceptedAt" | "decidedAt" | "note" | "inspectDueAt"> & {
   report?: { submittedAt?: string };
 };
 
-/** Trạng thái cũ chỉ còn ở dữ liệu mock của màn Admin (không bao giờ từ API) — SPEC-P03 §5. */
+/** Trạng thái tương thích hồ sơ cũ — API hiện tại không phát trạng thái này. */
 const ADMIN_MOCK_STATUS = "reviewing";
 
 interface ConsignTimelineProps {
@@ -21,7 +21,7 @@ interface ConsignTimelineProps {
 export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
   const overdue = isInspectOverdue(c, now);
 
-  // 4 mốc (hồ sơ 16): không còn bước Admin duyệt. Dữ liệu mock Admin có thể mang trạng thái đã bỏ — coi như
+  // 4 mốc (hồ sơ 16): không còn bước Admin duyệt. Hồ sơ cũ có thể mang trạng thái đã bỏ — coi như
   // "Thẩm định" đã xong, "Kết quả" đang chờ.
   const inspected = Boolean(c.report?.submittedAt) || c.status === ADMIN_MOCK_STATUS || c.status === "approved" || c.status === "rejected";
   const decided = c.status === "approved" || c.status === "rejected";

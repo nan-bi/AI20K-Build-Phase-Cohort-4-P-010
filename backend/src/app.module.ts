@@ -24,7 +24,6 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AccountModule } from './modules/account/account.module';
 import { HostModule } from './modules/host/host.module';
 import { FieldHostsModule } from './modules/field-hosts/field-hosts.module';
-import { DemoModule } from './modules/demo/demo.module';
 import { HostViewingsModule } from './modules/host-viewings/host-viewings.module';
 import { DoorModule } from './modules/door/door.module';
 import { InspectionModule } from './modules/inspection/inspection.module';
@@ -64,7 +63,6 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AccountModule,
     HostModule,
     FieldHostsModule,
-    DemoModule,
     HostViewingsModule,
     DoorModule,
     InspectionModule,

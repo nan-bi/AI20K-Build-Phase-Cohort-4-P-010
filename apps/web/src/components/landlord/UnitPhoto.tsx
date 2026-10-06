@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { BadgeCheck } from "lucide-react";
-import { fmtDate } from "@/lib/mock/format";
+import { fmtDate } from "@/lib/format";
 import styles from "@/components/unit/VerifiedPhoto.module.css";
 
 interface UnitPhotoProps {

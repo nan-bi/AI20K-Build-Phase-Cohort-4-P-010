@@ -1,5 +1,6 @@
 import { ViewingStatus, LayoutType } from '@prisma/client';
 import { BookingStatusWeb, TenantBooking, TenantContract, TenantUnit } from './tenant.types';
+import { getVietQrPaymentDetails } from '../deposit/vietqr';
 
 export const ZONE_BUILDINGS: Record<string, string[]> = {
   sapphire1: ['S1.01', 'S1.02', 'S1.03', 'S1.05', 'S1.08', 'S1.09', 'S1.10', 'S1.12'],
@@ -65,6 +66,22 @@ export function layoutTypeToKind(layout: LayoutType): 'Studio' | '1PN' | '2PN' |
   }
 }
 
+export function bedroomsFromLayout(layout: LayoutType): number {
+  switch (layout) {
+    case LayoutType.STUDIO:
+      return 0;
+    case LayoutType.ONE_BED_PLUS:
+      return 1;
+    case LayoutType.TWO_BED_ONE_BATH:
+    case LayoutType.TWO_BED_TWO_BATH:
+      return 2;
+    case LayoutType.THREE_BED:
+      return 3;
+    default:
+      return 0;
+  }
+}
+
 export function toTenantUnit(
   unit: any,
   activeViewingAt?: string | null,
@@ -79,7 +96,7 @@ export function toTenantUnit(
       door: '',
       layout: 'Studio',
       layoutLabel: 'Studio',
-      bedrooms: 1,
+      bedrooms: 0,
       bathrooms: 1,
       areaM2: 0,
       direction: null,
@@ -119,13 +136,15 @@ export function toTenantUnit(
     .filter((url) => url.startsWith('/')); // ảnh stock ngoài (Unsplash…) không đi ra catalog khách thuê
 
   return {
+    id: unit.id,
     code: unit.unitCode,
     building: unit.building?.buildingCode ?? '',
+    zoneName: unit.building?.zoneName ?? '',
     floor: unit.floorNumber,
     door: unit.doorNumber ?? unit.unitCode.slice(-2),
     layout: kind,
     layoutLabel,
-    bedrooms: unit.bedrooms ?? 1,
+    bedrooms: bedroomsFromLayout(unit.layoutType),
     bathrooms: unit.bathrooms ?? 1,
     areaM2: Number(unit.carpetAreaM2),
     direction: unit.direction ?? null,
@@ -147,7 +166,7 @@ export function toTenantUnit(
       ? new Date(unit.verifiedAt).toISOString()
       : unit.updatedAt
         ? new Date(unit.updatedAt).toISOString()
-        : new Date().toISOString(),
+        : '',
     title: unit.title ?? '',
     description: unit.description ?? '',
     holdHours: holdHours ?? unit.holdHoursOverride ?? 48,
@@ -178,12 +197,12 @@ export function toTenantBooking(
   const ownerTicket = tickets.find((t: any) => t.acceptedAt && (t.status === 'ACCEPTED' || t.status === 'COMPLETED'));
   const acceptedTicket = ownerTicket ?? tickets.find((t: any) => t.status === 'ACCEPTED');
   const latestTicket = tickets[tickets.length - 1];
-  let hostInfo: { name: string; rating: number } | null = null;
+  let hostInfo: { name: string; rating: number | null } | null = null;
   const targetTicket = acceptedTicket || (latestTicket?.tier === 1 ? latestTicket : null);
   if (targetTicket?.host?.profile) {
     hostInfo = {
-      name: targetTicket.host.profile.fullName || 'Field Host',
-      rating: targetTicket.host.rating ? Number(targetTicket.host.rating) : 5.0,
+      name: targetTicket.host.profile.fullName || 'Chưa cập nhật',
+      rating: targetTicket.host.rating == null ? null : Number(targetTicket.host.rating),
     };
   }
 
@@ -209,22 +228,16 @@ export function toTenantBooking(
 
     depositDto = {
       amount: 2000000,
-      transferContent: d.transferContent || `COC ${viewing.unit?.unitCode || ''} ${options.rawPhone || ''}`,
+      transferContent: d.transferContent || '',
       qrRef: d.vietqrRef,
       createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString(),
       termsAcceptedAt: d.termsAcceptedAt ? new Date(d.termsAcceptedAt).toISOString() : new Date().toISOString(),
-      termsVersion: d.termsVersion || 'HOLD-2026.10-v1',
+      termsVersion: d.termsVersion || '',
       paidAt: d.paidAt ? new Date(d.paidAt).toISOString() : undefined,
       holdHours: d.holdHours ?? undefined,
       expiresAt: d.expiresAt ? new Date(d.expiresAt).toISOString() : undefined,
       outcome,
-      vietqr: {
-        bankBin: process.env.VIETQR_BANK_BIN || '970436',
-        bankName: process.env.VIETQR_BANK_NAME || 'Vietcombank',
-        accountNo: process.env.VIETQR_ACCOUNT_NO || '0000000000',
-        accountName: process.env.VIETQR_ACCOUNT_NAME || 'CONG TY CO PHAN CONG NGHE VINSTAY AI',
-        simulated: true,
-      },
+      vietqr: getVietQrPaymentDetails(2000000, d.transferContent || ''),
     };
   }
 
@@ -336,4 +349,3 @@ export function toTenantContract(contract: any): TenantContract {
     },
   };
 }
-

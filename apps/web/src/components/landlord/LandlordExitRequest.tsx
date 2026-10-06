@@ -6,7 +6,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
-import { fmtDate } from "@/lib/mock/format";
+import { fmtDate } from "@/lib/format";
 import { errorText, landlordApi } from "@/lib/landlord/api";
 import { queries } from "@/lib/landlord/queries";
 import { exitBlockReason, unitLabel } from "@/lib/landlord/labels";

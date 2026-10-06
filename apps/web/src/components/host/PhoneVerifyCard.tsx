@@ -16,7 +16,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
   const [editing, setEditing] = useState(!me.isPhoneVerified);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [sent, setSent] = useState<{ devCode?: string } | null>(null);
+  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +26,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
     const res = await hostApi.sendPhoneOtp(phone.trim());
     setBusy(false);
     if (!res.ok) return setError(errorText(res));
-    setSent({ devCode: res.data.devCode });
+    setSent(true);
   }
 
   async function verify() {
@@ -36,7 +36,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
     setBusy(false);
     if (!res.ok) return setError(errorText(res));
     toast("Đã xác thực số điện thoại", "success");
-    setSent(null);
+    setSent(false);
     setCode("");
     setPhone("");
     setEditing(false);
@@ -76,7 +76,6 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
             </button>
           ) : (
             <>
-              {sent.devCode && <p className="muted small">Mã thử nghiệm (chỉ môi trường dev): {sent.devCode}</p>}
               <label className="field">
                 Mã 4 số
                 <input

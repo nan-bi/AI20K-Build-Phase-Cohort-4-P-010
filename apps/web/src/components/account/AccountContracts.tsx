@@ -6,12 +6,12 @@ import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
-import { fmtDate, maskPhone, vnd } from "@/lib/mock/format";
+import { fmtDate, maskPhone, vnd } from "@/lib/format";
 import { useApiQuery } from "@/lib/query/useApiQuery";
 import { tenantQueries } from "@/lib/tenant/queries";
 import { tenantApi } from "@/lib/tenant/api";
 import { toUnit } from "@/lib/tenant/adapters";
-import { unitAddress } from "@/lib/mock/units";
+import { unitAddress } from "@/lib/units";
 import styles from "./AccountContracts.module.css";
 
 const HANDOVER_ITEMS = ["Tường", "Sàn", "Sofa", "Điều hoà", "Tủ lạnh", "Bếp", "Máy giặt", "Giường", "Rèm", "Công tơ điện nước"];

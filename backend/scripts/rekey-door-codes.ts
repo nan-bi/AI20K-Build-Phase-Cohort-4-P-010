@@ -6,12 +6,11 @@
  *
  * Căn ELECTRONIC_PIN mà mã chưa phải `aes:` đọc được:
  *   - PIN để trần (`vault:*:pin:<số>`) ⇒ mã hoá lại, GIỮ NGUYÊN số;
- *   - chuỗi giữ chỗ seed / thiếu / hỏng ⇒ PIN ngẫu nhiên 6 số (căn seed chưa từng có PIN thật).
- * Căn ELECTRONIC_PIN chưa có dòng khoá ⇒ tạo mới. KHÔNG bao giờ in PIN ra màn hình. Idempotent. Chặn production.
+ *   - chuỗi giữ chỗ / thiếu / không giải mã được ⇒ bỏ qua để tránh ghi một PIN giả.
+ * Căn ELECTRONIC_PIN chưa có dòng khoá cũng bị bỏ qua. Không bao giờ in PIN ra màn hình. Idempotent. Chặn production.
  * Dùng cùng AES_SECRET_KEY với backend (đọc từ backend/.env) — khoá khác ⇒ mã không giải được.
  */
 import 'dotenv/config';
-import { randomInt } from 'node:crypto';
 import { DoorLockType, PrismaClient } from '@prisma/client';
 import { PhoneService } from '../src/modules/auth/phone/phone.service';
 import { classifyDoorRef, planRekey, stripAesPrefix, withAesPrefix } from '../src/modules/door/door-code.util';
@@ -35,21 +34,24 @@ function readable(ref: string | null): boolean {
   const keys = await prisma.doorAccessKey.findMany({ where: { keyType: DoorLockType.ELECTRONIC_PIN } });
   const missing = await prisma.unit.findMany({
     where: { doorLockType: DoorLockType.ELECTRONIC_PIN, doorKey: null },
-    select: { id: true, unitCode: true },
+    select: { id: true },
   });
 
-  const counts = { aes_ok: 0, placeholder: 0, plain_pin: 0, missing_ref: 0, no_key_row: missing.length };
+  const counts = { aes_ok: 0, placeholder: 0, plain_pin: 0, missing_ref: 0, unreadable_aes: 0, no_key_row: missing.length };
   let changed = 0;
   for (const k of keys) {
-    const kind = classifyDoorRef(k.vaultSecretRef);
-    const decision = planRekey(k.vaultSecretRef, readable(k.vaultSecretRef), () => String(randomInt(100000, 1000000)));
+    const decision = planRekey(k.vaultSecretRef, readable(k.vaultSecretRef));
     if (decision.action === 'keep') {
       counts.aes_ok += 1;
       continue;
     }
-    if (kind === 'placeholder') counts.placeholder += 1;
-    else if (kind === 'plain_pin') counts.plain_pin += 1;
-    else counts.missing_ref += 1;
+    if (decision.action === 'skip') {
+      if (decision.reason === 'placeholder') counts.placeholder += 1;
+      else if (decision.reason === 'missing') counts.missing_ref += 1;
+      else counts.unreadable_aes += 1;
+      continue;
+    }
+    counts.plain_pin += 1;
     if (apply) {
       await prisma.doorAccessKey.update({
         where: { id: k.id },
@@ -58,20 +60,6 @@ function readable(ref: string | null): boolean {
     }
     changed += 1;
   }
-  for (const u of missing) {
-    if (apply) {
-      await prisma.doorAccessKey.create({
-        data: {
-          unitId: u.id,
-          keyType: DoorLockType.ELECTRONIC_PIN,
-          vaultSecretRef: withAesPrefix(phones.encrypt(String(randomInt(100000, 1000000)))),
-          lastRotatedAt: new Date(),
-        },
-      });
-    }
-    changed += 1;
-  }
-
   console.log(`${apply ? 'ĐÃ GHI' : 'CHẠY KHÔ (thêm --apply để ghi)'} — ${keys.length + missing.length} căn khoá điện tử`);
   console.log(JSON.stringify(counts));
   console.log(`${apply ? 'Đã đổi' : 'Sẽ đổi'} ${changed} dòng`);

@@ -5,13 +5,13 @@ import { useFavorites } from "@/lib/tenant/favorites";
 import styles from "./UnitCard.module.css";
 
 /** `unitId` là mã căn (VHOP-…). Trạng thái tim đọc từ DB theo tài khoản, không còn lưu tạm ở trình duyệt. */
-export function FavoriteButton({ unitId, variant = "overlay" }: { unitId: string; variant?: "overlay" | "plain" }) {
+export function FavoriteButton({ unitId, variant = "overlay", className }: { unitId: string; variant?: "overlay" | "plain"; className?: string }) {
   const { isSaved, toggle, busy } = useFavorites();
   const saved = isSaved(unitId);
   return (
     <button
       type="button"
-      className={variant === "overlay" ? styles.fav : "icon-btn"}
+      className={`${variant === "overlay" ? styles.fav : "icon-btn"} ${className || ""}`}
       aria-pressed={saved}
       aria-busy={busy === unitId}
       disabled={busy === unitId}

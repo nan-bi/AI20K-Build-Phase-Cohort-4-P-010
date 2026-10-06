@@ -6,6 +6,7 @@ describe("tenant adapters (toUnit & toBookingView)", () => {
   const baseDto: TenantUnit = {
     code: "VHOP-S1.02-1208",
     building: "S1.02",
+    zoneName: "The Sapphire 1",
     floor: 12,
     door: "08",
     layout: "1PN",

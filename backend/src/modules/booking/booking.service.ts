@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookingAccessService } from '../tenant/booking-access.service';
@@ -20,11 +21,10 @@ import {
 } from './dto/booking.dto';
 import { ViewingStatus, UnitStatus, TicketStatus } from '@prisma/client';
 import { DispatchAssignerService } from '../dispatch/dispatch-assigner.service';
-import { ViewingFlowService } from '../host-viewings/viewing-flow.service';
-import type { HostActor } from '../host-viewings/host-viewings.types';
 import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
 import { TenantBooking } from '../tenant/tenant.types';
 import { isValidSlotTimeVN } from '../tenant/slots.helper';
+import { DepositService } from '../deposit/deposit.service';
 
 function generateBookingRefCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -33,6 +33,10 @@ function generateBookingRefCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+function isSerializationConflict(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'code' in error && (error as any).code === 'P2034');
 }
 
 @Injectable()
@@ -45,7 +49,7 @@ export class BookingService {
     private readonly phones: PhoneService,
     private readonly actionTokens: ActionTokenService,
     private readonly assigner: DispatchAssignerService,
-    private readonly flow: ViewingFlowService,
+    @Optional() private readonly deposits?: DepositService,
   ) {}
 
   /**
@@ -82,7 +86,7 @@ export class BookingService {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         dto.unitCode,
       );
-    const unit = await this.prisma.unit.findFirst({
+    let unit = await this.prisma.unit.findFirst({
       where: {
         ...(isUuid
           ? {
@@ -103,6 +107,11 @@ export class BookingService {
         message: 'Không tìm thấy căn hộ hoặc căn hộ không còn khả dụng.',
         code: 'unit_not_found',
       });
+    }
+
+    if (unit.status === UnitStatus.HOLDING && this.deposits) {
+      await this.deposits.expireIfDue(unit.id);
+      unit = (await this.prisma.unit.findUnique({ where: { id: unit.id }, include: { building: true } })) ?? unit;
     }
 
     if (unit.status !== UnitStatus.AVAILABLE) {
@@ -205,7 +214,9 @@ export class BookingService {
     const contactPhoneHash = this.phones.hash(normPhone);
 
     // 7. Tạo Viewing và điều phối trong transaction
-    const createdViewing = await this.prisma.$transaction(async (tx) => {
+    let createdViewing: any;
+    try {
+      createdViewing = await this.prisma.$transaction(async (tx) => {
       // Re-check conflict
       const reCheck = await tx.viewing.findFirst({
         where: {
@@ -253,7 +264,16 @@ export class BookingService {
       });
 
       return v;
-    });
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (isSerializationConflict(error)) {
+        throw new ConflictException({
+          message: 'Khung giờ này vừa có người đặt xem phòng.',
+          code: 'slot_taken',
+        });
+      }
+      throw error;
+    }
 
     const fullViewing = await this.bookingAccess.loadOwned(createdViewing.bookingRefCode, user);
     return toTenantBooking(fullViewing, { rawPhone: normPhone });
@@ -409,33 +429,33 @@ export class BookingService {
       });
     }
 
-    // Check conflict (trừ chính viewing này)
-    const conflict = await this.prisma.viewing.findFirst({
-      where: {
-        unitId: viewing.unitId,
-        viewingSlot: newSlot,
-        id: { not: viewing.id },
-        status: {
-          in: [
-            ViewingStatus.PENDING_CONFIRMATION,
-            ViewingStatus.CONFIRMED,
-            ViewingStatus.LOBBY,
-            ViewingStatus.RECEIVING,
-            ViewingStatus.VIEWING,
-            ViewingStatus.CLOSING,
-          ],
+    try {
+      await this.prisma.$transaction(async (tx) => {
+      const conflict = await tx.viewing.findFirst({
+        where: {
+          unitId: viewing.unitId,
+          viewingSlot: newSlot,
+          id: { not: viewing.id },
+          status: {
+            in: [
+              ViewingStatus.PENDING_CONFIRMATION,
+              ViewingStatus.CONFIRMED,
+              ViewingStatus.LOBBY,
+              ViewingStatus.RECEIVING,
+              ViewingStatus.VIEWING,
+              ViewingStatus.CLOSING,
+            ],
+          },
         },
-      },
-    });
-
-    if (conflict) {
-      throw new ConflictException({
-        message: 'Khung giờ mới đã có người đặt trước.',
-        code: 'slot_taken',
       });
-    }
 
-    await this.prisma.$transaction(async (tx) => {
+      if (conflict) {
+        throw new ConflictException({
+          message: 'Khung giờ mới đã có người đặt trước.',
+          code: 'slot_taken',
+        });
+      }
+
       await tx.viewing.update({
         where: { id: viewing.id },
         data: {
@@ -460,7 +480,16 @@ export class BookingService {
         zoneName: viewing.unit.building.zoneName,
         slot: newSlot,
       });
-    });
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (isSerializationConflict(error)) {
+        throw new ConflictException({
+          message: 'Khung giờ mới vừa có người đặt trước.',
+          code: 'slot_taken',
+        });
+      }
+      throw error;
+    }
 
     const updated = await this.bookingAccess.loadOwned(ref, user);
     return toTenantBooking(updated);
@@ -552,194 +581,4 @@ export class BookingService {
     return toTenantBooking(updated);
   }
 
-  async demoBankPaid(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-
-    await this.prisma.$transaction(async (tx) => {
-      // Cập nhật hoặc tạo cọc nếu chưa có
-      if (viewing.deposit) {
-        await tx.holdingDeposit.update({
-          where: { id: viewing.deposit.id },
-          data: {
-            paymentStatus: 'PAID_HOLDING',
-            paidAt: now,
-            expiresAt,
-            holdHours: 48,
-          },
-        });
-      } else {
-        await tx.holdingDeposit.create({
-          data: {
-            depositCode: `DEP-${viewing.bookingRefCode}`,
-            viewingId: viewing.id,
-            unitId: viewing.unitId,
-            amount: 2000000,
-            vietqrRef: `VQ-DEMO-${Date.now().toString().slice(-6)}`,
-            paymentStatus: 'PAID_HOLDING',
-            paidAt: now,
-            expiresAt,
-            holdHours: 48,
-          },
-        });
-      }
-
-      await tx.unit.update({
-        where: { id: viewing.unitId },
-        data: { status: UnitStatus.HOLDING },
-      });
-
-      await tx.viewing.update({
-        where: { id: viewing.id },
-        data: { status: ViewingStatus.HOLDING },
-      });
-
-      // Cancel other viewings for the same unit
-      await tx.viewing.updateMany({
-        where: {
-          unitId: viewing.unitId,
-          id: { not: viewing.id },
-          status: {
-            in: [
-              ViewingStatus.PENDING_CONFIRMATION,
-              ViewingStatus.CONFIRMED,
-              ViewingStatus.LOBBY,
-            ],
-          },
-        },
-        data: {
-          status: ViewingStatus.CANCELLED,
-          closedReason: 'auto_cancelled_due_to_deposit',
-        },
-      });
-
-      // Expire other pending deposits for the same unit
-      await tx.holdingDeposit.updateMany({
-        where: {
-          unitId: viewing.unitId,
-          paymentStatus: 'PENDING_PAYMENT',
-          id: viewing.deposit ? { not: viewing.deposit.id } : undefined,
-        },
-        data: {
-          paymentStatus: 'QR_EXPIRED',
-        },
-      });
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  async demoExpireHold(ref: string, user: { id: string }): Promise<TenantBooking> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    const past = new Date(Date.now() - 1000);
-
-    await this.prisma.$transaction(async (tx) => {
-      if (viewing.deposit) {
-        await tx.holdingDeposit.update({
-          where: { id: viewing.deposit.id },
-          data: {
-            expiresAt: past,
-            paymentStatus: 'FORFEITED',
-          },
-        });
-      }
-
-      await tx.unit.update({
-        where: { id: viewing.unitId },
-        data: { status: UnitStatus.AVAILABLE },
-      });
-
-      await tx.viewing.update({
-        where: { id: viewing.id },
-        data: {
-          status: ViewingStatus.COMPLETED,
-          closedReason: 'hold_expired',
-        },
-      });
-    });
-
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  /**
-   * Công cụ demo A21. Các bước phía Host đi qua `ViewingFlowService` (B7) với "Host giả lập" = chủ ticket hiện
-   * tại của ca (không có ⇒ chọn Sale phù hợp; vẫn không có ⇒ 409 `no_host_available`). Bỏ ràng buộc về giờ.
-   */
-  async executeDemoStep(ref: string, step: string, user: { id: string }): Promise<TenantBooking> {
-    switch (step) {
-      case 'host-accept': {
-        const { host, ticket } = await this.demoHost(ref, user, [TicketStatus.OFFERED]);
-        await this.flow.claim(ticket.id, host);
-        break;
-      }
-      case 'reminder':
-        await this.flow.remind(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
-        break;
-      case 'host-receive':
-        await this.flow.receive(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
-        break;
-      case 'host-view':
-        // Mở cửa thật (kiểm mã, ghi audit) nhưng KHÔNG đưa mã cho khách.
-        await this.flow.openDoor(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
-        break;
-      case 'host-start-deposit':
-        await this.flow.startDeposit(ref, (await this.demoHost(ref, user, [TicketStatus.ACCEPTED])).host, {}, { demo: true });
-        break;
-      case 'bank-paid':
-        return this.demoBankPaid(ref, user);
-      case 'expire-hold':
-        return this.demoExpireHold(ref, user);
-      default:
-        throw new BadRequestException({
-          message: `Bước demo '${step}' không hợp lệ.`,
-          code: 'invalid_request',
-        });
-    }
-    const updated = await this.bookingAccess.loadOwned(ref, user);
-    return toTenantBooking(updated);
-  }
-
-  private async demoHost(
-    ref: string,
-    user: { id: string },
-    wanted: TicketStatus[],
-  ): Promise<{ host: HostActor; ticket: { id: string } }> {
-    const viewing = await this.bookingAccess.loadOwned(ref, user);
-    const ticket = [...(viewing.tickets ?? [])].reverse().find((t: any) => wanted.includes(t.status));
-    if (!ticket) {
-      throw new ConflictException({
-        message: 'Lịch hẹn không ở trạng thái phù hợp cho bước demo này.',
-        code: 'bad_status',
-      });
-    }
-    let hostId: string | null = ticket.hostId;
-    if (!hostId) {
-      const picked = await this.assigner.pickHost(this.prisma, {
-        zoneName: viewing.unit.building.zoneName,
-        slot: new Date(viewing.viewingSlot),
-        excludeViewingId: viewing.id,
-      });
-      hostId = picked?.id ?? null;
-    }
-    const row = hostId ? await this.prisma.fieldHost.findUnique({ where: { id: hostId } }) : null;
-    if (!row) {
-      throw new ConflictException({
-        message: 'Không có Sale phù hợp để thao tác thay (công cụ demo).',
-        code: 'no_host_available',
-      });
-    }
-    return {
-      ticket: { id: ticket.id },
-      host: {
-        hostId: row.id,
-        profileId: row.profileId,
-        assignedZone: row.assignedZone,
-        rating: Number(row.rating),
-        dutyStatus: row.dutyStatus,
-      },
-    };
-  }
 }

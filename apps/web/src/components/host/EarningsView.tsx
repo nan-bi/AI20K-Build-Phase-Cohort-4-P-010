@@ -1,128 +1,51 @@
 "use client";
 
 import { Wallet } from "lucide-react";
-import { STATUS_META } from "@/components/booking/status";
 import { StatTile } from "@/components/charts/StatTile";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import { fmtDate, vnd } from "@/lib/mock/format";
-import { hostBookings, hostEarnings } from "@/lib/mock/selectors";
-import { useMock } from "@/lib/mock/store";
-import type { Booking } from "@/lib/mock/types";
-import { hostById, unitAddress, unitById } from "@/lib/mock/units";
+import { useHostEarnings, type HostEarnings } from "@/lib/admin/api";
+import { fmtDate, vnd } from "@/lib/format";
 import styles from "./Host.module.css";
 
-const host = hostById(DEMO_USERS.host.refId!)!;
+type Payout = HostEarnings["payouts"][number];
+
+const STATUS: Record<string, string> = { PENDING: "Chờ thanh toán", PAID: "Đã thanh toán" };
 
 export function EarningsView() {
-  const state = useMock();
-  if (!state.ready) return <div className="skeleton" style={{ height: 280 }} />;
-  const { fees } = state;
-  const e = hostEarnings(state, host, fees);
-  const deals = hostBookings(state, host.id).filter((b) => ["holding", "leased"].includes(b.status));
-  const perDeal = Math.round(fees.dealCommission * e.multiplier);
+  const query = useHostEarnings();
+  if (query.state.status === "loading") return <div className="skeleton" style={{ height: 320 }} />;
+  if (query.state.status === "error") return <div role="alert"><p>{query.state.message}</p><button className="btn btn-secondary btn-sm" onClick={query.reload}>Thử lại</button></div>;
 
-  const dealColumns: DataTableColumn<Booking>[] = [
-    {
-      key: "unit",
-      header: "Căn hộ",
-      render: (b) => <b style={{ whiteSpace: "nowrap" }}>{unitAddress(unitById(b.unitId)!)}</b>,
-    },
-    {
-      key: "tenant",
-      header: "Khách",
-      render: (b) => <span style={{ whiteSpace: "nowrap" }}>{b.tenant.name}</span>,
-    },
-    {
-      key: "date",
-      header: "Ngày cọc",
-      render: (b) => <span className="small muted" style={{ whiteSpace: "nowrap" }}>{b.deposit?.paidAt ? fmtDate(b.deposit.paidAt) : "—"}</span>,
-    },
-    {
-      key: "status",
-      header: "Trạng thái",
-      render: (b) => <span className={`badge ${STATUS_META[b.status].badge}`} style={{ whiteSpace: "nowrap" }}>{STATUS_META[b.status].label}</span>,
-    },
-    {
-      key: "commission",
-      header: "Hoa hồng",
-      align: "right",
-      render: () => <b className="num" style={{ whiteSpace: "nowrap" }}>+{vnd(perDeal)}đ</b>,
-    },
+  const { stats, rating, walletBalance, payouts, currentPeriod } = query.state.data;
+  const columns: DataTableColumn<Payout>[] = [
+    { key: "createdAt", header: "Ngày ghi nhận", render: (row) => <span className="small muted">{fmtDate(row.createdAt)}</span> },
+    { key: "period", header: "Tuần", render: (row) => row.period },
+    { key: "amount", header: "Số tiền", align: "right", render: (row) => <b className="num">{vnd(row.amount)}đ</b> },
+    { key: "status", header: "Trạng thái", render: (row) => <span className="badge badge-neutral">{STATUS[row.status] ?? row.status}</span> },
   ];
 
   return (
     <div className={styles.page}>
-      <PageHeader
-        title="Thu nhập"
-        description="Tạm tính tuần này. Đối soát và chuyển khoản vào Chủ nhật hàng tuần."
-      />
-
+      <PageHeader title="Thu nhập" description={currentPeriod ? `Kỳ ghi nhận gần nhất: ${currentPeriod}. Số liệu đồng bộ từ ví Host trên hệ thống.` : "Số liệu đồng bộ từ ví Host trên hệ thống."} />
       <div className={styles.kpis}>
-        <StatTile label="Thu nhập tuần" value={vnd(e.total)} unit="đ" delta={{ text: "Chuyển khoản CN", tone: "good" }} />
-        <StatTile label="Lượt dẫn" value={String(e.viewings)} delta={{ text: `${vnd(fees.baseViewingFee)}đ / lượt`, tone: "flat" }} />
-        <StatTile label="Deal chốt cọc" value={String(e.deals)} delta={{ text: `${vnd(fees.dealCommission)}đ / deal`, tone: "flat" }} />
-        <StatTile
-          label="Đánh giá"
-          value={`${String(host.rating).replace(".", ",")}★`}
-          delta={
-            host.rating >= 4.8
-              ? { text: `hệ số ×${String(fees.ratingMultiplier).replace(".", ",")}`, tone: "good", dir: "up" }
-              : { text: "Chuẩn dịch vụ", tone: "good" }
-          }
-        />
+        <StatTile label="Tổng thu nhập ghi nhận" value={vnd(stats.totalEarnings)} unit="đ" />
+        <StatTile label="Lượt dẫn được ghi nhận" value={String(stats.totalViewings)} />
+        <StatTile label="Deal được ghi nhận" value={String(stats.totalDeals)} />
+        <StatTile label="Số dư ví" value={vnd(walletBalance)} unit="đ" delta={{ text: `${String(rating).replace(".", ",")}★`, tone: "flat" }} />
       </div>
-
       <div className={styles.earningsLayout}>
-        <Section title="Cách tính">
+        <Section title="Chi tiết thu nhập đã ghi nhận">
           <dl className={styles.lines}>
-            <div>
-              <dt>
-                Thù lao dẫn khách
-                <span className="muted xs">
-                  {e.viewings} lượt × {vnd(fees.baseViewingFee)}đ
-                </span>
-              </dt>
-              <dd className="num">{vnd(e.viewingFee)}đ</dd>
-            </div>
-            <div>
-              <dt>
-                Hoa hồng chốt cọc
-                <span className="muted xs">
-                  {e.deals} deal × {vnd(fees.dealCommission)}đ
-                  {e.multiplier > 1 ? ` × ${String(e.multiplier).replace(".", ",")}` : ""}
-                </span>
-              </dt>
-              <dd className="num">{vnd(e.commission)}đ</dd>
-            </div>
-            <div>
-              <dt>
-                Thưởng nóng chiến dịch
-                <span className="muted xs">{vnd(fees.campaignBonus)}đ / deal (tối đa 3 deal)</span>
-              </dt>
-              <dd className="num">{vnd(e.bonus)}đ</dd>
-            </div>
+            <div><dt>Phí dẫn khách</dt><dd className="num">{vnd(stats.viewingFeeTotal)}đ</dd></div>
+            <div><dt>Hoa hồng giao dịch</dt><dd className="num">{vnd(stats.dealCommissionTotal)}đ</dd></div>
+            <div><dt>Thưởng đánh giá</dt><dd className="num">{vnd(stats.ratingBonus)}đ</dd></div>
           </dl>
-          <p className="muted xs">
-            Mức thù lao do Admin cấu hình và có hiệu lực ngay với ticket mới. Bạn không cần đợi cập nhật ứng dụng.
-          </p>
+          <p className="muted xs">Các khoản chỉ xuất hiện sau khi nghiệp vụ tương ứng được ghi nhận trong cơ sở dữ liệu.</p>
         </Section>
-
-        <Section title="Deal gần đây" flush>
-          <DataTable<Booking>
-            columns={dealColumns}
-            rows={deals}
-            rowHref={(b) => `/host/viewing/${b.id}`}
-            empty={
-              <div className={styles.empty}>
-                <Wallet size={26} />
-                <b>Chưa có deal trong phiên này</b>
-                <p className="muted small">Chốt một căn từ tab Lịch để thấy hoa hồng cộng vào đây.</p>
-              </div>
-            }
-          />
+        <Section title="Các khoản gần đây" flush>
+          <DataTable<Payout> columns={columns} rows={payouts} empty={<div className={styles.empty}><Wallet size={26} /><b>Chưa có khoản thu nhập</b><p className="muted small">Khoản thu sẽ hiển thị sau khi ca xem hoặc giao dịch đủ điều kiện được ghi nhận.</p></div>} />
         </Section>
       </div>
     </div>

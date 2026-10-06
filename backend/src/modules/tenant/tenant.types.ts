@@ -13,8 +13,11 @@ export type BookingStatusWeb =
   | 'rejected';
 
 export interface TenantUnit {
+  /** Database unit ID, used internally by services such as the Matchmaker. */
+  id?: string;
   code: string;
   building: string;
+  zoneName?: string;
   floor: number;
   door: string;
   layout: 'Studio' | '1PN' | '2PN' | '3PN';
@@ -78,7 +81,7 @@ export interface TenantBooking {
   };
   host: {
     name: string;
-    rating: number;
+    rating: number | null;
   } | null;
   canModify: boolean;
   deposit?: {
@@ -93,12 +96,12 @@ export interface TenantBooking {
     expiresAt?: string;
     outcome: 'awaiting_payment' | 'active' | 'expired' | 'converted' | 'refunded' | 'forfeited';
     vietqr: {
-      bankBin: string;
-      bankName: string;
+      bankId: string;
+      bankName?: string;
       accountNo: string;
       accountName: string;
-      simulated: true;
-    };
+      qrUrl: string;
+    } | null;
   };
   kyc?: {
     verifiedAt: string;
@@ -130,7 +133,6 @@ export interface EkycScanResult {
   confidence: Record<'fullName' | 'idNumber' | 'dob' | 'issuedDate' | 'address', number>;
   lowConfidenceKeys: string[];
   faceMatch: number;
-  simulated: true;
 }
 
 export interface SubmitEkycDto {

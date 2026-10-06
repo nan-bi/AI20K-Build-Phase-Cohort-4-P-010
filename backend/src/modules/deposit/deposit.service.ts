@@ -3,18 +3,24 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PhoneService } from '../auth/phone/phone.service';
 import { BookingAccessService } from '../tenant/booking-access.service';
 import { buildDepositTerms, DEPOSIT_TERMS_VERSION } from './deposit-terms';
-import { VietQrSimulator } from './vietqr.simulator';
+import { getVietQrConfig, isVietQrWebhookConfigured } from './vietqr';
 import { CreateDepositDto, UploadHostReceiptDto } from './dto/deposit.dto';
 import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
 import { DepositTermsDoc, TenantBooking } from '../tenant/tenant.types';
-import { DepositStatus, UnitStatus, ViewingStatus } from '@prisma/client';
+import { DepositStatus, HostRole, TicketStatus, UnitStatus, ViewingStatus } from '@prisma/client';
+
+function isSerializationConflict(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'code' in error && (error as any).code === 'P2034');
+}
 
 @Injectable()
 export class DepositService {
@@ -26,6 +32,21 @@ export class DepositService {
     private readonly phones: PhoneService,
     private readonly bookingAccess: BookingAccessService,
   ) {}
+
+  private async systemActorId(client: any): Promise<string> {
+    const admin = await client.profile.findFirst({
+      where: { role: { code: 'ops_admin' } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!admin) {
+      throw new ServiceUnavailableException({
+        message: 'Chưa có tài khoản Admin thật để ghi nhận sự kiện đối soát.',
+        code: 'system_actor_unavailable',
+      });
+    }
+    return admin.id;
+  }
 
   /**
    * Giờ giữ chỗ theo luật B4: `unit.holdHoursOverride` → `FeeConfig.hold_hours_default` (Admin cài) → 48, kẹp [12, 72].
@@ -69,6 +90,13 @@ export class DepositService {
     dto: CreateDepositDto,
     reqContext?: { ip?: string; userAgent?: string },
   ): Promise<TenantBooking> {
+    if (!getVietQrConfig() || !isVietQrWebhookConfigured()) {
+      throw new ServiceUnavailableException({
+        message: 'Thanh toán VietQR chưa được cấu hình đầy đủ để nhận và đối soát giao dịch.',
+        code: 'vietqr_not_configured',
+      });
+    }
+
     const viewing = await this.bookingAccess.loadOwned(ref, user);
 
     if (viewing.status !== ViewingStatus.CLOSING) {
@@ -134,23 +162,21 @@ export class DepositService {
       // Attribution lock: find host from accepted ticket
       const acceptedTicket = viewing.tickets?.find((t: any) => t.status === 'ACCEPTED');
       const attributedHostId = acceptedTicket?.hostId ?? null;
-
-      let contactPhone = '0912345678';
+      let rawPhone: string | undefined;
       if (viewing.contactPhoneEnc) {
         try {
-          contactPhone = this.phones.decrypt(viewing.contactPhoneEnc);
-        } catch {}
+          rawPhone = this.phones.decrypt(viewing.contactPhoneEnc);
+        } catch {
+          rawPhone = undefined;
+        }
       }
-      const phoneClean = contactPhone.startsWith('+84')
-        ? '0' + contactPhone.slice(3)
-        : contactPhone;
 
       const depositCode = `DEP-${ref}`;
       const amount = 2000000; // Constant: CẤM accept from client!
       const randNum = Math.floor(1000 + Math.random() * 9000);
       const randHex = Math.random().toString(16).substring(2, 6).toUpperCase();
       const vietqrRef = `VQ-${randNum}-${randHex}`;
-      const transferContent = `COC ${unit.unitCode} ${phoneClean}`;
+      const transferContent = `COC ${unit.unitCode} ${ref}`;
       const now = new Date();
       const holdHours = await this.resolveHoldHours(unit.holdHoursOverride, tx);
 
@@ -196,7 +222,7 @@ export class DepositService {
         },
       });
 
-      return toTenantBooking(reloaded, { rawPhone: contactPhone, holdHours });
+      return toTenantBooking(reloaded, { rawPhone, holdHours });
     });
   }
 
@@ -206,7 +232,7 @@ export class DepositService {
     amount: number;
     bankRefNumber: string;
     paidAt?: Date;
-    actor: 'bank' | 'demo';
+    actor: 'bank';
     actorId?: string;
   }): Promise<'paid' | 'duplicate' | 'ignored' | 'refunded'> {
     return await this.prisma.$transaction(async (tx) => {
@@ -242,8 +268,7 @@ export class DepositService {
       }
 
       if (!deposit) {
-        const systemActorId =
-          input.actorId || '00000000-0000-0000-0000-000000000000';
+        const systemActorId = input.actorId || (await this.systemActorId(tx));
         await tx.auditLog.create({
           data: {
             actorId: systemActorId,
@@ -257,10 +282,7 @@ export class DepositService {
         return 'ignored';
       }
 
-      const effectiveActorId =
-        input.actor === 'bank'
-          ? deposit.viewing?.tenantId || input.actorId || '00000000-0000-0000-0000-000000000000'
-          : input.actorId || deposit.viewing?.tenantId || '00000000-0000-0000-0000-000000000000';
+      const effectiveActorId = deposit.viewing?.tenantId || input.actorId || (await this.systemActorId(tx));
 
       // 3. Amount check (must be exactly 2.000.000)
       if (Number(input.amount) !== 2000000) {
@@ -421,19 +443,21 @@ export class DepositService {
     const expiredDeposits = await db.holdingDeposit.findMany({
       where: {
         unitId,
-        paymentStatus: DepositStatus.PAID_HOLDING,
+        paymentStatus: { in: [DepositStatus.PAID_HOLDING, DepositStatus.UNC_PENDING_REVIEW] },
         expiresAt: { lte: now },
       },
       include: { viewing: true },
     });
+    if (!expiredDeposits.length) return;
 
     for (const dep of expiredDeposits) {
+      const isUncReview = dep.paymentStatus === DepositStatus.UNC_PENDING_REVIEW;
       await db.holdingDeposit.update({
         where: { id: dep.id },
-        data: { paymentStatus: DepositStatus.FORFEITED },
+        data: { paymentStatus: isUncReview ? DepositStatus.QR_EXPIRED : DepositStatus.FORFEITED },
       });
 
-      if (dep.viewingId) {
+      if (dep.viewingId && !isUncReview) {
         await db.viewing.update({
           where: { id: dep.viewingId },
           data: {
@@ -443,16 +467,11 @@ export class DepositService {
         });
       }
 
-      await db.unit.updateMany({
-        where: { id: unitId, status: UnitStatus.HOLDING },
-        data: { status: UnitStatus.AVAILABLE },
-      });
-
       await db.auditLog.create({
         data: {
-          actorId: dep.viewing?.tenantId || '00000000-0000-0000-0000-000000000000',
+          actorId: dep.viewing?.tenantId || (await this.systemActorId(db)),
           actorRole: 'system',
-          actionType: 'HOLD_EXPIRED',
+          actionType: isUncReview ? 'DEPOSIT_UNC_EXPIRED' : 'HOLD_EXPIRED',
           entityName: 'HoldingDeposit',
           entityId: dep.id,
           newValue: {
@@ -462,19 +481,100 @@ export class DepositService {
         },
       });
     }
+
+    const activeDeposits = await db.holdingDeposit.findMany({
+      where: {
+        unitId,
+        paymentStatus: { in: [DepositStatus.PAID_HOLDING, DepositStatus.UNC_PENDING_REVIEW] },
+        expiresAt: { gt: now },
+      },
+      select: { id: true },
+      take: 1,
+    });
+    if (!activeDeposits.length) {
+      await db.unit.updateMany({
+        where: { id: unitId, status: UnitStatus.HOLDING },
+        data: { status: UnitStatus.AVAILABLE },
+      });
+    }
   }
 
-  async uploadHostReceipt(depositId: string, dto: UploadHostReceiptDto) {
-    this.logger.log(`[HOST RECEIPT] Host đã tải UNC lên cho cọc #${depositId}: ${dto.receiptUrl}`);
-    const tempHoldUntil = new Date(Date.now() + 30 * 60 * 1000);
+  async uploadHostReceipt(depositId: string, dto: UploadHostReceiptDto, profileId: string) {
+    const host = await this.prisma.fieldHost.findUnique({
+      where: { profileId },
+      select: { id: true, roles: true },
+    });
+    if (!host || !host.roles.includes(HostRole.SALE)) {
+      throw new ForbiddenException('Chỉ Field Host phụ trách bán hàng mới được tải UNC.');
+    }
 
+    const tempHoldUntil = new Date(Date.now() + 30 * 60 * 1000);
+    let result: { id: string; status: DepositStatus; tempHoldUntil: Date };
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+      const deposit = await tx.holdingDeposit.findUnique({
+        where: { id: depositId },
+        include: { unit: true, viewing: { include: { tickets: true } } },
+      });
+      if (!deposit) throw new NotFoundException('Không tìm thấy khoản cọc.');
+      if (deposit.paymentStatus !== DepositStatus.PENDING_PAYMENT) {
+        throw new ConflictException('Chỉ nhận UNC cho khoản cọc đang chờ thanh toán.');
+      }
+
+      const assigned = deposit.attributedHostId === host.id || deposit.viewing.tickets.some(
+        (ticket: any) =>
+          ticket.hostId === host.id &&
+          [TicketStatus.ACCEPTED, TicketStatus.CHECKED, TicketStatus.COMPLETED].includes(ticket.status),
+      );
+      if (!assigned) throw new ForbiddenException('Khoản cọc này không thuộc lịch được phân công cho bạn.');
+
+      await this.expireIfDue(deposit.unitId, tx);
+      const unit = await tx.unit.findUnique({ where: { id: deposit.unitId } });
+      if (!unit || unit.status !== UnitStatus.AVAILABLE) {
+        throw new ConflictException('Căn hộ đã được giữ chỗ hoặc không còn trống.');
+      }
+      const claimed = await tx.unit.updateMany({
+        where: { id: deposit.unitId, status: UnitStatus.AVAILABLE },
+        data: { status: UnitStatus.HOLDING },
+      });
+      if (claimed.count !== 1) throw new ConflictException('Căn hộ vừa được giữ chỗ bởi giao dịch khác.');
+
+      await tx.holdingDeposit.update({
+        where: { id: depositId },
+        data: { paymentStatus: DepositStatus.UNC_PENDING_REVIEW, expiresAt: tempHoldUntil },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: profileId,
+          actorRole: 'field_host',
+          actionType: 'DEPOSIT_UNC_UPLOADED',
+          entityName: 'holding_deposits',
+          entityId: depositId,
+          oldValue: { paymentStatus: DepositStatus.PENDING_PAYMENT },
+          newValue: {
+            paymentStatus: DepositStatus.UNC_PENDING_REVIEW,
+            receiptUrl: dto.receiptUrl,
+            note: dto.note?.trim() || null,
+            tempHoldUntil: tempHoldUntil.toISOString(),
+          },
+        },
+      });
+      return { id: depositId, status: DepositStatus.UNC_PENDING_REVIEW, tempHoldUntil };
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (isSerializationConflict(error)) {
+        throw new ConflictException('Căn hộ hoặc khoản cọc vừa được giao dịch khác xử lý. Vui lòng tải lại.');
+      }
+      throw error;
+    }
+
+    this.logger.log(`[HOST RECEIPT] Stored UNC review request for deposit ${depositId}.`);
     return {
       success: true,
-      depositId,
-      status: 'UNC_PENDING_REVIEW',
-      tempHoldUntil: tempHoldUntil.toISOString(),
-      message:
-        'Đã ghi nhận ủy nhiệm chi từ Field Host. Căn hộ tạm khóa giữ chỗ trong 30 phút để kiểm tra đối soát.',
+      depositId: result.id,
+      status: result.status,
+      tempHoldUntil: result.tempHoldUntil.toISOString(),
+      message: 'Đã lưu UNC để Admin đối soát; căn được giữ tạm trong 30 phút.',
     };
   }
 }

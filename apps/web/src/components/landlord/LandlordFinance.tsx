@@ -5,7 +5,7 @@ import { Columns } from "@/components/charts/Columns";
 import { StatTile } from "@/components/charts/StatTile";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
-import { vnd, vndShort } from "@/lib/mock/format";
+import { vnd, vndShort } from "@/lib/format";
 import { queries } from "@/lib/landlord/queries";
 import { UNIT_STATUS_META, axisMillions } from "@/lib/landlord/labels";
 import type { Finance } from "@/lib/landlord/types";

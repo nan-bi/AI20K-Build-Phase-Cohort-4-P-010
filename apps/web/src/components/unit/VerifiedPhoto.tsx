@@ -1,7 +1,6 @@
 import Image from "next/image";
-import { fmtDate } from "@/lib/mock/format";
-import { unitPhoto, type Unit } from "@/lib/mock/units";
-import { BadgeCheck } from "lucide-react";
+import { unitPhoto, type Unit } from "@/lib/units";
+import { BadgeCheck, ImageOff } from "lucide-react";
 import styles from "./VerifiedPhoto.module.css";
 
 interface VerifiedPhotoProps {
@@ -16,25 +15,29 @@ interface VerifiedPhotoProps {
 
 /** Ảnh thật của căn, kèm dấu Verified có timestamp (chống tin mồi, chống môi giới copy ảnh). */
 export function VerifiedPhoto({ unit, index = 1, sizes, priority, stamp = "compact", className }: VerifiedPhotoProps) {
+  const photo = unitPhoto(unit, index);
+  const verifiedAt = unit.verifiedAt && Number.isFinite(Date.parse(unit.verifiedAt))
+    ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(unit.verifiedAt))
+    : null;
   return (
     <div className={`${styles.frame} ${className ?? ""}`}>
-      <Image
-        src={unitPhoto(unit, index)}
+      {photo ? <Image
+        src={photo}
         alt={`Căn ${unit.code}, ảnh ${index}: ${unit.title}`}
         fill
         sizes={sizes}
         priority={priority}
         className={styles.img}
-      />
-      {stamp !== "none" && (
+      /> : <div className={styles.noPhoto}><ImageOff size={24} /><span>Chưa có ảnh trong hệ thống</span></div>}
+      {photo && verifiedAt && stamp !== "none" && (
         <span className={styles.stamp}>
           <BadgeCheck size={13} />
           {stamp === "full" ? (
             <>
-              <b>Verified</b> {fmtDate(unit.verifiedAt)} 14:20 · {unit.code}
+              <b>Đã xác minh</b> {verifiedAt} · {unit.code}
             </>
           ) : (
-            <>Đã xác minh {fmtDate(unit.verifiedAt).slice(0, 5)}</>
+            <>Đã xác minh {verifiedAt}</>
           )}
         </span>
       )}

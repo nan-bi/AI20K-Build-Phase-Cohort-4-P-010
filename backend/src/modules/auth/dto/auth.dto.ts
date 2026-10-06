@@ -46,13 +46,6 @@ export class SignupDto {
   portal: Portal;
 }
 
-export class PortalQueryDto {
-  @ApiProperty({ enum: PORTALS })
-  @IsIn(PORTALS as unknown as string[])
-  portal: Portal;
-}
-
-
 export class SendOtpDto {
   @ApiProperty({ example: '0912345678' })
   @IsString()

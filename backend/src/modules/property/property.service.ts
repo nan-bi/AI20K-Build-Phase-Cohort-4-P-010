@@ -25,8 +25,7 @@ export class PropertyService {
    */
   calculateAllInCost(unit: any, motorbikes = 1, cars = 0, occupants = 2) {
     const baseRent = Number(unit.baseRentPrice);
-    const carpetArea = Number(unit.carpetAreaM2);
-    const managementFee = Math.round(carpetArea * 9500);
+    const managementFee = Number(unit.managementFee);
     const parkingFee = motorbikes * 150000 + cars * 1250000;
     const utilityCost = occupants * 300000;
     const allInTotal = baseRent + managementFee + parkingFee + utilityCost;

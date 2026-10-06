@@ -3,8 +3,7 @@
 import { BookOpenText, ClipboardCheck, Radio, UserRound, Wallet } from "lucide-react";
 import { loginPathFor } from "@/lib/auth/portals";
 import { useSession } from "@/lib/auth/client";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import type { HostRole } from "@/lib/mock/units";
+import type { HostRoleCode } from "@/lib/auth/portals";
 import { HostSideTools } from "@/components/host/HostSideTools";
 import { useHostBoard } from "@/lib/host/api";
 import { useInspectionBoard } from "@/lib/inspection/api";
@@ -12,7 +11,7 @@ import { boardBadge } from "@/lib/inspection/logic";
 import { PortalShell, type PortalNavItem } from "./PortalShell";
 
 export function hostNavItems(
-  roles: HostRole[],
+  roles: HostRoleCode[],
   badges: { pending: number; awaitingInspect: number },
 ): PortalNavItem[] {
   const items: PortalNavItem[] = [];
@@ -47,9 +46,8 @@ export function hostNavItems(
 
 export function HostShell({ children }: { children: React.ReactNode }) {
   const session = useSession();
-  const u = DEMO_USERS.host;
   // Vai lấy từ phiên thật (Admin gán ở /admin/hosts); chưa tải xong phiên ⇒ chưa hiện menu theo vai.
-  const roles: HostRole[] = session.user?.hostRoles ?? [];
+  const roles: HostRoleCode[] = session.user?.hostRoles ?? [];
 
   // Badge "Lịch & yêu cầu" = số yêu cầu mới thật từ `GET /host/board` (chỉ gọi khi có vai Sale). Badge Thẩm định =
   // `mine + open` từ `GET /host/inspections` (chỉ gọi khi có vai Thẩm định; poll 30 giây ở đây, InspectionList dùng chung khoá).
@@ -68,7 +66,7 @@ export function HostShell({ children }: { children: React.ReactNode }) {
   return (
     <PortalShell
       portal="Cổng Field Host"
-      userName={session.user?.fullName ?? session.user?.email ?? u.name}
+      userName={session.user?.fullName ?? session.user?.email ?? (session.ready ? "Tài khoản" : "Đang tải…")}
       userMeta={userMeta}
       signOutHref={loginPathFor("host")}
       sideSlot={<HostSideTools sale={isSale} />}

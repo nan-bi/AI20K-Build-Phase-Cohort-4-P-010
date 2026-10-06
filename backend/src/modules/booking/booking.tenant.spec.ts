@@ -325,6 +325,35 @@ describe('Tenant Booking Backend (SPEC-P02 §6: 14 test cases)', () => {
     expect(result.status).toBe('pending');
   });
 
+  it('xung đột Serializable khi tạo lịch được trả thành 409 slot_taken', async () => {
+    (actionTokens.redeem as jest.Mock).mockResolvedValueOnce({
+      phone: '+84912345678',
+      purpose: 'TENANT_VIEWING',
+      jti: 'otp-race',
+    });
+    fixture.prisma.profile.findUnique.mockResolvedValue({
+      id: TENANT_ID,
+      fullName: 'Khách A',
+      isPhoneVerified: true,
+      phoneHash: phoneService.hash('+84912345678'),
+    });
+    fixture.prisma.$transaction.mockRejectedValueOnce({ code: 'P2034' });
+
+    await expect(
+      bookingService.createBooking(
+        { id: TENANT_ID },
+        {
+          unitCode: 'VHOP-S1.02-1208',
+          slot: getValidFutureSlot(),
+          contactName: 'Khách A',
+          phone: '0912345678',
+          partySize: 2,
+          actionToken: 'valid-token',
+        },
+      ),
+    ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'slot_taken' }) });
+  });
+
   // 8. SLA ticket = 180s
   it('8. SLA ticket điều phối phải là 180s (3 phút theo charter)', async () => {
     (actionTokens.redeem as jest.Mock).mockResolvedValueOnce({

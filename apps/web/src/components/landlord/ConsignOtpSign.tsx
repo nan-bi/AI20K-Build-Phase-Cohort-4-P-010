@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { MessageCircleMore } from "lucide-react";
 import { OtpInput } from "@/components/ui/OtpInput";
-import { fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
+import { fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/format";
 import { errorText, landlordApi } from "@/lib/landlord/api";
 import type { Consignment, SignOtpInfo } from "@/lib/landlord/types";
 
@@ -141,17 +141,12 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <p className="muted small">
-        Mã 4 số đã gửi qua Zalo tới <b className="tnum">{info.maskedPhone ?? fmtPhone(normalizePhone(phone))}</b>. Nhập mã để ký ủy quyền.
+        Mã 4 số đã gửi tới <b className="tnum">{info.maskedPhone ?? fmtPhone(normalizePhone(phone))}</b>. Nhập mã để ký ủy quyền.
       </p>
       <OtpInput value={code} error={wrong} autoFocus disabled={busy} onChange={(v) => { setCode(v); setWrong(false); if (v.length === 4) void sign(v); }} />
       <button type="button" className="btn btn-quiet btn-sm" style={{ alignSelf: "flex-start" }} disabled={cooldown > 0 || busy} onClick={send}>
         {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã"}
       </button>
-      {info.devCode && (
-        <p className="xs muted" style={{ padding: 10, border: "1px dashed #b7cdee", borderRadius: 12, background: "#eef4fc" }}>
-          Môi trường thử nghiệm: mã OTP là <b className="tnum">{info.devCode}</b>
-        </p>
-      )}
     </div>
   );
 }

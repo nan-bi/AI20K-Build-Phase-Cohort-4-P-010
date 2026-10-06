@@ -162,8 +162,6 @@ export interface SignOtpInfo {
   otpRequired: boolean;
   maskedPhone: string | null;
   expiresInSeconds: number;
-  /** Chỉ có khi backend bật OTP_ECHO_DEV_CODE (môi trường dev). */
-  devCode?: string;
 }
 
 export interface ExitResult {

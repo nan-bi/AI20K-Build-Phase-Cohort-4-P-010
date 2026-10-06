@@ -14,21 +14,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
-    "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "create:admin": "ts-node --transpile-only scripts/create-admin.ts",
     "set:password": "ts-node --transpile-only scripts/set-password.ts",
-    "seed:auth": "ts-node --transpile-only scripts/seed-auth.ts",
-    "catalog:export": "ts-node --transpile-only scripts/export-web-catalog.ts",
-    "seed:catalog": "ts-node --transpile-only prisma/seed-web-catalog.ts",
-    "smoke:tenant": "ts-node --transpile-only scripts/smoke-tenant-flow.ts",
-    "smoke:sale-auth": "ts-node --transpile-only scripts/smoke-sale-auth.ts",
-    "smoke:host-viewing": "ts-node --transpile-only scripts/smoke-host-viewing.ts",
-    "smoke:inspection": "ts-node --transpile-only scripts/smoke-inspection.ts",
-    "rekey:door-codes": "ts-node --transpile-only scripts/rekey-door-codes.ts",
-    "audit:tenant": "ts-node --transpile-only scripts/audit-tenant-attacks.ts"
+    "rekey:door-codes": "ts-node --transpile-only scripts/rekey-door-codes.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.4",

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { KeyRound, Lock } from "lucide-react";
 import { KeyValue } from "@/components/ui/KeyValue";
-import { vnd } from "@/lib/mock/format";
+import { vnd } from "@/lib/format";
 import { inspectionApi } from "@/lib/inspection/api";
 import { DECLARED_FIELDS, DECLARED_LABEL, FURNISHING_LABEL, declaredValue } from "@/lib/inspection/logic";
 import { useInspectionAction } from "@/lib/inspection/useInspectionAction";

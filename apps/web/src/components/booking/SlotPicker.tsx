@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
-import { isSameDay } from "@/lib/mock/format";
-import { slotsForDay } from "@/lib/mock/selectors";
-import { SLOT_TIMES } from "@/lib/mock/slots";
+import { isSameDay } from "@/lib/format";
+import { slotsForDay, SLOT_TIMES } from "@/lib/booking/slots";
 import {
   CALENDAR_WEEKDAYS,
   canNavigateMonth,

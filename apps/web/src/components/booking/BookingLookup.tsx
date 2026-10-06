@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarSearch, ChevronRight } from "lucide-react";
 import { STATUS_META } from "./status";
-import { dayLabel, fmtTime } from "@/lib/mock/format";
+import { dayLabel, fmtTime } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 import { useApiQuery } from "@/lib/query/useApiQuery";
 import { tenantQueries } from "@/lib/tenant/queries";
 import { tenantApi } from "@/lib/tenant/api";
 import { toUnit } from "@/lib/tenant/adapters";
-import { unitAddress } from "@/lib/mock/units";
+import { unitAddress } from "@/lib/units";
 import styles from "./Booking.module.css";
 
 export function BookingLookup() {

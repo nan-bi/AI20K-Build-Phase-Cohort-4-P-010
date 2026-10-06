@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HostDutyStatus, TicketStatus, ViewingStatus } from '@prisma/client';
 import { hostConflict } from '../host-viewings/host-viewings.errors';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,8 +9,6 @@ import { decryptPhoneForDisplay } from '../auth/phone/phone-display';
 
 @Injectable()
 export class HostService {
-  private readonly logger = new Logger(HostService.name);
-
   constructor(
     private prisma: PrismaService,
     private readonly phones: PhoneService,
@@ -59,64 +57,43 @@ export class HostService {
     return { dutyStatus: status };
   }
 
-  async getEarnings(hostId?: string) {
-    try {
-      let host = await this.prisma.fieldHost.findFirst({
-        where: hostId ? { id: hostId } : undefined,
-        include: { payouts: true, profile: true },
-      });
+  async getEarnings(profileId: string) {
+    const host = await this.prisma.fieldHost.findUnique({
+      where: { profileId },
+      include: { payouts: { orderBy: { createdAt: 'desc' } }, profile: { select: { fullName: true } } },
+    });
+    if (!host) throw authError('host_not_provisioned');
 
-      if (host) {
-        return {
-          hostId: host.id,
-          fullName: host.profile.fullName,
-          rating: Number(host.rating),
-          walletBalance: Number(host.walletBalance),
-          stats: {
-            totalViewings: 18,
-            totalDeals: 6,
-            dealCommissionTotal: 2400000,
-            viewingFeeTotal: 900000,
-            ratingBonus: 360000,
-            totalEarnings: 3660000,
-          },
-          currentPeriod: 'Tuần 40 / 2026',
-          payouts: host.payouts.map((p) => ({
-            id: p.id,
-            amount: Number(p.amount),
-            period: p.period,
-            status: p.status,
-            createdAt: p.createdAt.toISOString(),
-          })),
-        };
-      }
-    } catch (err) {
-      this.logger.warn(`Earnings DB fallback: ${err.message}`);
-    }
+    const payoutRows = host.payouts.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      period: p.period,
+      status: p.status,
+      transRef: p.transRef,
+      createdAt: p.createdAt.toISOString(),
+    }));
+    const totalEarnings = payoutRows.reduce((sum, payout) => sum + payout.amount, 0);
+    const viewingPayouts = payoutRows.filter((payout) => payout.transRef?.startsWith('viewing:'));
+    const dealPayouts = payoutRows.filter(
+      (payout) => payout.transRef?.startsWith('deposit:') && !payout.transRef.endsWith(':rating'),
+    );
+    const ratingPayouts = payoutRows.filter((payout) => payout.transRef?.endsWith(':rating'));
 
     return {
-      hostId: hostId || 'h1111111-1111-1111-1111-111111111111',
-      fullName: 'Lê Quốc Bảo',
-      rating: 4.95,
-      walletBalance: 2850000,
+      hostId: host.id,
+      fullName: host.profile.fullName,
+      rating: Number(host.rating),
+      walletBalance: Number(host.walletBalance),
       stats: {
-        totalViewings: 24,
-        totalDeals: 8,
-        dealCommissionTotal: 3200000,
-        viewingFeeTotal: 1200000,
-        ratingBonus: 480000,
-        totalEarnings: 4880000,
+        totalViewings: viewingPayouts.length,
+        totalDeals: dealPayouts.length,
+        dealCommissionTotal: dealPayouts.reduce((sum, payout) => sum + payout.amount, 0),
+        viewingFeeTotal: viewingPayouts.reduce((sum, payout) => sum + payout.amount, 0),
+        ratingBonus: ratingPayouts.reduce((sum, payout) => sum + payout.amount, 0),
+        totalEarnings,
       },
-      currentPeriod: 'Tuần 40 / 2026',
-      payouts: [
-        {
-          id: 'pay-01',
-          amount: 2500000,
-          period: 'Tuần 39 / 2026',
-          status: 'PAID',
-          createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-        },
-      ],
+      currentPeriod: payoutRows[0]?.period ?? null,
+      payouts: payoutRows.map(({ transRef: _transRef, ...payout }) => payout),
     };
   }
 }

@@ -1,80 +1,14 @@
 .wrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: center;
-}
-
-.svg {
-  width: 100%;
-  height: auto;
-}
-
-.land {
-  fill: #e1ece8;
-}
-.lake {
-  fill: var(--lagoon-100);
-  stroke: var(--lagoon-300);
-  stroke-width: 1.5;
-}
-.lakeLabel {
-  fill: var(--lagoon);
-  font-size: 11px;
-  font-weight: 600;
-}
-.zone {
-  fill: #f6faf9;
-  stroke: var(--line-strong);
-}
-.zoneText {
-  fill: var(--slate);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-.zoneOn {
-  fill: var(--ink);
-}
-.zoneTextOn {
-  fill: #fff;
-  font-size: 12px;
-  font-weight: 700;
-}
-.pin {
-  fill: var(--amber);
-  stroke: #fff;
-  stroke-width: 2.5;
-}
-.pinDot {
-  fill: var(--ink-950);
-}
-
-.near {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 14px;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface, #fff);
 }
 
-.near li {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  gap: 2px 8px;
-  align-items: baseline;
-}
-
-.near li svg {
-  grid-row: span 2;
-  align-self: center;
+.wrap > svg {
+  flex: 0 0 auto;
   color: var(--lagoon-600);
-}
-
-.near .muted {
-  font-size: 12.5px;
-}
-
-@media (max-width: 640px) {
-  .wrap {
-    grid-template-columns: 1fr;
-  }
 }

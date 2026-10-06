@@ -88,7 +88,7 @@ export class LandlordConsignmentService {
       this.photos.signPaths(photos.map((p) => p.path)),
     ]);
     return {
-      hostName: host?.profile?.fullName || 'Field Host VinStay',
+      hostName: host?.profile?.fullName ?? null,
       submittedAt: report.submittedAt,
       report,
       photos: photos.map((p) => toPhotoView(p, urls)),
@@ -258,8 +258,8 @@ export class LandlordConsignmentService {
     }
     const { phone, trusted } = await this.signingPhone(landlordId, phoneRaw);
     if (trusted) return { otpRequired: false as const, maskedPhone: maskPhone(phone), expiresInSeconds: 0 };
-    const { devCode } = await this.otp.send({ phone, purpose: OtpPurpose.PHONE_VERIFY });
-    return { otpRequired: true as const, maskedPhone: maskPhone(phone), expiresInSeconds: this.otp.expiresInSeconds, ...(devCode ? { devCode } : {}) };
+    await this.otp.send({ phone, purpose: OtpPurpose.PHONE_VERIFY });
+    return { otpRequired: true as const, maskedPhone: maskPhone(phone), expiresInSeconds: this.otp.expiresInSeconds };
   }
 
   /**

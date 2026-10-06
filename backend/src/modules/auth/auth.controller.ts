@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { PORTALS } from './auth.constants';
 import { AuthService, LoginOutcome, RequestContext } from './auth.service';
-import { LoginDto, PortalQueryDto, SignupDto } from './dto/auth.dto';
+import { LoginDto, SignupDto } from './dto/auth.dto';
 import { GoogleAuthGuard, GoogleCallbackGuard } from './google/google-auth.guard';
 import { GoogleIdentity } from './google/google.strategy';
 import { SessionCookieService } from './session/session-cookies.service';
@@ -65,17 +65,6 @@ export class AuthController {
   })
   async signup(@Body() dto: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const outcome = await this.auth.signup(dto, requestContext(req));
-    this.cookies.set(res, outcome.tokens);
-    return this.loginBody(outcome);
-  }
-
-  @Public()
-  @Post('demo-login')
-  @HttpCode(200)
-  @Throttle(perMinute(10))
-  @ApiOperation({ summary: 'Đăng nhập 1-chạm bằng tài khoản demo (chỉ khi AUTH_DEMO_MODE=true)' })
-  async demoLogin(@Body() dto: PortalQueryDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const outcome = await this.auth.demoLogin(dto.portal, requestContext(req));
     this.cookies.set(res, outcome.tokens);
     return this.loginBody(outcome);
   }

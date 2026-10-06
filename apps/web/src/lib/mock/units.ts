@@ -110,8 +110,12 @@ export const ZONES: Zone[] = [
   },
 ];
 
-export const zoneById = (id: ZoneId) => ZONES.find((z) => z.id === id)!;
+export const zoneById = (id?: ZoneId) => (id ? ZONES.find((z) => z.id === id) : undefined);
 export const zoneOfBuilding = (b: string) => ZONES.find((z) => z.buildings.includes(b));
+export const zoneOfName = (name?: string) => {
+  const normalized = name?.trim().toLocaleLowerCase().replace(/^the\s+/, "");
+  return normalized ? ZONES.find((z) => z.name.toLocaleLowerCase().replace(/^the\s+/, "") === normalized || z.short.toLocaleLowerCase() === normalized) : undefined;
+};
 
 export const LAYOUT_LABEL: Record<LayoutKind, string> = {
   Studio: "Studio",
@@ -144,7 +148,9 @@ export interface Unit {
   id: string;
   code: string;
   building: string;
-  zoneId: ZoneId;
+  zoneId?: ZoneId;
+  /** Phân khu từ building.zoneName trên backend khi căn đến từ API. */
+  zoneName?: string;
   floor: number;
   door: string;
   layout: LayoutKind;
@@ -153,6 +159,10 @@ export interface Unit {
   bedrooms: number;
   bathrooms: number;
   areaM2: number;
+  /** Exact property fees from the backend catalog when the Unit came from the live API. */
+  managementFee?: number;
+  parkingFeeEstimate?: number;
+  utilityCostEstimate?: number;
   direction: string;
   view: string;
   furnishing: Furnishing;
@@ -2235,12 +2245,13 @@ const seeds: UnitSeed[] = [
 ];
 
 export const UNITS: Unit[] = seeds.map(({ door, plus, verifiedDay, ...u }) => {
-  const zone = zoneOfBuilding(u.building) || ZONES[0];
+  const zone = zoneOfBuilding(u.building);
   const doorText = String(door).padStart(2, "0");
   return {
     ...u,
     door: doorText,
-    zoneId: zone.id,
+    zoneId: zone?.id,
+    zoneName: zone?.name,
     code: `VHOP-${u.building}-${String(u.floor).padStart(2, "0")}${doorText}`,
     layoutLabel: u.layout === "1PN" && plus ? "1PN+" : u.layout,
     verifiedAt: `${verifiedDay}T14:20:00+07:00`,
@@ -2250,7 +2261,7 @@ export const UNITS: Unit[] = seeds.map(({ door, plus, verifiedDay, ...u }) => {
 export const unitById = (id: string) => UNITS.find((u) => u.id === id);
 
 export const unitPhoto = (u: Pick<Unit, "id"> & { photos?: string[] }, n: number) =>
-  u.photos?.[n - 1] ?? `/units/${u.id}/${n}.jpg`;
+  u.photos?.[n - 1] ?? null;
 
 /** "S2.12 · Tầng 16 · Căn 08" — định danh chuẩn [Tòa-Tầng-Căn]. */
 export const unitAddress = (u: Pick<Unit, "building" | "floor" | "door">) => `${u.building} · Tầng ${u.floor} · Căn ${u.door}`;
@@ -2307,7 +2318,10 @@ export const HOSTS: FieldHost[] = [
 
 export const hostById = (id: string) => HOSTS.find((h) => h.id === id);
 
-export const hostForUnit = (u: Pick<Unit, "zoneId">) => hostById(zoneById(u.zoneId).hostId)!;
+export const hostForUnit = (u: Pick<Unit, "zoneId">) => {
+  const zone = zoneById(u.zoneId);
+  return zone ? hostById(zone.hostId) : undefined;
+};
 
 /** Danh sách 10 hạng mục của Hộ chiếu bàn giao số (PRD §3.6). */
 export const PASSPORT_ITEMS = [

@@ -4,7 +4,7 @@ import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fmtDate } from "@/lib/mock/format";
+import { fmtDate } from "@/lib/format";
 import { queries } from "@/lib/landlord/queries";
 import { unitLabel } from "@/lib/landlord/labels";
 import { useLandlordQuery } from "@/lib/landlord/useLandlordQuery";

@@ -59,6 +59,12 @@ export class AdminController {
     return this.inventoryService.getExclusiveInventory();
   }
 
+  @Get('exclusive-inventory/:id')
+  @ApiOperation({ summary: 'Chi tiết căn hộ trong rổ hàng độc quyền' })
+  async getInventoryDetail(@Param('id') id: string) {
+    return this.inventoryService.getExclusiveInventoryDetail(id);
+  }
+
   @Post('mandates/:id/terminate')
   @ApiOperation({
     summary: 'Chấm dứt ủy quyền độc quyền sau khi chủ nhà báo thoát đủ 15 ngày',
@@ -156,8 +162,8 @@ export class AdminController {
 
   @Post('contracts/:id/complete-exit')
   @ApiOperation({ summary: 'Hoàn tất thoát ủy quyền sau 15 ngày đếm ngược' })
-  async completeExit(@Param('id') id: string) {
-    return this.adminService.completeExit(id);
+  async completeExit(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.adminService.completeExit(id, { id: user.id, role: user.role });
   }
 
   @Post('contracts/:id/remind-renewal')

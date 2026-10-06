@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl } from 'class-validator';
 
 export class CreateDepositDto {
   @ApiProperty({ description: 'Đồng ý điều khoản cọc' })
@@ -39,6 +39,7 @@ export class UploadHostReceiptDto {
   @ApiProperty({ example: 'https://storage.vinstay.vn/receipts/unc-8921.jpg', description: 'Đường dẫn ảnh ủy nhiệm chi (UNC)' })
   @IsNotEmpty()
   @IsString()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
   receiptUrl: string;
 
   @ApiPropertyOptional({ example: 'Khách đã chuyển khoản 2.000.000đ tại Techcombank, webhook ngân hàng chưa báo', description: 'Ghi chú của Host' })

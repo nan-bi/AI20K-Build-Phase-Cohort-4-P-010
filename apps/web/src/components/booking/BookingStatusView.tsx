@@ -11,7 +11,6 @@ import {
   MapPinCheck,
   ShieldAlert,
   Star,
-  Wrench,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "@/components/ui/Toast";
@@ -20,15 +19,15 @@ import { UnitCard } from "@/components/unit/UnitCard";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { DepositTermsBox } from "@/components/deal/DepositTermsBox";
 import { KycCapture } from "@/components/deal/KycCapture";
-import { DEFAULT_HOUSEHOLD, allInCost } from "@/lib/mock/cost";
+import { DEFAULT_HOUSEHOLD, allInCost } from "@/lib/pricing/cost";
 import {
   dayLabel,
   fmtDateTime,
   fmtTime,
   vnd,
   weekday,
-} from "@/lib/mock/format";
-import { unitAddress, zoneOfBuilding } from "@/lib/mock/units";
+} from "@/lib/format";
+import { unitAddress } from "@/lib/units";
 import { useNow } from "@/lib/useNow";
 import { useApiQuery } from "@/lib/query/useApiQuery";
 import { tenantQueries } from "@/lib/tenant/queries";
@@ -45,12 +44,6 @@ function duration(ms: number): string {
   return h < 24 ? `${h} giờ ${m % 60} phút` : `${Math.floor(h / 24)} ngày ${h % 24} giờ`;
 }
 
-const HANDYMEN = [
-  { trade: "Điện, nước", name: "Thợ điện nước khu Sapphire", note: "Phản hồi trong ngày" },
-  { trade: "Điều hòa, tủ lạnh", name: "Điện lạnh Ocean Park", note: "Có bảo hành 3 tháng" },
-  { trade: "Khoá cửa", name: "Khoá cửa 24h nội khu", note: "Mở khoá, thay ổ" },
-];
-
 export function BookingStatusView({ refCode }: { refCode: string }) {
   const now = useNow(1000);
   const [modal, setModal] = useState<"cancel" | "reschedule" | "leaseWizard" | null>(null);
@@ -64,7 +57,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
   const { state: contractsState } = useApiQuery(tenantQueries.contracts(), bookingStatus === "leased" || bookingStatus === "completed");
   const { state: unitsState } = useApiQuery(tenantQueries.units(), bookingStatus !== null && TERMINAL.includes(bookingStatus));
 
-  const showDemo = process.env.NEXT_PUBLIC_DEMO_TOOLS === "true";
 
   if (bookingState.status === "loading" || !now) {
     return (
@@ -91,7 +83,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
   const rawBooking = bookingState.data;
   const booking = toBookingView(rawBooking);
   const unit = booking.unit;
-  const zone = zoneOfBuilding(unit.building);
   const meta = STATUS_META[booking.status];
   const steps = buildTimeline(booking);
   const terminal = TERMINAL.includes(booking.status);
@@ -149,19 +140,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
     const res = await tenantApi.rateBooking(booking.ref, stars);
     if (res.ok) {
       toast("Cảm ơn bạn đã đánh giá Field Host", "success");
-      reload();
-    } else {
-      toast(errorText(res));
-    }
-  };
-
-  const handleDemoStep = async (
-    step: Parameters<typeof tenantApi.demoBookingStep>[1],
-    successMsg: string,
-  ) => {
-    const res = await tenantApi.demoBookingStep(booking.ref, step);
-    if (res.ok) {
-      toast(successMsg, "success");
       reload();
     } else {
       toast(errorText(res));
@@ -226,33 +204,28 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             {/* 2. closing & đã có deposit: VietQR */}
             {booking.status === "closing" && deposit && (
               <div className={styles.qr} style={{ padding: "16px 0", borderTop: "1px solid var(--line)" }}>
-                <VietQR
-                  amount={deposit.amount}
-                  content={deposit.transferContent}
-                  qrRef={deposit.qrRef}
-                  paid={Boolean(deposit.paidAt)}
-                />
-                <div style={{ textAlign: "center", marginTop: 8 }}>
-                  <b style={{ color: "var(--ink)" }}>Đang chờ thanh toán cọc...</b>
-                  <p className="muted xs" style={{ maxWidth: 480, margin: "4px auto 0" }}>
-                    Chuyển khoản 2.000.000đ vào tài khoản định danh nền tảng. Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có.
+                {deposit.vietqr ? (
+                  <>
+                    <VietQR
+                      amount={deposit.amount}
+                      content={deposit.transferContent}
+                      qrUrl={deposit.vietqr.qrUrl}
+                      accountNo={deposit.vietqr.accountNo}
+                      accountName={deposit.vietqr.accountName}
+                      bankName={deposit.vietqr.bankName}
+                      paid={Boolean(deposit.paidAt)}
+                    />
+                    <div style={{ textAlign: "center", marginTop: 8 }}>
+                      <b style={{ color: "var(--ink)" }}>Đang chờ thanh toán cọc...</b>
+                      <p className="muted xs" style={{ maxWidth: 480, margin: "4px auto 0" }}>
+                        Chuyển khoản 2.000.000đ theo mã VietQR. Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p role="status" className="muted" style={{ textAlign: "center", padding: 18 }}>
+                    Giao dịch này chưa có cấu hình VietQR và đối soát hợp lệ. Vui lòng liên hệ hỗ trợ; đừng chuyển khoản theo thông tin cũ.
                   </p>
-                  {deposit.vietqr?.simulated && (
-                    <span className="badge badge-amber-soft xs" style={{ marginTop: 6, display: "inline-block" }}>
-                      Mô phỏng VietQR
-                    </span>
-                  )}
-                </div>
-                {showDemo && (
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-                    <button
-                      type="button"
-                      className={styles.demoBtn}
-                      onClick={() => handleDemoStep("bank-paid", `Ngân hàng báo có: căn đã khoá ${holdHours} giờ`)}
-                    >
-                      Demo: Giả lập ngân hàng báo có (2.000.000đ)
-                    </button>
-                  </div>
                 )}
               </div>
             )}
@@ -264,8 +237,6 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                   expiresAt={deposit?.expiresAt}
                   holdHours={holdHours}
                   now={now}
-                  showDemo={showDemo}
-                  onExpireDemo={() => handleDemoStep("expire-hold", "Đã tua hết hạn giữ căn")}
                 />
                 <div className="card" style={{ padding: 16, background: "var(--surface)", marginTop: 12 }}>
                   <div style={{ marginBottom: 12 }}>
@@ -396,7 +367,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                 <div>
                   <dt>Căn hộ</dt>
                   <dd>{unitAddress(unit)}</dd>
-                  <dd className="muted small">{zone?.name ?? ""}</dd>
+                  <dd className="muted small">{unit.zoneName || "Phân khu chưa cập nhật"}</dd>
                 </div>
                 <div>
                   <dt>Thời gian</dt>
@@ -416,8 +387,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                     <>
                       <dd>{booking.host.name}</dd>
                       <dd className="muted small">
-                        <Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}
-                        {String(booking.host.rating).replace(".", ",")}
+                        {booking.host.rating == null ? "Chưa có đánh giá" : <><Star size={12} fill="currentColor" style={{ color: "var(--amber)", verticalAlign: "-1px" }} />{" "}{String(booking.host.rating).replace(".", ",")}</>}
                       </dd>
                     </>
                   )}
@@ -538,28 +508,10 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
             </section>
           )}
 
-          {/* DANH BẠ THỢ KỸ THUẬT */}
-          {booking.status === "leased" && (
-            <section className={`card ${styles.block}`}>
-              <h2>Danh bạ thợ kỹ thuật ngoài</h2>
-              <p className="muted small">
-                VinStay và Field Host không nhận sửa chữa. Bạn và thợ tự thoả thuận giá và trách nhiệm.
-              </p>
-              <ul className={styles.docs}>
-                {HANDYMEN.map((h) => (
-                  <li key={h.trade}>
-                    <Wrench size={18} />
-                    <div>
-                      <b>{h.trade}</b>
-                      <p className="muted small">
-                        {h.name} · {h.note}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {booking.status === "leased" && <section className={`card ${styles.block}`}>
+            <h2>Hỗ trợ sửa chữa</h2>
+            <p className="muted small">Danh bạ thợ kỹ thuật chưa được cấu hình trong hệ thống. VinStay không hiển thị nhà cung cấp chưa xác minh.</p>
+          </section>}
 
           {/* ĐÁNH GIÁ FIELD HOST */}
           {!booking.rating &&
@@ -684,14 +636,10 @@ function CountdownBanner({
   expiresAt,
   holdHours,
   now,
-  showDemo,
-  onExpireDemo,
 }: {
   expiresAt?: string;
   holdHours: number;
   now: number;
-  showDemo: boolean;
-  onExpireDemo: () => void;
 }) {
   const expiresMs = expiresAt ? new Date(expiresAt).getTime() : 0;
   const msLeft = expiresMs > 0 ? expiresMs - now : 0;
@@ -727,11 +675,6 @@ function CountdownBanner({
           <Clock size={18} style={{ color: "var(--amber-700, #b45309)" }} />
           <b style={{ fontSize: 16, color: "var(--amber-900, #78350f)" }}>{timeLeftText}</b>
         </div>
-        {showDemo && (
-          <button type="button" className={styles.demoBtn} onClick={onExpireDemo}>
-            Demo: Tua hết hạn giữ căn
-          </button>
-        )}
       </div>
 
       <div style={{ height: 6, background: "var(--amber-200, #fce1b2)", borderRadius: 999, overflow: "hidden", margin: "8px 0" }}>

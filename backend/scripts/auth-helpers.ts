@@ -1,5 +1,5 @@
 /**
- * Dùng chung cho các script tạo tài khoản (create-admin, seed-auth). Chạy ngoài Nest nên tự dựng
+ * Dùng chung cho các script quản trị tài khoản (create-admin, set-password). Chạy ngoài Nest nên tự dựng
  * PrismaClient. Tài khoản nằm hoàn toàn trong bảng `profiles` (mật khẩu băm scrypt) — không cần Supabase Auth.
  */
 import 'dotenv/config';

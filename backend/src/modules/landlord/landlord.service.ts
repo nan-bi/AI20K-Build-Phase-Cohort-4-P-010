@@ -4,7 +4,7 @@ import { isConsigned } from './landlord.mappers';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
- * Tổng quan chủ nhà. Phần này làm SAU (UI dashboard còn dùng mock) — chỉ giữ bản tối thiểu, đã gắn với
+ * Tổng quan chủ nhà. Bản hiện tại lấy số liệu từ
  * phiên đăng nhập và bỏ dữ liệu mẫu cứng. Các màn còn lại nằm ở landlord-*.service.ts.
  */
 @Injectable()

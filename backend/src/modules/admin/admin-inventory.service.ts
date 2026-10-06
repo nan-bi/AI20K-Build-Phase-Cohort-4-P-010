@@ -42,6 +42,12 @@ export class AdminInventoryService {
         baseRentPrice: Number(u.baseRentPrice),
         status: u.status,
         landlordName: u.landlord?.fullName || null,
+        floorNumber: u.floorNumber,
+        doorNumber: u.doorNumber,
+        doorLockType: u.doorLockType,
+        isVerified: u.isVerified,
+        managementFee: Number(u.managementFee),
+        createdAt: u.createdAt.toISOString(),
         mandateStatus: m?.status || 'NONE',
         exitCountdownDays: effective
           ? Math.max(0, Math.ceil((effective.getTime() - now.getTime()) / DAY_MS))
@@ -53,6 +59,64 @@ export class AdminInventoryService {
         terminateBlockedReason: blocked,
       };
     });
+  }
+
+  async getExclusiveInventoryDetail(id: string, now: Date = new Date()) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    const unit = await this.prisma.unit.findFirst({
+      where: {
+        OR: [
+          ...(isUuid ? [{ id }] : []),
+          { unitCode: id },
+          { mandates: { some: { id } } },
+        ],
+      },
+      include: {
+        building: true,
+        landlord: { select: { id: true, fullName: true, email: true } },
+        mandates: { orderBy: { createdAt: 'desc' }, take: 1 },
+        media: { orderBy: { order: 'asc' }, select: { id: true, url: true, category: true, verifiedAt: true } },
+      },
+    });
+    if (!unit) throw new NotFoundException('Không tìm thấy căn hộ trong rổ hàng.');
+
+    const mandate = unit.mandates[0];
+    const effectiveAt = mandate?.exitEffectiveAt ?? null;
+    const exitCountdownDays = effectiveAt
+      ? Math.max(0, Math.ceil((effectiveAt.getTime() - now.getTime()) / DAY_MS))
+      : null;
+    const canTerminate = mandate?.status === 'EXIT_REQUESTED' &&
+      unit.status !== 'HOLDING' &&
+      effectiveAt !== null && effectiveAt <= now;
+
+    return {
+      id: unit.id,
+      unitCode: unit.unitCode,
+      building: unit.building.buildingCode,
+      zone: unit.building.zoneName,
+      floorNumber: unit.floorNumber,
+      doorNumber: unit.doorNumber,
+      layout: unit.layoutType,
+      carpetAreaM2: Number(unit.carpetAreaM2),
+      baseRentPrice: Number(unit.baseRentPrice),
+      managementFee: Number(unit.managementFee),
+      marketAvgPrice: Number(unit.marketAvgPrice),
+      status: unit.status,
+      isVerified: unit.isVerified,
+      doorLockType: unit.doorLockType,
+      landlord: unit.landlord,
+      media: unit.media.map((photo) => ({ ...photo, verifiedAt: photo.verifiedAt.toISOString() })),
+      mandate: mandate ? {
+        id: mandate.id,
+        contractNumber: mandate.contractNumber,
+        status: mandate.status,
+        signedAt: mandate.signedAt?.toISOString() ?? null,
+        exitRequestedAt: mandate.exitRequestedAt?.toISOString() ?? null,
+        exitEffectiveAt: effectiveAt?.toISOString() ?? null,
+        exitCountdownDays,
+        canTerminate,
+      } : null,
+    };
   }
 
   async terminateMandate(id: string, reason: string, actor: AdminActor, now: Date = new Date()) {

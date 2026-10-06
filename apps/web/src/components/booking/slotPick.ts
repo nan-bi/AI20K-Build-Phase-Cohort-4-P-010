@@ -1,5 +1,5 @@
-import { isSameDay, weekday } from "@/lib/mock/format";
-import { slotsForDay, type SlotOption } from "@/lib/mock/selectors";
+import { isSameDay, weekday } from "@/lib/format";
+import { slotsForDay, type SlotOption } from "@/lib/booking/slots";
 
 export const SHORT_WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"] as const;
 

@@ -1,194 +1,437 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, EyeOff, FileCheck2, KeyRound } from "lucide-react";
-import { Logo } from "@/components/brand/Logo";
-import { RATES } from "@/lib/mock/cost";
-import { vnd, vndShort } from "@/lib/mock/format";
-import { AllInDemo } from "./AllInDemo";
-import { LiveBargains, LiveVerifiedPhoto, LiveZones } from "./LandingLive";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowRight, ArrowUp, BadgeCheck, Building2, CalendarCheck2, Check, ChevronDown,
+  CircleHelp, ClipboardCheck, Coins, FileCheck2, HeartHandshake, KeyRound, LayoutDashboard,
+  MapPin, MessageCircle, ShieldCheck, Sparkles, Sun, WalletCards, WandSparkles,
+} from "lucide-react";
+import { useCatalog } from "@/lib/tenant/catalog";
+import { useLandingPreferences } from "./LandingPreferences";
+import { FeaturedListings, LiveBentoAreas } from "./LandingLive";
 import styles from "./Landing.module.css";
 
-const FLOW = [
-  { time: "30 giây", title: "Nói nhu cầu với AI", body: "Ngân sách, số người, loại căn. AI loại bỏ mọi căn có tổng chi phí vượt trần và trả về top 3." },
-  { time: "≤ 3 phút", title: "Đặt lịch, xác thực Zalo", body: "Chọn khung giờ khớp ca trực của Host, nhập mã 4 số gửi qua Zalo. Host của khu nhận lịch trong 3 phút." },
-  { time: "T-10 phút", title: "Nhắc hẹn có nút bấm", body: "Zalo nhắn kèm nút “Tôi đã có mặt tại sảnh”. Không cần quét mã QR nào ở sảnh, không cần đứng chờ." },
-  { time: "60 giây", title: "Host đón và mở cửa", body: "Host có thẻ cư dân quẹt thang máy đưa bạn lên phòng, mở cửa bằng mã trong ứng dụng. Không hộp khoá treo cửa." },
-  { time: "48 giờ", title: "Cọc giữ căn 2.000.000đ", body: "Quét VietQR ngay tại chỗ, căn được khoá giữ chỗ (mặc định 48 giờ, tuỳ căn 12–72 giờ) cho riêng bạn. Không chuyển tiền qua tài khoản cá nhân." },
-  { time: "OTP Zalo", title: "Xác minh CCCD, ký số", body: "Chụp CCCD một lần, AI tự điền thỏa thuận. Bạn ký bằng OTP, hợp đồng thuê ký số ngay sau đó." },
+const copy = {
+  vi: {
+    why: "Tìm nhà đúng gu. Quản lý cho thuê gọn gàng.",
+    whyLead: "VinStay kết nối nhu cầu thuê với quy trình xem nhà và quản lý minh bạch — bắt đầu từ danh mục đang có thật.",
+    districts: "Khu vực có căn đang mở",
+    districtsLead: "Các phân khu bên dưới và giá tham khảo được lấy trực tiếp từ danh mục căn hộ hiện tại.",
+    listings: "Không phải ảnh minh hoạ — là căn đang mở",
+    listingsLead: "Lọc theo loại căn, xem thông tin và mở hồ sơ thật trước khi đặt lịch.",
+    aiEyebrow: "VinStay AI · Trợ lý tìm nhà",
+    aiTitle: "Mô tả điều bạn cần. Bắt đầu từ những căn có thật.",
+    aiLead: "Trợ lý tiếp nhận nhu cầu bằng câu tự nhiên, kết hợp bộ lọc căn hộ và trả kết quả từ catalog của hệ thống.",
+    ownerEyebrow: "Không gian dành cho chủ nhà",
+    ownerTitle: "Căn hộ, hồ sơ và quy trình cho thuê — trong cùng một cổng.",
+    ownerLead: "Đăng ký ký gửi, theo dõi căn và làm việc với đội vận hành trên một luồng thống nhất.",
+    flowTitle: "Một quy trình rõ ràng cho cả hai phía.",
+    flowLead: "Từng bước được thiết kế để người thuê biết điều gì sẽ diễn ra, chủ nhà theo dõi hồ sơ của mình.",
+    reasonsTitle: "Tập trung vào những điều khiến bạn an tâm.",
+    reasonsLead: "Thông tin căn, chi phí và lịch hẹn đi cùng nhau — để quyết định có cơ sở hơn.",
+    pricingTitle: "Chính sách dịch vụ cần rõ trước khi bắt đầu.",
+    pricingLead: "Mức phí chủ nhà chưa được công bố trên trang công khai này. Hãy xác nhận chính sách hiện hành trước khi gửi hồ sơ hoặc đồng ý sử dụng dịch vụ.",
+    pricingCta: "Xem quy trình ký gửi",
+    reviewsTitle: "Đánh giá chỉ có ý nghĩa khi đến từ trải nghiệm thật.",
+    reviewsLead: "Người thuê có thể gửi đánh giá Field Host sau lịch xem hoàn tất. Điểm số được hiển thị ở luồng đánh giá của từng lịch hẹn.",
+    reviewsCta: "Tra cứu lịch xem",
+    mobileTitle: "VinStay ở ngay trên trình duyệt điện thoại.",
+    mobileLead: "Tìm căn, mở thông tin chi tiết và theo dõi lịch xem trên giao diện tối ưu cho màn hình nhỏ — không cần cài ứng dụng.",
+    guideTitle: "Vài điều nên biết trước khi thuê.",
+    guideLead: "Thông tin ngắn gọn giúp bạn chuẩn bị tốt hơn trước khi xem căn và gửi yêu cầu.",
+    faqTitle: "Câu hỏi thường gặp",
+    faqLead: "Một vài thông tin quan trọng về catalog, chi phí và lịch xem.",
+    finalTitle: "Bắt đầu từ một căn phù hợp.",
+    finalLead: "Khám phá danh mục hiện có hoặc tạo hồ sơ ký gửi để đội ngũ VinStay tiếp nhận.",
+    findHome: "Tìm căn phù hợp",
+    listHome: "Đăng ký ký gửi",
+    explore: "Khám phá căn hộ",
+    viewAll: "Xem toàn bộ danh mục",
+    live: "Dữ liệu đang đồng bộ",
+    unitCount: "Căn đang trống",
+    areasCount: "Phân khu có căn",
+    layoutsCount: "Loại căn đang mở",
+    startingRent: "Giá thuê từ",
+    areaKicker: "Kết nối với danh mục hiện tại",
+    areaTitle: "Tìm một nơi phù hợp, ngay đúng khu bạn cần.",
+    featureTitle: "Rõ thông tin. Chủ động lựa chọn.",
+    featureLead: "Mỗi chi tiết quan trọng đều được đặt cạnh nhau để bạn dễ cân nhắc.",
+    guide1: "Ước tính chi phí tháng", guide1b: "Hiểu các khoản trong mức All-in Cost trước khi chọn căn.",
+    guide2: "Chuẩn bị lịch xem", guide2b: "Xem hồ sơ căn và chọn lịch phù hợp với bạn.",
+    guide3: "Dành cho chủ nhà", guide3b: "Nắm quy trình gửi thông tin căn để VinStay tiếp nhận.",
+    footerText: "Tìm căn hộ, xem chi phí và theo dõi quy trình thuê nhà — từ danh mục VinStay đang vận hành.",
+    tenant: "Người thuê", landlord: "Chủ nhà", company: "VinStay", support: "Hỗ trợ & điều khoản",
+    faq1: "VinStay hiện có nhà ở những khu vực nào?", faq1a: "Danh mục công khai hiện tập trung vào căn hộ tại Vinhomes Ocean Park 1, Hà Nội. Các phân khu hiển thị được lấy từ dữ liệu căn đang mở.",
+    faq2: "Làm sao biết căn còn trống?", faq2a: "Trang danh mục hiển thị căn đang mở theo dữ liệu hệ thống. Trạng thái có thể thay đổi; hãy mở chi tiết căn để xem thông tin mới nhất trước khi đặt lịch.",
+    faq3: "All-in Cost gồm những khoản nào?", faq3a: "Đây là mức ước tính gồm tiền thuê, phí quản lý, phí phương tiện và dự toán điện nước theo thông tin hiện có. Hãy đối chiếu chi tiết ở từng căn trước khi quyết định.",
+    faq4: "Tôi đặt lịch xem nhà ở đâu?", faq4a: "Mở căn hộ bạn quan tâm, kiểm tra các khung giờ và gửi yêu cầu xem. Bạn có thể tra cứu lịch hẹn tại mục Tra cứu lịch xem.",
+    faq5: "Tôi là chủ nhà, bắt đầu từ đâu?", faq5a: "Chọn Đăng ký ký gửi để đăng nhập hoặc tạo tài khoản chủ nhà, sau đó gửi thông tin căn theo hướng dẫn trong cổng.",
+    faq6: "VinStay có ứng dụng iOS hoặc Android không?", faq6a: "Hiện bạn có thể sử dụng VinStay trực tiếp trên trình duyệt điện thoại. Trang được thiết kế tương thích với màn hình di động.",
+  },
+  en: {
+    why: "Find a place that fits. Manage rentals with clarity.",
+    whyLead: "VinStay connects home search with transparent viewing and management workflows, starting with live catalog data.",
+    districts: "Areas with available homes",
+    districtsLead: "Areas and indicative rents below are drawn directly from the current apartment catalog.",
+    listings: "Live listings, not sample cards",
+    listingsLead: "Filter by layout, review the details, then open a real listing before booking a visit.",
+    aiEyebrow: "VinStay AI · Home search assistant",
+    aiTitle: "Tell us what you need. Start with homes that are actually available.",
+    aiLead: "Describe your needs in natural language. The assistant combines them with apartment filters and searches the live catalog.",
+    ownerEyebrow: "For property owners",
+    ownerTitle: "Apartments, applications, and rental workflows in one portal.",
+    ownerLead: "Submit a listing, track your units, and work with the operations team in one connected flow.",
+    flowTitle: "A clear process for both sides.",
+    flowLead: "Renters can see what happens next, while owners can follow their application and units.",
+    reasonsTitle: "The details that help you decide with confidence.",
+    reasonsLead: "Listing information, costs, and appointments stay together so you can make an informed choice.",
+    pricingTitle: "Service terms should be clear before you start.",
+    pricingLead: "Landlord service fees are not published on this public page. Confirm the current terms before submitting a listing or agreeing to a service.",
+    pricingCta: "View listing process",
+    reviewsTitle: "Reviews matter when they come from real experiences.",
+    reviewsLead: "Renters can rate a Field Host after a completed viewing. Ratings are shown in each appointment's review flow.",
+    reviewsCta: "Look up a viewing",
+    mobileTitle: "Use VinStay in your mobile browser.",
+    mobileLead: "Search homes, review listing details, and follow viewings in a mobile-ready interface. No app installation required.",
+    guideTitle: "A few things to know before renting.",
+    guideLead: "Practical notes to help you prepare before viewing a home or sending a request.",
+    faqTitle: "Frequently asked questions",
+    faqLead: "Helpful details about the catalog, costs, and viewings.",
+    finalTitle: "Start with a place that feels right.",
+    finalLead: "Explore current listings or submit a property for the VinStay team to review.",
+    findHome: "Find a home", listHome: "Submit a listing", explore: "Explore apartments", viewAll: "View all listings",
+    live: "Live catalog sync", unitCount: "Available apartments", areasCount: "Areas with listings", layoutsCount: "Available layouts", startingRent: "Rent from",
+    areaKicker: "Connected to the live catalog", areaTitle: "Find a place in the neighborhood that works for you.",
+    featureTitle: "Clear details. Confident choices.", featureLead: "Important details stay together so you can compare with confidence.",
+    guide1: "Estimate monthly costs", guide1b: "Understand each All-in Cost component before choosing a home.",
+    guide2: "Prepare for a viewing", guide2b: "Review a listing and choose a viewing time that works.",
+    guide3: "For property owners", guide3b: "Learn how to submit a property for VinStay review.",
+    footerText: "Find apartments, review costs, and follow the rental process through the VinStay catalog.",
+    tenant: "Renters", landlord: "Property owners", company: "VinStay", support: "Support & terms",
+    faq1: "Where are VinStay homes located?", faq1a: "The public catalog currently focuses on apartments at Vinhomes Ocean Park 1 in Hanoi. Displayed areas come from active listings.",
+    faq2: "How can I tell if a home is available?", faq2a: "The catalog shows homes currently open in the system. Status can change, so review the listing details before booking a visit.",
+    faq3: "What does All-in Cost include?", faq3a: "It estimates rent, management fees, vehicle parking, and utilities based on available details. Review each listing before deciding.",
+    faq4: "How do I book a viewing?", faq4a: "Open a listing, review its available times, and submit a viewing request. You can look up appointments from the viewing lookup page.",
+    faq5: "I own a home. How do I get started?", faq5a: "Choose Submit a listing to sign in or create an owner account, then send your property details in the portal.",
+    faq6: "Does VinStay have an iOS or Android app?", faq6a: "You can use VinStay in your mobile browser today. The site adapts to mobile screens.",
+  },
+} as const;
+
+const TENANT_STEPS = [
+  { icon: MapPin, title: "Tìm căn", body: "Mô tả nhu cầu hoặc chọn bộ lọc để xem căn đang mở." },
+  { icon: Building2, title: "Xem thông tin", body: "Đối chiếu giá, diện tích, nội thất và phân khu." },
+  { icon: CalendarCheck2, title: "Đặt lịch xem", body: "Chọn khung giờ đang có trên hồ sơ căn hộ." },
+  { icon: KeyRound, title: "Hoàn tất thuê", body: "Theo dõi các bước tiếp theo trong tài khoản của bạn." },
 ];
 
-const FAQ = [
-  { q: "All-in Cost gồm những khoản nào?", a: `Tiền thuê, phí quản lý Vinhomes (diện tích × ${vnd(RATES.mgmtPerM2)}đ/m²), phí gửi xe (${vnd(RATES.motorbike)}đ/xe máy, ${vnd(RATES.car)}đ/ô tô) và dự toán điện nước (${vnd(RATES.utilityPerPerson)}đ/người). Bốn khoản này luôn hiển thị trước khi bạn đặt lịch.` },
-  { q: "Cọc 2 triệu có bị trừ vào tiền thuê tháng đầu không?", a: "Không. Khoản 2.000.000đ khoá căn theo thời hạn giữ chỗ (mặc định 48 giờ). Khi bạn ký hợp đồng thuê, đúng khoản này chuyển 100% thành một phần Tiền cọc bảo đảm tài sản và giữ nguyên suốt kỳ thuê. Tiền thuê tháng đầu vẫn thanh toán đủ." },
-  { q: "Tôi có cần tài khoản để đặt lịch xem?", a: "Không. Bạn chỉ cần số điện thoại và mã 4 số gửi qua Zalo. Tài khoản chỉ cần khi muốn chat không giới hạn với AI." },
-  { q: "Nếu tôi đến trễ hoặc không đến được?", a: "Bấm “Đang trên đường” trong tin Zalo để xin trễ 10 phút, hoặc đổi và huỷ lịch ngay trên trang theo dõi. Quá 15 phút không phản hồi thì ca trực được giải phóng để Host phục vụ khách khác." },
-  { q: "Ảnh CCCD của tôi được xử lý thế nào?", a: "AI đọc CCCD trong khoảng 5 giây để điền thỏa thuận. Dữ liệu được mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP, chỉ dùng cho giao dịch này và không gửi cho môi giới hay chủ nhà." },
-  { q: "Ai sửa chữa khi có hỏng hóc?", a: "VinStay và Field Host không nhận sửa chữa. Host giới thiệu danh bạ thợ ngoài uy tín tại Ocean Park để bạn tự thoả thuận giá và trách nhiệm." },
+const LANDLORD_STEPS = [
+  { icon: ClipboardCheck, title: "Gửi hồ sơ căn", body: "Đăng nhập và nhập thông tin căn theo hướng dẫn." },
+  { icon: BadgeCheck, title: "VinStay tiếp nhận", body: "Theo dõi tiến trình hồ sơ trong cổng chủ nhà." },
+  { icon: CalendarCheck2, title: "Kết nối lịch xem", body: "Cập nhật trạng thái và phối hợp quy trình xem nhà." },
+  { icon: LayoutDashboard, title: "Quản lý căn", body: "Theo dõi danh sách căn và hồ sơ trong một nơi." },
 ];
+
+const TENANT_STEPS_EN = [
+  { icon: MapPin, title: "Find a home", body: "Describe your needs or use filters to find available homes." },
+  { icon: Building2, title: "Review details", body: "Compare rent, area, furnishing, and neighborhood." },
+  { icon: CalendarCheck2, title: "Request a viewing", body: "Choose an available time in the listing." },
+  { icon: KeyRound, title: "Complete the rental", body: "Follow the next steps in your account." },
+];
+
+const LANDLORD_STEPS_EN = [
+  { icon: ClipboardCheck, title: "Submit property details", body: "Sign in and provide the information requested." },
+  { icon: BadgeCheck, title: "VinStay reviews", body: "Follow your application status in the owner portal." },
+  { icon: CalendarCheck2, title: "Coordinate viewings", body: "Update status and follow the viewing process." },
+  { icon: LayoutDashboard, title: "Manage your homes", body: "Track listings and applications in one place." },
+];
+
+const REASONS = [
+  { icon: BadgeCheck, title: "Danh mục theo hệ thống", body: "Căn hộ và trạng thái được tải từ API catalog hiện tại." },
+  { icon: Coins, title: "Ước tính chi phí rõ ràng", body: "Các thành phần All-in Cost được hiển thị để dễ đối chiếu." },
+  { icon: CalendarCheck2, title: "Lịch xem có trạng thái", body: "Yêu cầu và lịch hẹn được theo dõi trong luồng đặt lịch." },
+  { icon: FileCheck2, title: "Quy trình số hoá", body: "Thông tin căn, hồ sơ và các bước thuê tập trung trên nền tảng." },
+  { icon: HeartHandshake, title: "Hỗ trợ tại điểm xem", body: "Quy trình Field Host được kết nối với lịch xem căn hộ." },
+  { icon: ShieldCheck, title: "Chủ động kiểm tra", body: "Mở chi tiết và xác nhận thông tin trước khi gửi yêu cầu." },
+];
+
+const REASONS_EN = [
+  { icon: BadgeCheck, title: "Listings from the system", body: "Apartments and status come from the current catalog API." },
+  { icon: Coins, title: "Clear monthly estimates", body: "Review estimated All-in Cost components before comparing." },
+  { icon: CalendarCheck2, title: "Viewings with status", body: "Requests and appointments are tracked in the booking flow." },
+  { icon: FileCheck2, title: "Digital workflows", body: "Listing details, applications, and rental steps stay together." },
+  { icon: HeartHandshake, title: "Support at viewings", body: "Field Host workflows connect to apartment viewing requests." },
+  { icon: ShieldCheck, title: "Check before deciding", body: "Open the listing and confirm its details before requesting." },
+];
+
+function Reveal({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (!("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
+    }, { threshold: 0.12, rootMargin: "0px 0px -24px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return <div ref={ref} className={`${styles.reveal} ${visible ? styles.revealVisible : ""} ${className}`} style={{ "--reveal-delay": `${delay}ms` } as React.CSSProperties}>{children}</div>;
+}
+
+function ProgressBar() {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const update = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(scrollable > 0 ? window.scrollY / scrollable : 0);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
+  }, []);
+  return <div className={styles.progressTrack} aria-hidden="true"><span style={{ transform: `scaleX(${progress})` }} /></div>;
+}
 
 export function Landing() {
+  const { locale } = useLandingPreferences();
+  const t = copy[locale];
+  const { available, loading } = useCatalog();
+  const [flow, setFlow] = useState<"tenant" | "landlord">("tenant");
+  const uniqueAreas = new Set(available.map((unit) => unit.zoneName).filter(Boolean)).size;
+  const uniqueLayouts = new Set(available.map((unit) => unit.layout)).size;
+  const startingRent = available.length ? Math.min(...available.map((unit) => unit.rent)) : null;
+  const processSteps = flow === "tenant" ? (locale === "vi" ? TENANT_STEPS : TENANT_STEPS_EN) : (locale === "vi" ? LANDLORD_STEPS : LANDLORD_STEPS_EN);
+
   return (
-    <>
-      <section className={styles.section} id="quy-trinh">
-        <div className={`wrap ${styles.flow}`}>
-          <div className={styles.flowHead}>
-            <h2 className={styles.h2}>Từ tin nhắn đầu tiên đến chìa khoá</h2>
-            <p className="muted">Sáu bước, phần lớn do hệ thống và Field Host lo. Bạn chỉ cần có mặt đúng giờ.</p>
+    <div className={styles.landing} id="ve-vinstay">
+      <ProgressBar />
+
+      <section className={styles.liveBand} aria-label={t.live}>
+        <div className={styles.container}>
+          <span className={styles.liveBandLabel}><span className={styles.livePulse} />{t.live}</span>
+          <div className={styles.liveMetrics} aria-live="polite">
+            <div><strong>{loading ? "—" : available.length.toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}</strong><span>{t.unitCount}</span></div>
+            <div><strong>{loading ? "—" : uniqueAreas}</strong><span>{t.areasCount}</span></div>
+            <div><strong>{loading ? "—" : uniqueLayouts}</strong><span>{t.layoutsCount}</span></div>
+            <div><strong>{loading || startingRent === null ? "—" : `${(startingRent / 1_000_000).toLocaleString(locale === "vi" ? "vi-VN" : "en-US", { maximumFractionDigits: 1 })} tr`}</strong><span>{t.startingRent}</span></div>
           </div>
-          <ol className={styles.flowList}>
-            {FLOW.map((s, i) => (
-              <li key={s.title}>
-                <span className={styles.flowNo}>{i + 1}</span>
-                <div>
-                  <h3>{s.title}</h3>
-                  <p className="muted">{s.body}</p>
-                </div>
-                <span className={`badge badge-plain ${styles.flowTime}`}>{s.time}</span>
-              </li>
-            ))}
-          </ol>
+          <Link href="/units" className={styles.bandLink}>{t.viewAll}<ArrowRight size={15} /></Link>
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.tint}`}>
-        <div className={`wrap ${styles.split}`}>
-          <div className={styles.copy}>
-            <h2 className={styles.h2}>Giá bạn thấy là giá bạn trả mỗi tháng</h2>
-            <p>Tin đăng thường chỉ ghi tiền thuê. VinStay cộng sẵn phí quản lý, gửi xe và điện nước, rồi loại mọi căn vượt ngân sách trần của bạn. Đổi số người hoặc số xe bên cạnh để thấy tổng tiền đổi theo.</p>
-            <p className="muted small">Công thức: tiền thuê + diện tích × {vnd(RATES.mgmtPerM2)}đ + phí xe + {vndShort(RATES.utilityPerPerson)}/người. Căn rẻ hơn giá trung bình toà từ 10% được gắn “Căn hời”.</p>
-          </div>
-          <AllInDemo />
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={`wrap ${styles.split} ${styles.flip}`}>
-          <div className={styles.photo}>
-            <LiveVerifiedPhoto />
-          </div>
-          <div className={styles.copy}>
-            <h2 className={styles.h2}>Mỗi ảnh có mã căn và dấu thời gian</h2>
-            <ul className={styles.checks}>
-              <li>
-                <BadgeCheck size={20} />
-                <span>Định danh chuẩn Toà · Tầng · Căn, ảnh do Field Host chụp tại chỗ lúc tiếp nhận.</span>
-              </li>
-              <li>
-                <FileCheck2 size={20} />
-                <span>Chủ nhà ký gửi độc quyền nên không có tin mồi hay tráo căn: giá đúng, căn còn thật.</span>
-              </li>
-              <li>
-                <EyeOff size={20} />
-                <span>Số điện thoại chủ nhà được ẩn. Mọi liên lạc đi qua Zalo của VinStay.</span>
-              </li>
-              <li>
-                <KeyRound size={20} />
-                <span>Mã cửa chỉ hiện trên ứng dụng của Host đúng lúc đứng trước cửa phòng.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section className={`${styles.section} ${styles.tint}`}>
-        <div className="wrap">
-          <div className={styles.rowHead}>
-            <div>
-              <h2 className={styles.h2}>Căn hời tuần này</h2>
-              <p className="muted">Rẻ hơn giá trung bình toà từ 10% cho cùng layout, đã tính đủ mọi khoản phí.</p>
-            </div>
-            <Link href="/units" className="btn btn-quiet">
-              Xem tất cả căn <ArrowRight size={16} />
-            </Link>
-          </div>
-          <LiveBargains />
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={`wrap ${styles.split}`}>
-          <div className={styles.copy}>
-            <h2 className={styles.h2}>Phủ sóng các phân khu Ocean Park 1</h2>
-            <p>Mỗi phân khu có Field Host riêng đã có thẻ cư dân thang máy, nên lịch xem luôn có người đón đúng giờ.</p>
-          </div>
-          <LiveZones />
-        </div>
-      </section>
-
-      <section className={`${styles.section} ${styles.tint}`}>
-        <div className={`wrap ${styles.deposit}`}>
-          <div className={styles.copy}>
-            <h2 className={styles.h2}>Cọc 2 triệu đi đâu?</h2>
-            <p>Bạn chỉ cọc sau khi đã xem phòng và ưng ý. Khoản cọc không nằm trong túi môi giới: nó vào tài khoản định danh của nền tảng và có đường đi rõ ràng.</p>
-          </div>
-          <div className={`card ${styles.money}`} role="img" aria-label="Cọc giữ chỗ 2.000.000 đồng chuyển 100 phần trăm thành Tiền cọc bảo đảm khi ký hợp đồng; tiền thuê tháng đầu không bị trừ">
-            <div className={styles.moneyRow}>
-              <div className={styles.chunk}>
-                <span className="muted small">Cọc giữ chỗ</span>
-                <strong className="num">2.000.000đ</strong>
+      <section className={`${styles.section} ${styles.introSection}`} id="ve-chung-toi">
+        <div className={styles.container}>
+          <Reveal>
+            <header className={styles.sectionHeader}>
+              <div className={styles.sectionIntro}>
+                <p className={styles.kicker}>{t.areaKicker}</p>
+                <h2 className={styles.heading}>{t.why}</h2>
+                <p className={styles.lede}>{t.whyLead}</p>
               </div>
-              <span className={styles.arrow}>ký hợp đồng thuê</span>
-              <div className={`${styles.chunk} ${styles.chunkOn}`}>
-                <span className="small">Tiền cọc bảo đảm</span>
-                <strong className="num">gồm 2.000.000đ</strong>
+              <Link href="/units" className={styles.textLink}>{t.explore}<ArrowRight size={16} /></Link>
+            </header>
+          </Reveal>
+          <div className={styles.promiseRow}>
+            {[
+              { icon: BadgeCheck, label: locale === "vi" ? "Căn đang mở từ catalog thật" : "Live homes from the catalog" },
+              { icon: Coins, label: locale === "vi" ? "Chi phí hiển thị theo từng căn" : "Costs shown per listing" },
+              { icon: CalendarCheck2, label: locale === "vi" ? "Đặt lịch ngay trên hồ sơ" : "Book from each listing" },
+              { icon: ShieldCheck, label: locale === "vi" ? "Trạng thái cập nhật từ hệ thống" : "Status synced from the system" },
+            ].map(({ icon: Icon, label }) => <div key={label} className={styles.promise}><span><Icon size={17} /></span>{label}</div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.areasSection}`} id="can-ho">
+        <div className={styles.container}>
+          <Reveal>
+            <header className={styles.sectionHeader}>
+              <div className={styles.sectionIntro}>
+                <p className={styles.kicker}>{locale === "vi" ? "Một khu vực · nhiều lựa chọn" : "One neighborhood · more choices"}</p>
+                <h2 className={styles.heading}>{t.areaTitle}</h2>
+                <p className={styles.lede}>{t.districtsLead}</p>
+              </div>
+              <span className={styles.sectionCaption}><MapPin size={15} /> Vinhomes Ocean Park 1 · Hà Nội</span>
+            </header>
+          </Reveal>
+          <Reveal delay={70}><LiveBentoAreas /></Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.listingSection}`} id="tin-noi-bat">
+        <div className={styles.container}>
+          <Reveal>
+            <header className={styles.sectionHeader}>
+              <div className={styles.sectionIntro}>
+                <p className={styles.kicker}>{locale === "vi" ? "Cập nhật từ catalog" : "Live from the catalog"}</p>
+                <h2 className={styles.heading}>{t.listings}</h2>
+                <p className={styles.lede}>{t.listingsLead}</p>
+              </div>
+              <Link href="/units" className={styles.textLink}>{t.viewAll}<ArrowRight size={16} /></Link>
+            </header>
+          </Reveal>
+          <Reveal delay={70}><FeaturedListings /></Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.aiSection}`} id="ai-tro-ly">
+        <div className={`${styles.container} ${styles.aiLayout}`}>
+          <Reveal className={styles.aiVisualWrap}>
+            <div className={styles.aiVisual}>
+              <div className={styles.aiGlow} />
+              <div className={styles.aiOrb} aria-hidden="true"><WandSparkles size={35} /></div>
+              <div className={`${styles.assistantCard} ${styles.assistantCardTop}`}>
+                <div className={styles.assistantIcon}><Sparkles size={16} /></div>
+                <div><strong>{locale === "vi" ? "Trợ lý tìm căn" : "Home search assistant"}<span className={styles.thinkingDots}><i /><i /><i /></span></strong><p>{locale === "vi" ? "Đọc nhu cầu và đối chiếu catalog" : "Reads your needs against the catalog"}</p></div>
+              </div>
+              <div className={styles.assistantCard}>
+                <span className={styles.assistantCheck}><Check size={15} /></span>
+                <div><strong>{locale === "vi" ? "Kết quả có căn thật" : "Results from real listings"}</strong><p>{locale === "vi" ? "Thông tin, trạng thái, chi phí trên cùng hồ sơ" : "Details, status, and costs in each listing"}</p></div>
+              </div>
+              <div className={styles.aiOrbit} aria-hidden="true"><span /><span /><span /></div>
+              <span className={styles.aiVisualNote}><span className={styles.livePulse} />{available.length} {locale === "vi" ? "căn từ catalog" : "homes in catalog"}</span>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className={styles.aiCopy}>
+              <p className={styles.kicker}><Sparkles size={15} /> {t.aiEyebrow}</p>
+              <h2 className={styles.heading}>{t.aiTitle}</h2>
+              <p className={styles.lede}>{t.aiLead}</p>
+              <div className={styles.aiFeatures}>
+                <div><span><MessageCircle size={18} /></span><p><strong>{locale === "vi" ? "Hiểu cách bạn diễn đạt" : "Understands natural requests"}</strong><small>{locale === "vi" ? "Nhập một câu mô tả hoặc chọn bộ lọc." : "Type a request or use the filters."}</small></p></div>
+                <div><span><LayoutDashboard size={18} /></span><p><strong>{locale === "vi" ? "Lọc theo dữ liệu căn" : "Filters live listings"}</strong><small>{locale === "vi" ? "Ngân sách, layout, khu vực và nội thất." : "Budget, layout, area, and furnishing."}</small></p></div>
+                <div><span><Coins size={18} /></span><p><strong>{locale === "vi" ? "Đối chiếu tổng chi phí" : "Compare monthly costs"}</strong><small>{locale === "vi" ? "Xem mức All-in Cost ước tính ở mỗi kết quả." : "Review estimated All-in Cost per result."}</small></p></div>
+              </div>
+              <a href="#top" className={styles.primaryLink}>{locale === "vi" ? "Thử trợ lý tìm nhà" : "Try the home assistant"}<ArrowRight size={16} /></a>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className={styles.ownerSection} id="danh-cho-chu-nha">
+        <div className={`${styles.container} ${styles.ownerLayout}`}>
+          <Reveal>
+            <div className={styles.ownerCopy}>
+              <p className={styles.kickerLight}><Building2 size={15} /> {t.ownerEyebrow}</p>
+              <h2>{t.ownerTitle}</h2>
+              <p>{t.ownerLead}</p>
+              <div className={styles.ownerActions}>
+                <Link href="/login?tab=landlord" className={styles.goldButton}>{locale === "vi" ? "Bắt đầu ký gửi" : "Start a listing"}<ArrowRight size={16} /></Link>
+                <Link href="/landlord/dashboard" className={styles.ownerTextLink}>{locale === "vi" ? "Tôi đã có tài khoản" : "I already have an account"}</Link>
               </div>
             </div>
-            <div className={`${styles.chunk} ${styles.chunkFull}`}>
-              <span className="muted small">Tiền thuê tháng đầu</span>
-              <strong className="num">Thanh toán đủ, không bị trừ cọc</strong>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className={styles.ownerPanel}>
+              <div className={styles.ownerPanelHead}><span className={styles.ownerPanelIcon}><LayoutDashboard size={19} /></span><div><strong>{locale === "vi" ? "Cổng chủ nhà" : "Owner portal"}</strong><small>{locale === "vi" ? "Quy trình và dữ liệu theo hồ sơ của bạn" : "Workflows and data for your properties"}</small></div><ArrowRight size={16} /></div>
+              <div className={styles.ownerFeatureGrid}>
+                {[
+                  { icon: ClipboardCheck, title: locale === "vi" ? "Hồ sơ ký gửi" : "Listing application", body: locale === "vi" ? "Gửi thông tin căn theo hướng dẫn" : "Submit property details" },
+                  { icon: Building2, title: locale === "vi" ? "Danh sách căn" : "Your properties", body: locale === "vi" ? "Theo dõi các căn đã gửi" : "Track submitted homes" },
+                  { icon: WalletCards, title: locale === "vi" ? "Tài chính" : "Finance", body: locale === "vi" ? "Mở khu vực tài chính chủ nhà" : "Open owner finance" },
+                  { icon: FileCheck2, title: locale === "vi" ? "Hồ sơ vận hành" : "Operations", body: locale === "vi" ? "Theo dõi các bước liên quan" : "Follow related workflows" },
+                ].map(({ icon: Icon, title, body }) => <div key={title}><span><Icon size={17} /></span><strong>{title}</strong><small>{body}</small></div>)}
+              </div>
+              <Link href="/landlord/dashboard" className={styles.ownerPanelLink}>{locale === "vi" ? "Mở cổng chủ nhà" : "Open owner portal"}<ArrowRight size={15} /></Link>
             </div>
-            <p className="muted xs">Khoản cọc bảo đảm được giữ nguyên suốt kỳ thuê và hoàn 100% khi thanh lý sau khi đối soát hiện trạng theo Hộ chiếu bàn giao số.</p>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.processSection}`} id="quy-trinh">
+        <div className={styles.container}>
+          <Reveal>
+            <header className={`${styles.sectionHeader} ${styles.centerHeader}`}>
+              <div className={styles.sectionIntro}>
+                <p className={styles.kicker}>{locale === "vi" ? "Dễ theo dõi từ bước đầu" : "Clear from the first step"}</p>
+                <h2 className={styles.heading}>{t.flowTitle}</h2>
+                <p className={styles.lede}>{t.flowLead}</p>
+              </div>
+            </header>
+          </Reveal>
+          <div className={styles.flowTabs} role="tablist" aria-label={locale === "vi" ? "Chọn quy trình" : "Choose a workflow"}>
+            <button type="button" role="tab" aria-selected={flow === "tenant"} className={flow === "tenant" ? styles.flowTabActive : styles.flowTab} onClick={() => setFlow("tenant")}><MapPin size={16} /> {locale === "vi" ? "Tôi muốn thuê nhà" : "I want to rent"}</button>
+            <button type="button" role="tab" aria-selected={flow === "landlord"} className={flow === "landlord" ? styles.flowTabActive : styles.flowTab} onClick={() => setFlow("landlord")}><Building2 size={16} /> {locale === "vi" ? "Tôi là chủ nhà" : "I am a property owner"}</button>
+          </div>
+          <div className={styles.timeline} key={flow}>
+            {processSteps.map(({ icon: Icon, title, body }, index) => <article className={styles.timelineStep} key={title}>
+              <span className={styles.timelineNumber}>0{index + 1}</span><span className={styles.timelineIcon}><Icon size={20} /></span><h3>{title}</h3><p>{body}</p>
+            </article>)}
           </div>
         </div>
       </section>
 
-      <section className={styles.section}>
-        <div className={`wrap ${styles.faqWrap}`}>
-          <h2 className={styles.h2}>Câu hỏi thường gặp</h2>
-          <div className={styles.faq}>
-            {FAQ.map((f) => (
-              <details key={f.q}>
-                <summary>{f.q}</summary>
-                <p className="muted">{f.a}</p>
-              </details>
-            ))}
+      <section className={`${styles.section} ${styles.reasonsSection}`} id="vi-sao-vinstay">
+        <div className={styles.container}>
+          <Reveal><header className={styles.sectionHeader}><div className={styles.sectionIntro}><p className={styles.kicker}>{locale === "vi" ? "Được thiết kế quanh nhu cầu thật" : "Designed around real needs"}</p><h2 className={styles.heading}>{t.reasonsTitle}</h2><p className={styles.lede}>{t.reasonsLead}</p></div></header></Reveal>
+          <div className={styles.reasonGrid}>{(locale === "vi" ? REASONS : REASONS_EN).map(({ icon: Icon, title, body }, index) => <Reveal key={title} delay={index * 45}><article className={styles.reasonCard}><span className={styles.reasonIcon}><Icon size={20} /></span><h3>{title}</h3><p>{body}</p><span className={styles.reasonArrow}><ArrowRight size={16} /></span></article></Reveal>)}</div>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.pricingSection}`} id="bang-gia">
+        <div className={`${styles.container} ${styles.pricingLayout}`}>
+          <Reveal><div><p className={styles.kicker}>{locale === "vi" ? "Minh bạch trước khi xác nhận" : "Clear before you commit"}</p><h2 className={styles.heading}>{t.pricingTitle}</h2><p className={styles.lede}>{t.pricingLead}</p><Link href="/login?tab=landlord" className={styles.textLink}>{t.pricingCta}<ArrowRight size={16} /></Link></div></Reveal>
+          <Reveal delay={100}><div className={styles.pricingCard}><span className={styles.pricingIcon}><ShieldCheck size={21} /></span><span className={styles.pricingLabel}>{locale === "vi" ? "Không có mức phí giả định" : "No invented service rates"}</span><strong>{locale === "vi" ? "Xác nhận điều khoản trước khi dùng" : "Confirm terms before using a service"}</strong><p>{locale === "vi" ? "Chỉ tiếp tục khi mức phí và điều khoản áp dụng đã được thông tin rõ ràng." : "Continue only after the applicable service fee and terms have been clearly provided."}</p><Link href="/login?tab=landlord" className={styles.pricingButton}>{locale === "vi" ? "Mở luồng chủ nhà" : "Open owner flow"}<ArrowRight size={15} /></Link></div></Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.reviewSection}`}>
+        <div className={`${styles.container} ${styles.reviewLayout}`}>
+          <Reveal><div><p className={styles.kicker}>{locale === "vi" ? "Đánh giá có ngữ cảnh" : "Reviews with context"}</p><h2 className={styles.heading}>{t.reviewsTitle}</h2><p className={styles.lede}>{t.reviewsLead}</p><Link href="/booking" className={styles.textLink}>{t.reviewsCta}<ArrowRight size={16} /></Link></div></Reveal>
+          <Reveal delay={100}><div className={styles.reviewCard}><div className={styles.reviewStars} aria-label={locale === "vi" ? "Thang điểm năm sao, chờ đánh giá thực tế" : "Five-star scale, awaiting real reviews"}>☆☆☆☆☆</div><span className={styles.reviewScale}>— / 5</span><strong>{locale === "vi" ? "Chưa có điểm tổng hợp công khai" : "No public aggregate rating"}</strong><p>{locale === "vi" ? "Đánh giá được ghi nhận sau khi lịch xem hoàn tất." : "Ratings are recorded after a viewing is completed."}</p><span className={styles.reviewSource}><BadgeCheck size={15} /> {locale === "vi" ? "Đánh giá gắn với lịch hẹn" : "Reviews tied to appointments"}</span></div></Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.mobileSection}`} id="ung-dung-di-dong">
+        <div className={`${styles.container} ${styles.mobileCard}`}>
+          <Reveal><div className={styles.mobileCopy}><span className={styles.mobileBadge}><Sun size={15} /> {locale === "vi" ? "Trải nghiệm web di động" : "Mobile web experience"}</span><h2>{t.mobileTitle}</h2><p>{t.mobileLead}</p><Link href="/units" className={styles.primaryLink}>{t.explore}<ArrowRight size={16} /></Link></div></Reveal>
+          <Reveal delay={100}><div className={styles.phoneScene} aria-hidden="true"><div className={styles.phoneBack}><div /><div /><div /></div><div className={styles.phoneFront}><div className={styles.phoneIsland} /><div className={styles.phoneBrand}><span className={styles.phoneBrandIcon}><Building2 size={13} /></span><b>VinStay</b><span>•••</span></div><div className={styles.phoneHero}><span>{locale === "vi" ? "Tìm căn phù hợp" : "Find your next home"}</span><i /></div><div className={styles.phoneSearch}><MapPin size={12} /> {locale === "vi" ? "Ocean Park 1" : "Ocean Park 1"}</div><div className={styles.phoneListing}><span className={styles.phonePicture} /><span><b>{locale === "vi" ? "Căn hộ đang mở" : "Available homes"}</b><small>{locale === "vi" ? "Thông tin từ catalog" : "Live catalog details"}</small></span></div><div className={styles.phoneListing}><span className={styles.phonePicture} /><span><b>{locale === "vi" ? "Lịch xem nhà" : "Home viewings"}</b><small>{locale === "vi" ? "Theo dõi trong tài khoản" : "Track in your account"}</small></span></div></div><span className={styles.phoneHalo} /></div></Reveal>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.guidesSection}`} id="cam-nang">
+        <div className={styles.container}>
+          <Reveal><header className={styles.sectionHeader}><div className={styles.sectionIntro}><p className={styles.kicker}>{locale === "vi" ? "Cẩm nang ngắn" : "Quick guides"}</p><h2 className={styles.heading}>{t.guideTitle}</h2><p className={styles.lede}>{t.guideLead}</p></div></header></Reveal>
+          <div className={styles.guideGrid}>
+            <Link href="/units" className={styles.guideCard}><span className={styles.guideIcon}><Coins size={19} /></span><small>01 · {locale === "vi" ? "NGƯỜI THUÊ" : "RENTERS"}</small><strong>{t.guide1}</strong><p>{t.guide1b}</p><span className={styles.guideArrow}><ArrowRight size={16} /></span></Link>
+            <Link href="/booking" className={styles.guideCard}><span className={styles.guideIcon}><CalendarCheck2 size={19} /></span><small>02 · {locale === "vi" ? "LỊCH XEM" : "VIEWINGS"}</small><strong>{t.guide2}</strong><p>{t.guide2b}</p><span className={styles.guideArrow}><ArrowRight size={16} /></span></Link>
+            <Link href="/login?tab=landlord" className={styles.guideCard}><span className={styles.guideIcon}><Building2 size={19} /></span><small>03 · {locale === "vi" ? "CHỦ NHÀ" : "OWNERS"}</small><strong>{t.guide3}</strong><p>{t.guide3b}</p><span className={styles.guideArrow}><ArrowRight size={16} /></span></Link>
           </div>
         </div>
       </section>
 
-      <section className={styles.cta}>
-        <div className={`wrap ${styles.ctaInner}`}>
-          <h2 className={styles.ctaTitle}>Bạn đã có ngân sách trong đầu?</h2>
-          <div className={styles.ctaBtns}>
-            <a href="#top" className="btn btn-amber btn-lg">
-              Hỏi VinStay AI ngay
-            </a>
-            <Link href="/booking" className={`btn btn-lg ${styles.ghostOnDark}`}>
-              Kiểm tra lịch xem
-            </Link>
-          </div>
+      <section className={`${styles.section} ${styles.faqSection}`} id="faq">
+        <div className={`${styles.container} ${styles.faqLayout}`}>
+          <Reveal><div className={styles.faqIntro}><span className={styles.faqIcon}><CircleHelp size={21} /></span><p className={styles.kicker}>{locale === "vi" ? "Cần giải đáp?" : "Need help?"}</p><h2 className={styles.heading}>{t.faqTitle}</h2><p className={styles.lede}>{t.faqLead}</p><Link href="/booking" className={styles.textLink}>{locale === "vi" ? "Mở trang tra cứu lịch" : "Open viewing lookup"}<ArrowRight size={16} /></Link></div></Reveal>
+          <Reveal delay={80}><div className={styles.faqList}>{[1, 2, 3, 4, 5, 6].map((n) => <details key={n} className={styles.faqItem} open={n === 1}><summary><span>{t[`faq${n}` as keyof typeof t]}</span><ChevronDown size={18} /></summary><p>{t[`faq${n}a` as keyof typeof t]}</p></details>)}</div></Reveal>
         </div>
       </section>
 
-      <footer className={styles.footer}>
-        <div className={`wrap ${styles.footGrid}`}>
-          <div>
-            <Logo inverse sub="Vinhomes Ocean Park 1, Gia Lâm, Hà Nội" />
-            <p className={styles.footNote}>Nền tảng cho thuê và vận hành căn hộ. VinStay AI chỉ giới thiệu thợ kỹ thuật ngoài, không nhận sửa chữa.</p>
+      <section className={styles.finalCta} id="bat-dau">
+        <div className={styles.finalGlow} />
+        <div className={`${styles.container} ${styles.finalInner}`}>
+          <div><p className={styles.kickerLight}><Sparkles size={15} /> VINSTAY AI</p><h2>{t.finalTitle}</h2><p>{t.finalLead}</p></div>
+          <div className={styles.finalActions}><Link href="/units" className={styles.finalPrimary}>{t.findHome}<ArrowRight size={16} /></Link><Link href="/login?tab=landlord" className={styles.finalSecondary}>{t.listHome}</Link></div>
+        </div>
+      </section>
+
+      <footer className={styles.footer} id="footer">
+        <div className={styles.container}>
+          <div className={styles.footerMain}>
+            <div className={styles.footerBrand}><Link href="/" className={styles.footerLogo}><span><Building2 size={19} /></span><b>VinStay <i>AI</i></b></Link><p>{t.footerText}</p><span className={styles.footerLocation}><MapPin size={14} /> Vinhomes Ocean Park 1 · Hà Nội</span></div>
+            <div><strong>{t.company}</strong><Link href="/#ve-chung-toi">{locale === "vi" ? "Về VinStay" : "About VinStay"}</Link><Link href="/#quy-trinh">{locale === "vi" ? "Cách hoạt động" : "How it works"}</Link><Link href="/#faq">FAQ</Link></div>
+            <div><strong>{t.tenant}</strong><Link href="/units">{locale === "vi" ? "Tìm căn hộ" : "Find apartments"}</Link><Link href="/booking">{locale === "vi" ? "Tra cứu lịch xem" : "Viewings"}</Link><Link href="/login">{locale === "vi" ? "Tài khoản" : "Account"}</Link></div>
+            <div><strong>{t.landlord}</strong><Link href="/login?tab=landlord">{locale === "vi" ? "Đăng ký ký gửi" : "Submit a listing"}</Link><Link href="/landlord/dashboard">{locale === "vi" ? "Cổng chủ nhà" : "Owner portal"}</Link><Link href="/host/login">{locale === "vi" ? "Cổng vận hành" : "Operations portal"}</Link></div>
+            <div><strong>{t.support}</strong><Link href="/#faq">{locale === "vi" ? "Câu hỏi thường gặp" : "FAQ"}</Link><Link href="/booking">{locale === "vi" ? "Tra cứu đặt lịch" : "Appointment lookup"}</Link><Link href="/login">{locale === "vi" ? "Đăng nhập" : "Sign in"}</Link></div>
           </div>
-          <nav aria-label="Liên kết cuối trang">
-            <strong>Khách thuê</strong>
-            <Link href="/units">Tìm căn</Link>
-            <Link href="/booking">Kiểm tra lịch xem</Link>
-          </nav>
-          <nav aria-label="Cổng đối tác">
-            <strong>Đối tác</strong>
-            <Link href="/login?as=landlord">Cổng chủ nhà</Link>
-            <Link href="/admin/login">Cổng Field Host</Link>
-            <Link href="/login?as=admin">Quản trị</Link>
-          </nav>
-          <p className={styles.footLegal}>Bản MVP trình diễn dùng dữ liệu mô phỏng. Ảnh căn hộ lấy từ tin đăng công khai, chỉ phục vụ minh hoạ.</p>
+          <div className={styles.footerBottom}><span>© 2026 VinStay AI</span><span>{locale === "vi" ? "Danh mục căn hộ hiện tại · Hà Nội" : "Current apartment catalog · Hanoi"}</span><a href="#top" className={styles.backTop}><ArrowUp size={14} /> {locale === "vi" ? "Lên đầu trang" : "Back to top"}</a></div>
         </div>
       </footer>
-    </>
+
+      <a className={styles.floatingHelp} href="#ai-tro-ly" aria-label={locale === "vi" ? "Mở trợ lý AI tìm nhà" : "Open AI home assistant"}><MessageCircle size={20} /><span>{locale === "vi" ? "Trợ lý tìm nhà" : "Home assistant"}</span></a>
+    </div>
   );
 }

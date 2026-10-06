@@ -24,6 +24,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { HostRoles } from '../../common/decorators/host-roles.decorator';
 
 @ApiTags('5. Cọc VietQR 2M & Khóa Giữ Chỗ')
 @Controller()
@@ -110,6 +111,7 @@ export class DepositController {
   }
 
   @Roles('field_host')
+  @HostRoles('sale')
   @Post('deposits/:id/host-receipt')
   @ApiOperation({
     summary: 'Host tải ảnh ủy nhiệm chi (UNC) khi webhook ngân hàng chậm',
@@ -117,7 +119,8 @@ export class DepositController {
   async uploadHostReceipt(
     @Param('id') id: string,
     @Body() dto: UploadHostReceiptDto,
+    @CurrentUser() user: any,
   ) {
-    return this.depositService.uploadHostReceipt(id, dto);
+    return this.depositService.uploadHostReceipt(id, dto, user.id);
   }
 }

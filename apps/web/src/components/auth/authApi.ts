@@ -20,7 +20,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   unauthorized: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
   rate_limited: "Bạn thao tác quá nhanh. Thử lại sau ít phút.",
   auth_not_configured: "Đăng nhập Google chưa được cấu hình (backend thiếu GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).",
-  demo_disabled: "Chế độ demo đang tắt.",
   oauth_failed: "Đăng nhập không thành công. Thử lại.",
 };
 
@@ -56,11 +55,18 @@ export function unwrap<T>(res: { ok: boolean; status: number }, body: unknown): 
 
 /** POST JSON tới backend (cùng origin, cookie phiên tự đi kèm). */
 export async function postJson<T = Record<string, unknown>>(path: string, body?: unknown): Promise<ApiResult<T>> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-  });
-  return unwrap<T>(res, await res.json().catch(() => ({})));
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+    return unwrap<T>(res, await res.json().catch(() => ({})));
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }

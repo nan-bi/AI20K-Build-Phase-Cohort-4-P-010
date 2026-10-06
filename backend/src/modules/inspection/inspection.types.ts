@@ -86,7 +86,7 @@ export interface InspectionResult {
 }
 
 export interface LandlordInspectionView {
-  hostName: string;
+  hostName: string | null;
   submittedAt: string;
   report: InspectionReport;
   /** Cả ảnh hạng mục + niêm yết, link ký 1h. */

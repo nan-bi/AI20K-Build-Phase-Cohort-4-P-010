@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
 import { accountApi } from "@/lib/apiClient";
 import { refreshSession, useSession } from "@/lib/auth/client";
-import { fmtDate, fmtPhone } from "@/lib/mock/format";
+import { fmtDate, fmtPhone } from "@/lib/format";
 import { useApiQuery } from "@/lib/query/useApiQuery";
 import { tenantQueries } from "@/lib/tenant/queries";
 

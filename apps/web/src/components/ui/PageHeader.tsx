@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import styles from "./PageHeader.module.css";
+import { Button } from "./button";
 
 interface PageHeaderProps {
   title: string;
@@ -13,18 +13,18 @@ interface PageHeaderProps {
 /** Tiêu đề đầu trang cho mọi màn trong PortalShell: tên màn, mô tả một câu, hành động chính. */
 export function PageHeader({ title, description, actions, back }: PageHeaderProps) {
   return (
-    <header className={styles.header}>
-      <div className={styles.text}>
+    <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-border">
+      <div className="flex flex-col items-start max-w-2xl gap-2">
         {back && (
-          <Link href={back.href} className={styles.back}>
-            <ArrowLeft size={16} />
+          <Button variant="ghost" size="sm" render={<Link href={back.href} />} className="mb-2 -ml-2 text-muted-foreground hover:text-foreground h-8 rounded-full">
+            <ArrowLeft size={16} className="mr-1.5" />
             {back.label}
-          </Link>
+          </Button>
         )}
-        <h1 className={styles.title}>{title}</h1>
-        {description && <p className={`muted prose ${styles.description}`}>{description}</p>}
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{title}</h1>
+        {description && <p className="text-base font-medium text-muted-foreground leading-relaxed mt-1">{description}</p>}
       </div>
-      {actions && <div className={styles.actions}>{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3 shrink-0">{actions}</div>}
     </header>
   );
 }

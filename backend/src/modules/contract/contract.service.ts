@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Optional, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateMandateDto } from './dto/contract.dto';
@@ -15,7 +15,7 @@ export class ContractService {
     private readonly doorCodes: DoorCodeService,
   ) {}
 
-  async createMandate(dto: CreateMandateDto, landlordId?: string) {
+  async createMandate(dto: CreateMandateDto, landlordId: string) {
     const { unitCode, doorPin } = dto;
 
     const unit = await this.prisma.unit.findUnique({
@@ -26,36 +26,39 @@ export class ContractService {
     if (!unit) {
       throw new NotFoundException(`Không tìm thấy căn hộ ${unitCode}`);
     }
+    if (unit.landlordId !== landlordId) {
+      throw new ForbiddenException('Bạn không có quyền quản lý căn hộ này.');
+    }
 
     const contractNumber = `MANDATE-${unitCode}-${Date.now().toString().slice(-4)}`;
 
-    // 1. Cập nhật mã khóa cửa an toàn vào Vault (AES-256)
-    await this.prisma.doorAccessKey.upsert({
-      where: { unitId: unit.id },
-      update: {
-        vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
-        lastRotatedAt: new Date(),
-      },
-      create: {
-        unitId: unit.id,
-        keyType: 'ELECTRONIC_PIN',
-        vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
-      },
-    });
-
-    // 2. Tạo ExclusiveMandate
-    const mandate = await this.prisma.exclusiveMandate.create({
-      data: {
-        unitId: unit.id,
-        contractNumber,
-        status: MandateStatus.ACTIVE,
-        signedAt: new Date(),
-        validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 năm
-        doorAccessConfig: {
-          doorLockType: 'ELECTRONIC_PIN',
-          exitClause: 'Báo trước 15 ngày, chỉ áp dụng khi trạng thái nhà trống (AVAILABLE)',
+    const mandate = await this.prisma.$transaction(async (tx) => {
+      await tx.doorAccessKey.upsert({
+        where: { unitId: unit.id },
+        update: {
+          vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
+          lastRotatedAt: new Date(),
         },
-      },
+        create: {
+          unitId: unit.id,
+          keyType: 'ELECTRONIC_PIN',
+          vaultSecretRef: this.doorCodes.encryptDoorPin(doorPin.replace(/\D/g, '')),
+        },
+      });
+
+      return tx.exclusiveMandate.create({
+        data: {
+          unitId: unit.id,
+          contractNumber,
+          status: MandateStatus.ACTIVE,
+          signedAt: new Date(),
+          validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          doorAccessConfig: {
+            doorLockType: 'ELECTRONIC_PIN',
+            exitClause: 'Báo trước 15 ngày, chỉ áp dụng khi trạng thái nhà trống (AVAILABLE)',
+          },
+        },
+      });
     });
 
     this.logger.log(

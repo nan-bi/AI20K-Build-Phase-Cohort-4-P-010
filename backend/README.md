@@ -2,7 +2,7 @@
 
 Hệ thống API Backend toàn diện cho nền tảng thuê căn hộ Asset-Light tại **Vinhomes Ocean Park (The Sapphire 1 & 2)**.
 
-> **Công nghệ:** NestJS 10 + Prisma ORM + Supabase (PostgreSQL + Auth + Storage).  
+> **Công nghệ:** NestJS 10 + Prisma ORM + PostgreSQL trên Supabase; Storage dùng cho ảnh hồ sơ. Đăng nhập do backend quản lý, không dùng Supabase Auth.
 > **Tuân thủ chuẩn:** [SAD v2.0](../docs/SAD_v2.md), bộ văn bản pháp lý [`legal/`](../legal/) và [Interactive Prototype Guide](../docs/PROTOTYPE_GUIDE.md).  
 > **🎯 TRÌNH DIỄN SƠ ĐỒ & TÀI LIỆU BACKEND:** Mở tệp tin [`backend/BACKEND_SHOW.html`](./BACKEND_SHOW.html) để xem tài liệu cơ bản và bấm nút **"Mở Trình Chiếu Sơ Đồ (Show Mode)"** để xem 6 sơ đồ kiến trúc tương tác!
 
@@ -11,24 +11,26 @@ Hệ thống API Backend toàn diện cho nền tảng thuê căn hộ Asset-Lig
 ## 1. DANH MỤC API THEO MÀN HÌNH & LUỒNG NGHIỆP VỤ
 
 Danh mục API được dựng từ **các màn hình và luồng nghiệp vụ** của 4 cổng (Khách thuê, Chủ nhà, Field Host, Admin).
-API phục vụ dữ liệu thật và bám theo quy tắc trong [`legal/`](../legal/) và [`AGENTS.md`](../AGENTS.md).
+API đọc/ghi dữ liệu nghiệp vụ bằng Prisma trên database Supabase và bám theo quy tắc trong [`legal/`](../legal/) và [`AGENTS.md`](../AGENTS.md).
+
+> **Nguồn hiện hành:** Bảng endpoint bên dưới có các hàng kế hoạch được viết trước khi API hoàn thiện. Hợp đồng route, quyền và trạng thái provider hiện tại được xác định bởi controller/service và Swagger tại `/api/docs`.
 
 - Base URL `/api/v1` · Swagger `/api/docs` · Phiên = cookie httpOnly (xem §4).
-- Các controller nghiệp vụ hiện vẫn `@Public()` — chưa gắn `@Roles`. Cột "Vai" là phân quyền đích.
+- Route công khai, xác thực và phân quyền được khai báo bằng decorators trên controller/route; backend là nguồn quyết định quyền thực tế.
 - Trạng thái so với code backend: ✅ đã có · ⚠️ đã có nhưng lệch nghiệp vụ (phải sửa) · ⬜ chưa có (đường dẫn là đề xuất).
 
 ### 1.0. Quy tắc nghiệp vụ API phải tuân thủ
 
-Các đơn giá và ngưỡng có thể thay đổi (phí quản lý, gửi xe, biến phí Host, thời hạn giữ chỗ…) lưu trong DB và do Admin cấu hình, không hard-code.
+Giá thuê và phí quản lý căn lấy từ bản ghi Supabase. Biểu giá gửi xe/điện nước và ngưỡng nghiệp vụ hiện theo quy tắc trong code; biến phí Host và thời hạn giữ chỗ đọc từ `FeeConfig` khi có cấu hình.
 
 | Quy tắc | Nội dung | Nguồn |
 |---|---|---|
-| All-in Cost | tiền thuê + phí quản lý BQL theo m² + phí gửi xe + điện nước ước tính theo số người; lọc loại căn vượt ngân sách trần | AGENTS (Khách thuê #2) |
+| All-in Cost | tiền thuê + phí quản lý lưu trên căn + biểu giá gửi xe + điện nước ước tính theo số người | AGENTS (Khách thuê #2) |
 | Badge "Căn hời phân khu" | rẻ hơn ≥ 10% so với layout cùng phân khu | AGENTS (Chủ nhà #1) |
 | Xác thực SĐT | OTP Zalo bắt buộc trước khi đặt lịch, mỗi SĐT xác thực một lần | AGENTS (Chủ nhà #2) |
 | Điều phối | 3 tầng: Host gần nhất → Open Pool 500m sau 3 phút → Area Lead; nhắc hẹn kép T-10m | AGENTS (Vận hành #3, #5) |
 | Mã cửa | chỉ cấp khi Host xác nhận xem phòng tại cửa; không Lockbox, không QR sảnh | AGENTS (Chủ nhà #2) |
-| Cọc giữ chỗ | 2.000.000đ qua VietQR động; căn khoá `holding` theo số giờ Admin cài (mặc định **48h**, 12–72h, chỉnh riêng từng căn) | [legal/02](../legal/02_HOLDING_AND_SECURITY_DEPOSIT_AGREEMENT.md) · ⚠️ backend đang cứng **7 ngày** |
+| Cọc giữ chỗ | 2.000.000đ qua VietQR cấu hình bằng tài khoản nhận thật; tạo giao dịch bị khóa nếu thiếu cấu hình nhận/đối soát | [legal/02](../legal/02_HOLDING_AND_SECURITY_DEPOSIT_AGREEMENT.md) |
 | Điều khoản cọc | khách tick đồng ý trước khi hiện VietQR — **không** ký thỏa thuận cọc riêng | AGENTS (Chủ nhà #3) |
 | Kết cục cọc | ký HĐ thuê → chuyển **100%** vào Tiền cọc bảo đảm (không trừ tiền thuê tháng đầu) · khách quá hạn/từ chối → mất cọc, chia 50% chủ nhà / 50% nền tảng · chủ nhà vi phạm → hoàn cọc + phạt tương đương · bất khả kháng → hoàn 100% | [legal/02 Điều 6](../legal/02_HOLDING_AND_SECURITY_DEPOSIT_AGREEMENT.md) |
 | Tiền cọc bảo đảm | 1–2 tháng tiền thuê; giữ nguyên suốt kỳ thuê để cấn trừ hư hỏng nội thất, phạt BQL, nợ điện nước; hoàn khách khi thanh lý HĐ | [legal/06 Điều 4](../legal/06_OFFICIAL_APARTMENT_LEASE_AGREEMENT.md) |
@@ -38,9 +40,9 @@ Các đơn giá và ngưỡng có thể thay đổi (phí quản lý, gửi xe, 
 Vòng đời lịch xem: `pending → confirmed → lobby → receiving → viewing → closing → holding → leased`;
 nhánh phụ `completed` (xem xong chưa thuê), `no_show`, `cancelled`, `rejected`.
 
-### 1.1. 👤 Công khai & Khách thuê (Toàn bộ A1–A21 đã hoàn thành)
+### 1.1. 👤 Công khai & Khách thuê
 
-Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch xem & OTP Zalo, theo dõi lịch hẹn, cọc giữ chỗ VietQR, eKYC 1 bước Zero-Storage, hợp đồng & tải PDF tiếng Việt.
+Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch xem & OTP, theo dõi lịch hẹn và các cổng Chủ nhà/Host/Admin. VietQR yêu cầu cấu hình nhận/đối soát thật; eKYC và lập hợp đồng tạm khóa đến khi tích hợp nhà cung cấp thật.
 
 | Endpoint | Vai | Nghiệp vụ / Contract | TT |
 |---|---|---|---|
@@ -48,8 +50,8 @@ Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch xem & OTP Z
 | `GET /properties/units` (A1) | công khai | Catalog căn hộ: All-in Cost, Căn hời, ẩn căn 0 ảnh | ✅ |
 | `GET /properties/units/:code` (A2) | công khai | Chi tiết căn hộ: `holdHours`, `activeViewingAt`, `photos` | ✅ |
 | `GET /properties/units/:code/busy-slots` (A3) | công khai | Khung giờ đã bận của căn hộ trong 14 ngày | ✅ |
-| `POST /auth/otp/send` (A4) | công khai | Gửi OTP SĐT (purpose: `TENANT_VIEWING`, cooldown 30s) | ✅ |
-| `POST /auth/otp/verify` (A5) | công khai | Xác thực OTP → sinh `actionToken` dùng 1 lần (15 phút) | ✅ |
+| `POST /auth/otp/send` (A4) | công khai | Gửi OTP qua provider thật; hiện trả lỗi nếu chưa cấu hình Zalo/SMS | ⚠ |
+| `POST /auth/otp/verify` (A5) | công khai | Xác thực OTP thật → sinh `actionToken` dùng 1 lần (15 phút) | ⚠ phụ thuộc A4 |
 | `POST /bookings` (A6) | tenant | Đặt lịch xem phòng với `actionToken` hợp lệ | ✅ |
 | `GET /me/bookings` (A7) | tenant | Danh sách lịch xem của tôi (chỉ xem lịch thuộc tài khoản) | ✅ |
 | `GET /bookings/:ref` (A8) | tenant | Chi tiết lịch xem (timeline 7 bước, DTO TenantBooking) | ✅ |
@@ -59,14 +61,13 @@ Màn: trang chủ chat AI, danh sách/chi tiết căn, đặt lịch xem & OTP Z
 | `POST /bookings/:ref/lobby-checkin` (A12) | tenant | Bấm "Tôi đã có mặt tại sảnh" | ✅ |
 | `POST /bookings/:ref/rating` (A13) | tenant | Chấm sao đánh giá Field Host | ✅ |
 | `GET /legal/deposit-terms` (A14) | công khai | Văn bản điều khoản cọc, 6 nội quy BQL, phiên bản pháp lý | ✅ |
-| `POST /bookings/:ref/deposit` (A15) | tenant | Khách tick đồng ý điều khoản cọc → sinh VietQR động 2 triệu | ✅ |
-| `POST /deposits/webhook-vietqr` · `/mark-paid` (A16) | ngân hàng/host | First-to-Pay Wins: khoá holding, huỷ lịch trùng, gợi ý 2 căn | ✅ |
-| `POST /identity/ekyc/scan` (A17) | tenant | Quét CCCD 1 bước (Zero-Storage, không upload ảnh) | ✅ |
-| `POST /identity/ekyc` (A18) | tenant | Xác nhận trường CCCD + 3 điều khoản thuê → xác lập HĐ | ✅ |
+| `POST /bookings/:ref/deposit` (A15) | tenant | Tạo cọc và URL VietQR từ tài khoản nhận thật; từ chối nếu thiếu webhook secret | ⚠ thiếu cấu hình trong `.env` hiện tại |
+| `POST /vietqr/webhook` (A16) | ngân hàng/đối tác webhook | First-to-Pay Wins; cần cấu hình callback thật về endpoint này | ⚠ chưa có provider callback |
+| `POST /bookings/:ref/ekyc/scan` (A17) | tenant | Quét CCCD qua provider eKYC | ⚠ chưa tích hợp provider |
+| `POST /bookings/:ref/ekyc` (A18) | tenant | Xác minh danh tính và xác lập HĐ sau khi provider trả kết quả thật | ⚠ chưa tích hợp provider |
 | `GET /me/contracts` (A19) | tenant | Danh sách hợp đồng thuê: thời hạn, cọc, tiền thanh toán kỳ 1 | ✅ |
 | `GET /me/contracts/:id/pdf` (A20) | tenant | Tải PDF HĐ thuê chính thức tiếng Việt có niêm phong sha256 | ✅ |
 | `GET/PUT/DELETE /me/favorites[/:code]` | đăng nhập | Căn đã lưu theo tài khoản (bảng `favorite_units`), nhận mã căn hoặc UUID, trả DTO `TenantUnit` | ✅ |
-| `POST /demo/bookings/:ref/step` (A21) | demo | Giả lập thao tác Host/Bank phục vụ trình diễn | ✅ |
 
 ### 1.3. 🏠 Chủ nhà
 
@@ -158,7 +159,6 @@ Màn: tổng quan, rổ hàng ký gửi, lịch hẹn & điều phối, sổ h�
 backend/
 ├── prisma/
 │   ├── schema.prisma          # 27 model (IAM/Auth, Property, Door Key, Mandate, Viewing/Dispatch, VietQR, eKYC, E-Sign, Handover, Payout, Audit)
-│   ├── seed.ts                # Dữ liệu khởi tạo (Sapphire 1 & 2, Field Host, căn mẫu, Fee Configs)
 │   └── legacy/                # drop_web_schema.sql — gỡ schema cũ của apps/web
 │
 ├── src/
@@ -217,7 +217,7 @@ npm install
 cp .env.example .env
 ```
 
-_(Nếu đã kết nối Supabase Cloud, điền `DATABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`. Nếu chạy local dev offline, khởi chạy Docker Compose)._
+_(Nếu dùng Supabase Cloud, điền `DATABASE_URL`, `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`. Nếu chạy local dev offline, cấu hình database local theo Docker Compose.)_
 
 ### Bước 3: Khởi chạy Database local (Tùy chọn nếu không dùng Supabase Cloud)
 
@@ -225,13 +225,13 @@ _(Nếu đã kết nối Supabase Cloud, điền `DATABASE_URL` và `SUPABASE_SE
 docker compose up -d
 ```
 
-### Bước 4: Tạo Client & Seed dữ liệu mẫu
+### Bước 4: Tạo Prisma Client
 
 ```bash
 npx prisma generate
-npx prisma db push
-npx prisma db seed
 ```
+
+Backend dùng schema database Supabase hiện có. Không chạy seed hoặc `prisma db push` lên database thật.
 
 ### Bước 5: Khởi chạy Backend Server ở chế độ Development
 
@@ -246,10 +246,8 @@ npm run start:dev
 
 ```bash
 npm run create:admin -- you@example.com 'mat-khau-manh' "Ten"   # Admin (không có đăng ký trên UI)
-npm run seed:auth                # admin dev (Field Host do Admin tạo ở /admin/hosts)
-npm run seed:auth -- --demo      # thêm 4 tài khoản demo (Host demo có cả 2 vai); bật AUTH_DEMO_MODE=true để dùng nút 1-click
-npm run smoke:sale-auth          # 17 bước đăng nhập Host + Admin CRUD Host (backend đang chạy, AUTH_DEMO_MODE=true; tự dọn dữ liệu sale.smoke+)
-npm test                         # unit + HTTP test (Prisma/Supabase giả)
+npm run create:admin -- you@example.com 'mat-khau-manh' "Ten"   # tạo Admin theo thông tin chỉ định
+npm run set:password -- you@example.com 'mat-khau-manh'         # đặt mật khẩu cho Profile có sẵn
 ```
 
 ## 4. ĐĂNG NHẬP & PHÂN QUYỀN (`modules/auth`)
@@ -270,10 +268,9 @@ Hai cổng đăng nhập trên UI: `/login` (Khách thuê / Chủ nhà) và `/ad
 |---|---|
 | `POST /auth/login` `{email,password,portal}` | portal = tenant / landlord / host / admin |
 | `POST /auth/signup` | tenant / landlord — đăng ký xong đăng nhập luôn, không xác nhận email. Host/Admin ⇒ 403 `signup_not_allowed` |
-| `POST /auth/demo-login` | đăng nhập 1-click tài khoản demo (chỉ khi `AUTH_DEMO_MODE=true`) |
 | `GET /auth/google?portal=` → `GET /auth/google/callback` | Google OAuth (Passport; `state` = `portal.nonce`, nonce nằm trong cookie httpOnly `vs_oauth`; luôn hiện màn chọn tài khoản; nhận `login_hint=<email>` để chọn sẵn tài khoản; thành công thì set cookie không-httpOnly `vs_google_hint` {name,email} để FE hiện "Tiếp tục bằng tên …") |
 | `GET /auth/session`, `POST /auth/logout` | phiên hiện tại, đăng xuất (xoá cookie) |
-| `npm run set:password -- <email> <mật khẩu>` | script đặt/đặt lại mật khẩu cho Profile có sẵn (tài khoản cũ chưa có `password_hash`); `create:admin` / `seed:auth` chỉ tạo mới |
+| `npm run set:password -- <email> <mật khẩu>` | đặt/đặt lại mật khẩu cho Profile có sẵn |
 | `GET /host/me` | Field Host xem hồ sơ của chính mình (vai, phân khu, SĐT đã xác thực, ca trực). Không có số thẻ/mật khẩu |
 | `POST /auth/otp/send`, `/otp/verify`, `/phone/verify` | OTP xác thực SĐT (không phải đăng nhập); Khách thuê nhận action token dùng một lần |
 | `/admin/field-hosts` (ops_admin) | Admin CRUD Field Host — xem §1.5. Host chỉ đăng nhập (email+mật khẩu hoặc Google); Profile `field_host` chưa có hồ sơ Host ⇒ 403 `host_not_provisioned`. Vai con: `@HostRoles('sale' \| 'inspector')` (guard `RolesGuard`, lỗi `host_role_missing`) |

@@ -8,12 +8,6 @@ import { ACCESS_COOKIE } from './modules/auth/auth.constants';
 
 async function bootstrap() {
   const logger = new Logger('VinStayBootstrap');
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // Chế độ demo bỏ qua/nới xác thực (header x-demo-role, đăng nhập 1-chạm) — không bao giờ chạy ở production.
-  if (isProduction && process.env.AUTH_DEMO_MODE === 'true') {
-    throw new Error('AUTH_DEMO_MODE=true không được phép khi NODE_ENV=production.');
-  }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -57,7 +51,7 @@ async function bootstrap() {
       `Hệ thống API Backend toàn diện cho nền tảng thuê căn hộ Asset-Light tại Vinhomes Ocean Park (Sapphire 1 & 2).\n\n` +
         `**Kiến trúc:** NestJS 10 + Prisma ORM + Supabase (PostgreSQL + Storage); đăng nhập do backend tự xử lý (JWT + băm mật khẩu trong bảng profiles).\n` +
         `**Phân hệ bám sát:**\n` +
-        `- 👤 **Khách thuê (Tenant):** All-in Cost Calculator, AI Matchmaker 30s, Đặt lịch OTP, Đón sảnh 1-chạm, Cọc VietQR 2M, FPT.AI eKYC, Ký thỏa thuận số.\n` +
+        `- 👤 **Khách thuê (Tenant):** Catalog căn từ PostgreSQL, đặt lịch/đón sảnh; OTP, VietQR và eKYC chỉ hoạt động khi nhà cung cấp thật được cấu hình.\n` +
         `- 🏠 **Chủ nhà (Landlord):** Ký gửi độc quyền thẩm định 0đ, Ở nhà 100% (0km, 0 phút), Giám sát mở cửa từ xa, Thoát ủy quyền 15 ngày.\n` +
         `- 🚶 **Field Host PWA:** Nhận ticket SLA 3-5m, Quẹt thẻ RFID thang máy, Cấp mã cửa Vault JIT tại phòng, Hoa hồng +450k.\n` +
         `- ⚙️ **Quản trị viên (Admin):** BI Funnel, Heatmap lấp đầy Sapphire 1 & 2, Giám sát rổ hàng, Dynamic Commission Engine.\n`,
@@ -69,9 +63,7 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'JWT Authorization',
-        description:
-          'JWT phiên do backend ký (trình duyệt dùng cookie httpOnly do POST /auth/login set). ' +
-          'Khi AUTH_DEMO_MODE=true có thể gửi header [x-demo-role: ops_admin / field_host / landlord / tenant].',
+        description: 'JWT phiên do backend ký (trình duyệt dùng cookie httpOnly do POST /auth/login set).',
         in: 'header',
       },
       'bearer-token',

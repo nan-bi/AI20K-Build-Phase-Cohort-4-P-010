@@ -5,7 +5,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthAuditService } from './auth-audit.service';
 import { PORTAL_HOME, Portal, PORTALS, loginPathForPortal } from './auth.constants';
 import { AuthException, authError } from './auth.errors';
-import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from './demo-accounts';
 import { GoogleIdentity } from './google/google.strategy';
 import { hostHome } from './host-roles';
 import { DUMMY_PASSWORD_HASH, hashPassword, verifyPassword } from './password-hasher';
@@ -40,8 +39,6 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly webUrl: string;
   private readonly apiPrefix: string;
-  private readonly demoMode: boolean;
-  private readonly demoPassword: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -53,8 +50,6 @@ export class AuthService {
   ) {
     this.webUrl = (config.get<string>('WEB_APP_URL') || 'http://localhost:3000').replace(/\/+$/, '');
     this.apiPrefix = (config.get<string>('API_PREFIX') || 'api/v1').replace(/^\/+|\/+$/g, '');
-    this.demoMode = config.get('AUTH_DEMO_MODE') === 'true' && config.get('NODE_ENV') !== 'production';
-    this.demoPassword = config.get<string>('DEMO_PASSWORD') || DEFAULT_DEMO_PASSWORD;
   }
 
   // ------------------------------------------------------------------ Email + mật khẩu
@@ -96,12 +91,6 @@ export class AuthService {
       ctx,
       'signup',
     );
-  }
-
-  /** Đăng nhập 1-chạm bằng tài khoản demo đã seed. Tắt hẳn khi không bật AUTH_DEMO_MODE. */
-  async demoLogin(portal: Portal, ctx: RequestContext): Promise<LoginOutcome> {
-    if (!this.demoMode) throw authError('demo_disabled');
-    return this.login({ email: DEMO_ACCOUNTS[portal].email, password: this.demoPassword, portal }, ctx);
   }
 
   // ------------------------------------------------------------------ Google (Passport)

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Calendar,
-  CalendarCheck,
   CalendarX,
   Check,
   CheckCircle2,
@@ -23,8 +22,8 @@ import { Modal } from "@/components/ui/Modal";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { toast } from "@/components/ui/Toast";
 import { accountApi } from "@/lib/apiClient";
-import { fmtDateTime, fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/mock/format";
-import { unitAddress, type Unit } from "@/lib/mock/units";
+import { fmtDateTime, fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/format";
+import { unitAddress, type Unit } from "@/lib/units";
 import { useRole, useSession } from "@/lib/auth/client";
 import { useNow } from "@/lib/useNow";
 import { useApiQuery } from "@/lib/query/useApiQuery";
@@ -102,7 +101,6 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const [code, setCode] = useState("");
   const [otpError, setOtpError] = useState(false);
   const [otpErrorMsg, setOtpErrorMsg] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [booking, setBooking] = useState<TenantBooking | null>(null);
@@ -129,7 +127,6 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     try {
       const res = await tenantApi.sendOtp(p, "TENANT_VIEWING");
       if (res.ok) {
-        setDevCode(res.data.devCode ?? null);
         setCode("");
         setCooldown(30);
         setStep("otp");
@@ -492,7 +489,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
             ) : (
               <>
                 <MessageCircleMore size={18} />
-                <span>{submitting ? "Đang gửi OTP..." : "Tiếp tục xác thực Zalo OTP"}</span>
+                <span>{submitting ? "Đang gửi OTP..." : "Tiếp tục xác thực số điện thoại"}</span>
               </>
             )}
           </button>
@@ -508,11 +505,11 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           <div className={styles.otpHeader}>
             <div className={styles.otpBadge}>
               <MessageCircleMore size={14} />
-              <span>Zalo OTP</span>
+              <span>OTP</span>
             </div>
             <h3 className={styles.otpTitle}>Nhập mã xác thực 4 số</h3>
             <p className={styles.otpSub}>
-              VinStay AI vừa nhắn mã xác thực qua Zalo tới <b className="tnum">{fmtPhone(p)}</b>. Mã có hiệu lực trong 5 phút.
+              Mã xác thực sẽ được gửi tới <b className="tnum">{fmtPhone(p)}</b> khi nhà cung cấp OTP khả dụng. Mã có hiệu lực trong 5 phút.
             </p>
           </div>
 
@@ -525,27 +522,8 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
               disabled={cooldown > 0 || submitting}
               onClick={handleSendOtp}
             >
-              {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã OTP qua Zalo"}
+              {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã OTP"}
             </button>
-          </div>
-
-          {/* Khung Tin Zalo mô phỏng (charter & SPEC-P04 §3.4) */}
-          <div className={styles.demoZalo}>
-            <p className="xs muted">
-              <CalendarCheck size={13} style={{ verticalAlign: "-2px" }} /> Bản demo: tin Zalo mô phỏng bạn sẽ nhận
-            </p>
-            <div style={{ background: "var(--card-bg, #fff)", padding: 12, borderRadius: 8, border: "1px solid var(--border)" }}>
-              {devCode ? (
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-                  [VinStay AI] Mã OTP xác thực đặt lịch xem phòng của bạn là:{" "}
-                  <strong style={{ fontSize: 16, color: "var(--primary)" }}>{devCode}</strong>. Hiệu lực trong 5 phút.
-                </p>
-              ) : (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-                  Mã xác thực đã được gửi qua Zalo tới số điện thoại {fmtPhone(p)}.
-                </p>
-              )}
-            </div>
           </div>
         </>
       )}

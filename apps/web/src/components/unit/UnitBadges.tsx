@@ -1,9 +1,8 @@
 "use client";
 
 import { Clock, Flame, Lock, Sparkles } from "lucide-react";
-import { isBargain, savingsPct } from "@/lib/mock/cost";
-import { HOT_THRESHOLD } from "@/lib/mock/selectors";
-import type { Unit } from "@/lib/mock/units";
+import { isBargain, savingsPct } from "@/lib/pricing/cost";
+import { HOT_THRESHOLD, type Unit } from "@/lib/units";
 
 /** Huy hiệu động của căn: Căn hời phân khu (≥10% dưới giá TB toà) · HOT (≥3 lịch xem) · Đang giữ chỗ · FOMO khách đang xem. */
 export function UnitBadges({ unit }: { unit: Unit & { activeViewingAt?: string | null } }) {
@@ -29,20 +28,26 @@ export function UnitBadges({ unit }: { unit: Unit & { activeViewingAt?: string |
         </span>
       )}
       {status === "rented" && <span className="badge badge-ink">Đã cho thuê</span>}
-      {status === "available" && activeViewingLabel && (
-        <span className="badge badge-coral">
-          <Clock size={12} /> Đang có khách xem lúc {activeViewingLabel}
-        </span>
-      )}
-      {status === "available" && isBargain(unit) && (
-        <span className="badge badge-amber">
-          <Sparkles size={12} /> Căn hời −{savingsPct(unit)}%
-        </span>
-      )}
-      {status === "available" && !activeViewingLabel && interest >= HOT_THRESHOLD && (
-        <span className="badge badge-coral">
-          <Flame size={12} /> HOT · {interest} người đang xem
-        </span>
+
+      {status === "available" && (
+        <>
+          {activeViewingLabel ? (
+            <span className="badge badge-coral">
+              <Clock size={12} /> Khách đang xem ({activeViewingLabel})
+            </span>
+          ) : (
+            interest >= HOT_THRESHOLD && (
+              <span className="badge badge-coral">
+                <Flame size={12} /> {interest} người đang xem
+              </span>
+            )
+          )}
+          {isBargain(unit) && (
+            <span className="badge badge-amber">
+              <Sparkles size={12} /> Căn hời −{savingsPct(unit)}%
+            </span>
+          )}
+        </>
       )}
     </>
   );

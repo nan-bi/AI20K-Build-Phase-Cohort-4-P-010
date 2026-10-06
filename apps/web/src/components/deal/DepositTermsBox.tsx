@@ -82,7 +82,7 @@ export function DepositTermsBox({
         await refetch();
       }
       toast(
-        errorText(res, "Không thể xác nhận điều khoản cọc. Vui lòng thử lại."),
+        errorText(res, "Không thể tạo thanh toán VietQR. Vui lòng thử lại sau."),
       );
     }
   };

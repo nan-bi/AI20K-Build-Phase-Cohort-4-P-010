@@ -124,7 +124,7 @@ export interface InspectionResult {
 }
 
 export interface LandlordInspectionView {
-  hostName: string;
+  hostName: string | null;
   submittedAt: string;
   report: InspectionReport;
   photos: InspectionPhotoView[];

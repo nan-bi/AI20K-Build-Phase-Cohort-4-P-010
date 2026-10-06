@@ -13,7 +13,7 @@ const CONFLICTS = {
   too_early_reminder: 'Chỉ gửi nhắc trong 10 phút trước giờ hẹn.',
   too_early_no_show: 'Chỉ báo khách không đến sau giờ hẹn 15 phút.',
   door_code_missing: 'Căn chưa có mã cửa hợp lệ. Dùng hỗ trợ khẩn cấp để lấy mã từ chủ nhà.',
-  no_host_available: 'Không có Sale phù hợp để thao tác thay (công cụ demo).',
+  no_host_available: 'Không có Sale phù hợp để tiếp nhận ca này.',
 } as const;
 
 export type HostConflictCode = keyof typeof CONFLICTS;

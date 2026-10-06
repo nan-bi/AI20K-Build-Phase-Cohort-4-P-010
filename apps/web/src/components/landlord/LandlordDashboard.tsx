@@ -9,156 +9,101 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
-import { DEMO_USERS } from "@/lib/mock/actors";
-import { fmtTime, relTime, vnd, vndShort } from "@/lib/mock/format";
-import { holdMsLeft, isOpenBooking, monthlyRent, noticesFor, occupancy, unitDisplayStatus } from "@/lib/mock/selectors";
-import { landlordConsignments, landlordUnitRows, type LandlordUnitRow } from "@/lib/mock/selectors-landlord";
-import { LANDLORD_HISTORY, SERVICE_FEE_RATE } from "@/lib/mock/stats";
-import { useMock } from "@/lib/mock/store";
-import { unitAddress } from "@/lib/mock/units";
+import { useSession } from "@/lib/auth/client";
+import { useApiQuery } from "@/lib/query/useApiQuery";
+import { landlordApi } from "@/lib/landlord/api";
+import type { Consignment, Finance, UnitRow } from "@/lib/landlord/types";
+import { vnd, vndShort } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 import styles from "./Landlord.module.css";
 
-const LID = DEMO_USERS.landlord.refId!;
-
-const monthLabels = (now: number, n: number) =>
-  Array.from({ length: n }, (_, i) => {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - (n - 1 - i), 1);
-    return `T${d.getMonth() + 1}`;
-  });
+const statusText: Record<UnitRow["status"], string> = {
+  available: "Đang trống",
+  viewing: "Có lịch xem",
+  holding: "Đang giữ căn",
+  rented: "Đang cho thuê",
+  unlisted: "Chưa mở khách",
+  maintenance: "Bảo trì",
+};
 
 export function LandlordDashboard() {
-  const state = useMock();
+  const session = useSession();
   const now = useNow(60_000);
-  if (!state.ready || !now) return <div className="skeleton" style={{ height: 480 }} />;
+  const units = useApiQuery<UnitRow[]>({ key: "units", fetch: landlordApi.units });
+  const consignments = useApiQuery<Consignment[]>({ key: "consignments", fetch: landlordApi.consignments });
+  const finance = useApiQuery<Finance>({ key: "finance", fetch: landlordApi.finance });
 
-  const rows = landlordUnitRows(state, LID);
-  const occ = occupancy(state, rows.map((r) => r.unit));
-  const rent = monthlyRent(state, LID);
-  const mine = landlordConsignments(state, LID);
-  const inProgress = mine.filter((c) => c.status !== "approved");
-  const feed = noticesFor(state, "landlord", LID).slice(0, 8);
-  const history = LANDLORD_HISTORY[LID];
-  const series = [...history, rent].map((v, i, arr) => ({ label: monthLabels(now, arr.length)[i], value: Math.round(v * (1 - SERVICE_FEE_RATE)) }));
+  const loading = units.state.status === "loading" || consignments.state.status === "loading" || finance.state.status === "loading";
+  const failure = [units, consignments, finance].find((query) => query.state.status === "error");
+  if (loading) return <div className="skeleton" style={{ height: 480 }} />;
+  if (failure?.state.status === "error") return <div role="alert"><p>{failure.state.message}</p><button className="btn btn-secondary btn-sm" onClick={() => { units.reload(); consignments.reload(); finance.reload(); }}>Thử tải lại</button></div>;
+  if (units.state.status !== "ready" || consignments.state.status !== "ready" || finance.state.status !== "ready") return null;
+
+  const unitRows = units.state.data;
+  const financeData = finance.state.data;
+  const liveConsignments = consignments.state.data.filter((c) => !["approved", "rejected"].includes(c.status));
+  const active = unitRows.filter((u) => u.mandate?.status === "active");
+  const series = financeData.history.map((month) => ({ label: month.label, value: month.net }));
+  const holdCount = unitRows.filter((u) => u.status === "holding").length;
+  const availableCount = unitRows.filter((u) => u.status === "available").length;
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Tổng quan"
-        description="Bạn ở nhà 100%: Field Host đón khách, mở cửa và báo bạn từng bước qua Zalo."
-        actions={
-          <Link href="/landlord/consign" className="btn btn-primary">
-            Ký gửi căn mới
-          </Link>
-        }
+        description={`Xin chào${session.user?.fullName ? `, ${session.user.fullName}` : ""}. Trạng thái và khoản thu bên dưới được lấy từ hồ sơ của bạn.`}
+        actions={<Link href="/landlord/consign" className="btn btn-primary">Ký gửi căn mới</Link>}
       />
 
-      {inProgress.length > 0 && (
-        <ul className={styles.alerts}>
-          {inProgress.map((c) => {
-            const meta = CONSIGN_STATUS_META[c.status];
-            return (
-              <li key={c.id}>
-                <FileSignature size={20} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", flexWrap: "wrap" }}>
-                    <b>
-                      Căn {c.building} · Tầng {c.floor} · Căn {c.door}
-                    </b>
-                    <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
-                  </div>
-                  <p className="small muted" style={{ margin: "var(--s-1) 0 0" }}>
-                    {meta.landlordHint}
-                  </p>
-                </div>
-                {c.status === "draft" ? (
-                  <Link href={`/landlord/consign?draft=${c.id}`} className="btn btn-amber btn-sm">
-                    Ký ngay <ArrowRight size={14} />
-                  </Link>
-                ) : (
-                  <Link href={`/landlord/consignments/${c.id}`} className="btn btn-secondary btn-sm">
-                    Chi tiết <ArrowRight size={14} />
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {liveConsignments.length > 0 && <ul className={styles.alerts}>
+        {liveConsignments.map((c) => {
+          const meta = CONSIGN_STATUS_META[c.status];
+          return <li key={c.id}>
+            <FileSignature size={20} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", flexWrap: "wrap" }}>
+                <b>{c.building} · Tầng {c.floor} · Căn {c.door || c.unitCode}</b>
+                <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
+              </div>
+              <p className="small muted" style={{ margin: "var(--s-1) 0 0" }}>{meta.landlordHint}</p>
+            </div>
+            <Link href={c.status === "draft" ? `/landlord/consign?draft=${c.id}` : `/landlord/consignments/${c.id}`} className="btn btn-secondary btn-sm">
+              Chi tiết <ArrowRight size={14} />
+            </Link>
+          </li>;
+        })}
+      </ul>}
 
       <div className={styles.kpis}>
-        <StatTile hero label="Thu tiền thuê tháng này" value={vndShort(Math.round(rent * (1 - SERVICE_FEE_RATE)))} delta={{ text: "sau phí dịch vụ ký gửi", tone: "flat" }} spark={series.slice(-6).map((s) => s.value)} />
-        <StatTile label="Đang cho thuê" value={String(occ.rented)} unit={`/ ${rows.length}`} delta={{ text: `${occ.holding} đang giữ căn`, tone: "flat" }} />
-        <StatTile label="Đang giữ căn" value={String(occ.holding)} delta={{ text: "khách đã chuyển cọc, chờ ký hợp đồng", tone: "flat" }} />
-        <StatTile label="Còn trống, đang mở khách" value={String(occ.available)} delta={{ text: "Host đón khách thay bạn", tone: "good", dir: "up" }} />
+        <StatTile hero label="Thu ròng tháng này" value={vndShort(financeData.thisMonth.net)} delta={{ text: `Phí dịch vụ ${financeData.serviceFeePercent}%`, tone: "flat" }} />
+        <StatTile label="Căn đang quản lý" value={String(active.length)} unit={`/ ${unitRows.length}`} />
+        <StatTile label="Đang giữ căn" value={String(holdCount)} delta={{ text: "Theo trạng thái thanh toán thực tế", tone: "flat" }} />
+        <StatTile label="Đang mở khách" value={String(availableCount)} />
       </div>
 
       <div className={styles.two}>
-        <Columns title="Tiền thuê thu về mỗi tháng" subtitle="Sau khi trừ phí dịch vụ ký gửi; tháng hiện tại được nhấn" data={series} axisFormat={(v) => (v === 0 ? "0" : `${v / 1_000_000}tr`)} valueFormat={(v) => `${vnd(v)}đ`} seriesName="Thu về" />
-        <Section title="Thông báo tức thì">
+        <Columns title="Tiền thu ròng theo tháng" subtitle="Số liệu tổng hợp từ giao dịch và cấu hình phí trong hệ thống" data={series} axisFormat={(value) => (value === 0 ? "0" : `${value / 1_000_000}tr`)} valueFormat={(value) => `${vnd(value)}đ`} seriesName="Thu ròng" />
+        <Section title="Tình hình danh mục">
           <ul className={styles.feed}>
-            {feed.map((n) => (
-              <li key={n.id} className={n.tone ? styles[`t-${n.tone}`] : ""}>
-                <div>
-                  <b>{n.title}</b>
-                  <p className="small muted">{n.body}</p>
-                </div>
-                <span className="xs muted">
-                  {fmtTime(n.at)} · {relTime(n.at, now)}
-                </span>
-              </li>
-            ))}
-            {feed.length === 0 && <li className="muted small">Chưa có thông báo. Khi Host mở cửa hoặc khách cọc, Zalo báo bạn ở đây.</li>}
+            <li><b>Tổng thu ròng 6 tháng</b><span>{vnd(financeData.totalNet6Months)}đ</span></li>
+            <li><b>Tiền cọc đang giữ</b><span>{vnd(financeData.escrowTotal)}đ</span></li>
+            <li><b>Hồ sơ ký gửi đang xử lý</b><span>{liveConsignments.length}</span></li>
           </ul>
         </Section>
       </div>
 
-      <Section
-        title="Căn của bạn"
-        description={rows.length > 5 ? `5 trên tổng ${rows.length} căn đã ký gửi` : undefined}
-        actions={
-          <Link href="/landlord/units" className="btn btn-quiet btn-sm">
-            Xem tất cả <ArrowRight size={14} />
-          </Link>
-        }
-        flush
-      >
+      <Section title="Căn của bạn" description={unitRows.length > 5 ? `5 trên tổng ${unitRows.length} căn đã ký gửi` : undefined} actions={<Link href="/landlord/units" className="btn btn-quiet btn-sm">Xem tất cả <ArrowRight size={14} /></Link>} flush>
         <DataTable
           columns={[
-            { key: "unit", header: "Căn", render: (r: LandlordUnitRow) => unitAddress(r.unit) },
-            { key: "building", header: "Toà", render: (r: LandlordUnitRow) => r.unit.building },
-            { key: "layout", header: "Loại căn", render: (r: LandlordUnitRow) => r.unit.layoutLabel },
-            { key: "rent", header: "Giá thuê", align: "right", render: (r: LandlordUnitRow) => <span className="tnum">{vnd(r.rent)}đ</span> },
-            {
-              key: "status",
-              header: "Trạng thái",
-              render: (r: LandlordUnitRow) => {
-                const ds = unitDisplayStatus(state, r.unit);
-                if (ds === "viewing") {
-                  const openCount = state.bookings.filter((b) => b.unitId === r.unit.id && isOpenBooking(b)).length;
-                  return (
-                    <span className="badge badge-amber-soft">
-                      Có khách xem · {openCount} lịch
-                    </span>
-                  );
-                }
-                if (ds === "holding") {
-                  const holdingBooking = state.bookings.find(
-                    (b) => b.unitId === r.unit.id && (b.status === "holding" || b.deposit?.paidAt)
-                  );
-                  const hours = holdingBooking ? Math.max(0, Math.ceil(holdMsLeft(holdingBooking, now) / 3_600_000)) : 48;
-                  return <StatusBadge tone="warn">{`Đang giữ căn · còn ${hours} giờ`}</StatusBadge>;
-                }
-                if (ds === "rented") {
-                  return <StatusBadge tone="ok">Đang cho thuê</StatusBadge>;
-                }
-                return <StatusBadge tone="neutral">Đang trống</StatusBadge>;
-              },
-            },
+            { key: "unitCode", header: "Mã căn", render: (unit: UnitRow) => unit.unitCode },
+            { key: "building", header: "Toà", render: (unit: UnitRow) => unit.building },
+            { key: "layout", header: "Loại căn", render: (unit: UnitRow) => unit.layout },
+            { key: "rent", header: "Giá thuê", align: "right", render: (unit: UnitRow) => <span className="tnum">{vnd(unit.rent)}đ</span> },
+            { key: "status", header: "Trạng thái", render: (unit: UnitRow) => <StatusBadge tone={unit.status === "rented" ? "ok" : unit.status === "holding" ? "warn" : "neutral"}>{statusText[unit.status]}</StatusBadge> },
+            { key: "expires", header: "Hạn giữ căn", render: (unit: UnitRow) => unit.holdExpiresAt && now && unit.status === "holding" ? `${Math.max(0, Math.ceil((Date.parse(unit.holdExpiresAt) - now) / 3_600_000))} giờ` : "—" },
           ]}
-          rows={rows.slice(0, 5)}
-          rowHref={(r) => `/landlord/units/${r.unit.id}`}
+          rows={unitRows.slice(0, 5)}
+          rowHref={(unit: UnitRow) => `/landlord/units/${unit.id}`}
           empty="Bạn chưa ký gửi căn nào."
         />
       </Section>

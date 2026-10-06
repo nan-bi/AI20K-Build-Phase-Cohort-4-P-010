@@ -44,8 +44,13 @@ export class AdminDispatchService {
     const tickets: any[] = await this.loadTickets();
     return tickets.map((t) => ({
       ticketId: t.id,
+      viewingId: t.viewingId,
+      bookingRef: t.viewing.bookingRefCode,
+      viewingSlot: new Date(t.viewing.viewingSlot).toISOString(),
+      viewingStatus: t.viewing.status,
       unitCode: t.viewing.unit.unitCode,
       building: t.viewing.unit.building.buildingCode,
+      hostId: t.hostId,
       hostName: t.host?.profile?.fullName || 'Chưa gán Host',
       tier: t.tier,
       slaSeconds: t.slaSeconds,

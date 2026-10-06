@@ -38,9 +38,12 @@ export interface CostBreakdown {
   total: number;
 }
 
-export function allInCost(unit: { rent: number; areaM2: number }, hh: Household = DEFAULT_HOUSEHOLD): CostBreakdown {
+export function allInCost(
+  unit: { rent: number; areaM2: number; managementFee?: number },
+  hh: Household = DEFAULT_HOUSEHOLD,
+): CostBreakdown {
   const rent = unit.rent;
-  const mgmt = Math.round(unit.areaM2 * RATES.mgmtPerM2);
+  const mgmt = unit.managementFee ?? Math.round(unit.areaM2 * RATES.mgmtPerM2);
   const parking = hh.motorbikes * RATES.motorbike + hh.cars * RATES.car;
   const utility = hh.persons * RATES.utilityPerPerson;
   return { rent, mgmt, parking, utility, total: rent + mgmt + parking + utility };

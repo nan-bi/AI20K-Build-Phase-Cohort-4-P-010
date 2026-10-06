@@ -6,7 +6,7 @@ import { CheckCircle2, CircleAlert, ShieldCheck, Timer } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
-import { fmtDate, fmtDateTime, fmtTime, vnd } from "@/lib/mock/format";
+import { fmtDate, fmtDateTime, fmtTime, vnd } from "@/lib/format";
 import { errorText, landlordApi } from "@/lib/landlord/api";
 import { queries } from "@/lib/landlord/queries";
 import { PASSPORT_ITEMS, VIEWING_OUTCOME_META, daysLeft, hoursLeft, unitLabel } from "@/lib/landlord/labels";

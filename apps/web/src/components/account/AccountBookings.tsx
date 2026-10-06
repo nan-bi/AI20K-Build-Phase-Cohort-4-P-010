@@ -8,13 +8,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
-import { fmtDateTime, vnd } from "@/lib/mock/format";
-import { allInCost } from "@/lib/mock/cost";
+import { fmtDateTime, vnd } from "@/lib/format";
+import { allInCost } from "@/lib/pricing/cost";
 import { useApiQuery } from "@/lib/query/useApiQuery";
 import { tenantQueries } from "@/lib/tenant/queries";
 import { splitTenantBookings, toUnit } from "@/lib/tenant/adapters";
 import type { TenantBooking } from "@/lib/tenant/types";
-import { unitAddress } from "@/lib/mock/units";
+import { unitAddress } from "@/lib/units";
 
 const TONE_MAP: Record<Tone, StatusTone> = {
   info: "info",

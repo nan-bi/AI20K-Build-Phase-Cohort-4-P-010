@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { useHostViewing } from "@/lib/host/api";
 import type { HostViewingDetail } from "@/lib/host/types";
-import { dayLabel, fmtPhone, fmtTime, normalizePhone } from "@/lib/mock/format";
+import { dayLabel, fmtPhone, fmtTime, normalizePhone } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 import { AwaitDepositStep, AwaitLeaseStep, ClosedStep, DoneStep, GreetStep, ViewStep } from "./WorkflowSteps";
 import styles from "./Workflow.module.css";

@@ -1,190 +1,110 @@
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, NotImplementedException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PhoneService } from '../auth/phone/phone.service';
+import { AdminInventoryService } from './admin-inventory.service';
 import {
-  CreateFieldHostDto,
-  UpdateFieldHostDto,
   ApproveConsignmentDto,
   RejectConsignmentDto,
   ReassignBookingDto,
   VoidHoldDto,
 } from './dto/admin.dto';
-import { MandateStatus, UnitStatus, TicketStatus, HostDutyStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
-  private readonly logger = new Logger(AdminService.name);
-
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    @Optional() private readonly phones?: PhoneService,
+    @Optional() private readonly inventory?: AdminInventoryService,
   ) {}
 
   async approveConsignment(id: string, dto: ApproveConsignmentDto) {
-    this.logger.log(`[ADMIN] Đã duyệt hồ sơ ký gửi #${id}: ${dto.note || 'Hợp lệ'}`);
-    return {
-      success: true,
-      consignmentId: id,
-      status: 'approved',
-      approvedAt: new Date().toISOString(),
-      message: 'Đã duyệt hồ sơ ký gửi thành công. Căn hộ sẵn sàng niêm yết lên hệ thống.',
-    };
+    void id;
+    void dto;
+    throw new NotImplementedException('Duyệt ký gửi thủ công đã được thay bằng quy trình thẩm định và niêm yết tự động.');
   }
 
   async rejectConsignment(id: string, dto: RejectConsignmentDto) {
-    this.logger.log(`[ADMIN] Đã từ chối hồ sơ ký gửi #${id}: ${dto.note}`);
-    return {
-      success: true,
-      consignmentId: id,
-      status: 'rejected',
-      rejectedAt: new Date().toISOString(),
-      note: dto.note,
-      message: 'Đã từ chối hồ sơ ký gửi.',
-    };
-  }
-
-  // ==========================================
-  // MODULE 4: FIELD HOST MANAGEMENT
-  // ==========================================
-  async getFieldHosts() {
-    try {
-      const hosts = await this.prisma.fieldHost.findMany({
-        include: { profile: true, tickets: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (hosts.length > 0) {
-        return hosts.map((h) => ({
-          id: h.id,
-          fullName: h.profile?.fullName || 'Field Host',
-          email: h.profile?.email || 'host@vinstay.test',
-          phone: '0912345678',
-          assignedZone: h.assignedZone,
-          rfidCardNumber: h.rfidCardNumber,
-          dutyStatus: h.dutyStatus,
-          rating: Number(h.rating),
-          walletBalance: Number(h.walletBalance),
-          activeTicketsCount: h.tickets.filter((t) => t.status === TicketStatus.ACCEPTED).length,
-        }));
-      }
-    } catch (err) {
-      this.logger.warn(`Field hosts DB fallback: ${err.message}`);
-    }
-
-    return [
-      {
-        id: 'h1111111-1111-1111-1111-111111111111',
-        fullName: 'Lê Quốc Bảo',
-        email: 'host1@vinstay.test',
-        phone: '0912345678',
-        assignedZone: 'The Sapphire 1',
-        rfidCardNumber: 'RFID-S1-0001',
-        dutyStatus: 'ONLINE_AVAILABLE',
-        rating: 4.95,
-        walletBalance: 2850000,
-        activeTicketsCount: 1,
-      },
-      {
-        id: 'h2222222-2222-2222-2222-222222222222',
-        fullName: 'Trần Minh Khoa',
-        email: 'host2@vinstay.test',
-        phone: '0912345679',
-        assignedZone: 'The Sapphire 2',
-        rfidCardNumber: 'RFID-S2-0001',
-        dutyStatus: 'ONLINE_AVAILABLE',
-        rating: 4.80,
-        walletBalance: 1950000,
-        activeTicketsCount: 0,
-      },
-    ];
-  }
-
-  async getFieldHostById(id: string) {
-    const hosts = await this.getFieldHosts();
-    const host = hosts.find((h) => h.id === id) || hosts[0];
-    return {
-      ...host,
-      stats: {
-        totalViewings: 24,
-        totalDeals: 8,
-        inspectionsCompleted: 5,
-        conversionRate: '33.3%',
-      },
-    };
-  }
-
-  async createFieldHost(dto: CreateFieldHostDto) {
-    this.logger.log(`[ADMIN] Admin tạo tài khoản Field Host: ${dto.name} (${dto.email}), Zone: ${dto.assignedZone}`);
-    return {
-      success: true,
-      id: `h-new-${Date.now()}`,
-      name: dto.name,
-      email: dto.email,
-      assignedZone: dto.assignedZone,
-      rfidCardNumber: dto.rfidCardNumber || 'RFID-GEN-' + Date.now().toString().slice(-4),
-      message: 'Đã tạo tài khoản Field Host thành công! Thông tin đăng nhập và mật khẩu tạm đã gửi qua email.',
-    };
-  }
-
-  async updateFieldHost(id: string, dto: UpdateFieldHostDto) {
-    this.logger.log(`[ADMIN] Cập nhật thông tin Field Host #${id}`);
-    return {
-      success: true,
-      id,
-      ...dto,
-      updatedAt: new Date().toISOString(),
-      message: 'Đã cập nhật thông tin Field Host thành công.',
-    };
-  }
-
-  async deleteFieldHost(id: string) {
-    this.logger.log(`[ADMIN] Khóa mềm tài khoản Field Host #${id}`);
-    return {
-      success: true,
-      id,
-      status: 'DEACTIVATED',
-      message: 'Đã khóa tài khoản Field Host (vẫn bảo lưu lịch sử ca trực và hoa hồng).',
-    };
+    void id;
+    void dto;
+    throw new NotImplementedException('Từ chối ký gửi thủ công đã được thay bằng quy trình thẩm định hiện hành.');
   }
 
   // ==========================================
   // MODULE 5: CONTRACTS & SỔ HỢP ĐỒNG
   // ==========================================
   async getContractById(id: string) {
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+      include: {
+        unit: true,
+        tenant: true,
+        landlord: true,
+        document: true,
+        holdingDeposit: { include: { identity: true } },
+      },
+    });
+    if (!contract) throw new NotFoundException('Không tìm thấy hợp đồng.');
+
+    const decrypt = (value: string | null): string | null => {
+      if (!value || !this.phones) return null;
+      try {
+        return this.phones.decrypt(value);
+      } catch {
+        return null;
+      }
+    };
+
+    let identity: { idNumber?: string } | null = null;
+    const encryptedIdentity = contract.holdingDeposit?.identity?.verifiedDataRef;
+    if (encryptedIdentity && this.phones) {
+      try {
+        identity = JSON.parse(this.phones.decrypt(encryptedIdentity));
+      } catch {
+        identity = null;
+      }
+    }
+
     return {
-      id,
-      contractNumber: 'HDT-2026-VHOP-S102-001',
-      unitCode: 'VHOP-S1.02-12A08',
-      tenant: { fullName: 'Nguyễn Văn An', phone: '0912345678', idNumber: '001095012345' },
-      landlord: { fullName: 'Nguyễn Văn Minh', phone: '0987654321' },
-      monthlyRentPrice: 6500000,
-      securityDepositAmount: 6500000,
-      startDate: '2026-10-01',
-      endDate: '2027-09-30',
-      status: 'ACTIVE',
-      evidenceSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      tsaTimestamp: new Date().toISOString(),
+      id: contract.id,
+      contractNumber: contract.contractNumber,
+      unitCode: contract.unit.unitCode,
+      tenant: {
+        fullName: contract.tenant.fullName,
+        phone: decrypt(contract.tenant.phoneEnc),
+        idNumber: identity?.idNumber ?? null,
+      },
+      landlord: {
+        fullName: contract.landlord.fullName,
+        phone: decrypt(contract.landlord.phoneEnc),
+      },
+      monthlyRentPrice: Number(contract.monthlyRentPrice),
+      securityDepositAmount: Number(contract.securityDepositAmount),
+      startDate: contract.startDate,
+      endDate: contract.endDate,
+      status: contract.status,
+      evidenceSha256: contract.document?.sha256 ?? null,
+      tsaTimestamp: contract.document?.tsaTime?.toISOString() ?? null,
     };
   }
 
-  async completeExit(id: string) {
-    this.logger.log(`[ADMIN] Hoàn tất thoát ủy quyền 15 ngày cho hợp đồng #${id}`);
-    return {
-      success: true,
-      mandateId: id,
-      status: 'TERMINATED',
-      completedAt: new Date().toISOString(),
-      message: 'Đã hoàn tất thoát ủy quyền. Căn hộ đã thu hồi mã cửa và rời rổ hàng.',
-    };
+  async completeExit(id: string, actor?: { id: string; role: string }) {
+    const mandate = await this.prisma.exclusiveMandate.findUnique({ where: { id } });
+    if (!mandate) throw new NotFoundException('Không tìm thấy hợp đồng ủy quyền.');
+    if (!this.inventory || !actor) {
+      throw new ServiceUnavailableException('Dịch vụ hoàn tất thoát ủy quyền chưa được cấu hình.');
+    }
+    return this.inventory.terminateMandate(mandate.id, 'Hoàn tất yêu cầu thoát ủy quyền đã đủ thời hạn.', actor);
   }
 
   async remindRenewal(id: string) {
-    this.logger.log(`[ADMIN] Gửi nhắc gia hạn hợp đồng thuê #${id}`);
-    return {
-      success: true,
-      contractId: id,
-      remindedAt: new Date().toISOString(),
-      message: 'Đã gửi thông báo nhắc gia hạn hợp đồng qua Zalo cho Khách thuê & Chủ nhà.',
-    };
+    const contract = await this.prisma.contract.findUnique({ where: { id }, select: { id: true } });
+    if (!contract) throw new NotFoundException('Không tìm thấy hợp đồng.');
+    throw new ServiceUnavailableException({
+      message: 'Chưa cấu hình dịch vụ gửi thông báo gia hạn; hệ thống không ghi nhận đã gửi.',
+      code: 'notification_provider_unavailable',
+    });
   }
 
   getContractTemplates() {
@@ -197,31 +117,94 @@ export class AdminService {
   }
 
   getContractTemplateById(id: string) {
-    return {
-      id,
-      name: 'Thỏa thuận Giữ chỗ và Đặt cọc Đảm bảo Giao kết Thuê',
-      code: 'LEGAL_02_HOLDING',
-      version: '2.0.0',
-      clausesCount: 8,
-      securityDepositTerms: '2.000.000 VNĐ giữ chỗ chuyển 100% thành Tiền cọc bảo đảm',
-    };
+    const template = this.getContractTemplates().find((item) => item.id === id || item.code === id);
+    if (!template) throw new NotFoundException('Không tìm thấy mẫu văn bản.');
+    return template;
   }
 
-  getContractParties() {
-    return [
-      { id: 'party-01', name: 'Công ty Cổ phần VinStay AI', role: 'Nền tảng vận hành', taxId: '0109988776' },
-      { id: 'party-02', name: 'Nguyễn Văn Minh', role: 'Chủ nhà', phone: '0987654321' },
-      { id: 'party-03', name: 'Nguyễn Văn An', role: 'Khách thuê', phone: '0912345678' },
-    ];
+  async getContractParties() {
+    const contracts = await this.prisma.contract.findMany({
+      select: {
+        id: true,
+        status: true,
+        tenant: { select: { id: true, fullName: true, email: true, phoneEnc: true } },
+        landlord: { select: { id: true, fullName: true, email: true, phoneEnc: true } },
+      },
+    });
+    const parties = new Map<string, {
+      id: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      role: 'tenant' | 'landlord';
+      contracts: string[];
+      activeContracts: number;
+      needsSignature: number;
+    }>();
+    for (const contract of contracts) {
+      for (const [profile, role] of [[contract.tenant, 'tenant'], [contract.landlord, 'landlord']] as const) {
+        const key = `${role}:${profile.id}`;
+        let party = parties.get(key);
+        if (!party) {
+          let phone: string | null = null;
+          if (profile.phoneEnc && this.phones) {
+            try {
+              phone = this.phones.decrypt(profile.phoneEnc);
+            } catch {
+              phone = null;
+            }
+          }
+          party = {
+            id: profile.id,
+            name: profile.fullName,
+            email: profile.email,
+            phone,
+            role,
+            contracts: [],
+            activeContracts: 0,
+            needsSignature: 0,
+          };
+          parties.set(key, party);
+        }
+        party.contracts.push(contract.id);
+        if (contract.status === 'ACTIVE') party.activeContracts += 1;
+        if (contract.status === 'AWAITING_TENANT_SIGN' || contract.status === 'AWAITING_LANDLORD_SIGN') party.needsSignature += 1;
+      }
+    }
+    return [...parties.values()];
   }
 
-  getContractPartyById(id: string) {
+  async getContractPartyById(id: string) {
+    const profile = await this.prisma.profile.findFirst({
+      where: {
+        id,
+        OR: [{ tenantContracts: { some: {} } }, { landlordContracts: { some: {} } }],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phoneEnc: true,
+        tenantContracts: { select: { id: true }, take: 1 },
+        landlordContracts: { select: { id: true }, take: 1 },
+      },
+    });
+    if (!profile) throw new NotFoundException('Không tìm thấy bên ký kết.');
+    let phone: string | null = null;
+    if (profile.phoneEnc && this.phones) {
+      try {
+        phone = this.phones.decrypt(profile.phoneEnc);
+      } catch {
+        phone = null;
+      }
+    }
     return {
-      id,
-      name: 'Công ty Cổ phần VinStay AI',
-      role: 'Nền tảng vận hành',
-      address: 'Khu đô thị Vinhomes Ocean Park, Gia Lâm, Hà Nội',
-      repName: 'CEO VinStay',
+      id: profile.id,
+      name: profile.fullName,
+      email: profile.email,
+      phone,
+      role: profile.tenantContracts.length ? 'tenant' : 'landlord',
+      contracts: [...profile.tenantContracts, ...profile.landlordContracts].map((contract) => contract.id),
     };
   }
 }

@@ -13,8 +13,8 @@ export class IdentityController {
   @Roles('tenant')
   @Post('bookings/:ref/ekyc/scan')
   @ApiOperation({
-    summary: 'A17: Bắt đầu phiên quét eKYC mô phỏng (CCCD gắn chip)',
-    description: 'Tạo mã scanId HMAC 15 phút, trả kết quả trích xuất CCCD và độ tin cậy từng trường',
+    summary: 'A17: Quét CCCD qua nhà cung cấp eKYC đã cấu hình',
+    description: 'Hiện trả lỗi ekyc_provider_unavailable cho đến khi nhà cung cấp thật được tích hợp.',
   })
   async scan(
     @Param('ref') ref: string,
@@ -29,7 +29,7 @@ export class IdentityController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'A18: Gửi thông tin eKYC xác nhận & Tự động xác lập Hợp đồng thuê chính thức',
-    description: 'Chuyển 100% cọc giữ chỗ 2M sang cọc bảo đảm, chuyển unit sang RENTED, tạo hợp đồng ACTIVE và sinh PDF',
+    description: 'Hiện bị khóa cho đến khi có kết quả xác minh từ nhà cung cấp eKYC thật.',
   })
   async submit(
     @Param('ref') ref: string,

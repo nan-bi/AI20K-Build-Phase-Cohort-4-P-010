@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Lock, LogIn, Send } from "lucide-react";
-import { SAMPLE_PROMPTS, sentenceFromCriteria, hasCriteria } from "@/lib/mock/matchmaker";
+import { SAMPLE_PROMPTS, sentenceFromCriteria, hasCriteria } from "@/lib/tenant/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
 import { FilterTray } from "./FilterTray";
 import styles from "./Composer.module.css";
@@ -18,9 +18,16 @@ interface ComposerProps {
   guestNotice: boolean;
   variant: "hero" | "rail";
   showPrompts?: boolean;
+  locale?: "vi" | "en";
 }
 
-export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNotice, variant, showPrompts }: ComposerProps) {
+const SAMPLE_PROMPTS_EN = [
+  "2 bedrooms in Sapphire 2 under 12 million",
+  "Furnished studio with air conditioning",
+  "High floor, budget up to 10 million",
+];
+
+export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNotice, variant, showPrompts, locale = "vi" }: ComposerProps) {
   const [text, setText] = useState("");
   const area = useRef<HTMLTextAreaElement>(null);
   const filtered = hasCriteria(criteria);
@@ -45,10 +52,10 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
           <Lock size={18} />
         </span>
         <div>
-          <strong>Bạn đã dùng lượt nhắn miễn phí</strong>
-          <p className="muted small">Đăng nhập để chat không giới hạn với VinStay AI. Xem căn, đổi bộ lọc và đặt lịch vẫn dùng được mà không cần tài khoản.</p>
+          <strong>{locale === "en" ? "You have used your free message" : "Bạn đã dùng lượt nhắn miễn phí"}</strong>
+          <p className="muted small">{locale === "en" ? "Sign in to keep chatting with VinStay AI. You can still browse homes, change filters, and request a viewing without an account." : "Đăng nhập để chat không giới hạn với VinStay AI. Xem căn, đổi bộ lọc và đặt lịch vẫn dùng được mà không cần tài khoản."}</p>
           <Link href="/login?as=tenant" className="btn btn-primary btn-sm">
-            <LogIn size={15} /> Đăng nhập để tiếp tục
+            <LogIn size={15} /> {locale === "en" ? "Sign in to continue" : "Đăng nhập để tiếp tục"}
           </Link>
         </div>
       </div>
@@ -66,7 +73,7 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
           ref={area}
           className={styles.area}
           rows={1}
-          placeholder={variant === "hero" ? "Ví dụ: Studio dưới 8 triệu, có điều hòa, gần VinUni…" : "Hỏi tiếp hoặc chỉnh yêu cầu…"}
+          placeholder={variant === "hero" ? (locale === "en" ? "Try: 2 bedrooms in Sapphire 2 under 12 million…" : "Ví dụ: Studio dưới 8 triệu, có điều hòa, gần VinUni…") : (locale === "en" ? "Ask a follow-up or adjust your search…" : "Hỏi tiếp hoặc chỉnh yêu cầu…")}
           value={text}
           disabled={busy}
           onChange={(e) => {
@@ -86,20 +93,20 @@ export function Composer({ criteria, onCriteria, onSend, busy, locked, guestNoti
       </div>
 
       <div className={styles.filterRow}>
-        <FilterTray criteria={criteria} onChange={onCriteria} compact />
+        <FilterTray criteria={criteria} onChange={onCriteria} compact locale={locale} />
       </div>
-      {variant === "hero" && filtered && <p className={`muted xs ${styles.footHint}`}>Bấm mũi tên để tìm theo bộ lọc, hoặc gõ thêm ý bạn muốn.</p>}
+      {variant === "hero" && filtered && <p className={`muted xs ${styles.footHint}`}>{locale === "en" ? "Send to search with these filters, or add more details." : "Bấm mũi tên để tìm theo bộ lọc, hoặc gõ thêm ý bạn muốn."}</p>}
 
       {showPrompts && (
         <div className={styles.prompts}>
-          {SAMPLE_PROMPTS.map((p) => (
+          {(locale === "en" ? SAMPLE_PROMPTS_EN : SAMPLE_PROMPTS).map((p) => (
             <button key={p} type="button" className={styles.prompt} onClick={() => submit(p)} disabled={busy}>
               {p}
             </button>
           ))}
         </div>
       )}
-      {guestNotice && <p className={`muted xs ${styles.guest}`}>Khách chưa đăng nhập được nhắn 1 lần. Đăng nhập để chat không giới hạn.</p>}
+      {guestNotice && <p className={`muted xs ${styles.guest}`}>{locale === "en" ? "Guests can send one message. Sign in for unlimited chat." : "Khách chưa đăng nhập được nhắn 1 lần. Đăng nhập để chat không giới hạn."}</p>}
     </div>
   );
 }

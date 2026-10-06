@@ -124,7 +124,7 @@ export function buildReport(input: SubmitInspectionInput, meta: ConsignmentMeta,
   const present = input.inventory.filter((l) => l.present && typeof l.condition === 'number');
   const avgCondition = present.length ? Math.round(present.reduce((s, l) => s + (l.condition as number), 0) / present.length) : 0;
 
-  // Chủ nhà khai không nội thất mà thực tế có ⇒ tự ghi sai lệch (giữ quy tắc của luồng mock cũ).
+  // Chủ nhà khai không nội thất mà thực tế có ⇒ tự ghi sai lệch để Admin đối soát.
   const declared = input.declared.map((d) => ({ ...d, ...(d.actual !== undefined ? { actual: d.actual.trim() } : {}) }));
   if (meta.form.furnished === false && input.furnishing !== 'empty') {
     const idx = declared.findIndex((d) => d.field === 'furnishing');

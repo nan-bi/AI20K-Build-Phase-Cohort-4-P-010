@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LayoutList } from "lucide-react";
 import { Facade } from "@/components/brand/Facade";
 import { LogoMark } from "@/components/brand/Logo";
-import { fmtTime } from "@/lib/mock/format";
+import { fmtTime } from "@/lib/format";
 import type { ChatMessage } from "@/lib/mock/types";
 import styles from "./Messages.module.css";
 

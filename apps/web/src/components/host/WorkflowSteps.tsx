@@ -22,7 +22,7 @@ import { hostApi } from "@/lib/host/api";
 import { hostErrorText } from "@/lib/host/logic";
 import type { DoorAccessView, HostViewingDetail } from "@/lib/host/types";
 import { useHostAction } from "@/lib/host/useHostAction";
-import { dayLabel, fmtPhone, fmtTime } from "@/lib/mock/format";
+import { dayLabel, fmtPhone, fmtTime } from "@/lib/format";
 import styles from "./Workflow.module.css";
 
 interface StepProps {

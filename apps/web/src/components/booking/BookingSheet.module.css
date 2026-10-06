@@ -559,16 +559,6 @@
   font-weight: 550;
 }
 
-.demoZalo {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-panel);
-  background: var(--lagoon-050);
-}
-
 /* ── Step Done (Digital Boarding Pass) ────────────────────────────────── */
 .done {
   display: flex;

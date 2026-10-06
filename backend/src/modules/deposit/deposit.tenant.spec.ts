@@ -119,8 +119,10 @@ function fakePrisma() {
       findMany: jest.fn(async ({ where }) => {
         return savedDeposits.filter((d) => {
           if (where.unitId && d.unitId !== where.unitId) return false;
-          if (where.paymentStatus && d.paymentStatus !== where.paymentStatus) return false;
+          if (where.paymentStatus?.in && !where.paymentStatus.in.includes(d.paymentStatus)) return false;
+          if (where.paymentStatus && !where.paymentStatus.in && d.paymentStatus !== where.paymentStatus) return false;
           if (where.expiresAt?.lte && d.expiresAt && new Date(d.expiresAt) > new Date(where.expiresAt.lte)) return false;
+          if (where.expiresAt?.gt && (!d.expiresAt || new Date(d.expiresAt) <= new Date(where.expiresAt.gt))) return false;
           return true;
         });
       }),
@@ -439,6 +441,31 @@ describe('Deposit & VietQR Backend Tests (SPEC-P03 §8: Cases 1–11)', () => {
 
     const termsNormal = buildDepositTerms(48);
     expect(termsNormal.holdHours).toBe(48);
+  });
+
+  it('hết hạn một cọc không mở căn nếu vẫn còn khoản giữ chỗ hiệu lực khác', async () => {
+    (fixture.mockUnit as any).status = UnitStatus.HOLDING;
+    fixture.savedDeposits.push(
+      {
+        id: 'expired-deposit',
+        unitId: UNIT_ID,
+        viewingId: 'viewing-1',
+        paymentStatus: DepositStatus.PAID_HOLDING,
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+      {
+        id: 'active-deposit',
+        unitId: UNIT_ID,
+        viewingId: 'viewing-2',
+        paymentStatus: DepositStatus.UNC_PENDING_REVIEW,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    );
+
+    await depositService.expireIfDue(UNIT_ID);
+
+    expect(fixture.savedDeposits.find((d) => d.id === 'expired-deposit')?.paymentStatus).toBe(DepositStatus.FORFEITED);
+    expect(fixture.mockUnit.status).toBe(UnitStatus.HOLDING);
   });
 
   // 12. A14 công khai: giờ giữ chỗ theo override căn → mặc định Admin (FeeConfig) → 48

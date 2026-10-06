@@ -30,6 +30,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   already_rated: "Lịch hẹn này đã được đánh giá.",
   terms_version_stale: "Phiên bản điều khoản cọc đã được cập nhật. Vui lòng kiểm tra lại.",
   unit_already_held: "Căn hộ vừa được khách khác đặt cọc thành công (First-to-Pay Wins).",
+  vietqr_not_configured: "Thanh toán VietQR chưa được cấu hình nhận và đối soát giao dịch. Vui lòng liên hệ hỗ trợ.",
+  ekyc_provider_unavailable: "Nhà cung cấp eKYC thật chưa được cấu hình; chưa thể xác minh CCCD hoặc lập hợp đồng.",
   hold_expired: "Thời hạn giữ chỗ của căn hộ đã hết hiệu lực.",
   ekyc_already_done: "Thông tin eKYC của lịch hẹn này đã được xác thực trước đó.",
   scan_expired: "Phiên quét CCCD đã hết hạn (tối đa 15 phút). Vui lòng quét lại.",
@@ -89,8 +91,8 @@ export const tenantApi = {
   },
 
   // A4: Gửi mã OTP xác thực SĐT
-  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number; devCode?: string }>> => {
-    return api.post<{ expiresInSeconds: number; devCode?: string }>("/auth/otp/send", { phone, purpose });
+  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number }>> => {
+    return api.post<{ expiresInSeconds: number }>("/auth/otp/send", { phone, purpose });
   },
 
   // A5: Xác thực OTP lấy actionToken
@@ -152,7 +154,7 @@ export const tenantApi = {
     return api.post<TenantBooking>(`/bookings/${encodeURIComponent(ref)}/deposit`, { acceptTerms: true, termsVersion });
   },
 
-  // A17: Quét CCCD mô phỏng
+  // A17: Quét CCCD; backend trả ekyc_provider_unavailable đến khi tích hợp nhà cung cấp thật.
   scanEkyc: (ref: string, consentVersion: string): Promise<ApiResponse<EkycScanResult>> => {
     return api.post<EkycScanResult>(`/bookings/${encodeURIComponent(ref)}/ekyc/scan`, { consent: true, consentVersion });
   },
@@ -186,8 +188,4 @@ export const tenantApi = {
     return api.delete<{ unitId: string; saved: boolean }>(`/me/favorites/${encodeURIComponent(code)}`);
   },
 
-  // A21: Tua nhanh bước demo
-  demoBookingStep: (ref: string, step: string): Promise<ApiResponse<TenantBooking>> => {
-    return api.post<TenantBooking>(`/demo/bookings/${encodeURIComponent(ref)}/${encodeURIComponent(step)}`);
-  },
 };

@@ -7,6 +7,18 @@
   overflow: hidden;
 }
 
+.noPhotos {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  height: clamp(260px, 42vw, 480px);
+  border-radius: var(--r-xl);
+  background: var(--paper-2);
+  color: var(--muted);
+  text-align: center;
+}
+
 .n5 {
   grid-template-columns: 2fr 1fr 1fr;
   grid-template-rows: 1fr 1fr;

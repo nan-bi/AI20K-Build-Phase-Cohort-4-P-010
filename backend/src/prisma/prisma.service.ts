@@ -25,7 +25,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('🚀 Connected successfully to PostgreSQL (Supabase) via Prisma ORM');
     } catch (error) {
-      this.logger.warn('⚠️ Prisma could not connect to PostgreSQL immediately (check DATABASE_URL). Continuing in mock/offline mode.');
+      this.logger.error('Unable to connect to the configured PostgreSQL database.');
+      throw error;
     }
   }
 

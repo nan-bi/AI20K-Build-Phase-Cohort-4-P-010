@@ -4,7 +4,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { UnitCard } from "@/components/unit/UnitCard";
-import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/mock/cost";
+import { allInCost, DEFAULT_HOUSEHOLD } from "@/lib/pricing/cost";
 import { useFavorites } from "@/lib/tenant/favorites";
 import styles from "./AccountSaved.module.css";
 

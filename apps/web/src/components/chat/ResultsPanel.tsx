@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { SearchX, X } from "lucide-react";
 import { Facade } from "@/components/brand/Facade";
 import { UnitCard } from "@/components/unit/UnitCard";
-import { criteriaChips, relaxHint, type MatchResult } from "@/lib/mock/matchmaker";
+import { criteriaChips, relaxHint, type MatchResult } from "@/lib/tenant/matchmaker";
 import type { CriteriaState } from "@/lib/mock/types";
-import type { Unit } from "@/lib/mock/units";
+import type { Unit } from "@/lib/units";
 import styles from "./ResultsPanel.module.css";
 
 type Sort = "best" | "price" | "area";
@@ -112,7 +112,7 @@ export function ResultsPanel({ results, criteria, onCriteria, units, totalOpen, 
         <>
           {sort === "best" && (
             <section aria-label="AI chọn cho bạn">
-              <h3 className={styles.section}>AI chọn cho bạn</h3>
+              <h3 className={styles.section}>Gợi ý phù hợp</h3>
               <div className={styles.top}>
                 {top.map((r, i) => (
                   <UnitCard key={r.unit.id} unit={r.unit} cost={r.cost} variant="feature" rank={i + 1} reasons={r.reasons} priority={i === 0} />

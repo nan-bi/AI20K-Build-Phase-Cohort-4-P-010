@@ -24,13 +24,8 @@ import type { DoorAccessView, HostActor, HostViewingDetail, ReqCtx } from './hos
 
 type Tx = Prisma.TransactionClient;
 
-/** Tuỳ chọn của công cụ demo A21: bỏ các ràng buộc về giờ để tua nhanh, đánh dấu audit `via: 'demo'`. */
-export interface FlowOpts {
-  demo?: boolean;
-}
-
 /**
- * NGUỒN DUY NHẤT chuyển `viewings.status` phía Host (B7). Công cụ demo A21 cũng đi qua đây.
+ * NGUỒN DUY NHẤT chuyển `viewings.status` phía Host (B7).
  * Mọi thao tác: nạp ca + kiểm chủ ca (B3) → `updateMany … where status in from` (chống bấm đồng thời) →
  * AuditLog trong cùng transaction → trả `HostViewingDetail` mới.
  */
@@ -180,25 +175,25 @@ export class ViewingFlowService {
     return this.toDetail(v, host);
   }
 
-  async remind(ref: string, host: HostActor, ctx: ReqCtx = {}, opts: FlowOpts = {}): Promise<HostViewingDetail> {
+  async remind(ref: string, host: HostActor, ctx: ReqCtx = {}): Promise<HostViewingDetail> {
     const v = await this.loadOwned(this.prisma, ref, host);
     this.assertFrom(v, [ViewingStatus.CONFIRMED]);
     const now = new Date();
-    if (!opts.demo && now.getTime() < new Date(v.viewingSlot).getTime() - REMINDER_LEAD_MIN * 60_000) {
+    if (now.getTime() < new Date(v.viewingSlot).getTime() - REMINDER_LEAD_MIN * 60_000) {
       throw hostConflict('too_early_reminder');
     }
-    const merged = await this.commit(host, v, [ViewingStatus.CONFIRMED], 'VIEWING_REMIND', ctx, opts, async (tx) => ({
+    const merged = await this.commit(host, v, [ViewingStatus.CONFIRMED], 'VIEWING_REMIND', ctx, async (tx) => ({
       reminderSentAt: v.reminderSentAt ?? now,
     }));
     return this.render(merged, host);
   }
 
-  async receive(ref: string, host: HostActor, ctx: ReqCtx = {}, opts: FlowOpts = {}): Promise<HostViewingDetail> {
+  async receive(ref: string, host: HostActor, ctx: ReqCtx = {}): Promise<HostViewingDetail> {
     const v = await this.loadOwned(this.prisma, ref, host);
     const from = [ViewingStatus.CONFIRMED, ViewingStatus.LOBBY];
     this.assertFrom(v, from);
     const now = new Date();
-    const merged = await this.commit(host, v, from, 'VIEWING_RECEIVE', ctx, opts, async (tx) => {
+    const merged = await this.commit(host, v, from, 'VIEWING_RECEIVE', ctx, async (tx) => {
       // OFF_DUTY thì giữ nguyên: Sale tự bật lại khi sẵn sàng.
       await tx.fieldHost.updateMany({
         where: { id: host.hostId, dutyStatus: HostDutyStatus.ONLINE_AVAILABLE },
@@ -218,7 +213,6 @@ export class ViewingFlowService {
     ref: string,
     host: HostActor,
     ctx: ReqCtx = {},
-    opts: FlowOpts = {},
   ): Promise<{ viewing: HostViewingDetail; door: DoorAccessView }> {
     const v = await this.loadOwned(this.prisma, ref, host);
     this.assertFrom(v, [ViewingStatus.RECEIVING]);
@@ -228,9 +222,9 @@ export class ViewingFlowService {
 
     const now = new Date();
     const door = toDoorView(read, v.unit.building.zoneName, now);
-    const merged = await this.commit(host, v, [ViewingStatus.RECEIVING], 'VIEWING_OPEN_DOOR', ctx, opts, async (tx) => {
+    const merged = await this.commit(host, v, [ViewingStatus.RECEIVING], 'VIEWING_OPEN_DOOR', ctx, async (tx) => {
       if (read.type === 'PHYSICAL_KEY') await this.doors.markKeyWithHost(tx, v.unitId, host.hostId);
-      await this.auditDoorReveal(tx, host, v, read.type, door.expiresAt, now, ctx, opts);
+      await this.auditDoorReveal(tx, host, v, read.type, door.expiresAt, now, ctx);
       return { status: ViewingStatus.VIEWING, viewingStartedAt: now };
     });
     return { viewing: this.render(merged, host, now), door };
@@ -247,31 +241,31 @@ export class ViewingFlowService {
       // Ca có thể vừa đóng ở tab khác: kiểm lại trạng thái trong transaction trước khi ghi audit.
       const still = await tx.viewing.count({ where: { id: v.id, status: ViewingStatus.VIEWING } });
       if (still !== 1) throw badStatus([ViewingStatus.VIEWING], v.status);
-      await this.auditDoorReveal(tx, host, v, read.type, door.expiresAt, now, ctx, {});
+      await this.auditDoorReveal(tx, host, v, read.type, door.expiresAt, now, ctx);
     });
     return door;
   }
 
-  async noShow(ref: string, host: HostActor, ctx: ReqCtx = {}, opts: FlowOpts = {}): Promise<HostViewingDetail> {
+  async noShow(ref: string, host: HostActor, ctx: ReqCtx = {}): Promise<HostViewingDetail> {
     const v = await this.loadOwned(this.prisma, ref, host);
     const from = [ViewingStatus.CONFIRMED, ViewingStatus.LOBBY];
     this.assertFrom(v, from);
     const now = new Date();
-    if (!opts.demo && now.getTime() < new Date(v.viewingSlot).getTime() + NO_SHOW_GRACE_MIN * 60_000) {
+    if (now.getTime() < new Date(v.viewingSlot).getTime() + NO_SHOW_GRACE_MIN * 60_000) {
       throw hostConflict('too_early_no_show');
     }
-    const merged = await this.commit(host, v, from, 'VIEWING_NO_SHOW', ctx, opts, async (tx) => {
+    const merged = await this.commit(host, v, from, 'VIEWING_NO_SHOW', ctx, async (tx) => {
       await this.endOwnership(tx, host, v, now);
       return { status: ViewingStatus.NO_SHOW, completedAt: now, closedReason: 'no_show' };
     });
     return this.render(merged, host);
   }
 
-  async startDeposit(ref: string, host: HostActor, ctx: ReqCtx = {}, opts: FlowOpts = {}): Promise<HostViewingDetail> {
+  async startDeposit(ref: string, host: HostActor, ctx: ReqCtx = {}): Promise<HostViewingDetail> {
     const v = await this.loadOwned(this.prisma, ref, host);
     this.assertFrom(v, [ViewingStatus.VIEWING]);
     const now = new Date();
-    const merged = await this.commit(host, v, [ViewingStatus.VIEWING], 'VIEWING_START_DEPOSIT', ctx, opts, async (tx) => {
+    const merged = await this.commit(host, v, [ViewingStatus.VIEWING], 'VIEWING_START_DEPOSIT', ctx, async (tx) => {
       // Ticket vẫn ACCEPTED (Sale còn theo dõi cọc); chỉ nhả trạng thái bận + trả chìa.
       await this.releaseHost(tx, host);
       await this.doors.markKeyAtDesk(tx, v.unitId);
@@ -285,7 +279,6 @@ export class ViewingFlowService {
     host: HostActor,
     reason: string,
     ctx: ReqCtx = {},
-    opts: FlowOpts = {},
   ): Promise<HostViewingDetail> {
     const v = await this.loadOwned(this.prisma, ref, host);
     const from = [ViewingStatus.VIEWING, ViewingStatus.CLOSING];
@@ -294,7 +287,7 @@ export class ViewingFlowService {
       throw badStatus(from, v.status, 'Khách đã cọc giữ chỗ — không đóng ca thủ công được.');
     }
     const now = new Date();
-    const merged = await this.commit(host, v, from, 'VIEWING_NOT_INTERESTED', ctx, opts, async (tx) => {
+    const merged = await this.commit(host, v, from, 'VIEWING_NOT_INTERESTED', ctx, async (tx) => {
       await this.endOwnership(tx, host, v, now);
       return {
         status: ViewingStatus.COMPLETED,
@@ -360,7 +353,6 @@ export class ViewingFlowService {
     from: ViewingStatus[],
     action: string,
     ctx: ReqCtx,
-    opts: FlowOpts,
     build: (tx: Tx) => Promise<Prisma.ViewingUpdateManyMutationInput>,
   ): Promise<any> {
     let applied: Prisma.ViewingUpdateManyMutationInput = {};
@@ -372,7 +364,7 @@ export class ViewingFlowService {
         const now = await tx.viewing.findUnique({ where: { id: v.id }, select: { status: true } });
         throw badStatus(from, now?.status ?? v.status);
       }
-      await this.audit(tx, host, action, 'viewings', v.id, { ref: v.bookingRefCode, ...(opts.demo ? { via: 'demo' } : {}) }, ctx);
+      await this.audit(tx, host, action, 'viewings', v.id, { ref: v.bookingRefCode }, ctx);
     });
     // Phản hồi dựng từ ca đã nạp + phần vừa ghi: không tốn thêm vòng truy vấn nào (DB ở xa).
     return { ...v, ...applied };
@@ -451,7 +443,6 @@ export class ViewingFlowService {
     expiresAt: string,
     now: Date,
     ctx: ReqCtx,
-    opts: FlowOpts,
   ) {
     return this.audit(
       tx,
@@ -464,7 +455,6 @@ export class ViewingFlowService {
         lockType,
         revealedAt: now.toISOString(),
         expiresAt,
-        ...(opts.demo ? { via: 'demo' } : {}),
       },
       ctx,
     );

@@ -18,7 +18,7 @@ import { primeApiData } from "@/lib/query/useApiQuery";
 import type { HostViewingDetail } from "@/lib/host/types";
 import { hostErrorText, isReminderWindow, nextAction, shouldAutoRemind, slaLeftMs, STALE_CODES } from "@/lib/host/logic";
 import type { HostViewingSummary, TicketCard } from "@/lib/host/types";
-import { dayLabel, fmtTime, vnd } from "@/lib/mock/format";
+import { dayLabel, fmtTime, vnd } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 import styles from "./Host.module.css";
 

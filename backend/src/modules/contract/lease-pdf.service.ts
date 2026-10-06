@@ -158,36 +158,26 @@ export class LeasePdfService implements OnModuleInit {
       return { ready: false };
     }
 
+    const identity = contract.holdingDeposit?.identity;
+    const viewing = contract.holdingDeposit?.viewing;
+    if (!identity?.verifiedDataRef || !viewing?.contactPhoneEnc || !this.phones) {
+      throw new ServiceUnavailableException('Không thể lập hợp đồng khi thiếu hồ sơ eKYC hoặc số điện thoại đã xác minh.');
+    }
+
+    let kycFields: { fullName: string; idNumber: string; dob: string; issuedDate: string; address: string };
+    let contactPhone: string;
     try {
-      // 1. Decrypt tenant eKYC data
-      let kycFields: any = {
-        fullName: contract.tenant.fullName || 'NGUYỄN VĂN AN',
-        idNumber: '001095012345',
-        dob: '12/04/2001',
-        issuedDate: '18/08/2021',
-        address: 'Vinhomes Ocean Park, Gia Lâm, Hà Nội',
-      };
+      kycFields = JSON.parse(this.phones.decrypt(identity.verifiedDataRef));
+      contactPhone = this.phones.decrypt(viewing.contactPhoneEnc);
+    } catch {
+      throw new ServiceUnavailableException('Không thể giải mã an toàn dữ liệu định danh của hợp đồng.');
+    }
 
-      const identity = contract.holdingDeposit?.identity;
-      if (identity?.verifiedDataRef) {
-        try {
-          const decrypted = this.phones.decrypt(identity.verifiedDataRef);
-          kycFields = JSON.parse(decrypted);
-        } catch (e: any) {
-          this.logger.warn(`Could not decrypt eKYC data: ${e.message}`);
-        }
-      }
+    if (!kycFields.fullName || !kycFields.idNumber || !kycFields.dob || !kycFields.issuedDate || !kycFields.address) {
+      throw new ServiceUnavailableException('Hồ sơ eKYC thiếu trường bắt buộc để lập hợp đồng.');
+    }
 
-      // 2. Resolve contact phone
-      let contactPhone = '0912345678';
-      const viewing = contract.holdingDeposit?.viewing;
-      if (viewing?.contactPhoneEnc) {
-        try {
-          contactPhone = this.phones.decrypt(viewing.contactPhoneEnc);
-        } catch (e) {
-          // ignore
-        }
-      }
+    try {
 
       // Check active exclusive mandate for landlord
       const activeMandate = await this.prisma.exclusiveMandate.findFirst({

@@ -11,7 +11,6 @@ import { ActionTokenService } from './otp/action-token.service';
 import { OtpController } from './otp/otp.controller';
 import { OtpService } from './otp/otp.service';
 import { PhoneVerificationService } from './otp/phone-verification.service';
-import { ConsoleOtpSender } from './otp/senders/console-otp.sender';
 import { SmsFallbackSender } from './otp/senders/sms-fallback.sender';
 import { ZaloZnsSender } from './otp/senders/zalo-zns.sender';
 import { PhoneService } from './phone/phone.service';
@@ -52,7 +51,6 @@ import { SESSION_TOKEN_ISSUER, SessionTokenService } from './session/session-tok
     PhoneVerificationService,
     ZaloZnsSender,
     SmsFallbackSender,
-    ConsoleOtpSender,
   ],
   // Guard toàn cục (AppModule) cần AuthSessionService + SessionCookieService; các module nghiệp vụ
   // (booking, deposit...) dùng PhoneService / OtpService / ActionTokenService khi chuyển sang OTP thật.

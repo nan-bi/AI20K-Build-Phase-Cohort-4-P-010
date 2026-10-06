@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { SiteNav } from "@/components/nav/SiteNav";
 import { UnitDetail } from "@/components/unit/UnitDetail";
-import { unitAddress, zoneById } from "@/lib/mock/units";
+import { unitAddress, zoneById } from "@/lib/units";
 import { backendUrl } from "@/lib/auth/session";
 import { toUnit } from "@/lib/tenant/adapters";
 import type { TenantUnit } from "@/lib/tenant/types";
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const dto = await fetchUnit(id).catch(() => null);
   if (!dto) return {};
   const unit = toUnit(dto);
-  return { title: `Căn ${unitAddress(unit)} · ${zoneById(unit.zoneId).name}`, description: unit.title };
+  return { title: `Căn ${unitAddress(unit)} · ${unit.zoneName || zoneById(unit.zoneId)?.name || "Ocean Park"}`, description: unit.title };
 }
 
 export default async function UnitPage({

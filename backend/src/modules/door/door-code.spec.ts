@@ -4,7 +4,6 @@ import { classifyDoorRef, extractPlainPin, planRekey } from './door-code.util';
 import { DoorCodeService } from './door-code.service';
 
 const phones = new PhoneService(fakeConfig({ AES_SECRET_KEY: 'a-test-master-secret-of-32-chars!!', NODE_ENV: 'test' }));
-const gen = () => '777777';
 
 describe('classifyDoorRef — 4 định dạng (SPEC-P02 §6 ca 13)', () => {
   it('phân loại aes / chuỗi giữ chỗ / PIN để trần / thiếu', () => {
@@ -22,15 +21,15 @@ describe('classifyDoorRef — 4 định dạng (SPEC-P02 §6 ca 13)', () => {
 
 describe('planRekey', () => {
   it('aes: đọc được ⇒ giữ nguyên (idempotent)', () => {
-    expect(planRekey(`aes:${phones.encrypt('482910')}`, true, gen)).toEqual({ action: 'keep' });
+    expect(planRekey(`aes:${phones.encrypt('482910')}`, true)).toEqual({ action: 'keep' });
   });
   it('PIN để trần ⇒ mã hoá lại GIỮ NGUYÊN số', () => {
-    expect(planRekey('vault:enc:pin:482910', false, gen)).toEqual({ action: 'rekey', pin: '482910', source: 'plain' });
+    expect(planRekey('vault:enc:pin:482910', false)).toEqual({ action: 'rekey', pin: '482910' });
   });
-  it('chuỗi giữ chỗ / thiếu / aes: hỏng ⇒ PIN ngẫu nhiên mới', () => {
-    expect(planRekey('vault:aes256:door_pin:U', false, gen)).toEqual({ action: 'rekey', pin: '777777', source: 'random' });
-    expect(planRekey(null, false, gen)).toMatchObject({ source: 'random' });
-    expect(planRekey('aes:hong', false, gen)).toMatchObject({ source: 'random' });
+  it('bỏ qua chuỗi giữ chỗ / thiếu / aes: hỏng thay vì tự ghi PIN giả', () => {
+    expect(planRekey('vault:aes256:door_pin:U', false)).toEqual({ action: 'skip', reason: 'placeholder' });
+    expect(planRekey(null, false)).toEqual({ action: 'skip', reason: 'missing' });
+    expect(planRekey('aes:hong', false)).toEqual({ action: 'skip', reason: 'unreadable_aes' });
   });
 });
 

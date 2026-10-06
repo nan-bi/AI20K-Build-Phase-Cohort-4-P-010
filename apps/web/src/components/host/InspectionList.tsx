@@ -8,7 +8,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { toast } from "@/components/ui/Toast";
-import { fmtDateTime } from "@/lib/mock/format";
+import { fmtDateTime } from "@/lib/format";
 import { inspectionApi, useInspectionBoard, type InspectionBoardView } from "@/lib/inspection/api";
 import { doneCounts, hoursLeft } from "@/lib/inspection/logic";
 import { useInspectionAction } from "@/lib/inspection/useInspectionAction";

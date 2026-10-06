@@ -65,13 +65,7 @@ describe("tenant-types contract verification", () => {
         termsAcceptedAt: "2026-10-04T08:05:00Z",
         termsVersion: "HOLD-2026.10-v1",
         outcome: "awaiting_payment",
-        vietqr: {
-          bankBin: "970436",
-          bankName: "Vietcombank",
-          accountNo: "0000000000",
-          accountName: "CONG TY CO PHAN CONG NGHE VINSTAY AI",
-          simulated: true,
-        },
+        vietqr: null,
       },
     };
     expect(booking.deposit?.amount).toBe(2000000);

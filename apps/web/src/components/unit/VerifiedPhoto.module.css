@@ -8,6 +8,18 @@
   object-fit: cover;
 }
 
+.noPhoto {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .stamp {
   position: absolute;
   left: 10px;

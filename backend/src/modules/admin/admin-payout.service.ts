@@ -122,13 +122,26 @@ export class AdminPayoutService {
 
   async getWeeklyStatement(period?: string) {
     const p = this.resolvePeriod(period);
-    const rows = await this.prisma.hostPayout.findMany({ where: { period: p }, orderBy: { createdAt: 'asc' } });
-    const byHost = new Map<string, { total: Prisma.Decimal; count: number }>();
+    const rows = await this.prisma.hostPayout.findMany({
+      where: { period: p },
+      orderBy: { createdAt: 'asc' },
+      include: { host: { select: { profile: { select: { fullName: true } } } } },
+    });
+    const byHost = new Map<string, { fullName: string | null; total: Prisma.Decimal; count: number }>();
     for (const r of rows) {
-      const cur = byHost.get(r.hostId) ?? { total: new Prisma.Decimal(0), count: 0 };
-      byHost.set(r.hostId, { total: cur.total.add(r.amount), count: cur.count + 1 });
+      const cur = byHost.get(r.hostId) ?? {
+        fullName: r.host.profile.fullName,
+        total: new Prisma.Decimal(0),
+        count: 0,
+      };
+      byHost.set(r.hostId, { fullName: cur.fullName, total: cur.total.add(r.amount), count: cur.count + 1 });
     }
-    const hosts = [...byHost.entries()].map(([hostId, v]) => ({ hostId, total: v.total.toNumber(), count: v.count }));
+    const hosts = [...byHost.entries()].map(([hostId, v]) => ({
+      hostId,
+      fullName: v.fullName,
+      total: v.total.toNumber(),
+      count: v.count,
+    }));
     const grandTotal = hosts.reduce((s, h) => s.add(h.total), new Prisma.Decimal(0)).toNumber();
     return { period: p, hosts, grandTotal };
   }

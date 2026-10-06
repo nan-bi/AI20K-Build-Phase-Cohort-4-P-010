@@ -6,9 +6,10 @@ import { TenantModule } from '../tenant/tenant.module';
 import { AuthModule } from '../auth/auth.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
 import { HostViewingsModule } from '../host-viewings/host-viewings.module';
+import { DepositModule } from '../deposit/deposit.module';
 
 @Module({
-  imports: [PrismaModule, TenantModule, AuthModule, DispatchModule, HostViewingsModule],
+  imports: [PrismaModule, TenantModule, AuthModule, DispatchModule, HostViewingsModule, DepositModule],
   controllers: [BookingController],
   providers: [BookingService],
   exports: [BookingService],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findEarliestInBounds, getMonthBounds } from "@/components/booking/slotPick";
-import { slotsForDay } from "@/lib/mock/selectors";
+import { slotsForDay } from "@/lib/booking/slots";
 import { similarUnits } from "@/lib/tenant/catalog";
 
 const NOW = new Date("2026-10-05T00:00:00+07:00").getTime();
