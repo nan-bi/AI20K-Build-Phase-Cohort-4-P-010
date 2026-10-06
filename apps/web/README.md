@@ -22,6 +22,12 @@ BACKEND_URL=http://localhost:4000
 - Chủ nhà, Field Host và Admin đọc/ghi qua các API theo vai trò; dữ liệu mẫu trong thư mục cũ `lib/mock` không được import vào luồng production.
 - Chat tìm căn lọc catalog thật đang tải từ API. Lịch trống được đối chiếu với endpoint busy-slots và được backend kiểm tra lại khi đặt.
 
+## Giao diện công khai (header & trợ lý)
+
+- Mọi route công khai (`/`, `/units*`, `/booking*`, `/account*`) dùng chung `SiteNav`. Bộ link khai báo một nơi ở `src/lib/nav/siteNav.ts` (`SITE_NAV`: Trang chủ · Tìm căn · Cách hoạt động; `TENANT_MENU` cho menu Khách thuê). Lối chủ nhà duy nhất là nút "Cho thuê nhà". VI/EN và sáng/tối chỉ hiện ở `/`.
+- Route và anchor dùng tiếng Anh (`#how-it-works`, `#for-owners`, …); nhãn hiển thị vẫn tiếng Việt. `landing-anchors.test.ts` chặn slug cũ, anchor treo và link `#assistant` thuần.
+- Trợ lý tìm nhà là ô chat ở hero trang chủ (`section#assistant`). Mọi lối mở trợ lý đi qua `useAssistant().focusAssistant()` (`components/chat/AssistantProvider.tsx`); nút nổi `AssistantLauncher` chỉ có ở `/` và tự ẩn khi ô chat đang trong khung nhìn. Không tạo bản chat thứ hai.
+
 ## Tích hợp cần cấu hình trước khi dùng
 
 - OTP cần thông tin provider Zalo/SMS thật.

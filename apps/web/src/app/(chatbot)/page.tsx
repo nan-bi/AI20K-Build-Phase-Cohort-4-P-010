@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AssistantProvider } from "@/components/chat/AssistantProvider";
 import { ChatExperience } from "@/components/chat/ChatExperience";
 import { Landing } from "@/components/landing/Landing";
 import { SiteNav } from "@/components/nav/SiteNav";
@@ -20,11 +21,13 @@ export const viewport: Viewport = { themeColor: "#0b1b3f" };
 export default function HomePage() {
   return (
     <LandingPreferences>
-      <div id="top" />
-      <SiteNav variant="landing" />
-      <main>
-        <ChatExperience below={<Landing />} />
-      </main>
+      <AssistantProvider>
+        <SiteNav variant="overlay" />
+        {/* id="top" đặt trên <main> cho "Lên đầu trang" ở footer — không dùng #top để mở trợ lý (B3). */}
+        <main id="top">
+          <ChatExperience below={<Landing />} />
+        </main>
+      </AssistantProvider>
     </LandingPreferences>
   );
 }

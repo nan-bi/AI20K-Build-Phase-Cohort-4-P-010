@@ -37,11 +37,22 @@ interface MessagesProps {
 
 export function Messages({ greeting, messages, thinking, freshId, onFreshDone, onShowResults }: MessagesProps) {
   const end = useRef<HTMLDivElement>(null);
+  // Chỉ cuộn khung tin nhắn (tổ tiên cuộn được gần nhất), KHÔNG kéo cả trang như scrollIntoView.
   const scroll = () => {
-    end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    let box = end.current?.parentElement ?? null;
+    while (box) {
+      const overflowY = getComputedStyle(box).overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll") && box.scrollHeight > box.clientHeight) break;
+      box = box.parentElement;
+    }
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
   };
 
+  // Bỏ qua lần chạy đầu (mount): so với giá trị lần trước để đúng cả khi Strict Mode chạy effect hai lần.
+  const prev = useRef({ count: messages.length, thinking });
   useEffect(() => {
+    if (prev.current.count === messages.length && prev.current.thinking === thinking) return;
+    prev.current = { count: messages.length, thinking };
     scroll();
   }, [messages.length, thinking]);
 
