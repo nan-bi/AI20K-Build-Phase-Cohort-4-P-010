@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bath, BedDouble, Compass, Ruler } from "lucide-react";
+import { ArrowRight, Bath, BedDouble, CalendarCheck, Compass, Ruler } from "lucide-react";
 import { vnd, vndShort } from "@/lib/format";
 import type { CostBreakdown } from "@/lib/pricing/cost";
 import { unitAddress, zoneById, type Unit } from "@/lib/units";
@@ -97,12 +97,23 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
           </ul>
         )}
 
-          <Button variant="outline" className="flex-1" render={<Link href={`/units/${unit.code || unit.id}`} />}>
+        <div className="mt-auto flex gap-2.5 border-t border-border pt-4">
+          <Button
+            variant="outline"
+            className="h-10 flex-1 rounded-xl px-4 text-sm font-semibold"
+            render={<Link href={`/units/${unit.code || unit.id}`} />}
+          >
             Chi tiết
+            <ArrowRight size={15} aria-hidden="true" />
           </Button>
-          <Button className="flex-1" render={<Link href={`/units/${unit.code || unit.id}?book=1`} />}>
+          <Button
+            className="h-10 flex-[1.35] rounded-xl px-4 text-sm font-semibold shadow-sm"
+            render={<Link href={`/units/${unit.code || unit.id}?book=1`} />}
+          >
+            <CalendarCheck size={16} aria-hidden="true" />
             Đặt lịch xem
           </Button>
+        </div>
       </div>
     </Card>
   );
