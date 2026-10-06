@@ -2,13 +2,15 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Building2, CalendarClock, Check, ClipboardCheck, Coins, Footprints, LayoutDashboard, MapPin, Plus, ReceiptText, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BadgeCheck, CalendarClock, Coins, Footprints, LayoutDashboard, MessageCircle, Plus, ReceiptText } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
 import { vndShort } from "@/lib/format";
 import { emptyCriteria, parseQuery, searchUnits } from "@/lib/tenant/matchmaker";
 import type { ChatMessage, CriteriaState } from "@/lib/mock/types";
 import { useCatalog } from "@/lib/tenant/catalog";
 import { useSession } from "@/lib/auth/client";
+import { AssistantLauncher } from "./AssistantLauncher";
+import { useAssistantInternal } from "./AssistantProvider";
 import { Composer } from "./Composer";
 import { Messages } from "./Messages";
 import { ResultsPanel } from "./ResultsPanel";
@@ -23,11 +25,19 @@ const TRUST = [
   { icon: CalendarClock, text: "Theo dõi trạng thái lịch xem" },
 ];
 
+/** 3 ý năng lực của trợ lý — chỉ hiển thị, không bấm (SPEC-P02 §1). */
+const CAPABILITIES = [
+  { icon: MessageCircle, vi: "Hiểu câu tự nhiên", en: "Understands natural requests" },
+  { icon: Coins, vi: "Tính sẵn All-in Cost", en: "All-in Cost included" },
+  { icon: LayoutDashboard, vi: "Lọc trên căn thật", en: "Filters live listings" },
+];
+
 const statusOf = (unit: { baseStatus?: string }) => (unit.baseStatus ?? "available") as "available" | "holding" | "rented";
 
 /** Bộ lọc hội thoại chạy trên danh mục căn thật đã tải từ API. */
 export function ChatExperience({ below }: { below: ReactNode }) {
   const prefs = useOptionalLandingPreferences();
+  const assistant = useAssistantInternal();
   const en = prefs?.locale === "en";
   const session = useSession();
   const role = session.user?.portal ?? null;
@@ -39,7 +49,6 @@ export function ChatExperience({ below }: { below: ReactNode }) {
   const [thinking, setThinking] = useState<{ steps: string[] } | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const [tab, setTab] = useState<"chat" | "results">("chat");
-  const [persona, setPersona] = useState<"tenant" | "landlord">("tenant");
   const busy = useRef(false);
   const results = useMemo(() => searchUnits(criteria, statusOf, catalog.units), [criteria, catalog.units]);
   const first = role === "tenant" ? (user?.fullName?.split(" ").slice(-1)[0] ?? null) : null;
@@ -103,52 +112,23 @@ export function ChatExperience({ below }: { below: ReactNode }) {
     return <>
       <section className={styles.hero} aria-labelledby="home-title">
         <div className={styles.heroInner}>
-          <div className={styles.copy}>
-            <div className={styles.heroRoleTabs} role="tablist" aria-label={en ? "Choose your VinStay path" : "Chọn nhu cầu của bạn"}>
-              <button type="button" role="tab" aria-selected={persona === "tenant"} className={persona === "tenant" ? styles.heroRoleActive : styles.heroRole} onClick={() => setPersona("tenant")}><MapPin size={14} /> {en ? "I need a home" : "Tôi muốn thuê nhà"}</button>
-              <button type="button" role="tab" aria-selected={persona === "landlord"} className={persona === "landlord" ? styles.heroRoleActive : styles.heroRole} onClick={() => setPersona("landlord")}><Building2 size={14} /> {en ? "I own a home" : "Tôi là chủ nhà"}</button>
-            </div>
-            <p className={styles.eyebrow}><Sparkles size={14} /> VINSTAY AI · {en ? "HOMES, MADE CLEAR" : "TÌM NHÀ RÕ RÀNG HƠN"}</p>
+          <div className={styles.intro}>
             <div className={styles.availability} aria-live="polite">
               <span className={styles.liveDot} />
               <strong>{catalog.loading ? (en ? "Syncing" : "Đang đồng bộ") : `${catalog.available.length} ${en ? "homes" : "căn"}`}</strong>
               <span>{en ? "currently available in the catalog" : "đang mở trong danh mục hệ thống"}</span>
             </div>
-            <h1 id="home-title" className={styles.title}>
-              {persona === "tenant" ? <>{en ? "Find a home" : "Tìm nhà ưng ý"}<br /><span>{en ? "with clarity, powered by AI." : "quản lý cho thuê dễ dàng cùng AI."}</span></> : <>{en ? "Manage rentals" : "Quản lý cho thuê"}<br /><span>{en ? "with a clearer workflow." : "dễ dàng trên một nền tảng."}</span></>}
-            </h1>
-            <p className={styles.description}>
-              {persona === "tenant"
-                ? en ? "Describe what matters to you, compare available apartments and estimated monthly costs, then request a viewing." : "Mô tả nhu cầu, so sánh căn đang mở và chi phí tháng ước tính, rồi chủ động gửi yêu cầu xem nhà."
-                : en ? "Submit your property, follow its status, and manage rental workflows in a portal built around your listing." : "Gửi hồ sơ căn, theo dõi trạng thái và quản lý quy trình cho thuê trong cổng dành riêng cho chủ nhà."}
-            </p>
-            <div className={styles.actions}>
-              {persona === "tenant" ? <>
-                <Link href="/units" className={styles.primaryCta}>{en ? "Explore apartments" : "Tìm nhà ngay"} <ArrowRight size={17} /></Link>
-                <a href="#tin-noi-bat" className={styles.secondaryCta}>{en ? "See available homes" : "Xem căn đang mở"}</a>
-              </> : <>
-                <Link href="/login?tab=landlord" className={styles.primaryCta}>{en ? "Submit a listing" : "Đăng tin cho thuê"} <ArrowRight size={17} /></Link>
-                <a href="#danh-cho-chu-nha" className={styles.secondaryCta}>{en ? "Owner portal" : "Tìm hiểu cho chủ nhà"}</a>
-              </>}
-            </div>
-            <div className={styles.proof}>
-              {persona === "tenant" ? <>
-                <span className={styles.proofItem}><Check size={15} /> {en ? "Compare estimated monthly costs" : "Dễ đối chiếu chi phí theo tháng"}</span>
-                <span className={styles.proofItem}><MapPin size={15} /> {en ? "Apartment listings in Hanoi" : "Căn hộ tại Hà Nội"}</span>
-              </> : <>
-                <span className={styles.proofItem}><Check size={15} /> {en ? "Follow your listing application" : "Theo dõi hồ sơ ký gửi"}</span>
-                <span className={styles.proofItem}><Building2 size={15} /> {en ? "Owner tools in one portal" : "Công cụ chủ nhà tập trung"}</span>
-              </>}
-            </div>
+            <h1 id="home-title" className={styles.title}>{en ? <>Find an Ocean Park home — <span>just describe what you need</span></> : <>Tìm căn hộ Ocean Park — <span>chỉ cần mô tả nhu cầu</span></>}</h1>
+            <p className={styles.description}>{en ? "The assistant filters real listings, calculates All-in Cost for you, and books viewings with a Host meeting you in the lobby." : "Trợ lý lọc căn thật, tính sẵn All-in Cost, đặt lịch có Host đón sảnh."}</p>
           </div>
 
-          {persona === "tenant" ? <section className={styles.matchCard} aria-label={en ? "VinStay apartment search" : "Bộ lọc căn hộ VinStay"}>
+          <section id="assistant" ref={assistant?.registerAssistant} className={styles.matchCard} aria-label={en ? "VinStay apartment search" : "Trợ lý tìm căn VinStay"}>
             <header className={styles.matchHead}>
               <div className={styles.matchBrand}>
                 <span className={styles.matchMark}><LogoMark size={22} inverse /></span>
                 <span className={styles.matchBrandText}>
                   <strong>VinStay AI</strong>
-                  <span>{en ? "Find a home that fits your needs" : "Trợ lý tìm căn theo nhu cầu"}</span>
+                  <span>{en ? "Home search assistant" : "Trợ lý tìm căn"}</span>
                 </span>
               </div>
               <span className={styles.sourceBadge}>
@@ -160,23 +140,18 @@ export function ChatExperience({ below }: { below: ReactNode }) {
               <Messages greeting={greeting} messages={messages} thinking={thinking} freshId={freshId} onFreshDone={() => setFreshId(null)} />
             </div>
             <div className={styles.composer}>
-              <Composer variant="hero" criteria={criteria} onCriteria={onCriteria} onSend={onSend} busy={!!thinking} locked={false} guestNotice={false} showPrompts={messages.length === 0} locale={en ? "en" : "vi"} />
+              <Composer variant="hero" criteria={criteria} onCriteria={onCriteria} onSend={onSend} busy={!!thinking} locked={false} guestNotice={false} showPrompts={messages.length === 0} locale={en ? "en" : "vi"} prefill={assistant?.prefill} />
             </div>
+            <ul className={styles.capabilities} aria-label={en ? "What the assistant does" : "Trợ lý làm được gì"}>
+              {CAPABILITIES.map(({ icon: Icon, vi, en: enText }) => <li key={vi} className={styles.capability}><Icon size={15} /> {en ? enText : vi}</li>)}
+            </ul>
             <p className={styles.matchFoot}><Coins size={14} /> {en ? "Matches use current apartment data and estimated monthly costs." : "Kết quả dựa trên catalog căn hộ và ước tính chi phí hiện tại."}</p>
-          </section> : <section className={styles.ownerHeroCard} aria-label={en ? "VinStay owner portal" : "Cổng chủ nhà VinStay"}>
-            <div className={styles.ownerHeroTop}><span><Building2 size={19} /></span><div><strong>{en ? "VinStay owner portal" : "Cổng chủ nhà VinStay"}<small>{en ? "Rental workflows in one place" : "Theo dõi quy trình cho thuê trong một nơi"}</small></strong></div><BadgeCheck size={17} /></div>
-            <h2>{en ? "A clearer way to manage your rentals." : "Quản lý nhà cho thuê rõ ràng hơn."}</h2>
-            <p>{en ? "Submit a property, follow its application, and open your owner portal to manage available workflows." : "Gửi hồ sơ căn, theo dõi tiến trình và mở cổng chủ nhà để quản lý các quy trình hiện có."}</p>
-            <div className={styles.ownerHeroLinks}>
-              <Link href="/login?tab=landlord"><ClipboardCheck size={16} /><span><strong>{en ? "Submit a property" : "Gửi hồ sơ ký gửi"}<small>{en ? "Start with your listing details" : "Bắt đầu với thông tin căn"}</small></strong></span><ArrowRight size={15} /></Link>
-              <Link href="/landlord/dashboard"><LayoutDashboard size={16} /><span><strong>{en ? "Manage your account" : "Quản lý tài khoản"}<small>{en ? "Open your landlord dashboard" : "Mở bảng điều khiển chủ nhà"}</small></strong></span><ArrowRight size={15} /></Link>
-            </div>
-            <div className={styles.ownerHeroFoot}><ShieldCheck size={15} /> {en ? "Your records are tied to your owner account" : "Hồ sơ được gắn với tài khoản chủ nhà của bạn"}</div>
-          </section>}
+          </section>
 
-          {persona === "tenant" && !catalog.loading && catalog.available.length > 0 && <div className={styles.heroFloatCard} aria-label={en ? "Live catalog information" : "Thông tin danh mục căn hiện có"}>
-            <span className={styles.heroFloatIcon}><BadgeCheck size={18} /></span><span><strong>{en ? "Live availability" : "Căn đang mở"}</strong><small>{catalog.available.length} {en ? "apartments in the catalog" : "căn hộ từ danh mục hiện tại"}</small></span>
-          </div>}
+          <nav className={styles.heroLinks} aria-label={en ? "More ways to browse" : "Lối khác"}>
+            <Link href="/units" className={styles.heroLink}>{en ? "Browse all homes" : "Xem tất cả căn"} <ArrowRight size={15} /></Link>
+            <Link href="/#for-owners" className={styles.heroLinkMuted}>{en ? "Own a home? List it with us" : "Chủ nhà? Ký gửi căn"} <ArrowRight size={15} /></Link>
+          </nav>
         </div>
 
         <ul className={styles.trustBar} aria-label="Cam kết VinStay">
@@ -185,6 +160,7 @@ export function ChatExperience({ below }: { below: ReactNode }) {
           ))}
         </ul>
       </section>
+      <AssistantLauncher />
       {below}
     </>;
   }

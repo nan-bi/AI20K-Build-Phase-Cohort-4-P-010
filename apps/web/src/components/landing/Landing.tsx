@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight, ArrowUp, BadgeCheck, Building2, CalendarCheck2, Check, ChevronDown,
+  ArrowRight, ArrowUp, BadgeCheck, Building2, CalendarCheck2, ChevronDown,
   CircleHelp, ClipboardCheck, Coins, FileCheck2, HeartHandshake, KeyRound, LayoutDashboard,
-  MapPin, MessageCircle, ShieldCheck, Sparkles, Sun, WalletCards, WandSparkles,
+  MapPin, ShieldCheck, Sparkles, Sun, WalletCards,
 } from "lucide-react";
 import { useCatalog } from "@/lib/tenant/catalog";
 import { useLandingPreferences } from "./LandingPreferences";
@@ -20,9 +20,6 @@ const copy = {
     districtsLead: "Các phân khu bên dưới và giá tham khảo được lấy trực tiếp từ danh mục căn hộ hiện tại.",
     listings: "Không phải ảnh minh hoạ — là căn đang mở",
     listingsLead: "Lọc theo loại căn, xem thông tin và mở hồ sơ thật trước khi đặt lịch.",
-    aiEyebrow: "VinStay AI · Trợ lý tìm nhà",
-    aiTitle: "Mô tả điều bạn cần. Bắt đầu từ những căn có thật.",
-    aiLead: "Trợ lý tiếp nhận nhu cầu bằng câu tự nhiên, kết hợp bộ lọc căn hộ và trả kết quả từ catalog của hệ thống.",
     ownerEyebrow: "Không gian dành cho chủ nhà",
     ownerTitle: "Căn hộ, hồ sơ và quy trình cho thuê — trong cùng một cổng.",
     ownerLead: "Đăng ký ký gửi, theo dõi căn và làm việc với đội vận hành trên một luồng thống nhất.",
@@ -76,9 +73,6 @@ const copy = {
     districtsLead: "Areas and indicative rents below are drawn directly from the current apartment catalog.",
     listings: "Live listings, not sample cards",
     listingsLead: "Filter by layout, review the details, then open a real listing before booking a visit.",
-    aiEyebrow: "VinStay AI · Home search assistant",
-    aiTitle: "Tell us what you need. Start with homes that are actually available.",
-    aiLead: "Describe your needs in natural language. The assistant combines them with apartment filters and searches the live catalog.",
     ownerEyebrow: "For property owners",
     ownerTitle: "Apartments, applications, and rental workflows in one portal.",
     ownerLead: "Submit a listing, track your units, and work with the operations team in one connected flow.",
@@ -206,7 +200,7 @@ export function Landing() {
   const processSteps = flow === "tenant" ? (locale === "vi" ? TENANT_STEPS : TENANT_STEPS_EN) : (locale === "vi" ? LANDLORD_STEPS : LANDLORD_STEPS_EN);
 
   return (
-    <div className={styles.landing} id="ve-vinstay">
+    <div className={styles.landing} id="landing">
       <ProgressBar />
 
       <section className={styles.liveBand} aria-label={t.live}>
@@ -222,7 +216,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.introSection}`} id="ve-chung-toi">
+      <section className={`${styles.section} ${styles.introSection}`} id="about">
         <div className={styles.container}>
           <Reveal>
             <header className={styles.sectionHeader}>
@@ -245,7 +239,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.areasSection}`} id="can-ho">
+      <section className={`${styles.section} ${styles.areasSection}`} id="areas">
         <div className={styles.container}>
           <Reveal>
             <header className={styles.sectionHeader}>
@@ -261,7 +255,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.listingSection}`} id="tin-noi-bat">
+      <section className={`${styles.section} ${styles.listingSection}`} id="featured">
         <div className={styles.container}>
           <Reveal>
             <header className={styles.sectionHeader}>
@@ -277,41 +271,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.aiSection}`} id="ai-tro-ly">
-        <div className={`${styles.container} ${styles.aiLayout}`}>
-          <Reveal className={styles.aiVisualWrap}>
-            <div className={styles.aiVisual}>
-              <div className={styles.aiGlow} />
-              <div className={styles.aiOrb} aria-hidden="true"><WandSparkles size={35} /></div>
-              <div className={`${styles.assistantCard} ${styles.assistantCardTop}`}>
-                <div className={styles.assistantIcon}><Sparkles size={16} /></div>
-                <div><strong>{locale === "vi" ? "Trợ lý tìm căn" : "Home search assistant"}<span className={styles.thinkingDots}><i /><i /><i /></span></strong><p>{locale === "vi" ? "Đọc nhu cầu và đối chiếu catalog" : "Reads your needs against the catalog"}</p></div>
-              </div>
-              <div className={styles.assistantCard}>
-                <span className={styles.assistantCheck}><Check size={15} /></span>
-                <div><strong>{locale === "vi" ? "Kết quả có căn thật" : "Results from real listings"}</strong><p>{locale === "vi" ? "Thông tin, trạng thái, chi phí trên cùng hồ sơ" : "Details, status, and costs in each listing"}</p></div>
-              </div>
-              <div className={styles.aiOrbit} aria-hidden="true"><span /><span /><span /></div>
-              <span className={styles.aiVisualNote}><span className={styles.livePulse} />{available.length} {locale === "vi" ? "căn từ catalog" : "homes in catalog"}</span>
-            </div>
-          </Reveal>
-          <Reveal delay={100}>
-            <div className={styles.aiCopy}>
-              <p className={styles.kicker}><Sparkles size={15} /> {t.aiEyebrow}</p>
-              <h2 className={styles.heading}>{t.aiTitle}</h2>
-              <p className={styles.lede}>{t.aiLead}</p>
-              <div className={styles.aiFeatures}>
-                <div><span><MessageCircle size={18} /></span><p><strong>{locale === "vi" ? "Hiểu cách bạn diễn đạt" : "Understands natural requests"}</strong><small>{locale === "vi" ? "Nhập một câu mô tả hoặc chọn bộ lọc." : "Type a request or use the filters."}</small></p></div>
-                <div><span><LayoutDashboard size={18} /></span><p><strong>{locale === "vi" ? "Lọc theo dữ liệu căn" : "Filters live listings"}</strong><small>{locale === "vi" ? "Ngân sách, layout, khu vực và nội thất." : "Budget, layout, area, and furnishing."}</small></p></div>
-                <div><span><Coins size={18} /></span><p><strong>{locale === "vi" ? "Đối chiếu tổng chi phí" : "Compare monthly costs"}</strong><small>{locale === "vi" ? "Xem mức All-in Cost ước tính ở mỗi kết quả." : "Review estimated All-in Cost per result."}</small></p></div>
-              </div>
-              <a href="#top" className={styles.primaryLink}>{locale === "vi" ? "Thử trợ lý tìm nhà" : "Try the home assistant"}<ArrowRight size={16} /></a>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className={styles.ownerSection} id="danh-cho-chu-nha">
+      <section className={styles.ownerSection} id="for-owners">
         <div className={`${styles.container} ${styles.ownerLayout}`}>
           <Reveal>
             <div className={styles.ownerCopy}>
@@ -341,7 +301,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.processSection}`} id="quy-trinh">
+      <section className={`${styles.section} ${styles.processSection}`} id="how-it-works">
         <div className={styles.container}>
           <Reveal>
             <header className={`${styles.sectionHeader} ${styles.centerHeader}`}>
@@ -364,14 +324,14 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.reasonsSection}`} id="vi-sao-vinstay">
+      <section className={`${styles.section} ${styles.reasonsSection}`} id="why-vinstay">
         <div className={styles.container}>
           <Reveal><header className={styles.sectionHeader}><div className={styles.sectionIntro}><p className={styles.kicker}>{locale === "vi" ? "Được thiết kế quanh nhu cầu thật" : "Designed around real needs"}</p><h2 className={styles.heading}>{t.reasonsTitle}</h2><p className={styles.lede}>{t.reasonsLead}</p></div></header></Reveal>
           <div className={styles.reasonGrid}>{(locale === "vi" ? REASONS : REASONS_EN).map(({ icon: Icon, title, body }, index) => <Reveal key={title} delay={index * 45}><article className={styles.reasonCard}><span className={styles.reasonIcon}><Icon size={20} /></span><h3>{title}</h3><p>{body}</p><span className={styles.reasonArrow}><ArrowRight size={16} /></span></article></Reveal>)}</div>
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.pricingSection}`} id="bang-gia">
+      <section className={`${styles.section} ${styles.pricingSection}`} id="fees">
         <div className={`${styles.container} ${styles.pricingLayout}`}>
           <Reveal><div><p className={styles.kicker}>{locale === "vi" ? "Minh bạch trước khi xác nhận" : "Clear before you commit"}</p><h2 className={styles.heading}>{t.pricingTitle}</h2><p className={styles.lede}>{t.pricingLead}</p><Link href="/login?tab=landlord" className={styles.textLink}>{t.pricingCta}<ArrowRight size={16} /></Link></div></Reveal>
           <Reveal delay={100}><div className={styles.pricingCard}><span className={styles.pricingIcon}><ShieldCheck size={21} /></span><span className={styles.pricingLabel}>{locale === "vi" ? "Không có mức phí giả định" : "No invented service rates"}</span><strong>{locale === "vi" ? "Xác nhận điều khoản trước khi dùng" : "Confirm terms before using a service"}</strong><p>{locale === "vi" ? "Chỉ tiếp tục khi mức phí và điều khoản áp dụng đã được thông tin rõ ràng." : "Continue only after the applicable service fee and terms have been clearly provided."}</p><Link href="/login?tab=landlord" className={styles.pricingButton}>{locale === "vi" ? "Mở luồng chủ nhà" : "Open owner flow"}<ArrowRight size={15} /></Link></div></Reveal>
@@ -385,14 +345,14 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.mobileSection}`} id="ung-dung-di-dong">
+      <section className={`${styles.section} ${styles.mobileSection}`} id="mobile-app">
         <div className={`${styles.container} ${styles.mobileCard}`}>
           <Reveal><div className={styles.mobileCopy}><span className={styles.mobileBadge}><Sun size={15} /> {locale === "vi" ? "Trải nghiệm web di động" : "Mobile web experience"}</span><h2>{t.mobileTitle}</h2><p>{t.mobileLead}</p><Link href="/units" className={styles.primaryLink}>{t.explore}<ArrowRight size={16} /></Link></div></Reveal>
           <Reveal delay={100}><div className={styles.phoneScene} aria-hidden="true"><div className={styles.phoneBack}><div /><div /><div /></div><div className={styles.phoneFront}><div className={styles.phoneIsland} /><div className={styles.phoneBrand}><span className={styles.phoneBrandIcon}><Building2 size={13} /></span><b>VinStay</b><span>•••</span></div><div className={styles.phoneHero}><span>{locale === "vi" ? "Tìm căn phù hợp" : "Find your next home"}</span><i /></div><div className={styles.phoneSearch}><MapPin size={12} /> {locale === "vi" ? "Ocean Park 1" : "Ocean Park 1"}</div><div className={styles.phoneListing}><span className={styles.phonePicture} /><span><b>{locale === "vi" ? "Căn hộ đang mở" : "Available homes"}</b><small>{locale === "vi" ? "Thông tin từ catalog" : "Live catalog details"}</small></span></div><div className={styles.phoneListing}><span className={styles.phonePicture} /><span><b>{locale === "vi" ? "Lịch xem nhà" : "Home viewings"}</b><small>{locale === "vi" ? "Theo dõi trong tài khoản" : "Track in your account"}</small></span></div></div><span className={styles.phoneHalo} /></div></Reveal>
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.guidesSection}`} id="cam-nang">
+      <section className={`${styles.section} ${styles.guidesSection}`} id="guides">
         <div className={styles.container}>
           <Reveal><header className={styles.sectionHeader}><div className={styles.sectionIntro}><p className={styles.kicker}>{locale === "vi" ? "Cẩm nang ngắn" : "Quick guides"}</p><h2 className={styles.heading}>{t.guideTitle}</h2><p className={styles.lede}>{t.guideLead}</p></div></header></Reveal>
           <div className={styles.guideGrid}>
@@ -410,7 +370,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className={styles.finalCta} id="bat-dau">
+      <section className={styles.finalCta} id="get-started">
         <div className={styles.finalGlow} />
         <div className={`${styles.container} ${styles.finalInner}`}>
           <div><p className={styles.kickerLight}><Sparkles size={15} /> VINSTAY AI</p><h2>{t.finalTitle}</h2><p>{t.finalLead}</p></div>
@@ -422,7 +382,7 @@ export function Landing() {
         <div className={styles.container}>
           <div className={styles.footerMain}>
             <div className={styles.footerBrand}><Link href="/" className={styles.footerLogo}><span><Building2 size={19} /></span><b>VinStay <i>AI</i></b></Link><p>{t.footerText}</p><span className={styles.footerLocation}><MapPin size={14} /> Vinhomes Ocean Park 1 · Hà Nội</span></div>
-            <div><strong>{t.company}</strong><Link href="/#ve-chung-toi">{locale === "vi" ? "Về VinStay" : "About VinStay"}</Link><Link href="/#quy-trinh">{locale === "vi" ? "Cách hoạt động" : "How it works"}</Link><Link href="/#faq">FAQ</Link></div>
+            <div><strong>{t.company}</strong><Link href="/#about">{locale === "vi" ? "Về VinStay" : "About VinStay"}</Link><Link href="/#how-it-works">{locale === "vi" ? "Cách hoạt động" : "How it works"}</Link><Link href="/#faq">FAQ</Link></div>
             <div><strong>{t.tenant}</strong><Link href="/units">{locale === "vi" ? "Tìm căn hộ" : "Find apartments"}</Link><Link href="/booking">{locale === "vi" ? "Tra cứu lịch xem" : "Viewings"}</Link><Link href="/login">{locale === "vi" ? "Tài khoản" : "Account"}</Link></div>
             <div><strong>{t.landlord}</strong><Link href="/login?tab=landlord">{locale === "vi" ? "Đăng ký ký gửi" : "Submit a listing"}</Link><Link href="/landlord/dashboard">{locale === "vi" ? "Cổng chủ nhà" : "Owner portal"}</Link><Link href="/host/login">{locale === "vi" ? "Cổng vận hành" : "Operations portal"}</Link></div>
             <div><strong>{t.support}</strong><Link href="/#faq">{locale === "vi" ? "Câu hỏi thường gặp" : "FAQ"}</Link><Link href="/booking">{locale === "vi" ? "Tra cứu đặt lịch" : "Appointment lookup"}</Link><Link href="/login">{locale === "vi" ? "Đăng nhập" : "Sign in"}</Link></div>
@@ -430,8 +390,6 @@ export function Landing() {
           <div className={styles.footerBottom}><span>© 2026 VinStay AI</span><span>{locale === "vi" ? "Danh mục căn hộ hiện tại · Hà Nội" : "Current apartment catalog · Hanoi"}</span><a href="#top" className={styles.backTop}><ArrowUp size={14} /> {locale === "vi" ? "Lên đầu trang" : "Back to top"}</a></div>
         </div>
       </footer>
-
-      <a className={styles.floatingHelp} href="#ai-tro-ly" aria-label={locale === "vi" ? "Mở trợ lý AI tìm nhà" : "Open AI home assistant"}><MessageCircle size={20} /><span>{locale === "vi" ? "Trợ lý tìm nhà" : "Home assistant"}</span></a>
     </div>
   );
 }

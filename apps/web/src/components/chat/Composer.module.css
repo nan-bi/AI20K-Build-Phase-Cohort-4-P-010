@@ -7,9 +7,9 @@
 /* Viên nhập liệu kiểu chat AI: bo tròn lớn, nút gửi nằm ngay trong khung thay vì tách hàng riêng. */
 .shell {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 6px;
-  padding: 8px 8px 8px 18px;
+  padding: 6px 8px 8px 16px;
   border: 1.5px solid var(--line-strong);
   border-radius: 22px;
   background: var(--surface);
@@ -17,13 +17,55 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .shell:focus-within {
   border-color: var(--lagoon);
   box-shadow: var(--ring), var(--shadow-2);
 }
 
+.areaWrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Gợi ý xoay vòng thay placeholder gốc (không animate được): nằm đè lên textarea, không chặn chuột. */
+.hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.hintText {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: hintIn 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes hintIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hintText { animation: none; }
+}
+
 .area {
   flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
   border: 0;
   background: transparent;
@@ -76,21 +118,32 @@
   padding-left: 6px;
 }
 
+/* Thẻ gợi ý: chỉ để tham khảo ⇒ nhỏ, một hàng cuộn ngang, nằm trong khung nhập (không chiếm chiều cao khung chat). */
 .prompts {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-right: -8px;
+  padding: 0 8px 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.prompts::-webkit-scrollbar {
+  display: none;
 }
 
 .prompt {
-  max-width: 100%;
-  padding: 8px 14px;
-  border: 1px solid var(--line-strong);
+  flex: none;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: 13.5px;
-  text-align: left;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: nowrap;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 .prompt:hover:not(:disabled) {
@@ -141,3 +194,15 @@
     height: 44px;
   }
 }
+
+/* Composer ở hero trang chủ: cỡ lớn để ô chat là điểm nhấn (SPEC-P02 §1). */
+/* Composer ở hero: gọn (ô nhập 1 dòng ≈ 48px), chữ 16px vừa đủ rõ và không bị iOS tự zoom. */
+.hero .inputRow { align-items: center; min-height: 46px; }
+.hero .area { font-size: 16px; line-height: 1.5; padding: 8px 0; }
+.hero .send { width: 40px; height: 40px; }
+/* Placeholder hero ≤ 430px: chữ nhỏ hơn để vừa 1 dòng; chữ người dùng gõ vẫn giữ 16px (chống zoom iOS). */
+@media (max-width: 430px) {
+  .hint { font-size: 14px; }
+}
+
+.area:focus-visible { outline: none; box-shadow: none; }
