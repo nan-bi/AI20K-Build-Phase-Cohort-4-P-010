@@ -17,6 +17,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +27,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
     const res = await hostApi.sendPhoneOtp(phone.trim());
     setBusy(false);
     if (!res.ok) return setError(errorText(res));
+    setDevCode(res.data.devCode ?? null);
     setSent(true);
   }
 
@@ -76,6 +78,11 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
             </button>
           ) : (
             <>
+              {devCode && (
+                <p className="text-sm">
+                  Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{devCode}</b>.
+                </p>
+              )}
               <label className="field">
                 Mã 4 số
                 <input

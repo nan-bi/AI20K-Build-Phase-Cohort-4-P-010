@@ -91,8 +91,8 @@ export const tenantApi = {
   },
 
   // A4: Gửi mã OTP xác thực SĐT
-  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number }>> => {
-    return api.post<{ expiresInSeconds: number }>("/auth/otp/send", { phone, purpose });
+  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number; devCode?: string }>> => {
+    return api.post<{ expiresInSeconds: number; devCode?: string }>("/auth/otp/send", { phone, purpose });
   },
 
   // A5: Xác thực OTP lấy actionToken
@@ -152,6 +152,11 @@ export const tenantApi = {
   // A15: Chấp thuận điều khoản cọc & lấy thông tin VietQR
   acceptDeposit: (ref: string, termsVersion: string): Promise<ApiResponse<TenantBooking>> => {
     return api.post<TenantBooking>(`/bookings/${encodeURIComponent(ref)}/deposit`, { acceptTerms: true, termsVersion });
+  },
+
+  // DEMO (xoá khi có webhook thật): giả lập ngân hàng báo có cọc
+  demoPayDeposit: (ref: string): Promise<ApiResponse<{ outcome: string }>> => {
+    return api.post<{ outcome: string }>(`/bookings/${encodeURIComponent(ref)}/deposit/demo-pay`);
   },
 
   // A17: Quét CCCD; backend trả ekyc_provider_unavailable đến khi tích hợp nhà cung cấp thật.

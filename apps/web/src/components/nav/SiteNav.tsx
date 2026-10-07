@@ -11,7 +11,7 @@ import { PORTAL_HOME } from "@/lib/auth/portals";
 import { signOut, useRole, useSession } from "@/lib/auth/client";
 import styles from "./SiteNav.module.css";
 import { useOptionalLandingPreferences } from "@/components/landing/LandingPreferences";
-import { SITE_NAV, TENANT_MENU, activeNavKey } from "@/lib/nav/siteNav";
+import { SITE_NAV, TENANT_MENU, VIEWING_LOOKUP, activeNavKey } from "@/lib/nav/siteNav";
 
 /** Nhãn EN cho drawer/menu khi `/` đang ở locale en; route khác giữ tiếng Việt. Khoá = href của TENANT_MENU. */
 const TENANT_MENU_EN: Record<string, string> = {
@@ -198,7 +198,12 @@ export function SiteNav({ variant = "solid" }: { variant?: "solid" | "overlay" }
             </div>
           )}
           {role === "tenant" ? (
-            <AccountMenu en={en} />
+            <>
+              <Link href={VIEWING_LOOKUP.href} className={`${styles.loginLink} ${styles.desktopOnly}`} aria-current={pathname.startsWith(VIEWING_LOOKUP.href) ? "page" : undefined}>
+                <CalendarSearch size={15} aria-hidden="true" />&nbsp;{en ? VIEWING_LOOKUP.labelEn : VIEWING_LOOKUP.label}
+              </Link>
+              <AccountMenu en={en} />
+            </>
           ) : role ? (
             <>
               {portalHome && (
