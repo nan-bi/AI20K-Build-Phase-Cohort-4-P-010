@@ -1,0 +1,40 @@
+
+FAIL modules/admin/admin-flows.spec.ts (23.349 s)
+  ● Live Supabase API (Nest thật + Prisma thật) › returns buildings and verified rental units from Supabase
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      25 |   });
+      26 |
+    > 27 |   it('returns buildings and verified rental units from Supabase', async () => {
+         |   ^
+      28 |     const http = request(app.getHttpServer());
+      29 |     const [buildings, units] = await Promise.all([
+      30 |       http.get('/api/v1/properties/buildings'),
+
+      at modules/admin/admin-flows.spec.ts:27:3
+      at Object.<anonymous> (modules/admin/admin-flows.spec.ts:8:1)
+
+  ● Live Supabase API (Nest thật + Prisma thật) › serves a real unit detail and busy-slot response
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      39 |   });
+      40 |
+    > 41 |   it('serves a real unit detail and busy-slot response', async () => {
+         |   ^
+      42 |     const http = request(app.getHttpServer());
+      43 |     const list = await http.get('/api/v1/properties/units').expect(200);
+      44 |     const unitCode = list.body.data[0]?.code;
+
+      at modules/admin/admin-flows.spec.ts:41:3
+      at Object.<anonymous> (modules/admin/admin-flows.spec.ts:8:1)
+
+
+Test Suites: 11 failed, 20 passed, 31 total
+Tests:       19 failed, 459 passed, 478 total
+Snapshots:   0 total
+Time:        23.824 s, estimated 54 s
+Ran all test suites.

@@ -1,0 +1,97 @@
+FAIL src/modules/property/unit-data.spec.ts
+  P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units
+    ○ skipped P1-1: ghi bathrooms/direction/title/highlights/description/securityDeposit/minLeaseMonths/furnishing
+    ○ skipped P1-1: không có leaseTerm/suggestedDeposit/furnished ⇒ minLeaseMonths 6, securityDeposit null, furnishing giữ mặc định
+    ○ skipped P1-1: text vi phạm ⇒ 400 LISTING_TEXT_FORBIDDEN, không tạo căn
+    ○ skipped P1-2: direction ngoài 8 giá trị ⇒ 400 (ValidationPipe); 8 giá trị hợp lệ qua
+  P1-3 — assertListingText
+    ○ skipped vi phạm 0979841233 ⇒ phone
+    ○ skipped vi phạm 0979 841 233 ⇒ phone
+    ○ skipped vi phạm +84 979 841 233 ⇒ phone
+    ○ skipped vi phạm zalo.me/x ⇒ url
+    ○ skipped vi phạm 8tr5 ⇒ money
+    ○ skipped vi phạm 7 triệu ⇒ money
+    ○ skipped vi phạm 500k ⇒ money
+    ○ skipped vi phạm giá 8.000.000 ⇒ money
+    ○ skipped hợp lệ Tầng 12
+    ○ skipped hợp lệ 45m²
+    ○ skipped hợp lệ 45 m2
+    ○ skipped hợp lệ 2PN 2WC
+    ○ skipped hợp lệ View hồ
+    ○ skipped hợp lệ Năm 2024
+    ○ skipped hợp lệ 1 WC
+  P1-3b — assertListingText chống lách (F1)
+    ○ skipped chặn LH ０９７９８４１２３３ ⇒ phone
+    ○ skipped chặn LH 𝟎𝟗𝟕𝟗𝟖𝟒𝟏𝟐𝟑𝟑 ⇒ phone
+    ○ skipped chặn LH ٠٩٧٩٨٤١٢٣٣ ⇒ phone
+    ○ skipped chặn LH 0979​841​233 ⇒ phone
+    ○ skipped chặn LH 0979/841/233 ⇒ phone
+    ○ skipped chặn LH 0979_841_233 ⇒ phone
+    ○ skipped chặn LH o979841233 ⇒ phone
+    ○ skipped chặn LH không chín bảy chín tám bốn một hai ba ba ⇒ phone
+    ○ skipped chặn LH 0979 a 841 b 233 ⇒ phone
+    ○ skipped chặn ib zalo . me/abc ⇒ url
+    ○ skipped chặn ib zalo me slash abc ⇒ url
+    ○ skipped chặn nhắn z a l o chủ nhà ⇒ url
+    ○ skipped chặn xem bit.ly/vinstay-op ⇒ url
+    ○ skipped chặn xem tinyurl.com/abc ⇒ url
+    ○ skipped chặn xem nhaop1.vn/can-dep ⇒ url
+    ○ skipped chặn nhắn m.me/chunha ⇒ url
+    ○ skipped chặn mail chunha@gmail.com ⇒ url
+    ○ skipped chặn giá chỉ tám triệu ⇒ money
+    ○ skipped chặn tám tr ⇒ money
+    ○ skipped chặn mười lăm triệu ⇒ money
+    ○ skipped chặn giá 8 củ 5 ⇒ money
+    ○ skipped chặn giá ８ｔｒ５ ⇒ money
+    ○ skipped chặn giá 8 t r 5 ⇒ money
+    ○ skipped chặn giá $350 ⇒ money
+    ○ skipped chặn giá 5 000 000 ⇒ money
+    ○ skipped chặn giá 8_000_000 ⇒ money
+    ○ skipped cho qua Cách hồ 200m, đi bộ 5 phút
+    ○ skipped cho qua Cách hồ 200m
+    ○ skipped cho qua Sàn rộng 3m, trần cao 2m
+    ○ skipped cho qua Căn góc 2 mặt thoáng
+    ○ skipped cho qua gần 3 dãy shophouse
+    ○ skipped cho qua An ninh 24/7, 1 km tới VinUni
+    ○ skipped cho qua Nhà đẹp. Mẹ chủ ở Hà Nội
+    ○ skipped cho qua Tủ lạnh, tủ quần áo, tủ bếp, tủ giày
+    ○ skipped cho qua Tầng 12, 2 phòng ngủ, 2 WC, 1 ban công
+    ○ skipped cho qua 45m²
+    ○ skipped cho qua 45 m2
+    ○ skipped cho qua Diện tích 45m2
+    ○ skipped cho qua Tầng 12
+    ○ skipped cho qua 2PN 2WC
+    ○ skipped cho qua Năm 2024
+  P1-4 — niêm yết ghi unit_inventory_items
+    ○ skipped chỉ ghi dòng present=true; lần publish thứ 2 không nhân đôi
+  F8 — spec/tên dòng X của Inspector đi qua assertListingText
+    ○ skipped spec chứa SĐT ⇒ 400 LISTING_TEXT_FORBIDDEN field inventory.<i>.spec, chưa ghi DB
+    ○ skipped tên dòng X chứa link ⇒ 400 field inventory.<i>.name; spec sạch được ghi vào DB
+  P1-5/P1-6/P1-7 — mapper API đọc căn
+    ○ skipped P1-5: inventory không lộ condition/compensation/photoIds; list (không include) ⇒ []
+    ○ skipped F9: mã X (không phải số) xếp sau số, theo thứ tự nhập; mã số sắp theo giá trị số
+    ○ skipped P1-6: securityDeposit null ⇒ baseRentPrice; có giá trị ⇒ dùng giá trị; highlights
+    ○ skipped P1-7: holdingDeposit = holdingDepositAmount() (không đổi 2.000.000); điều khoản dùng cùng hàm
+  P1-8 — backfill idempotent
+    ✕ F14: lấy cả mandate ACTIVE lẫn EXIT_REQUESTED (căn vẫn đang niêm yết khi chủ xin thoát) (4 ms)
+    ○ skipped chạy 2 lần cùng số dòng, chỉ dòng present, upsert theo unitId+code
+
+  ● P1-8 — backfill idempotent › F14: lấy cả mandate ACTIVE lẫn EXIT_REQUESTED (căn vẫn đang niêm yết khi chủ xin thoát)
+
+    TypeError: status.in is not iterable
+
+      240 |     await backfillUnitInventory({ exclusiveMandate: { findMany }, unitInventoryItem: {} } as any, false);
+      241 |     const status = (findMany.mock.calls[0] as any[])[0].where.status;
+    > 242 |     expect([...status.in].sort()).toEqual(['ACTIVE', 'EXIT_REQUESTED']);
+          |                       ^
+      243 |   });
+      244 | });
+      245 |
+
+      at Object.<anonymous> (modules/property/unit-data.spec.ts:242:23)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 68 skipped, 69 total
+Snapshots:   0 total
+Time:        5.031 s, estimated 14 s
+Ran all test suites matching /src\/modules\/property\/unit-data.spec.ts/i with tests matching "F14".

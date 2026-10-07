@@ -1,0 +1,72 @@
+$ next build
+▲ Next.js 16.3.6 (Turbopack)
+- Environments: .env
+✓ Running next.config.ts took 11ms
+- Experiments (use with caution):
+  · proxyClientMaxBodySize: "30mb"
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1345ms
+  Running TypeScript ...
+  Finished TypeScript in 1235ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/36) ...
+  Generating static pages using 9 workers (9/36) 
+  Generating static pages using 9 workers (18/36) 
+  Generating static pages using 9 workers (27/36) 
+✓ Generating static pages using 9 workers (36/36) in 288ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /account
+├ ○ /account/bookings
+├ ○ /account/contracts
+├ ○ /account/saved
+├ ○ /admin
+├ ○ /admin/bookings
+├ ○ /admin/commission
+├ ○ /admin/contracts
+├ ƒ /admin/contracts/[key]
+├ ƒ /admin/contracts/parties
+├ ƒ /admin/contracts/parties/[key]
+├ ○ /admin/contracts/templates
+├ ƒ /admin/contracts/templates/[id]
+├ ○ /admin/dashboard
+├ ○ /admin/hosts
+├ ƒ /admin/hosts/[id]
+├ ƒ /admin/inventory
+├ ƒ /admin/inventory/[id]
+├ ○ /admin/login
+├ ○ /admin/settings
+├ ○ /booking
+├ ƒ /booking/[ref]
+├ ○ /host
+├ ○ /host/account
+├ ○ /host/dispatch
+├ ○ /host/earnings
+├ ○ /host/handbook
+├ ○ /host/inspections
+├ ƒ /host/inspections/[id]
+├ ○ /host/login
+├ ƒ /host/viewing/[id]
+├ ○ /landlord
+├ ○ /landlord/account
+├ ƒ /landlord/consign
+├ ƒ /landlord/consignments/[id]
+├ ○ /landlord/dashboard
+├ ○ /landlord/exit-request
+├ ○ /landlord/finance
+├ ○ /landlord/units
+├ ƒ /landlord/units/[id]
+├ ○ /login
+├ ○ /units
+└ ƒ /units/[id]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

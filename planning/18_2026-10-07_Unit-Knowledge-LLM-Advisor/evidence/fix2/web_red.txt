@@ -1,0 +1,4 @@
+     × ≥1 mã khớp ⇒ searched=true, tab results, ghim đúng thứ tự bot 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/tests/assistant-guest-pin.test.ts > event units ⇒ màn preview (fix2) > ≥1 mã khớp ⇒ searched=true, tab results, ghim đúng thứ tự bot
+      Tests  1 failed | 293 passed (294)

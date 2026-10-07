@@ -1,0 +1,14 @@
+$ uv run pytest tests/test_eval_scoring.py -q  # RED trước khi sửa (score_case chỉ có forbid_regex)
+E         Left contains one more item: 'forbid:quét QR (ở|tại) sảnh'
+E         Use -v to get more diff
+
+tests/test_eval_scoring.py:68: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[expiry_1]
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[expiry_2]
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[expiry_3]
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[expiry_5]
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[view_1]
+FAILED tests/test_eval_scoring.py::test_correct_answer_ok_wrong_answer_fails[view_2]
+6 failed, 6 passed in 0.17s
+exit=

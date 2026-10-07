@@ -1,0 +1,13 @@
+$ uv run pytest tests/test_knowledge.py -q  # sau khi mở rộng A6 (tiếng|phút|ngày), knowledge 12 file thật
+...                                                                      [100%]
+3 passed in 0.03s
+
+$ grep số viết bằng chữ + đơn vị trong knowledge (không bị A6 bắt — báo cáo, KHÔNG sửa):
+knowledge/bql-rules.md:15:ba ngày
+knowledge/move-out.md:14:ba ngày
+knowledge/security-deposit.md:8:hai tháng
+knowledge/viewing-process.md:10:ba mươi phút
+knowledge/viewing-process.md:10:mười bốn ngày
+knowledge/viewing-process.md:12:hai tiếng
+knowledge/viewing-process.md:13:mười phút
+knowledge/viewing-process.md:16:mười lăm phút

@@ -1,0 +1,24 @@
+...............................................................FF.....   [100%]
+=================================== FAILURES ===================================
+______________________ test_has_feature_ban_ghe_synonyms _______________________
+
+    def test_has_feature_ban_ghe_synonyms():
+        with_sofa = {"inventory": [{"name": "Bộ ghế Sofa"}]}
+        dining = {"inventory": [{"name": "Bộ bàn ghế ăn"}]}
+>       assert has_feature(with_sofa, "bàn ghế")
+E       AssertionError: assert False
+E        +  where False = has_feature({'inventory': [{'name': 'Bộ ghế Sofa'}]}, 'bàn ghế')
+
+tests/test_search_context.py:22: AssertionError
+_______________________ test_has_feature_other_synonyms ________________________
+
+    def test_has_feature_other_synonyms():
+>       assert has_feature({"inventory": [{"name": "Điều hòa không khí Phòng ngủ"}]}, "máy lạnh")
+E       AssertionError: assert False
+E        +  where False = has_feature({'inventory': [{'name': 'Điều hòa không khí Phòng ngủ'}]}, 'máy lạnh')
+
+tests/test_search_context.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_search_context.py::test_has_feature_ban_ghe_synonyms - Asse...
+FAILED tests/test_search_context.py::test_has_feature_other_synonyms - Assert...
+2 failed, 68 passed in 0.17s

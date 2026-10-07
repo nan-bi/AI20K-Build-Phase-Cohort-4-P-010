@@ -1,0 +1,56 @@
+FAIL src/modules/matchmaker/matchmaker.spec.ts
+  MatchmakerService limit / totalMatched
+    ✓ mặc định limit = 3, totalMatched = số căn khớp trước khi cắt (3 ms)
+    ✕ limit=20 trả nhiều hơn 3, giữ thứ tự xếp hạng
+    ✕ totalMatched chỉ đếm căn không vượt ngân sách (1 ms)
+  MatchmakerRequestDto limit validation
+    ✓ limit=0 bị từ chối (1 ms)
+    ✓ limit=51 bị từ chối
+    ✓ limit=1.5 bị từ chối
+    ✓ limit="abc" bị từ chối
+    ✓ limit=undefined hợp lệ
+    ✓ limit=1 hợp lệ
+    ✓ limit=20 hợp lệ
+    ✓ limit=50 hợp lệ
+
+  ● MatchmakerService limit / totalMatched › limit=20 trả nhiều hơn 3, giữ thứ tự xếp hạng
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 8
+    Received length: 3
+    Received array:  [{"aiExplanation": "Căn VHOP-T-0001 giúp bạn tiết kiệm 1.900.000 đ/tháng (21%) so với giá thuê tham chiếu cùng phân khu S1, bao gồm toàn bộ phí BQL và định mức sinh hoạt.", "allInCost": {"allInTotal": 7150000, "baseRent": 6100000, "managementFee": 300000, "parkingFee": 150000, "utilityCost": 600000}, "buildingCode": "S1.02", "carpetAreaM2": 30, "comparison": {"isBargain": true, "marketAllInEstimate": 9050000, "savingAmount": 1900000, "savingPercentage": 21}, "layoutType": "STUDIO", "rank": 1, "unitCode": "VHOP-T-0001", "unitId": "u1", "verifiedImages": [], "zoneName": "S1"}, {"aiExplanation": "Căn VHOP-T-0002 giúp bạn tiết kiệm 1.800.000 đ/tháng (20%) so với giá thuê tham chiếu cùng phân khu S1, bao gồm toàn bộ phí BQL và định mức sinh hoạt.", "allInCost": {"allInTotal": 7250000, "baseRent": 6200000, "managementFee": 300000, "parkingFee": 150000, "utilityCost": 600000}, "buildingCode": "S1.02", "carpetAreaM2": 30, "comparison": {"isBargain": true, "marketAllInEstimate": 9050000, "savingAmount": 1800000, "savingPercentage": 20}, "layoutType": "STUDIO", "rank": 2, "unitCode": "VHOP-T-0002", "unitId": "u2", "verifiedImages": [], "zoneName": "S1"}, {"aiExplanation": "Căn VHOP-T-0003 giúp bạn tiết kiệm 1.700.000 đ/tháng (19%) so với giá thuê tham chiếu cùng phân khu S1, bao gồm toàn bộ phí BQL và định mức sinh hoạt.", "allInCost": {"allInTotal": 7350000, "baseRent": 6300000, "managementFee": 300000, "parkingFee": 150000, "utilityCost": 600000}, "buildingCode": "S1.02", "carpetAreaM2": 30, "comparison": {"isBargain": true, "marketAllInEstimate": 9050000, "savingAmount": 1700000, "savingPercentage": 19}, "layoutType": "STUDIO", "rank": 3, "unitCode": "VHOP-T-0003", "unitId": "u3", "verifiedImages": [], "zoneName": "S1"}]
+
+      37 |   it('limit=20 trả nhiều hơn 3, giữ thứ tự xếp hạng', async () => {
+      38 |     const res = await makeService(8).findTopRecommendations(body({ limit: 20 }));
+    > 39 |     expect(res.topRecommendations).toHaveLength(8);
+         |                                    ^
+      40 |     expect(res.scanSummary.totalMatched).toBe(8);
+      41 |     expect(res.topRecommendations.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+      42 |   });
+
+      at Object.<anonymous> (modules/matchmaker/matchmaker.spec.ts:39:36)
+
+  ● MatchmakerService limit / totalMatched › totalMatched chỉ đếm căn không vượt ngân sách
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 3
+    Received: 6
+
+      44 |   it('totalMatched chỉ đếm căn không vượt ngân sách', async () => {
+      45 |     const res = await makeService(8).findTopRecommendations(body({ limit: 20, maxAllInBudget: 7_700_000 }));
+    > 46 |     expect(res.scanSummary.totalMatched).toBe(res.topRecommendations.length);
+         |                                          ^
+      47 |     expect(res.scanSummary.totalMatched).toBeLessThan(8);
+      48 |   });
+      49 | });
+
+      at Object.<anonymous> (modules/matchmaker/matchmaker.spec.ts:46:42)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 9 passed, 11 total
+Snapshots:   0 total
+Time:        1.036 s, estimated 2 s
+Ran all test suites matching /src\/modules\/matchmaker/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

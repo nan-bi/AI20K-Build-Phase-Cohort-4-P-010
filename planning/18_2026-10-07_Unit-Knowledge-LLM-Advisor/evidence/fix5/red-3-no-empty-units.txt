@@ -1,0 +1,21 @@
+..................................................................F...   [100%]
+=================================== FAILURES ===================================
+_______________ test_zero_match_emits_empty_units_with_criteria ________________
+
+    async def test_zero_match_emits_empty_units_with_criteria():
+        args = {"max_all_in_budget": 10_000_000, "must_have": ["bồn tắm"]}
+        llm = FakeLLM([tool_round("search_units", json.dumps(args)), text_round("Không có; gần nhất VHOP-S1.02-0607.")])
+        evs = await run(llm)
+        ev = next(e for e in evs if e["event"] == "units")["data"]
+>       assert ev == {"unitCodes": [], "mode": "search", "matched": 0, "criteria": args}
+E       AssertionError: assert {'unitCodes':... 'matched': 0} == {'unitCodes':... ['bồn tắm']}}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Differing items:
+E         {'unitCodes': ['VHOP-S1.02-0607']} != {'unitCodes': []}
+E         Use -v to get more diff
+
+tests/test_search_context.py:51: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_search_context.py::test_zero_match_emits_empty_units_with_criteria
+1 failed, 69 passed in 0.16s

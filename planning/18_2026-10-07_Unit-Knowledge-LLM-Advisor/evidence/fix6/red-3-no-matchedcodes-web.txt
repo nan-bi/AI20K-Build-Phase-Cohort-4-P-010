@@ -1,0 +1,29 @@
+$ vitest run
+
+ RUN  v5.0.1 /Users/namdev/Documents/Code/VinAI/build_phase/P-010/apps/web
+
+ ❯ src/tests/assistant-progressive.test.ts (9 tests | 1 failed) 323ms
+   ❯ stream: matchedCodes + assumed (1)
+     × parse matchedCodes (≤20, chỉ chuỗi) và assumed (chỉ khoá/kiểu hợp lệ); không có ⇒ không có khoá 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/tests/assistant-progressive.test.ts > stream: matchedCodes + assumed > parse matchedCodes (≤20, chỉ chuỗi) và assumed (chỉ khoá/kiểu hợp lệ); không có ⇒ không có khoá
+AssertionError: Target cannot be null or undefined.
+ ❯ src/tests/assistant-progressive.test.ts:26:28
+     24|       'event: units\ndata: {"unitCodes":["U01"],"mode":"search"}\n\n';
+     25|     const [a, b] = (await collect(parseSse(sse(raw)))) as Extract<Assi…
+     26|     expect(a.matchedCodes).toHaveLength(20);
+       |                            ^
+     27|     expect(a.matchedCodes?.[0]).toBe("U00");
+     28|     expect(a.matched).toBe(31);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 28 passed (29)
+      Tests  1 failed | 323 passed (324)
+   Start at  17:15:20
+   Duration  977ms (tests 47%, transform 31%, import 19%, worker 2%)
+
+[ELIFECYCLE] Test failed. See above for more details.

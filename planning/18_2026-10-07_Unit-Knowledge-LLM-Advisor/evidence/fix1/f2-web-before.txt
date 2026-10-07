@@ -1,0 +1,34 @@
+
+ RUN  v5.0.1 /Users/namdev/Documents/Code/VinAI/build_phase/P-010/apps/web
+
+ ❯ src/tests/inspection-pricing.test.ts (13 tests | 1 failed) 742ms
+   ❯ W5 màn thẩm định: giá & cọc (10)
+     × F2: biên giá/cọc cùng backend — rent ∈ [3tr,200tr], cọc ∈ [2tr, 3×rent], số nguyên 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/tests/inspection-pricing.test.ts > W5 màn thẩm định: giá & cọc > F2: biên giá/cọc cùng backend — rent ∈ [3tr,200tr], cọc ∈ [2tr, 3×rent], số nguyên
+AssertionError: expected undefined to be 'pricing.rent' // Object.is equality
+
+- Expected:
+"pricing.rent"
+
++ Received:
+undefined
+
+ ❯ src/tests/inspection-pricing.test.ts:90:37
+     88|     const { detail, draft } = setup();
+     89|     const f = (rent: string, securityDeposit: string) => validateExtra…
+     90|     expect(f("2999999", "3000000")).toBe("pricing.rent");
+       |                                     ^
+     91|     expect(f("6500000", "0")).toBe("pricing.securityDeposit");
+     92|     expect(f("6500000", "1999999")).toBe("pricing.securityDeposit");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  13:15:33
+   Duration  1.43s (tests 76%, transform 15%, import 8%, worker 1%)
+

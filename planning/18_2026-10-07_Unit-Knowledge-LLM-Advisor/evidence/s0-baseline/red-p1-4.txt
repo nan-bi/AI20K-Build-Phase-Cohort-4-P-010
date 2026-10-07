@@ -1,0 +1,2 @@
+    ✕ chỉ ghi dòng present=true; lần publish thứ 2 không nhân đôi (3 ms)
+Tests:       1 failed, 23 passed, 24 total

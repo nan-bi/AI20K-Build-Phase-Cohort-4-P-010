@@ -1,0 +1,14 @@
+PASS src/modules/inspection/inspection-assigner.spec.ts (10.426 s)
+PASS src/modules/inspection/inspection-pricing.spec.ts (13.213 s)
+[31m[Nest] 73607  - [39m10/07/2026, 1:17:35 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[GET] /media/listing/00000000-0000-4000-8000-000000000123/22222222-2222-4222-8222-222222222222.jpg - Status: 404 - Error: Không tìm thấy ảnh.[39m
+PASS src/modules/inspection/inspection-photo.spec.ts (13.591 s)
+PASS src/modules/property/unit-data.spec.ts (13.774 s)
+[31m[Nest] 73606  - [39m10/07/2026, 1:17:36 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[GET] /host/inspections - Status: 403 - Error: Tài khoản Field Host chưa được gán vai cần cho thao tác này[39m
+[31m[Nest] 73606  - [39m10/07/2026, 1:17:36 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[GET] /host/inspections/not-a-uuid - Status: 400 - Error: Validation failed (uuid is expected)[39m
+PASS src/modules/inspection/inspection.spec.ts (14.195 s)
+
+Test Suites: 5 passed, 5 total
+Tests:       131 passed, 131 total
+Snapshots:   0 total
+Time:        15.635 s
+Ran all test suites matching /src\/modules\/property|src\/modules\/inspection|src\/modules\/tenant/i.

@@ -1,0 +1,44 @@
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 503 - Error: Trợ lý AI tạm thời không khả dụng[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 500 - Error: boom[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 400 - Error: messages must contain at least 1 elements[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 400 - Error: messages must contain no more than 20 elements[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 400 - Error: messages.0.content must be shorter than or equal to 2000 characters[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 400 - Error: messages.0.role must be one of the following values: user, assistant[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 400 - Error: locale must be one of the following values: vi, en[39m
+[31m[Nest] 48588  - [39m10/07/2026, 12:35:29 PM [31m  ERROR[39m [38;5;3m[HttpExceptionFilter] [39m[31m[POST] /assistant/chat - Status: 429 - Error: ThrottlerException: Too Many Requests[39m
+FAIL src/modules/assistant/assistant.spec.ts
+  Assistant relay (A8)
+    ✓ pipes SSE verbatim, sends internal key and only firstName (76 ms)
+    ✓ guest => no user field (21 ms)
+    ✓ AI_ENGINE_URL missing => 503 AI_UPSTREAM_DOWN (4 ms)
+    ✕ ai-engine down (connection refused) => 503 AI_UPSTREAM_DOWN (3 ms)
+    ✓ bad body (no messages) => 400, upstream untouched (2 ms)
+    ✓ bad body (21 messages) => 400, upstream untouched (2 ms)
+    ✓ bad body (content > 2000) => 400, upstream untouched (2 ms)
+    ✓ bad body (bad role) => 400, upstream untouched (1 ms)
+    ✓ bad body (bad locale) => 400, upstream untouched (2 ms)
+    ✓ rate limit 20/min => 429 on the 21st (272 ms)
+
+  ● Assistant relay (A8) › ai-engine down (connection refused) => 503 AI_UPSTREAM_DOWN
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 503
+    Received: 500
+
+      102 |     app = await makeApp({ AI_ENGINE_URL: 'http://127.0.0.1:1', AI_ENGINE_INTERNAL_KEY: 'k' });
+      103 |     const res = await request(app.getHttpServer()).post('/assistant/chat').send(BODY);
+    > 104 |     expect(res.status).toBe(503);
+          |                        ^
+      105 |     expect(JSON.stringify(res.body)).toContain('AI_UPSTREAM_DOWN');
+      106 |   });
+      107 |
+
+      at Object.<anonymous> (modules/assistant/assistant.spec.ts:104:24)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 9 passed, 10 total
+Snapshots:   0 total
+Time:        1.484 s, estimated 2 s
+Ran all test suites matching /src\/modules\/assistant/i.
+exit 1
