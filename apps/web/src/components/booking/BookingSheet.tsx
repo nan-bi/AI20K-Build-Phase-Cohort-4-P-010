@@ -102,7 +102,9 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
   const [otpError, setOtpError] = useState(false);
   const [otpErrorMsg, setOtpErrorMsg] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [booking, setBooking] = useState<TenantBooking | null>(null);
 
   // Bỏ qua OTP chỉ khi tài khoản đã xác thực SĐT VÀ số đang nhập đúng là số đó (backend kiểm lại lần nữa).
@@ -128,6 +130,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
       const res = await tenantApi.sendOtp(p, "TENANT_VIEWING");
       if (res.ok) {
         setCode("");
+        setDevCode(res.data.devCode ?? null);
         setCooldown(30);
         setStep("otp");
       } else {
@@ -183,8 +186,9 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
     setCode(v);
     setOtpError(false);
     setOtpErrorMsg(null);
-    if (v.length === 4 && slot) {
+    if (v.length === 4 && slot && !verifying) {
       setSubmitting(true);
+      setVerifying(true);
       try {
         const verifyRes = await tenantApi.verifyOtp(p, v, "TENANT_VIEWING");
         if (!verifyRes.ok) {
@@ -215,6 +219,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         }
       } finally {
         setSubmitting(false);
+        setVerifying(false);
       }
     }
   };
@@ -514,7 +519,17 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
           </div>
 
           <div className={styles.otpInputWrap}>
-            <OtpInput value={code} onChange={onCode} error={otpError} autoFocus />
+            <OtpInput value={code} onChange={onCode} error={otpError} disabled={verifying} autoFocus />
+            {verifying && (
+              <p className={styles.verifying} role="status">
+                <span className={styles.spinner} aria-hidden="true" /> Đang xác thực mã...
+              </p>
+            )}
+            {devCode && (
+              <p className={styles.otpSub}>
+                Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{devCode}</b>.
+              </p>
+            )}
             {otpError && <p className="field-error">{otpErrorMsg || "Mã chưa đúng. Kiểm tra lại tin nhắn Zalo rồi nhập lại."}</p>}
             <button
               type="button"

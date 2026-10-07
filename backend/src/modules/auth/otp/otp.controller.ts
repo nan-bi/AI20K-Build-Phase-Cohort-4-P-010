@@ -40,12 +40,12 @@ export class OtpController {
   @Throttle(perMinute(5))
   @ApiOperation({
     summary: 'Gửi OTP 4 số qua Zalo (dự phòng SMS) để xác thực SĐT',
-    description: 'Mỗi SĐT+mục đích chỉ được gửi lại sau OTP_RESEND_SECONDS. OTP chỉ được gửi qua nhà cung cấp đã cấu hình.',
+    description: 'Mỗi SĐT+mục đích chỉ được gửi lại sau OTP_RESEND_SECONDS. OTP gửi qua nhà cung cấp đã cấu hình; ngoài production, khi OTP_ECHO_DEV_CODE=true và chưa có nhà cung cấp thì trả `devCode` để dev/demo.',
   })
   async send(@Body() dto: SendOtpDto, @Req() req: Request) {
     const phone = this.normalizedPhone(dto.phone);
-    await this.otp.send({ phone, purpose: dto.purpose, ...requestContext(req) });
-    return { expiresInSeconds: this.otp.expiresInSeconds };
+    const { devCode } = await this.otp.send({ phone, purpose: dto.purpose, ...requestContext(req) });
+    return { expiresInSeconds: this.otp.expiresInSeconds, ...(devCode ? { devCode } : {}) };
   }
 
   @Public()

@@ -91,8 +91,8 @@ export const tenantApi = {
   },
 
   // A4: Gửi mã OTP xác thực SĐT
-  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number }>> => {
-    return api.post<{ expiresInSeconds: number }>("/auth/otp/send", { phone, purpose });
+  sendOtp: (phone: string, purpose = "TENANT_VIEWING"): Promise<ApiResponse<{ expiresInSeconds: number; devCode?: string }>> => {
+    return api.post<{ expiresInSeconds: number; devCode?: string }>("/auth/otp/send", { phone, purpose });
   },
 
   // A5: Xác thực OTP lấy actionToken
