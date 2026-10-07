@@ -210,6 +210,7 @@ export class PropertyService {
       include: {
         building: true,
         media: { orderBy: { order: 'asc' } },
+        inventoryItems: { orderBy: { code: 'asc' } },
       },
     });
 

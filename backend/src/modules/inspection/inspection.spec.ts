@@ -73,6 +73,7 @@ describe('Inspection — đọc & nhận ca', () => {
     expect(second.stage).toBe('inspecting');
     expect(w.db.audits.filter((x) => x.actionType === 'INSPECTION_ACCEPTED')).toHaveLength(1);
     expect(first.catalog).toHaveLength(32);
+    expect(first.declared).toEqual({ bathrooms: 1, direction: null, title: null, highlights: [], description: null });
     expect(first.doorCodeOnFile).toBe(true);
     expect(JSON.stringify(first)).not.toContain(PIN);
   });

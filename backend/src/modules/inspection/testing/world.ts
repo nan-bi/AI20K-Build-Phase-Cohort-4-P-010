@@ -59,13 +59,14 @@ export function buildWorld() {
     /** Một hồ sơ ký gửi (unit UNLISTED + mandate PENDING_INSPECTION) ở stage cho trước. */
     addCase(o: {
       stage?: ConsignmentMeta['stage']; hostId?: string; offeredAt?: Date; signedAt?: Date; lock?: 'ELECTRONIC_PIN' | 'PHYSICAL_KEY';
-      pin?: string | null; furnished?: boolean | null; areaM2?: number; photos?: InspectionPhoto[]; name?: string;
+      pin?: string | null; landlordId?: string; furnished?: boolean | null; askRent?: number; suggestedDeposit?: number; areaM2?: number; photos?: InspectionPhoto[]; name?: string;
     } = {}) {
       n += 1;
       const lock = o.lock ?? 'ELECTRONIC_PIN';
       const unit = {
         id: `unit-${n}`, unitCode: `VHOP-S1.02-${10 + n}08`, floorNumber: 10 + n, layoutType: 'ONE_BED_PLUS', carpetAreaM2: o.areaM2 ?? 47,
-        baseRentPrice: 6_500_000, marketAvgPrice: 6_500_000, doorLockType: lock, status: 'UNLISTED', isVerified: false, verifiedAt: null,
+        baseRentPrice: 6_500_000, marketAvgPrice: 6_500_000, securityDeposit: null, bathrooms: 1, direction: null, managementFee: 446_500,
+        landlordId: o.landlordId ?? 'landlord-1', title: null, highlights: [], description: null, doorLockType: lock, status: 'UNLISTED', isVerified: false, verifiedAt: null,
         furnishing: 'FULL', doorNumber: null,
         building: { buildingCode: 'S1.02', zoneName: ZONE }, landlord: { fullName: o.name ?? 'Nguyễn Thị Mai' },
       };
@@ -79,7 +80,7 @@ export function buildWorld() {
       const signedAt = o.signedAt ?? hoursAgo(1);
       const meta: ConsignmentMeta = {
         form: {
-          building: 'S1.02', floor: unit.floorNumber, door: '08', areaM2: o.areaM2 ?? 47, askRent: 6_500_000, suggestedDeposit: 6_500_000,
+          building: 'S1.02', floor: unit.floorNumber, door: '08', areaM2: o.areaM2 ?? 47, askRent: o.askRent ?? 6_500_000, suggestedDeposit: o.suggestedDeposit ?? 6_500_000,
           leaseTerm: 'long', furnished: o.furnished ?? true, locks: [lock === 'PHYSICAL_KEY' ? 'physical' : 'smart'], note: null,
         },
         stage: o.stage ?? 'awaiting_host',
@@ -131,6 +132,9 @@ export function validInput(photos: InspectionPhoto[], over: Partial<SubmitInspec
       photoIds: photos.filter((p) => p.slot === c.code).map((p) => p.id),
     })),
     functions: { ac: true, kitchen: true, waterHeater: true, drainage: true },
+    facts: { areaM2: 47, layout: '1PN', bathrooms: 1, direction: 'Đông Nam', floor: 12 },
+    pricing: { rent: 6_500_000, securityDeposit: 6_500_000 },
+    listing: { title: '1PN sáng, view hồ', highlights: ['View hồ', 'Nội thất đầy đủ', 'Gần sảnh'], description: 'Căn sạch, thoáng, đầy đủ nội thất.' },
     netAreaM2: 44,
     furnishing: 'full',
     listingPhotoIds: photos.filter((p) => p.slot === 'listing').map((p) => p.id),

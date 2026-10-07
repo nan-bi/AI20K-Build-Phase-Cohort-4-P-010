@@ -9,6 +9,7 @@ import { LandlordFeeService } from './landlord-fee.service';
 import { LandlordFinanceService } from './landlord-finance.service';
 import { LandlordPhotoService } from './landlord-photo.service';
 import { LandlordMandateService } from './landlord-mandate.service';
+import { LandlordPricingService } from './landlord-pricing.service';
 import { LandlordService } from './landlord.service';
 import { LandlordUnitsService } from './landlord-units.service';
 
@@ -27,6 +28,7 @@ import { LandlordUnitsService } from './landlord-units.service';
     LandlordPhotoService,
     LandlordFinanceService,
     LandlordMandateService,
+    LandlordPricingService,
   ],
   exports: [LandlordService],
 })

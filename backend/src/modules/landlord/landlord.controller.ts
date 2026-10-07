@@ -18,6 +18,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { LandlordConsignmentService } from './landlord-consignment.service';
 import { LandlordFinanceService } from './landlord-finance.service';
 import { LandlordMandateService } from './landlord-mandate.service';
+import { LandlordPricingService } from './landlord-pricing.service';
 import { LandlordPhotoService, UploadedImage } from './landlord-photo.service';
 import { MAX_PHOTOS, MAX_PHOTO_BYTES } from './landlord.mappers';
 import { LandlordUnitsService } from './landlord-units.service';
@@ -25,6 +26,7 @@ import { LandlordService } from './landlord.service';
 import {
   CancelExitMandateDto,
   CreateConsignmentDto,
+  PricingDecisionDto,
   RequestExitMandateDto,
   SendConsignmentOtpDto,
   SignConsignmentDto,
@@ -46,6 +48,7 @@ export class LandlordController {
     private readonly finance: LandlordFinanceService,
     private readonly mandates: LandlordMandateService,
     private readonly photos: LandlordPhotoService,
+    private readonly pricing: LandlordPricingService,
   ) {}
 
   @Get('dashboard')
@@ -143,6 +146,20 @@ export class LandlordController {
     @Body() dto: SignConsignmentDto,
   ) {
     return this.consignments.sign(landlordId, id, dto);
+  }
+
+  @Post('consignments/:id/pricing-decision')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Chấp nhận / từ chối giá + cọc bảo đảm do Inspector đề xuất',
+    description: 'accept ⇒ niêm yết với giá đề xuất; decline ⇒ đóng hồ sơ (không niêm yết). Chỉ khi hồ sơ ở trạng thái awaiting_landlord, nếu không 409 PRICING_NOT_PENDING.',
+  })
+  decidePricing(
+    @CurrentUser('id') landlordId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PricingDecisionDto,
+  ) {
+    return this.pricing.decide(landlordId, id, dto.decision);
   }
 
   @Get('finance')

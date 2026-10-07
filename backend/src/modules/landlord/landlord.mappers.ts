@@ -61,8 +61,8 @@ export function toUiMandateStatus(status: MandateStatus): UiMandateStatus {
 
 // ─── Hồ sơ ký gửi (lưu trong ExclusiveMandate.doorAccessConfig.consignment) ────────────────────
 
-/** Chuỗi hợp lệ duy nhất: draft → awaiting_host → inspecting → approved | rejected (không còn bước Admin duyệt — hồ sơ 16). */
-export type ConsignmentStage = 'draft' | 'awaiting_host' | 'inspecting' | 'approved' | 'rejected';
+/** Chuỗi hợp lệ: draft → awaiting_host → inspecting → approved | rejected | awaiting_landlord (đổi giá/cọc ⇒ chủ duyệt: accept ⇒ approved, decline ⇒ rejected — hồ sơ 18). */
+export type ConsignmentStage = 'draft' | 'awaiting_host' | 'inspecting' | 'awaiting_landlord' | 'approved' | 'rejected';
 
 export interface ConsignmentForm {
   building: string;
@@ -146,6 +146,40 @@ export interface InventoryLineReport {
   photoIds: string[];
 }
 
+export type UnitLayoutKind = 'Studio' | '1PN' | '2PN' | '3PN';
+
+/** Thông tin thực tế do Inspector xác nhận (hồ sơ 18 01 §4.2). Chỉ bắt buộc khi `approve`. */
+export interface InspectionFacts {
+  areaM2: number;
+  layout: UnitLayoutKind;
+  bathrooms: number;
+  direction: string | null;
+  floor: number;
+}
+
+/** Giá/cọc bảo đảm Inspector đề xuất (VNĐ nguyên). `reason` bắt buộc khi khác giá/cọc chủ khai. */
+export interface InspectionPricing {
+  rent: number;
+  securityDeposit: number;
+  reason?: string;
+}
+
+/** Nội dung công khai Inspector có thể sửa so với bản chủ khai. */
+export interface InspectionListing {
+  title: string;
+  highlights: string[];
+  description: string;
+}
+
+/** Đề xuất giá/cọc chờ chủ nhà duyệt (stage `awaiting_landlord`). */
+export interface PricingProposal {
+  rent: number;
+  securityDeposit: number;
+  reason: string | null;
+  proposedAt: string;
+  original: { rent: number; securityDeposit: number };
+}
+
 export interface InspectionReport {
   hostId: string;
   submittedAt: string;
@@ -158,6 +192,10 @@ export interface InspectionReport {
   listingPhotoIds: string[];
   recommendation: 'approve' | 'reject';
   note?: string;
+  /** Hồ sơ 18: có khi Inspector nộp phiếu mới; báo cáo cũ (trước hồ sơ 18) và phiếu `reject` có thể không có. */
+  facts?: InspectionFacts;
+  pricing?: InspectionPricing;
+  listing?: InspectionListing;
   /** Server tính, không nhận từ client. */
   avgCondition: number;
 }
@@ -180,6 +218,9 @@ export interface ConsignmentMeta {
   decidedAt?: string;
   decidedBy?: string;
   decisionNote?: string;
+  /** Có khi stage = `awaiting_landlord`; giữ lại sau khi chủ quyết định (đối soát). */
+  pricingProposal?: PricingProposal;
+  pricingDecision?: { decision: 'accept' | 'decline'; decidedAt: string };
 }
 
 export function readConsignmentMeta(doorAccessConfig: unknown): ConsignmentMeta | null {

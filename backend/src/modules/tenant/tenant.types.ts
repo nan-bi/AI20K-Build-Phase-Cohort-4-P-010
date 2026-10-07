@@ -12,6 +12,18 @@ export type BookingStatusWeb =
   | 'cancelled'
   | 'rejected';
 
+export interface UnitInventoryLine {
+  /** Mã catalog "1".."32" (web ghép ảnh minh hoạ /inventory/<code>.jpg). */
+  code: string;
+  group: 'I' | 'II' | 'III' | 'IV' | 'V' | 'VI' | 'VII' | 'VIII';
+  groupLabel: string;
+  name: string;
+  qty: number;
+  spec: string | null;
+  /** "Độ mới" % (30–98) do Host kiểm định ước lượng; null nếu chưa có. Công khai theo chủ tịch 2026-10-07. */
+  conditionPct: number | null;
+}
+
 export interface TenantUnit {
   /** Database unit ID, used internally by services such as the Matchmaker. */
   id?: string;
@@ -45,6 +57,13 @@ export interface TenantUnit {
   description: string;
   holdHours: number; // 12..72
   activeViewingAt: string | null;
+  /** Cọc bảo đảm: `units.securityDeposit ?? baseRentPrice`. */
+  securityDeposit: number;
+  /** Cọc giữ chỗ backend đang thu (`holdingDepositAmount()`). */
+  holdingDeposit: number;
+  highlights: string[];
+  /** Chỉ ở chi tiết căn; list = []. có conditionPct (độ mới %), KHÔNG có compensation/photoIds (B6). */
+  inventory: UnitInventoryLine[];
 }
 
 export interface CreateBookingDto {
@@ -85,7 +104,7 @@ export interface TenantBooking {
   } | null;
   canModify: boolean;
   deposit?: {
-    amount: 2000000;
+    amount: number;
     transferContent: string;
     qrRef: string;
     createdAt: string;
@@ -114,7 +133,7 @@ export interface TenantBooking {
 
 export interface DepositTermsDoc {
   version: string; // 'HOLD-2026.10-v1'
-  amount: 2000000;
+  amount: number;
   holdHours: number;
   items: { id: string; text: string; source: string }[];
   houseRules: { id: string; title: string; body: string; source: string }[];
@@ -161,7 +180,7 @@ export interface TenantContract {
   paymentCycle: 1 | 3 | 6;
   monthlyRent: number;
   securityDeposit: number;
-  convertedHolding: 2000000;
+  convertedHolding: number;
   firstPaymentDue: {
     rent: number;
     depositTopUp: number;

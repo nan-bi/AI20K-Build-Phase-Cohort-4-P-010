@@ -1,3 +1,4 @@
+import { holdingDepositAmount } from './deposit-amount';
 import { DepositTermsDoc } from '../tenant/tenant.types';
 
 export const DEPOSIT_TERMS_VERSION = 'HOLD-2026.10-v1';
@@ -46,7 +47,7 @@ export function buildDepositTerms(holdHours: number = 48): DepositTermsDoc {
 
   return {
     version: DEPOSIT_TERMS_VERSION,
-    amount: 2000000,
+    amount: holdingDepositAmount(),
     holdHours: clampedHoldHours,
     items: [
       {

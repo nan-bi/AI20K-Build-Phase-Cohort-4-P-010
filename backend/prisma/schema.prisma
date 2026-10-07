@@ -223,6 +223,8 @@ model Unit {
   minLeaseMonths      Int          @default(6) @map("min_lease_months")
   title               String?      @db.VarChar(120)
   description         String?
+  securityDeposit     Decimal?     @map("security_deposit") @db.Decimal(12, 2) // null ⇒ = baseRentPrice (Q3)
+  highlights          String[]     @default([]) // tối đa 3, mỗi dòng ≤ 60 ký tự
   holdHoursOverride   Int?         @map("hold_hours_override")
   verifiedAt          DateTime?    @map("verified_at") @db.Timestamptz
   isVerified          Boolean      @default(false) @map("is_verified")
@@ -231,19 +233,37 @@ model Unit {
   createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
-  building  Building           @relation(fields: [buildingId], references: [id])
-  landlord  Profile            @relation("LandlordUnits", fields: [landlordId], references: [id])
-  doorKey   DoorAccessKey?
-  media     UnitMedia[]
-  mandates  ExclusiveMandate[]
-  viewings  Viewing[]
-  deposits  HoldingDeposit[]
-  contract  Contract[]
-  favorites FavoriteUnit[]
+  building       Building            @relation(fields: [buildingId], references: [id])
+  landlord       Profile             @relation("LandlordUnits", fields: [landlordId], references: [id])
+  doorKey        DoorAccessKey?
+  media          UnitMedia[]
+  mandates       ExclusiveMandate[]
+  viewings       Viewing[]
+  deposits       HoldingDeposit[]
+  contract       Contract[]
+  favorites      FavoriteUnit[]
+  inventoryItems UnitInventoryItem[]
 
   @@index([status, buildingId])
   @@index([baseRentPrice])
   @@map("units")
+}
+
+/// Nội thất thật của căn, ghi khi niêm yết từ 32 dòng thẩm định (hồ sơ 18 SPEC-P01 §3).
+model UnitInventoryItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  unitId    String   @map("unit_id") @db.Uuid
+  code      String   @db.VarChar(10) // mã catalog "1".."32"
+  groupCode String   @map("group_code") @db.VarChar(5) // I..VIII
+  name      String   @db.VarChar(80)
+  qty       Int      @default(1)
+  spec      String?  @db.VarChar(120)
+  condition Int? // độ mới 0–100 (%), công khai dạng "Mới ~X%"; compensation/photoIds vẫn kín
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, code])
+  @@map("unit_inventory_items")
 }
 
 /// Căn hộ khách đã bấm tim (lưu theo tài khoản, sống qua restart và đồng bộ giữa các thiết bị).

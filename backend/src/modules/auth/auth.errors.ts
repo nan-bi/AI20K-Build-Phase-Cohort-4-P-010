@@ -30,6 +30,7 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   host_not_found: [HttpStatus.NOT_FOUND, 'Không tìm thấy Field Host'],
   host_already_exists: [HttpStatus.CONFLICT, 'Email này đã là Field Host'],
   host_has_active_tickets: [HttpStatus.CONFLICT, 'Field Host đang có ca được giao hoặc đang dẫn, cần điều phối lại trước khi khoá'],
+  HOST_ROLES_INVALID: [HttpStatus.BAD_REQUEST, 'Vai Field Host chỉ được là Sale hoặc Sale + Thẩm định'],
   invalid_zone: [HttpStatus.BAD_REQUEST, 'Phân khu không hợp lệ'],
   invalid_request: [HttpStatus.BAD_REQUEST, 'Thông tin chưa hợp lệ'],
   unauthorized: [HttpStatus.UNAUTHORIZED, 'Chưa đăng nhập hoặc phiên đã hết hạn'],

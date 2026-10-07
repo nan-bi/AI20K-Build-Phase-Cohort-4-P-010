@@ -1,4 +1,7 @@
 import type { ConsignmentMeta, InspectionPhoto, InspectionReport, InventoryLineReport } from '../landlord/landlord.mappers';
+import { assertListingText } from '../property/listing-text';
+import { holdingDepositAmount } from '../deposit/deposit-amount';
+import { DIRECTIONS } from '../property/unit-facts';
 import { INSPECTION_CATALOG } from './inspection.catalog';
 import { CATALOG_SIZE, LISTING_PHOTOS_MAX, LISTING_PHOTOS_MIN, MAX_EXTRA_LINES, PHOTOS_PER_LINE_MAX } from './inspection.constants';
 import { reportInvalid } from './inspection.errors';
@@ -6,6 +9,9 @@ import type { SubmitInspectionInput } from './inspection.types';
 
 const DECLARED_FIELDS = ['identity', 'layout', 'areaM2', 'furnishing', 'lock'] as const;
 const FURNISHINGS = ['full', 'basic', 'empty'] as const;
+const LAYOUTS = ['Studio', '1PN', '2PN', '3PN'] as const;
+export const RENT_MIN = 3_000_000; // cùng ngưỡng chủ nhà khi ký gửi (landlord-consignment)
+export const RENT_MAX = 200_000_000;
 const len = (v: unknown): number => (typeof v === 'string' ? v.trim().length : 0);
 
 /**
@@ -50,6 +56,7 @@ export function validateSubmission(input: SubmitInspectionInput, meta: Consignme
     if (len(inv[i].name) < 1 || inv[i].name.trim().length > 60) {
       throw reportInvalid(`inventory.${i}.name`, 'Tên hạng mục thêm phải từ 1 đến 60 ký tự.');
     }
+    assertListingText(`inventory.${i}.name`, inv[i].name.trim()); // F8: tên X ra trang công khai + LLM
   }
 
   // V4
@@ -86,6 +93,7 @@ export function validateSubmission(input: SubmitInspectionInput, meta: Consignme
   // V7
   inv.forEach((l, i) => {
     if (l.spec !== undefined && (typeof l.spec !== 'string' || l.spec.length > 80)) throw reportInvalid(`inventory.${i}.spec`, 'Quy cách tối đa 80 ký tự.');
+    if (typeof l.spec === 'string' && l.spec.trim()) assertListingText(`inventory.${i}.spec`, l.spec.trim()); // F8: spec ra trang công khai + LLM
     if (l.note !== undefined && (typeof l.note !== 'string' || l.note.length > 120)) throw reportInvalid(`inventory.${i}.note`, 'Ghi chú tối đa 120 ký tự.');
     if (l.compensation !== undefined && (!Number.isFinite(l.compensation) || l.compensation < 0)) {
       throw reportInvalid(`inventory.${i}.compensation`, 'Mức bồi thường phải từ 0 trở lên.');
@@ -115,6 +123,76 @@ export function validateSubmission(input: SubmitInspectionInput, meta: Consignme
   const note = typeof input.note === 'string' ? input.note.trim() : '';
   if (note.length > 300) throw reportInvalid('note', 'Ghi chú tối đa 300 ký tự.');
   if (input.recommendation === 'reject' && note.length < 1) throw reportInvalid('note', 'Từ chối phải ghi lý do (1–300 ký tự).');
+
+  // V12–V14
+  validateFactsPricingListing(input, meta);
+}
+
+/** Giá/cọc chủ khai lúc ký gửi (cọc mặc định = giá chào), số nguyên. */
+export function originalPricing(meta: ConsignmentMeta): { rent: number; securityDeposit: number } {
+  return { rent: Math.round(meta.form.askRent), securityDeposit: Math.round(meta.form.suggestedDeposit ?? meta.form.askRent) };
+}
+
+/** "Đổi" = giá HOẶC cọc khác bản chủ khai, so số nguyên sau `Math.round` (SPEC-P02 §2). */
+export function pricingChanged(pricing: { rent: number; securityDeposit: number }, meta: ConsignmentMeta): boolean {
+  const o = originalPricing(meta);
+  return Math.round(pricing.rent) !== o.rent || Math.round(pricing.securityDeposit) !== o.securityDeposit;
+}
+
+/**
+ * V12–V14 (hồ sơ 18): facts, pricing, listing. Bắt buộc khi `approve`; `reject` thì bỏ qua pricing (bỏ qua hoàn toàn,
+ * không lưu) và chỉ kiểm facts/listing nếu có gửi. Chạy SAU V1–V10 để không đổi thứ tự lỗi của hồ sơ 16.
+ */
+function validateFactsPricingListing(input: SubmitInspectionInput, meta: ConsignmentMeta): void {
+  const approve = input.recommendation === 'approve';
+  const f = input.facts;
+  if (f === undefined || f === null) {
+    if (approve) throw reportInvalid('facts', 'Thiếu thông tin thực tế của căn (diện tích, loại căn, WC, hướng, tầng).');
+  } else {
+    if (!Number.isFinite(f.areaM2) || f.areaM2 <= 0 || f.areaM2 > 500) throw reportInvalid('facts.areaM2', 'Diện tích phải lớn hơn 0 và không quá 500 m².');
+    if (!LAYOUTS.includes(f.layout)) throw reportInvalid('facts.layout', 'Loại căn phải là Studio, 1PN, 2PN hoặc 3PN.');
+    if (!Number.isInteger(f.bathrooms) || f.bathrooms < 1 || f.bathrooms > 4) throw reportInvalid('facts.bathrooms', 'Số WC từ 1 đến 4.');
+    if (f.direction !== null && !(DIRECTIONS as readonly string[]).includes(f.direction)) {
+      throw reportInvalid('facts.direction', 'Hướng căn không hợp lệ.');
+    }
+    if (!Number.isInteger(f.floor) || f.floor < 1 || f.floor > 80) throw reportInvalid('facts.floor', 'Tầng phải là số nguyên từ 1 đến 80.');
+  }
+
+  const p = input.pricing;
+  if (p === undefined || p === null) {
+    if (approve) throw reportInvalid('pricing', 'Thiếu giá thuê và tiền cọc bảo đảm.');
+  } else if (approve) {
+    if (!Number.isInteger(p.rent) || p.rent < RENT_MIN || p.rent > RENT_MAX) {
+      throw reportInvalid('pricing', 'Giá thuê phải là số nguyên từ 3.000.000đ đến 200.000.000đ.');
+    }
+    // Cọc giữ chỗ chuyển 100% vào cọc bảo đảm ⇒ cọc bảo đảm không được nhỏ hơn cọc giữ chỗ; tối đa 3 tháng thuê.
+    if (!Number.isInteger(p.securityDeposit) || p.securityDeposit < holdingDepositAmount() || p.securityDeposit > 3 * p.rent) {
+      throw reportInvalid('pricing', 'Tiền cọc bảo đảm phải là số nguyên từ cọc giữ chỗ (2.000.000đ) đến 3 lần giá thuê.');
+    }
+    if (pricingChanged(p, meta)) {
+      const reason = typeof p.reason === 'string' ? p.reason.trim() : '';
+      if (reason.length < 1 || reason.length > 300) throw reportInvalid('pricing.reason', 'Đổi giá/cọc phải ghi lý do (1–300 ký tự).');
+    } else if (typeof p.reason === 'string' && p.reason.length > 300) {
+      throw reportInvalid('pricing.reason', 'Lý do tối đa 300 ký tự.');
+    }
+  }
+
+  const l = input.listing;
+  if (l === undefined || l === null) {
+    if (approve) throw reportInvalid('listing', 'Thiếu tiêu đề, điểm nổi bật và mô tả công khai.');
+  } else {
+    const title = typeof l.title === 'string' ? l.title.trim() : '';
+    if (title.length < 1 || title.length > 80) throw reportInvalid('listing.title', 'Tiêu đề từ 1 đến 80 ký tự.');
+    const highlights = Array.isArray(l.highlights) ? l.highlights.map((h) => (typeof h === 'string' ? h.trim() : '')) : null;
+    if (!highlights || highlights.length > 3 || highlights.some((h) => h.length < 1 || h.length > 60)) {
+      throw reportInvalid('listing.highlights', 'Tối đa 3 điểm nổi bật, mỗi điểm 1–60 ký tự.');
+    }
+    const description = typeof l.description === 'string' ? l.description.trim() : '';
+    if (typeof l.description !== 'string' || description.length > 600) throw reportInvalid('listing.description', 'Mô tả tối đa 600 ký tự.');
+    assertListingText('title', title);
+    for (const h of highlights) assertListingText('highlights', h);
+    if (description) assertListingText('description', description);
+  }
 }
 
 /** Dựng `InspectionReport` từ dữ liệu đã hợp lệ: server đặt `hostId`, `submittedAt`, `avgCondition` (không nhận từ client). */
@@ -155,6 +233,26 @@ export function buildReport(input: SubmitInspectionInput, meta: ConsignmentMeta,
     listingPhotoIds: input.recommendation === 'approve' ? input.listingPhotoIds : (input.listingPhotoIds ?? []).filter((id) => listingIds.has(id)),
     recommendation: input.recommendation,
     ...(note ? { note } : {}),
+    // Pricing chỉ ý nghĩa khi đạt (SPEC-P02 §5: "Submit fail kèm pricing ⇒ bỏ qua pricing").
+    ...(input.facts ? { facts: { ...input.facts } } : {}),
+    ...(input.recommendation === 'approve' && input.pricing
+      ? {
+          pricing: {
+            rent: Math.round(input.pricing.rent),
+            securityDeposit: Math.round(input.pricing.securityDeposit),
+            ...(input.pricing.reason?.trim() ? { reason: input.pricing.reason.trim() } : {}),
+          },
+        }
+      : {}),
+    ...(input.listing
+      ? {
+          listing: {
+            title: input.listing.title.trim(),
+            highlights: input.listing.highlights.map((h) => h.trim()),
+            description: input.listing.description.trim(),
+          },
+        }
+      : {}),
     avgCondition,
   };
 }

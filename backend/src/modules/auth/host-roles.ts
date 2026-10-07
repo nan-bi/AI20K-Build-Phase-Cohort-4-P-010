@@ -1,4 +1,5 @@
 import { HostRole } from '@prisma/client';
+import { authError } from './auth.errors';
 
 /** Vai của Field Host trên dây (API/phiên). DB lưu enum chữ hoa; mọi chuyển đổi đi qua file này. */
 export const HOST_ROLES = ['sale', 'inspector'] as const;
@@ -24,4 +25,16 @@ export function hostHome(roles: readonly HostRoleCode[]): string {
   if (roles.includes('sale')) return '/host/dispatch';
   if (roles.includes('inspector')) return '/host/inspections';
   return '/host/account';
+}
+
+/**
+ * Chuẩn hoá vai Host từ input Admin (SPEC-P02 §1, B5). Chỉ nhận đúng 2 tập `{sale}` / `{sale, inspector}`
+ * (bỏ trùng, thứ tự không quan trọng). Rỗng, mã lạ, hoặc `inspector` thiếu `sale` ⇒ 400 `HOST_ROLES_INVALID`
+ * (KHÔNG tự thêm `sale` — Admin phải chọn đúng option).
+ */
+export function normalizeHostRoles(input: readonly string[] | null | undefined): HostRole[] {
+  const set = new Set(input ?? []);
+  const known = [...set].every((r) => (HOST_ROLES as readonly string[]).includes(r));
+  if (!known || !set.has('sale')) throw authError('HOST_ROLES_INVALID');
+  return toHostRoleEnums(HOST_ROLES.filter((r) => set.has(r)));
 }

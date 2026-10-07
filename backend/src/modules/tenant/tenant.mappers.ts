@@ -1,5 +1,7 @@
+import { holdingDepositAmount } from '../deposit/deposit-amount';
 import { ViewingStatus, LayoutType } from '@prisma/client';
-import { BookingStatusWeb, TenantBooking, TenantContract, TenantUnit } from './tenant.types';
+import { INSPECTION_GROUPS } from '../inspection/inspection.catalog';
+import { BookingStatusWeb, UnitInventoryLine, TenantBooking, TenantContract, TenantUnit } from './tenant.types';
 import { getVietQrPaymentDetails } from '../deposit/vietqr';
 
 export const ZONE_BUILDINGS: Record<string, string[]> = {
@@ -119,6 +121,10 @@ export function toTenantUnit(
       description: '',
       holdHours: 48,
       activeViewingAt: null,
+      securityDeposit: 0,
+      holdingDeposit: holdingDepositAmount(),
+      highlights: [],
+      inventory: [],
     };
   }
   const kind = layoutTypeToKind(unit.layoutType);
@@ -171,7 +177,35 @@ export function toTenantUnit(
     description: unit.description ?? '',
     holdHours: holdHours ?? unit.holdHoursOverride ?? 48,
     activeViewingAt: activeViewingAt ?? null,
+    securityDeposit: unit.securityDeposit != null ? Number(unit.securityDeposit) : Number(unit.baseRentPrice),
+    holdingDeposit: holdingDepositAmount(unit),
+    highlights: Array.isArray(unit.highlights) ? unit.highlights : [],
+    inventory: toInventoryLines(unit.inventoryItems),
   };
+}
+
+/** Mã số (1…N) theo giá trị; mã X<n> / mã lạ xếp sau, theo thứ tự nhập (sort ổn định) — F9. */
+function inventoryOrder(code: unknown): number {
+  const c = String(code ?? '');
+  if (/^\d+$/.test(c)) return Number(c);
+  const x = /^X(\d+)$/i.exec(c);
+  return x ? 1e6 + Number(x[1]) : 2e6;
+}
+
+/** Chỉ các trường công khai; `condition` công khai dạng conditionPct (độ mới %, chủ tịch 2026-10-07); CẤM compensation/photoIds (B6). */
+export function toInventoryLines(items: any[] | undefined | null): UnitInventoryLine[] {
+  if (!items?.length) return [];
+  return [...items]
+    .sort((a, b) => inventoryOrder(a.code) - inventoryOrder(b.code))
+    .map((i) => ({
+      code: String(i.code),
+      group: i.groupCode as UnitInventoryLine['group'],
+      groupLabel: (INSPECTION_GROUPS as Record<string, string>)[i.groupCode] ?? i.groupCode,
+      name: i.name,
+      qty: i.qty ?? 1,
+      spec: i.spec ?? null,
+      conditionPct: typeof i.condition === 'number' ? i.condition : null,
+    }));
 }
 
 export function toTenantBooking(
@@ -227,7 +261,7 @@ export function toTenantBooking(
     }
 
     depositDto = {
-      amount: 2000000,
+      amount: holdingDepositAmount(),
       transferContent: d.transferContent || '',
       qrRef: d.vietqrRef,
       createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString(),
@@ -237,7 +271,7 @@ export function toTenantBooking(
       holdHours: d.holdHours ?? undefined,
       expiresAt: d.expiresAt ? new Date(d.expiresAt).toISOString() : undefined,
       outcome,
-      vietqr: getVietQrPaymentDetails(2000000, d.transferContent || ''),
+      vietqr: getVietQrPaymentDetails(holdingDepositAmount(), d.transferContent || ''),
     };
   }
 
@@ -299,7 +333,7 @@ export function toTenantContract(contract: any): TenantContract {
   const cycle = (contract.paymentCycleMonths || 1) as 1 | 3 | 6;
   const securityDeposit = Number(contract.securityDepositAmount);
   const rent = monthlyRent * cycle;
-  const depositTopUp = Math.max(0, securityDeposit - 2000000);
+  const depositTopUp = Math.max(0, securityDeposit - holdingDepositAmount());
   const total = rent + depositTopUp;
   const transferContent = `VSA ${contract.unit?.unitCode || ''} THANH TOAN TIEN THUE KY 1`;
 
@@ -335,7 +369,7 @@ export function toTenantContract(contract: any): TenantContract {
     paymentCycle: cycle,
     monthlyRent,
     securityDeposit,
-    convertedHolding: 2000000,
+    convertedHolding: holdingDepositAmount(),
     firstPaymentDue: {
       rent,
       depositTopUp,

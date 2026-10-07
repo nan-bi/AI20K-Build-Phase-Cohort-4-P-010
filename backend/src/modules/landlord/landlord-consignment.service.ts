@@ -5,7 +5,8 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { MandateStatus, OtpPurpose, PhysicalKeyState, UnitStatus } from '@prisma/client';
+import { Furnishing, MandateStatus, OtpPurpose, PhysicalKeyState, UnitStatus } from '@prisma/client';
+import { assertListingText } from '../property/listing-text';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { OtpService } from '../auth/otp/otp.service';
@@ -16,13 +17,12 @@ import { InspectorAssigner } from '../inspection/inspector-assigner.service';
 import { ConsignmentMetaStore } from './consignment-meta.store';
 import { LandlordAccessService } from './landlord-access.service';
 import { LandlordPhotoService } from './landlord-photo.service';
+import { mgmtFeePerM2 } from './mgmt-fee';
 import { CreateConsignmentDto, SignConsignmentDto } from './dto/landlord.dto';
 import {
   ConsignmentMeta,
-  DEFAULT_MGMT_FEE_PER_M2,
   INSPECT_SLA_HOURS,
   LockKind,
-  MGMT_FEE_CONFIG_KEY,
   consignmentStage,
   maskPhone,
   parseLock,
@@ -99,6 +99,13 @@ export class LandlordConsignmentService {
     const layout = toLayoutType(dto.layout);
     if (!layout) throw new BadRequestException(`Loại căn không hợp lệ: ${dto.layout}`);
 
+    const title = dto.title?.trim() || null;
+    const description = dto.description?.trim() || null;
+    const highlights = (dto.highlights ?? []).map((h) => h.trim()).filter(Boolean);
+    if (title) assertListingText('title', title);
+    for (const h of highlights) assertListingText('highlights', h);
+    if (description) assertListingText('description', description);
+
     const locks = this.parseLocks(dto.locks);
     const suggestedDeposit = dto.suggestedDeposit ?? dto.askRent;
     if (!dto.draft && (suggestedDeposit < 2_000_000 || suggestedDeposit > 3 * dto.askRent)) {
@@ -116,7 +123,7 @@ export class LandlordConsignmentService {
       throw new ConflictException(`Căn ${unitCode} đã có trong hệ thống.`);
     }
 
-    const mgmtRate = await this.configValue(MGMT_FEE_CONFIG_KEY, DEFAULT_MGMT_FEE_PER_M2);
+    const mgmtRate = await mgmtFeePerM2(this.prisma);
     const lock = toDoorLockType(locks[0]);
     const meta: ConsignmentMeta = {
       stage: 'draft',
@@ -147,6 +154,14 @@ export class LandlordConsignmentService {
           managementFee: Math.round(dto.areaM2 * mgmtRate),
           // Chưa có số liệu thị trường: đặt bằng giá chào ⇒ chưa có badge "Căn hời" (không còn bước Admin duyệt; giữ nguyên giá trị này khi niêm yết).
           marketAvgPrice: dto.askRent,
+          bathrooms: dto.bathrooms,
+          direction: dto.direction ?? null,
+          title,
+          highlights,
+          description,
+          securityDeposit: dto.suggestedDeposit ?? null,
+          minLeaseMonths: dto.leaseTerm === 'long' || dto.leaseTerm === 'fixed' ? 12 : 6,
+          ...(dto.furnished === true ? { furnishing: Furnishing.FULL } : dto.furnished === false ? { furnishing: Furnishing.EMPTY } : {}),
           doorLockType: lock,
           isVerified: false,
           status: UnitStatus.UNLISTED,
@@ -242,11 +257,6 @@ export class LandlordConsignmentService {
     return [...new Set(parsed as LockKind[])];
   }
 
-  private async configValue(key: string, fallback: number): Promise<number> {
-    const row = await this.prisma.feeConfig.findUnique({ where: { configKey: key } });
-    return row ? Number(row.paramValue) : fallback;
-  }
-
   /**
    * Gửi OTP ký ủy quyền. Số đã xác thực trong tài khoản (và chủ nhà không nhập số khác) ⇒ KHÔNG cần OTP:
    * trả `otpRequired: false`, không gửi mã. Nhập số khác số đã xác thực, hoặc tài khoản chưa có số ⇒ gửi OTP tới số đó.
@@ -327,6 +337,7 @@ export class LandlordConsignmentService {
       decidedAt: meta?.decidedAt ?? null,
       decidedBy: meta?.decidedBy ?? null,
       decisionNote: meta?.decisionNote ?? null,
+      pricingProposal: meta?.pricingProposal && consignmentStage(mandate) === 'awaiting_landlord' ? meta.pricingProposal : null,
     };
   }
 }

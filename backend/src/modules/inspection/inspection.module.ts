@@ -9,13 +9,12 @@ import { InspectionPhotoService } from './inspection-photo.service';
 import { InspectionQueryService } from './inspection-query.service';
 import { ListingMediaController } from './listing-media.controller';
 import { ListingMediaService } from './listing-media.service';
-import { ListingPublisher } from './listing-publisher.service';
 
 /** Luồng thẩm định ký gửi → tự niêm yết (hồ sơ 16). Không có bước Admin duyệt. */
 @Module({
   imports: [AuthModule, ConsignmentCoreModule, DoorModule, HostViewingsModule],
   controllers: [InspectionController, ListingMediaController],
-  providers: [InspectionQueryService, InspectionFlowService, InspectionPhotoService, ListingPublisher, ListingMediaService],
+  providers: [InspectionQueryService, InspectionFlowService, InspectionPhotoService, ListingMediaService],
   exports: [InspectionQueryService],
 })
 export class InspectionModule {}
