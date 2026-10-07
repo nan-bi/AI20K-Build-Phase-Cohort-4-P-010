@@ -18,6 +18,9 @@ export const SITE_NAV: readonly SiteNavItem[] = [
   { key: "how", href: "/#how-it-works", label: "Cách hoạt động", labelEn: "How it works" },
 ];
 
+/** Lối tắt "Tra cứu lịch xem" trên header sau khi đăng nhập (không thuộc SITE_NAV vì chỉ hiện khi có phiên). */
+export const VIEWING_LOOKUP = { href: "/booking", label: "Tra cứu lịch xem", labelEn: "Viewing lookup" } as const;
+
 /** Khớp theo đoạn đường dẫn: `/units` và `/units/...` đều khớp, `/unitsx` thì không. */
 function matchesSegment(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);

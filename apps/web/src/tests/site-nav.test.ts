@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { SITE_NAV, TENANT_MENU, activeNavKey } from "@/lib/nav/siteNav";
+import { SITE_NAV, TENANT_MENU, VIEWING_LOOKUP, activeNavKey } from "@/lib/nav/siteNav";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -38,6 +38,14 @@ describe("SITE_NAV", () => {
     expect(hrefs.some((h) => h.startsWith("/account"))).toBe(false);
     expect(hrefs.some((h) => h.includes("for-owners"))).toBe(false);
     expect(TENANT_MENU.map((i) => i.href)).toContain("/booking");
+  });
+});
+
+describe("VIEWING_LOOKUP", () => {
+  it("trỏ tới /booking, nằm ngoài SITE_NAV và đã có trong TENANT_MENU (drawer di động)", () => {
+    expect(VIEWING_LOOKUP.href).toBe("/booking");
+    expect(SITE_NAV.map((i) => i.href)).not.toContain(VIEWING_LOOKUP.href);
+    expect(TENANT_MENU.map((i) => i.href)).toContain(VIEWING_LOOKUP.href);
   });
 });
 
