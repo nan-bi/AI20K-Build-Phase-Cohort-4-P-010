@@ -188,6 +188,8 @@ export interface SignOtpInfo {
   otpRequired: boolean;
   maskedPhone: string | null;
   expiresInSeconds: number;
+  /** Chỉ có ở chế độ demo (chưa có nhà cung cấp OTP, ngoài production). */
+  devCode?: string;
 }
 
 export interface ExitResult {

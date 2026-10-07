@@ -14,8 +14,8 @@ SCHEMA = {
             "properties": {
                 "max_all_in_budget": {"type": "integer", "description": "Ngân sách trần All-in VNĐ/tháng"},
                 "layout": {"type": "string", "enum": ["studio", "1pn", "2pn", "3pn"]},
-                "occupants": {"type": "integer", "default": 2},
-                "motorbikes": {"type": "integer", "default": 1},
+                "occupants": {"type": "integer", "default": 1},
+                "motorbikes": {"type": "integer", "default": 0},
                 "cars": {"type": "integer", "default": 0},
                 "furnishing": {"type": "string", "enum": ["full", "basic", "empty"]},
                 "pet": {"type": "boolean"},
@@ -37,7 +37,8 @@ _LAYOUTS = {
 }
 MIN_BUDGET = 3_000_000  # MatchmakerRequestDto @Min(3000000)
 DEFAULT_BUDGET = 30_000_000  # khách chưa nói ngân sách ⇒ trần cao để matchmaker xếp hạng theo All-in/tiết kiệm
-DEFAULTS = {"occupants": 2, "motorbikes": 1, "cars": 0}  # = mặc định MatchmakerRequestDto
+# Giả định TỐI THIỂU khi khách chưa nói: không loại oan căn dưới ngân sách; bot nói rõ và nhắc mỗi người/xe thêm sẽ cộng phí.
+DEFAULTS = {"occupants": 1, "motorbikes": 0, "cars": 0}
 RECOMMEND_LIMIT = 20  # số căn xin matchmaker (matchedCodes ≤ 20)
 DETAIL_MAX = 5  # số căn trả chi tiết cho LLM
 

@@ -34,10 +34,10 @@ async def go(args: dict, reply="Gợi ý VHOP-S1.05-1203 nhé.", recs=None):
 async def test_no_budget_still_searches_with_assumed():
     evs, bodies, tool = await go({"must_have": ["sofa"]})
     assert bodies and bodies[0]["maxAllInBudget"] == 30_000_000
-    assert tool["assumed"] == {"occupants": 2, "motorbikes": 1, "cars": 0}
+    assert tool["assumed"] == {"occupants": 1, "motorbikes": 0, "cars": 0}
     assert tool["budgetAssumed"] == 30_000_000 and tool["matched"] == 1
     ev = next(e for e in evs if e["event"] == "units")["data"]
-    assert ev["assumed"] == {"occupants": 2, "motorbikes": 1, "cars": 0}
+    assert ev["assumed"] == {"occupants": 1, "motorbikes": 0, "cars": 0}
     assert "max_all_in_budget" not in ev["criteria"]
 
 
