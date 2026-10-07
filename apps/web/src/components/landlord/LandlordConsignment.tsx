@@ -9,13 +9,14 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConsignTimeline } from "@/components/consign/ConsignTimeline";
 import { InspectionReportPanel } from "@/components/consign/InspectionReportPanel";
+import { PricingProposalCard } from "@/components/consign/PricingProposalCard";
 import { CONSIGN_STATUS_META } from "@/components/consign/status";
 import { fmtDateTime, vnd } from "@/lib/format";
 import { FURNISHING_LABEL } from "@/lib/units";
 import { queries } from "@/lib/landlord/queries";
 import { LAYOUT_LABEL, LEASE_TERM_LABEL } from "@/lib/landlord/labels";
 import type { Consignment } from "@/lib/landlord/types";
-import { useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
+import { invalidateLandlordData, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
 import { useNow } from "@/lib/useNow";
 import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
@@ -24,12 +25,12 @@ export function LandlordConsignment({ id }: { id: string }) {
   const query = useLandlordQuery(queries.consignment(id));
   return (
     <div className={styles.page}>
-      <QueryView query={query} skeleton="detail">{(c) => <ConsignmentBody c={c} />}</QueryView>
+      <QueryView query={query} skeleton="detail">{(c) => <ConsignmentBody c={c} onReload={() => { invalidateLandlordData(); query.reload(); }} />}</QueryView>
     </div>
   );
 }
 
-function ConsignmentBody({ c }: { c: Consignment }) {
+function ConsignmentBody({ c, onReload }: { c: Consignment; onReload: () => void }) {
   const now = useNow(10_000);
   const meta = CONSIGN_STATUS_META[c.status];
   const can = `${c.building} · Tầng ${c.floor} · Căn ${c.door ?? "—"}`;
@@ -102,6 +103,10 @@ function ConsignmentBody({ c }: { c: Consignment }) {
             <FileSignature size={14} /> Ký ủy quyền ngay <ArrowRight size={14} />
           </Link>
         </div>
+      )}
+
+      {c.status === "awaiting_landlord" && c.pricingProposal && (
+        <PricingProposalCard consignmentId={c.id} proposal={c.pricingProposal} onReload={onReload} />
       )}
 
       <ConsignTimeline c={timeline} now={now} />

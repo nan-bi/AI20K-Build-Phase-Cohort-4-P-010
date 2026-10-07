@@ -7,7 +7,7 @@ export type MandateStatus = "pending_inspection" | "active" | "exiting" | "ended
 export type LayoutKind = "Studio" | "1PN" | "2PN" | "3PN";
 export type LockKind = "smart" | "physical";
 export type LeaseTermPref = "mid" | "long" | "fixed";
-export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "approved" | "rejected";
+export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "awaiting_landlord" | "approved" | "rejected";
 
 export interface MandateSummary {
   id: string;
@@ -108,6 +108,23 @@ export interface ConsignmentPhoto {
   url: string | null;
 }
 
+/** Đề xuất giá/cọc bảo đảm của Inspector, chờ chủ nhà đồng ý (stage `awaiting_landlord`). */
+export interface PricingProposal {
+  rent: number;
+  securityDeposit: number;
+  reason: string | null;
+  proposedAt: string;
+  original: { rent: number; securityDeposit: number };
+}
+
+export interface PricingDecisionResult {
+  stage: "approved" | "rejected";
+  unitCode: string;
+  listedAt: string | null;
+  rent?: number;
+  securityDeposit?: number;
+}
+
 export interface Consignment {
   id: string;
   unitId: string;
@@ -141,6 +158,8 @@ export interface Consignment {
   decidedAt: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
+  /** Khác null chỉ khi `status = awaiting_landlord`. */
+  pricingProposal?: PricingProposal | null;
 }
 
 export interface CreateConsignmentInput {
@@ -149,6 +168,13 @@ export interface CreateConsignmentInput {
   door: string;
   layout: LayoutKind;
   areaM2: number;
+  /** Số WC 1–4 — backend bắt buộc (thiếu ⇒ 400). */
+  bathrooms: number;
+  /** Một trong 8 hướng (`DIRECTIONS`); bỏ khỏi payload khi "Chưa rõ". */
+  direction?: string;
+  title?: string;
+  highlights?: string[];
+  description?: string;
   askRent: number;
   suggestedDeposit: number;
   leaseTerm: LeaseTermPref;

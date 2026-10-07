@@ -36,6 +36,10 @@ describe("tenant-types contract verification", () => {
       description: "Đẹp",
       holdHours: 48,
       activeViewingAt: null,
+      securityDeposit: 7000000,
+      holdingDeposit: 2000000,
+      highlights: [],
+      inventory: [],
     };
     expect(unit.code).toBeDefined();
     expect(unit.holdHours).toBeGreaterThanOrEqual(12);

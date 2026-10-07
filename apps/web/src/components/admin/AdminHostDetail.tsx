@@ -9,17 +9,20 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
-import type { HostRoleCode } from "@/lib/auth/portals";
 import {
   adminHostsApi,
+  choiceOfRoles,
   hostErrorText,
   invalidateHosts,
+  rolesOfChoice,
   useHost,
   useHostZones,
   type HostAdminDetail,
+  type HostRoleChoice,
   type TicketStatusKey,
   type UpdateHostInput,
 } from "@/lib/admin/hosts";
+import { HostRoleRadios } from "./HostRoleRadios";
 import styles from "./Admin.module.css";
 
 const TICKET_LABEL: Record<TicketStatusKey, string> = {
@@ -56,8 +59,7 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
   const zones = useHostZones();
   const zoneOptions = zones.state.status === "ready" ? zones.state.data : [host.assignedZone];
 
-  const [roles, setRoles] = useState<HostRoleCode[]>(host.roles);
-  const [roleError, setRoleError] = useState("");
+  const [roleChoice, setRoleChoice] = useState<HostRoleChoice>(choiceOfRoles(host.roles));
   const [fullName, setFullName] = useState(host.fullName ?? "");
   const [zone, setZone] = useState(host.assignedZone);
   const [password, setPassword] = useState("");
@@ -78,14 +80,8 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
     return true;
   }
 
-  const toggleRole = (r: HostRoleCode) => {
-    setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
-    setRoleError("");
-  };
-
   async function saveRoles() {
-    if (roles.length === 0) return setRoleError("Field Host phải có ít nhất một vai.");
-    await save({ roles }, `Đã cập nhật vai cho ${host.fullName ?? host.email}`);
+    await save({ roles: rolesOfChoice(roleChoice) }, `Đã cập nhật vai cho ${host.fullName ?? host.email}`);
   }
 
   async function savePassword() {
@@ -113,29 +109,11 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
 
       <Section
         title="Phân quyền & Vai đảm nhiệm"
-        description="Mỗi Host có thể đảm nhiệm một hoặc cả hai vai. Vai quyết định menu truy cập và quy trình phân bổ ticket tự động."
+        description="Mỗi Host luôn là Sale; có thể kiêm Thẩm định. Vai quyết định menu truy cập và quy trình phân bổ ticket tự động."
       >
         <div className="card" style={{ padding: "var(--s-4)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
-            <label className="check" style={{ alignItems: "flex-start", gap: 10 }}>
-              <input type="checkbox" checked={roles.includes("sale")} onChange={() => toggleRole("sale")} style={{ marginTop: 3 }} />
-              <div>
-                <strong>Sale (Tiếp đón & Dẫn xem phòng)</strong>
-                <p className="muted small" style={{ margin: "2px 0 0" }}>
-                  Nhận lịch xem, đón khách tại sảnh phân khu, dùng thẻ cư dân thang máy dẫn lên phòng và cấp mã cửa.
-                </p>
-              </div>
-            </label>
-            <label className="check" style={{ alignItems: "flex-start", gap: 10 }}>
-              <input type="checkbox" checked={roles.includes("inspector")} onChange={() => toggleRole("inspector")} style={{ marginTop: 3 }} />
-              <div>
-                <strong>Thẩm định (Kiểm định hiện trạng ký gửi)</strong>
-                <p className="muted small" style={{ margin: "2px 0 0" }}>
-                  Nhận ticket ký gửi từ chủ nhà, tới kiểm tra hiện trạng theo bảng kê 32 hạng mục Điều 5 và đo diện tích thông thuỷ trong 48 giờ.
-                </p>
-              </div>
-            </label>
-            {roleError && <p className="field-error" style={{ margin: 0 }}>{roleError}</p>}
+            <HostRoleRadios name="host-role" value={roleChoice} onChange={setRoleChoice} />
             <div>
               <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={saveRoles}>
                 <ShieldCheck size={14} /> Lưu phân quyền vai

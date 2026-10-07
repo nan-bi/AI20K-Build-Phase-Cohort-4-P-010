@@ -34,6 +34,13 @@ describe("tenant adapters (toUnit & toBookingView)", () => {
     description: "Nội thất cao cấp",
     holdHours: 48,
     activeViewingAt: "2026-10-04T09:30:00Z",
+    securityDeposit: 14000000,
+    holdingDeposit: 2000000,
+    highlights: ["View hồ", "Nội thất gỗ mới"],
+    inventory: [
+      { code: "1", group: "I", groupLabel: "Phòng khách & sinh hoạt chung", name: "Sofa", qty: 1, spec: "Da, 3 chỗ", conditionPct: 90 },
+      { code: "13", group: "III", groupLabel: "Phòng ngủ", name: "Giường", qty: 2, spec: null, conditionPct: null },
+    ],
   };
 
   it("toUnit ánh xạ chính xác các trường căn hộ và giữ All-in cost", () => {
@@ -50,6 +57,21 @@ describe("tenant adapters (toUnit & toBookingView)", () => {
     expect(unit.holdHours).toBe(48);
     expect(unit.activeViewingAt).toBe("2026-10-04T09:30:00Z");
     expect(unit.landlordId).toBe(""); // Charter bảo mật chủ nhà
+  });
+
+  it("W2 toUnit đọc securityDeposit/holdingDeposit/highlights/inventory và hướng null", () => {
+    const unit = toUnit(baseDto);
+    expect(unit.securityDeposit).toBe(14000000);
+    expect(unit.holdingDeposit).toBe(2000000);
+    expect(unit.highlights).toEqual(["View hồ", "Nội thất gỗ mới"]);
+    expect(unit.inventory).toHaveLength(2);
+    expect(unit.inventory[1]).toMatchObject({ name: "Giường", qty: 2, spec: null });
+    expect(unit.directionRaw).toBe("Đông Nam");
+    expect(toUnit({ ...baseDto, direction: null }).directionRaw).toBeNull();
+  });
+
+  it("W2 toUnit giữ giá trị cọc giữ chỗ từ API (không hằng cứng)", () => {
+    expect(toUnit({ ...baseDto, holdingDeposit: 3000000 }).holdingDeposit).toBe(3000000);
   });
 
   it("toUnit hỗ trợ 4 layout cơ bản và các trạng thái căn", () => {

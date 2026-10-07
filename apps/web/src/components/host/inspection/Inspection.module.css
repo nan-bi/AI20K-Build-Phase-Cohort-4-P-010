@@ -348,3 +348,23 @@
   color: var(--danger);
   flex: none;
 }
+
+.editedTag {
+  margin-top: 4px;
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  color: var(--amber-700, #b45309);
+}
+.priceWarn {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md, 10px);
+  background: var(--amber-050, #fffbeb);
+  border: 1px solid var(--amber, #d97706);
+  font-size: var(--fs-13, 13px);
+  font-weight: 600;
+}
+.doneBox {
+  text-align: center;
+  padding: var(--s-7, 48px) var(--s-5, 24px);
+}

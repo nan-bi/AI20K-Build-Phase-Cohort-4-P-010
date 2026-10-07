@@ -36,6 +36,10 @@ const mockUnit: TenantUnit = {
   description: "",
   holdHours: 48,
   activeViewingAt: null,
+  securityDeposit: 7000000,
+  holdingDeposit: 2000000,
+  highlights: [],
+  inventory: [],
 };
 
 function makeBooking(

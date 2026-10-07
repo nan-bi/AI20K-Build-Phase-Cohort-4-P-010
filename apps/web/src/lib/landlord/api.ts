@@ -8,6 +8,7 @@ import type {
   ExitResult,
   Finance,
   MyProfile,
+  PricingDecisionResult,
   SignOtpInfo,
   UnitDetail,
   UnitRow,
@@ -37,6 +38,10 @@ export const landlordApi = {
     api.post<SignOtpInfo>(`${BASE}/consignments/${encodeURIComponent(id)}/send-otp`, phone ? { phone } : {}),
   signConsignment: (id: string, body: { ownershipWarranted: boolean; otp?: string; phone?: string }) =>
     api.post<Consignment>(`${BASE}/consignments/${encodeURIComponent(id)}/sign`, body),
+
+  /** Chủ nhà đồng ý / không đồng ý giá + cọc bảo đảm do Inspector đề xuất. 409 `PRICING_NOT_PENDING`, 403 `NOT_OWNER`. */
+  decidePricing: (id: string, decision: "accept" | "decline") =>
+    api.post<PricingDecisionResult>(`${BASE}/consignments/${encodeURIComponent(id)}/pricing-decision`, { decision }),
 
   finance: () => api.get<Finance>(`${BASE}/finance`),
 

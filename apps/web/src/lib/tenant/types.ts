@@ -12,6 +12,19 @@ export type BookingStatusWeb =
   | 'cancelled'
   | 'rejected';
 
+/** Một dòng nội thất công khai của căn (có độ mới %; không có bồi thường/ảnh bằng chứng — B6). */
+export interface UnitInventoryLine {
+  /** Mã catalog "1".."32" — ghép ảnh minh hoạ `/inventory/<code>.jpg`. */
+  code: string;
+  group: "I" | "II" | "III" | "IV" | "V" | "VI" | "VII" | "VIII";
+  groupLabel: string;
+  name: string;
+  qty: number;
+  spec: string | null;
+  /** "Độ mới" % do Host kiểm định ước lượng (30–98); null = chưa có. */
+  conditionPct: number | null;
+}
+
 export interface TenantUnit {
   code: string;
   building: string;
@@ -43,6 +56,10 @@ export interface TenantUnit {
   description: string;
   holdHours: number; // 12..72 — B4
   activeViewingAt: string | null; // ca xem sớm nhất hôm nay đang CONFIRMED/LOBBY/RECEIVING/VIEWING — nhãn FOMO
+  securityDeposit: number; // Tiền cọc bảo đảm: units.securityDeposit ?? baseRentPrice
+  holdingDeposit: number; // Cọc giữ chỗ backend đang thu — chỉ đọc từ API
+  highlights: string[]; // ≤ 3
+  inventory: UnitInventoryLine[]; // chỉ ở chi tiết căn; danh sách = []
 }
 
 export interface CreateBookingDto {
@@ -83,7 +100,7 @@ export interface TenantBooking {
   } | null;
   canModify: boolean; // status ∈ {pending, confirmed} && slot − now ≥ 2h
   deposit?: {
-    amount: 2000000;
+    amount: number;
     transferContent: string;
     qrRef: string;
     createdAt: string;
@@ -112,7 +129,7 @@ export interface TenantBooking {
 
 export interface DepositTermsDoc {
   version: string; // 'HOLD-2026.10-v1'
-  amount: 2000000;
+  amount: number;
   holdHours: number;
   items: { id: string; text: string; source: string }[]; // source = "legal/02 Điều 6.1" …
   houseRules: { id: string; title: string; body: string; source: string }[];
@@ -159,7 +176,7 @@ export interface TenantContract {
   paymentCycle: 1 | 3 | 6;
   monthlyRent: number;
   securityDeposit: number;
-  convertedHolding: 2000000;
+  convertedHolding: number;
   firstPaymentDue: {
     rent: number;
     depositTopUp: number;

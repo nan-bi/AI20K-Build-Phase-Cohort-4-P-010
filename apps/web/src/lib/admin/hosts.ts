@@ -93,3 +93,18 @@ export const useHost = (id: string): Query<HostAdminDetail> =>
   useApiQuery<HostAdminDetail>({ key: `admin-host:${id}`, fetch: () => adminHostsApi.get(id), errorText: fail });
 
 export { fail as hostErrorText };
+
+// ─── Vai Host (hồ sơ 18: chỉ 2 tập {sale} / {sale, inspector}; B5) ───────────────────────────
+
+export type HostRoleChoice = "sale" | "sale_inspector";
+
+export const ROLE_CHOICE_LABEL: Record<HostRoleChoice, string> = { sale: "Sale", sale_inspector: "Sale + Thẩm định" };
+
+/** Lựa chọn radio → `roles` gửi backend. */
+export const rolesOfChoice = (c: HostRoleChoice): HostRoleCode[] => (c === "sale" ? ["sale"] : ["sale", "inspector"]);
+
+/** `roles` hiện có → lựa chọn radio. Host cũ chỉ có inspector (chưa chạy script sửa vai) được coi là "Sale + Thẩm định". */
+export const choiceOfRoles = (roles: readonly HostRoleCode[]): HostRoleChoice => (roles.includes("inspector") ? "sale_inspector" : "sale");
+
+/** Nhãn hiển thị vai của một Host (một nhãn duy nhất, không tách badge). */
+export const hostRoleLabel = (roles: readonly HostRoleCode[]): string => ROLE_CHOICE_LABEL[choiceOfRoles(roles)];

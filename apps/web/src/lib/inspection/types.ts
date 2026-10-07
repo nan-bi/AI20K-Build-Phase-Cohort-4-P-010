@@ -6,7 +6,7 @@ import type { DoorAccessView } from "@/lib/host/types";
 
 export type { DoorAccessView };
 
-export type ConsignmentStage = "draft" | "awaiting_host" | "inspecting" | "approved" | "rejected";
+export type ConsignmentStage = "draft" | "awaiting_host" | "inspecting" | "awaiting_landlord" | "approved" | "rejected";
 export type InventoryGroup = "I" | "II" | "III" | "IV" | "V" | "VI" | "VII" | "VIII";
 export type Liability = "misuse" | "wear_or_misuse";
 export type PhotoSlot = string; // 'listing' | '1'..'32' | 'X1'..'X10'
@@ -30,6 +30,27 @@ export interface InventoryLineReport {
   photoIds: string[];
 }
 
+/** Thông tin thực tế do Inspector xác nhận (hồ sơ 18, 01 §4.2). */
+export interface InspectionFacts {
+  areaM2: number;
+  layout: LayoutKind;
+  bathrooms: number;
+  direction: string | null;
+  floor: number;
+}
+
+export interface InspectionPricing {
+  rent: number;
+  securityDeposit: number;
+  reason?: string;
+}
+
+export interface InspectionListing {
+  title: string;
+  highlights: string[];
+  description: string;
+}
+
 export interface InspectionReport {
   hostId: string;
   submittedAt: string;
@@ -41,6 +62,9 @@ export interface InspectionReport {
   listingPhotoIds: string[];
   recommendation: "approve" | "reject";
   note?: string;
+  facts?: InspectionFacts;
+  pricing?: InspectionPricing;
+  listing?: InspectionListing;
   avgCondition: number;
 }
 
@@ -103,7 +127,20 @@ export interface InspectionLimits {
   totalMax: number;
 }
 
+/**
+ * Phần chủ khai đã lưu ở `units` mà màn thẩm định cần để điền sẵn. CHƯA có ở API hiện tại (WP2 không trả) — web đọc nếu có,
+ * thiếu thì dùng mặc định theo layout / để trống (xem report R03).
+ */
+export interface DeclaredListingInfo {
+  bathrooms?: number;
+  direction?: string | null;
+  title?: string | null;
+  highlights?: string[];
+  description?: string | null;
+}
+
 export interface InspectionDetail extends InspectionCard {
+  declared?: DeclaredListingInfo;
   suggestedDeposit: number;
   leaseTerm: "mid" | "long" | "fixed" | null;
   note: string | null;
@@ -118,7 +155,7 @@ export interface InspectionDetail extends InspectionCard {
 }
 
 export interface InspectionResult {
-  stage: "approved" | "rejected";
+  stage: "approved" | "rejected" | "awaiting_landlord";
   unitCode: string;
   listedAt: string | null;
 }
@@ -172,6 +209,34 @@ export interface InspectionDraft {
   recommendation: "approve" | "reject";
   note: string;
   doorPin: string;
+  /** Hồ sơ 18 — thông tin thực tế (điền sẵn từ chủ khai), giá & cọc, giới thiệu căn. */
+  facts: FactsDraft;
+  pricing: PricingDraft;
+  listing: ListingDraft;
+}
+
+export interface FactsDraft {
+  /** Chuỗi gõ tay. */
+  areaM2: string;
+  layout: LayoutKind;
+  bathrooms: string;
+  /** "" = Chưa rõ ⇒ gửi `null`. */
+  direction: string;
+  floor: string;
+}
+
+export interface PricingDraft {
+  /** Chuỗi chữ số (VNĐ nguyên). */
+  rent: string;
+  securityDeposit: string;
+  reason: string;
+}
+
+export interface ListingDraft {
+  title: string;
+  /** Luôn 3 ô; ô rỗng bị bỏ khi gửi. */
+  highlights: string[];
+  description: string;
 }
 
 export interface SubmitInspectionDto {
@@ -184,6 +249,10 @@ export interface SubmitInspectionDto {
   recommendation: "approve" | "reject";
   note?: string;
   doorPin?: string;
+  /** Bắt buộc khi `approve` (backend: thiếu ⇒ 400 REPORT_INVALID field facts/pricing/listing). */
+  facts?: InspectionFacts;
+  pricing?: InspectionPricing;
+  listing?: InspectionListing;
 }
 
 export interface DraftError {

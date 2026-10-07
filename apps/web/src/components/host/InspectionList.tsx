@@ -123,6 +123,8 @@ function Board({ board }: { board: InspectionBoardView }) {
                       Xem tin
                     </Link>
                   </span>
+                ) : c.stage === "awaiting_landlord" ? (
+                  <StatusBadge tone="warn">Chờ chủ nhà đồng ý giá</StatusBadge>
                 ) : (
                   <StatusBadge tone="danger">Không đạt</StatusBadge>
                 ),

@@ -41,7 +41,10 @@ export function LandlordDashboard() {
 
   const unitRows = units.state.data;
   const financeData = finance.state.data;
-  const liveConsignments = consignments.state.data.filter((c) => !["approved", "rejected"].includes(c.status));
+  // Hồ sơ chờ chủ đồng ý giá lên đầu mục "Cần xử lý" (hồ sơ 18).
+  const liveConsignments = consignments.state.data
+    .filter((c) => !["approved", "rejected"].includes(c.status))
+    .sort((a, b) => Number(b.status === "awaiting_landlord") - Number(a.status === "awaiting_landlord"));
   const active = unitRows.filter((u) => u.mandate?.status === "active");
   const series = financeData.history.map((month) => ({ label: month.label, value: month.net }));
   const holdCount = unitRows.filter((u) => u.status === "holding").length;
@@ -55,6 +58,7 @@ export function LandlordDashboard() {
         actions={<Link href="/landlord/consign" className="btn btn-primary">Ký gửi căn mới</Link>}
       />
 
+      {liveConsignments.length > 0 && <h2 style={{ margin: 0, fontSize: "var(--fs-17)" }}>Cần xử lý</h2>}
       {liveConsignments.length > 0 && <ul className={styles.alerts}>
         {liveConsignments.map((c) => {
           const meta = CONSIGN_STATUS_META[c.status];
@@ -67,8 +71,8 @@ export function LandlordDashboard() {
               </div>
               <p className="small muted" style={{ margin: "var(--s-1) 0 0" }}>{meta.landlordHint}</p>
             </div>
-            <Link href={c.status === "draft" ? `/landlord/consign?draft=${c.id}` : `/landlord/consignments/${c.id}`} className="btn btn-secondary btn-sm">
-              Chi tiết <ArrowRight size={14} />
+            <Link href={c.status === "draft" ? `/landlord/consign?draft=${c.id}` : `/landlord/consignments/${c.id}`} className={c.status === "awaiting_landlord" ? "btn btn-amber btn-sm" : "btn btn-secondary btn-sm"}>
+              {c.status === "awaiting_landlord" ? "Xem đề xuất giá" : "Chi tiết"} <ArrowRight size={14} />
             </Link>
           </li>;
         })}

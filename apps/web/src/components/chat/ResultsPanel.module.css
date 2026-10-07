@@ -45,7 +45,7 @@
   font-weight: 600;
 }
 .chip:hover {
-  background: #c3dbdf;
+  background: var(--lagoon-300);
 }
 
 .section {
@@ -108,4 +108,88 @@
   .emptyArt {
     max-width: 130px;
   }
+}
+
+.loadingWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lagoon);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.skeleton {
+  min-height: 380px;
+  border-radius: var(--r-lg);
+  background: linear-gradient(90deg, var(--lagoon-100), var(--line-strong), var(--lagoon-100));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin, .skeleton { animation: none; }
+}
+
+.memory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.memoryChip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--lagoon-300);
+  border-radius: 10px;
+  background: var(--lagoon-100);
+  color: var(--lagoon);
+  font-size: 13px;
+}
+
+.noteClose {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
 }

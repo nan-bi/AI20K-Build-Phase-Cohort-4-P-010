@@ -1,0 +1,41 @@
+.panel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--background);
+}
+
+.full {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lagoon);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 768px) {
+  .panel {
+    position: absolute;
+    z-index: 30; /* trên mọi lớp z-10/z-20 của card (badge, nút tim) trong vùng kết quả */
+  }
+}

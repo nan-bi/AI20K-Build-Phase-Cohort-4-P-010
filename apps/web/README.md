@@ -17,10 +17,11 @@ BACKEND_URL=http://localhost:4000
 
 ## Nguồn dữ liệu
 
+- Trang chi tiết căn hiện "Nội thất chi tiết" theo phòng: tên, số lượng, mô tả, "Mới ~X%" và ảnh minh hoạ `public/inventory/<code>.jpg` (xem README thư mục đó; thiếu ảnh thì ẩn).
 - Trang chủ, tìm căn và chi tiết căn dùng catalog API; giá thuê, phí quản lý, trạng thái, hình ảnh, phân khu, lượt quan tâm và khung giờ bận lấy từ Supabase.
 - Khách thuê dùng API cho đăng nhập, hồ sơ, yêu thích, lịch xem, hợp đồng và PDF.
 - Chủ nhà, Field Host và Admin đọc/ghi qua các API theo vai trò; dữ liệu mẫu trong thư mục cũ `lib/mock` không được import vào luồng production.
-- Chat tìm căn lọc catalog thật đang tải từ API. Lịch trống được đối chiếu với endpoint busy-slots và được backend kiểm tra lại khi đặt.
+- Chat tìm căn gọi trợ lý AI qua `POST /api/v1/assistant/chat` (SSE, `lib/assistant/stream.ts`): `delta` hiện dần vào tin, `units` mở tab kết quả đúng các mã đó (lọc từ catalog). Khi relay 503 / `LLM_UNAVAILABLE` / quá 25s chưa có `delta` đầu, lượt đó rơi về bộ lọc cũ `parseQuery` + `searchUnits` kèm dòng "Trợ lý AI tạm bận — đang dùng bộ lọc nhanh". Rewrite `/api/v1/*` của Next cho SSE đi qua không đệm (đã đo). Bộ lọc FilterTray/ResultsPanel vẫn lọc catalog thật. Lịch trống được đối chiếu với endpoint busy-slots và được backend kiểm tra lại khi đặt.
 
 ## Giao diện công khai (header & trợ lý)
 

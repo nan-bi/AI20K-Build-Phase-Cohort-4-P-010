@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { KeyRound, Lock } from "lucide-react";
 import { KeyValue } from "@/components/ui/KeyValue";
+import { FACT_LABEL, factChanged, factOriginalText, type FactKey } from "@/lib/inspection/facts";
+import { DIRECTIONS } from "@/lib/units/facts";
 import { vnd } from "@/lib/format";
 import { inspectionApi } from "@/lib/inspection/api";
 import { DECLARED_FIELDS, DECLARED_LABEL, FURNISHING_LABEL, declaredValue } from "@/lib/inspection/logic";
@@ -225,6 +227,76 @@ export function MeasureBlock({ detail, draft, invalidField, onChange }: Declared
             <span>{f.text}</span>
           </label>
         ))}
+      </div>
+    </div>
+  );
+}
+
+interface FactsProps {
+  detail: InspectionDetail;
+  draft: InspectionDraft;
+  invalidField: string | null;
+  onChange: (patch: (d: InspectionDraft) => InspectionDraft) => void;
+}
+
+const LAYOUTS: InspectionDraft["facts"]["layout"][] = ["Studio", "1PN", "2PN", "3PN"];
+
+/** Khối "Thông tin thực tế" (hồ sơ 18): 5 ô điền sẵn từ chủ khai, Inspector sửa; ô đã sửa có nhãn "Đã sửa (chủ khai: …)". */
+export function FactsBlock({ detail, draft, invalidField, onChange }: FactsProps) {
+  const set = (patch: Partial<InspectionDraft["facts"]>) => onChange((d) => ({ ...d, facts: { ...d.facts, ...patch } }));
+  const f = draft.facts;
+  const mark = (key: FactKey) =>
+    factChanged(f, detail, key) ? (
+      <span className={styles.editedTag} data-testid={`edited-${key}`}>
+        Đã sửa (chủ khai: {factOriginalText(detail, key)})
+      </span>
+    ) : null;
+  const bad = (key: string) => (invalidField === `facts.${key}` || invalidField === "facts" ? styles.rowBad : "");
+  return (
+    <div id="insp-facts" className={consign.formCard}>
+      <h3 className={consign.formCardTitle}>Thông tin thực tế</h3>
+      <p className="muted small" style={{ margin: 0 }}>
+        Thông tin này hiện công khai trên tin đăng. Điền sẵn từ chủ nhà kê khai — sửa nếu thực tế khác.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--s-3)" }}>
+        <label className={`field ${bad("areaM2")}`} id="insp-facts-area-m2">
+          <span className="label">{FACT_LABEL.areaM2}</span>
+          <input type="number" step="0.1" min="1" max="500" className="input" value={f.areaM2} onChange={(e) => set({ areaM2: e.target.value })} />
+          {mark("areaM2")}
+        </label>
+        <label className="field" id="insp-facts-layout">
+          <span className="label">{FACT_LABEL.layout}</span>
+          <select className="select" value={f.layout} onChange={(e) => set({ layout: e.target.value as InspectionDraft["facts"]["layout"] })}>
+            {LAYOUTS.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+          {mark("layout")}
+        </label>
+        <label className={`field ${bad("bathrooms")}`} id="insp-facts-bathrooms">
+          <span className="label">{FACT_LABEL.bathrooms}</span>
+          <input type="number" min="1" max="4" step="1" className="input" value={f.bathrooms} onChange={(e) => set({ bathrooms: e.target.value })} />
+          {mark("bathrooms")}
+        </label>
+        <label className={`field ${bad("direction")}`} id="insp-facts-direction">
+          <span className="label">{FACT_LABEL.direction}</span>
+          <select className="select" value={f.direction} onChange={(e) => set({ direction: e.target.value })}>
+            <option value="">Chưa rõ</option>
+            {DIRECTIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          {mark("direction")}
+        </label>
+        <label className={`field ${bad("floor")}`} id="insp-facts-floor">
+          <span className="label">{FACT_LABEL.floor}</span>
+          <input type="number" min="1" max="80" step="1" className="input" value={f.floor} onChange={(e) => set({ floor: e.target.value })} />
+          {mark("floor")}
+        </label>
       </div>
     </div>
   );

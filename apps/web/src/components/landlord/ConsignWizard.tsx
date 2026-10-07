@@ -10,8 +10,11 @@ import { errorText, landlordApi } from "@/lib/landlord/api";
 import { LAYOUT_LABEL, LEASE_TERM_LABEL } from "@/lib/landlord/labels";
 import type { BuildingOption, Consignment, LayoutKind, LeaseTermPref, LockKind } from "@/lib/landlord/types";
 import { queries, type QueryDef } from "@/lib/landlord/queries";
+import { DIRECTIONS, defaultBathrooms } from "@/lib/units/facts";
+import { LISTING_TEXT_FORBIDDEN, serverFieldToKey, validateListing } from "@/lib/units/listing-text";
 import { invalidateLandlordData, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
 import { ConsignOtpSign } from "./ConsignOtpSign";
+import { ListingFields } from "@/components/consign/ListingFields";
 import { PhotoPicker } from "./PhotoPicker";
 import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
@@ -24,6 +27,14 @@ interface Form {
   door: string;
   layout: LayoutKind;
   areaM2: string;
+  bathrooms: number;
+  /** true khi chủ đã tự chỉnh số WC ⇒ đổi loại căn không ghi đè. */
+  bathroomsTouched: boolean;
+  /** "" = Chưa rõ (không gửi). */
+  direction: string;
+  title: string;
+  highlights: string[];
+  description: string;
   askRent: string;
   suggestedDeposit: string;
   leaseTerm: LeaseTermPref;
@@ -38,6 +49,12 @@ const blank: Form = {
   door: "",
   layout: "1PN",
   areaM2: "",
+  bathrooms: defaultBathrooms("1PN"),
+  bathroomsTouched: false,
+  direction: "",
+  title: "",
+  highlights: ["", "", ""],
+  description: "",
   askRent: "",
   suggestedDeposit: "",
   leaseTerm: "long",
@@ -100,6 +117,12 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
           door: draft.door ?? "",
           layout: draft.layoutKind,
           areaM2: String(draft.areaM2),
+          bathrooms: defaultBathrooms(draft.layoutKind),
+          bathroomsTouched: false,
+          direction: "",
+          title: "",
+          highlights: ["", "", ""],
+          description: "",
           askRent: String(draft.askRent),
           suggestedDeposit: String(draft.suggestedDeposit || draft.askRent),
           leaseTerm: draft.leaseTerm ?? "long",
@@ -110,6 +133,8 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
       : { ...blank, building: buildings[0]?.buildingCode ?? "" },
   );
   const [err, setErr] = useState("");
+  /** Lỗi theo ô: `title` | `description` | `highlights.<i>`. */
+  const [fieldErr, setFieldErr] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(draft?.id ?? null);
   const draftIdRef = useRef<string | null>(draft?.id ?? null);
@@ -171,7 +196,14 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
     }
     const currentDeposit = deposit || rent;
     if (currentDeposit < 2_000_000 || currentDeposit > 3 * rent) {
-      setErr("Tiền cọc đề xuất phải từ 2.000.000đ đến 3 lần giá thuê.");
+      setErr("Tiền cọc bảo đảm phải từ 2.000.000đ đến 3 lần giá thuê.");
+      return;
+    }
+
+    const listingErrs = validateListing({ title: f.title, highlights: f.highlights, description: f.description });
+    setFieldErr(listingErrs);
+    if (Object.keys(listingErrs).length > 0) {
+      setErr("Kiểm tra lại khối “Giới thiệu căn”: ô được tô đỏ có nội dung chưa hợp lệ.");
       return;
     }
 
@@ -205,6 +237,11 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
         door: f.door.padStart(2, "0"),
         layout: f.layout,
         areaM2: area,
+        bathrooms: f.bathrooms,
+        ...(f.direction ? { direction: f.direction } : {}),
+        ...(f.title.trim() ? { title: f.title.trim() } : {}),
+        ...(f.highlights.some((h) => h.trim()) ? { highlights: f.highlights.map((h) => h.trim()).filter(Boolean) } : {}),
+        ...(f.description.trim() ? { description: f.description.trim() } : {}),
         askRent: rent,
         suggestedDeposit: deposit || rent,
         leaseTerm: f.leaseTerm,
@@ -213,6 +250,13 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
         ...(f.locks.includes("smart") && f.doorCode ? { doorCode: f.doorCode } : {}),
       });
       if (!res.ok) {
+        if (res.code === LISTING_TEXT_FORBIDDEN) {
+          // Server là chốt chặn: tô đỏ đúng ô theo `field` rồi đưa chủ về bước nhập thông tin.
+          const body = res.data as unknown as { field?: string };
+          const key = serverFieldToKey(body?.field, f.highlights);
+          if (key) setFieldErr({ [key]: errorText(res, "Nội dung giới thiệu không hợp lệ.") });
+          setStep(0);
+        }
         setErr(errorText(res, "Không tạo được hồ sơ ký gửi."));
         return null;
       }
@@ -298,7 +342,10 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
 
               <label className="field">
                 <span className="label">Loại căn</span>
-                <select className="select" value={f.layout} onChange={(e) => set("layout", e.target.value as LayoutKind)}>
+                <select className="select" value={f.layout} onChange={(e) => {
+                    const layout = e.target.value as LayoutKind;
+                    setF((prev) => ({ ...prev, layout, bathrooms: prev.bathroomsTouched ? prev.bathrooms : defaultBathrooms(layout) }));
+                  }}>
                   {(Object.keys(LAYOUT_LABEL) as LayoutKind[]).map((l) => (
                     <option key={l} value={l}>
                       {LAYOUT_LABEL[l]}
@@ -343,6 +390,31 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
                 </span>
               </label>
 
+              <div className="field">
+                <span className="label">Số WC</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--s-3)", marginTop: 6 }}>
+                  <button type="button" className="btn btn-secondary btn-sm" aria-label="Giảm số WC" disabled={f.bathrooms <= 1} onClick={() => setF((p) => ({ ...p, bathrooms: p.bathrooms - 1, bathroomsTouched: true }))}>
+                    −
+                  </button>
+                  <b className="tnum" aria-live="polite" data-testid="bathrooms-value">{f.bathrooms}</b>
+                  <button type="button" className="btn btn-secondary btn-sm" aria-label="Tăng số WC" disabled={f.bathrooms >= 4} onClick={() => setF((p) => ({ ...p, bathrooms: p.bathrooms + 1, bathroomsTouched: true }))}>
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <label className="field">
+                <span className="label">Hướng căn hộ</span>
+                <select className="select" value={f.direction} onChange={(e) => set("direction", e.target.value)}>
+                  <option value="">Chưa rõ</option>
+                  {DIRECTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="field">
                 <span className="label">Giá thuê (đ/tháng)</span>
                 <input
@@ -355,16 +427,16 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
               </label>
 
               <label className="field">
-                <span className="label">Tiền cọc đề xuất (đ)</span>
+                <span className="label">Tiền cọc bảo đảm (đ)</span>
                 <input
                   className="input"
                   inputMode="numeric"
-                  placeholder="Thường bằng 1–2 tháng tiền thuê"
+                  placeholder="Để trống = 1 tháng tiền thuê"
                   value={f.suggestedDeposit ? Number(f.suggestedDeposit).toLocaleString("vi-VN") : ""}
                   onChange={(e) => set("suggestedDeposit", e.target.value.replace(/\D/g, ""))}
                 />
                 <span className="muted xs" style={{ marginTop: 4 }}>
-                  Thường bằng 1–2 tháng tiền thuê. Khoản cọc giữ chỗ 2.000.000đ của khách sẽ chuyển 100% vào khoản này, không trừ vào tiền thuê tháng đầu.
+                  Để trống = 1 tháng tiền thuê. Khoản cọc giữ chỗ 2.000.000đ của khách sẽ chuyển 100% vào khoản này, không trừ vào tiền thuê tháng đầu.
                 </span>
               </label>
 
@@ -419,6 +491,17 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
                 </button>
               </div>
             </div>
+
+            <ListingFields
+              title={f.title}
+              highlights={f.highlights}
+              description={f.description}
+              errors={fieldErr}
+              onChange={(patch) => {
+                setF((prev) => ({ ...prev, ...patch }));
+                setFieldErr({});
+              }}
+            />
 
             {err && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{err}</p>}
             <div className={styles.wizardNav} style={{ justifyContent: "flex-end" }}>
@@ -523,11 +606,17 @@ function Wizard({ buildings, verifiedPhone, draft }: { buildings: BuildingOption
                 <dd>{area} m²</dd>
               </div>
               <div>
+                <dt>Số WC · Hướng</dt>
+                <dd>
+                  {f.bathrooms} WC · {f.direction || "Chưa rõ"}
+                </dd>
+              </div>
+              <div>
                 <dt>Giá thuê</dt>
                 <dd>{vnd(rent)}đ/tháng</dd>
               </div>
               <div>
-                <dt>Tiền cọc đề xuất</dt>
+                <dt>Tiền cọc bảo đảm</dt>
                 <dd>{vnd(deposit || rent)}đ</dd>
               </div>
               <div>

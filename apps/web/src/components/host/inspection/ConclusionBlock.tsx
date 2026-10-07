@@ -1,5 +1,7 @@
 "use client";
 
+import { PRICE_CHANGE_WARNING, pricingChanged } from "@/lib/inspection/facts";
+import { vnd } from "@/lib/format";
 import type { InspectionDetail, InspectionDraft } from "@/lib/inspection/types";
 import consign from "@/components/consign/Consign.module.css";
 import styles from "./Inspection.module.css";
@@ -23,13 +25,15 @@ export function ConclusionBlock({ detail, draft, invalidField, forcePin, onChang
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-5)" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", cursor: "pointer", fontWeight: 500 }}>
           <input type="radio" name="recommendation" checked={approve} onChange={() => onChange((d) => ({ ...d, recommendation: "approve" }))} />
-          <span>Đạt — niêm yết căn</span>
+          <span>Đạt — cho phép niêm yết</span>
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: "var(--s-2)", cursor: "pointer", fontWeight: 500 }}>
           <input type="radio" name="recommendation" checked={!approve} onChange={() => onChange((d) => ({ ...d, recommendation: "reject" }))} />
           <span>Không đạt — đóng hồ sơ</span>
         </label>
       </div>
+
+      {approve && <PricingSection detail={detail} draft={draft} invalidField={invalidField} onChange={onChange} />}
 
       {needPin && (
         <label id="insp-doorPin" className={`field ${invalidField === "doorPin" ? styles.rowBad : ""}`}>
@@ -67,6 +71,45 @@ export function ConclusionBlock({ detail, draft, invalidField, forcePin, onChang
           style={{ resize: "vertical" }}
         />
       </label>
+    </div>
+  );
+}
+
+/** Khối "Giá & cọc": rent + cọc bảo đảm điền sẵn; đổi ⇒ ô Lý do bắt buộc + cảnh báo chờ chủ; không đổi ⇒ "Đạt — đăng ngay". */
+export function PricingSection({ detail, draft, invalidField, onChange }: Pick<Props, "detail" | "draft" | "invalidField" | "onChange">) {
+  const p = draft.pricing;
+  const changed = pricingChanged(p, detail);
+  const set = (patch: Partial<InspectionDraft["pricing"]>) => onChange((d) => ({ ...d, pricing: { ...d.pricing, ...patch } }));
+  const digits = (v: string) => v.replace(/\D/g, "").slice(0, 12);
+  const bad = (k: string) => (invalidField === `pricing.${k}` || invalidField === "pricing" ? styles.rowBad : "");
+  return (
+    <div id="insp-pricing" style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)" }}>
+      <h4 style={{ margin: 0 }}>Giá & cọc</h4>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--s-3)" }}>
+        <label id="insp-pricing-rent" className={`field ${bad("rent")}`}>
+          <span className="label">Giá thuê (đ/tháng)</span>
+          <input className="input" inputMode="numeric" value={p.rent ? Number(p.rent).toLocaleString("vi-VN") : ""} onChange={(e) => set({ rent: digits(e.target.value) })} />
+          <span className="muted xs">Chủ khai: {vnd(detail.askRent)}đ</span>
+        </label>
+        <label id="insp-pricing-security-deposit" className={`field ${bad("securityDeposit")}`}>
+          <span className="label">Tiền cọc bảo đảm (đ)</span>
+          <input className="input" inputMode="numeric" value={p.securityDeposit ? Number(p.securityDeposit).toLocaleString("vi-VN") : ""} onChange={(e) => set({ securityDeposit: digits(e.target.value) })} />
+          <span className="muted xs">Chủ khai: {vnd(detail.suggestedDeposit)}đ</span>
+        </label>
+      </div>
+      {changed && (
+        <>
+          <p className={styles.priceWarn} role="status">
+            {PRICE_CHANGE_WARNING}.
+          </p>
+          <label id="insp-pricing-reason" className={`field ${bad("reason")}`}>
+            <span className="label">
+              Lý do đổi giá/cọc <b style={{ color: "var(--danger)" }}>*</b>
+            </span>
+            <textarea className="input" rows={2} maxLength={300} value={p.reason} placeholder="VD: giá căn tương đương cùng tầng thấp hơn 500.000đ…" onChange={(e) => set({ reason: e.target.value })} style={{ resize: "vertical" }} />
+          </label>
+        </>
+      )}
     </div>
   );
 }

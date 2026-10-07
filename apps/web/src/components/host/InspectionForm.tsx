@@ -71,7 +71,16 @@ function InspectionBody({ detail }: { detail: InspectionDetail }) {
 
       {detail.stage === "inspecting" && <InspectionWorkspace detail={detail} />}
 
-      {(detail.stage === "approved" || detail.stage === "rejected") &&
+      {detail.stage === "awaiting_landlord" && (
+        <div className={styles.formCard} role="status">
+          <h3 style={{ margin: 0 }}>Đã gửi đề xuất giá cho chủ nhà</h3>
+          <p className="small muted" style={{ margin: 0 }}>
+            Căn chưa được đăng — chờ chủ nhà đồng ý giá mới. Chủ nhà không đồng ý thì hồ sơ đóng lại.
+          </p>
+        </div>
+      )}
+
+      {(detail.stage === "approved" || detail.stage === "rejected" || detail.stage === "awaiting_landlord") &&
         (detail.report ? (
           <InspectionReportPanel unit={detail} report={detail.report} photos={detail.photos} />
         ) : (
