@@ -15,7 +15,7 @@ export function getVietQrConfig(): VietQrConfig | null {
   const accountName = process.env.VIETQR_ACCOUNT_NAME?.trim();
 
   if (!bankId || !accountNo || !accountName) return null;
-  if (accountNo === '0000000000') return null;
+  if (/^0+$/.test(accountNo)) return null; // toàn số 0 = chưa có tài khoản nhận thật
 
   return {
     bankId,
@@ -23,6 +23,11 @@ export function getVietQrConfig(): VietQrConfig | null {
     accountName,
     bankName: process.env.VIETQR_BANK_NAME?.trim() || undefined,
   };
+}
+
+/** DEMO: cho phép giả lập "ngân hàng báo có" khi chưa có webhook thật. Không bao giờ bật ở production. Xoá khi tích hợp thật. */
+export function isDemoToolsEnabled(): boolean {
+  return process.env.DEMO_TOOLS === 'true' && process.env.NODE_ENV !== 'production';
 }
 
 export function isVietQrWebhookConfigured(): boolean {

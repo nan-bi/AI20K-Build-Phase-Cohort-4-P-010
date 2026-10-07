@@ -154,6 +154,11 @@ export const tenantApi = {
     return api.post<TenantBooking>(`/bookings/${encodeURIComponent(ref)}/deposit`, { acceptTerms: true, termsVersion });
   },
 
+  // DEMO (xoá khi có webhook thật): giả lập ngân hàng báo có cọc
+  demoPayDeposit: (ref: string): Promise<ApiResponse<{ outcome: string }>> => {
+    return api.post<{ outcome: string }>(`/bookings/${encodeURIComponent(ref)}/deposit/demo-pay`);
+  },
+
   // A17: Quét CCCD; backend trả ekyc_provider_unavailable đến khi tích hợp nhà cung cấp thật.
   scanEkyc: (ref: string, consentVersion: string): Promise<ApiResponse<EkycScanResult>> => {
     return api.post<EkycScanResult>(`/bookings/${encodeURIComponent(ref)}/ekyc/scan`, { consent: true, consentVersion });

@@ -12,7 +12,7 @@ import { AuditService } from '../audit/audit.service';
 import { PhoneService } from '../auth/phone/phone.service';
 import { BookingAccessService } from '../tenant/booking-access.service';
 import { buildDepositTerms, DEPOSIT_TERMS_VERSION } from './deposit-terms';
-import { getVietQrConfig, isVietQrWebhookConfigured } from './vietqr';
+import { getVietQrConfig, isDemoToolsEnabled, isVietQrWebhookConfigured } from './vietqr';
 import { CreateDepositDto, UploadHostReceiptDto } from './dto/deposit.dto';
 import { toTenantBooking, statusToWeb } from '../tenant/tenant.mappers';
 import { DepositTermsDoc, TenantBooking } from '../tenant/tenant.types';
@@ -90,7 +90,7 @@ export class DepositService {
     dto: CreateDepositDto,
     reqContext?: { ip?: string; userAgent?: string },
   ): Promise<TenantBooking> {
-    if (!getVietQrConfig() || !isVietQrWebhookConfigured()) {
+    if (!isDemoToolsEnabled() && (!getVietQrConfig() || !isVietQrWebhookConfigured())) {
       throw new ServiceUnavailableException({
         message: 'Thanh toán VietQR chưa được cấu hình đầy đủ để nhận và đối soát giao dịch.',
         code: 'vietqr_not_configured',
@@ -224,6 +224,29 @@ export class DepositService {
 
       return toTenantBooking(reloaded, { rawPhone, holdHours });
     });
+  }
+
+  /**
+   * DEMO (xoá khi có webhook ngân hàng thật): giả lập ngân hàng báo có cho cọc của chính khách này,
+   * đi qua đúng markPaid nên first-to-pay, hết hạn giữ chỗ... vẫn chạy như thật.
+   */
+  async demoPay(ref: string, user: { id: string }): Promise<{ outcome: string }> {
+    if (!isDemoToolsEnabled()) {
+      throw new NotFoundException({ message: 'Không tìm thấy.', code: 'not_found' });
+    }
+    const viewing = await this.bookingAccess.loadOwned(ref, user);
+    const deposit = await this.prisma.holdingDeposit.findUnique({ where: { viewingId: viewing.id } });
+    if (!deposit) {
+      throw new ConflictException({ message: 'Chưa có giao dịch cọc để thanh toán.', code: 'bad_status' });
+    }
+    const outcome = await this.markPaid({
+      depositCode: deposit.depositCode,
+      amount: 2000000,
+      bankRefNumber: `DEMO-${deposit.depositCode}`,
+      actor: 'bank',
+      actorId: user.id,
+    });
+    return { outcome };
   }
 
   async markPaid(input: {

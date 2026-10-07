@@ -18,6 +18,7 @@ import { VietQR } from "@/components/payment/VietQR";
 import { UnitCard } from "@/components/unit/UnitCard";
 import { VerifiedPhoto } from "@/components/unit/VerifiedPhoto";
 import { DepositTermsBox } from "@/components/deal/DepositTermsBox";
+import { DemoPayButton } from "@/components/deal/DemoPayButton";
 import { KycCapture } from "@/components/deal/KycCapture";
 import { DEFAULT_HOUSEHOLD, allInCost } from "@/lib/pricing/cost";
 import {
@@ -227,6 +228,7 @@ export function BookingStatusView({ refCode }: { refCode: string }) {
                     Giao dịch này chưa có cấu hình VietQR và đối soát hợp lệ. Vui lòng liên hệ hỗ trợ; đừng chuyển khoản theo thông tin cũ.
                   </p>
                 )}
+                <DemoPayButton refCode={booking.ref} onDone={() => reload()} />
               </div>
             )}
 

@@ -67,6 +67,15 @@ export class DepositController {
     });
   }
 
+  @Roles('tenant')
+  @Post('bookings/:ref/deposit/demo-pay')
+  @ApiOperation({
+    summary: 'DEMO: giả lập ngân hàng báo có cọc (chỉ khi DEMO_TOOLS=true và không phải production)',
+  })
+  async demoPay(@Param('ref') ref: string, @CurrentUser() user: any) {
+    return this.depositService.demoPay(ref, user);
+  }
+
   @Public()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 60, ttl: 60000 } })
