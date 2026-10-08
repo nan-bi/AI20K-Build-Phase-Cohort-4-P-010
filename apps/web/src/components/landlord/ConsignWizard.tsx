@@ -269,8 +269,10 @@ function Wizard({
       return;
     }
     const currentDeposit = deposit || rent;
-    if (currentDeposit < 2_000_000 || currentDeposit > 3 * rent) {
-      setErr("Tiền cọc bảo đảm phải từ 2.000.000đ đến 3 lần giá thuê.");
+    const minDeposit = Math.round(0.5 * rent);
+    const maxDeposit = Math.round(4 * rent);
+    if (currentDeposit < minDeposit || currentDeposit > maxDeposit) {
+      setErr(`Tiền cọc đề xuất phải từ 50% đến 4 lần giá thuê tháng (${minDeposit.toLocaleString("vi-VN")}đ – ${maxDeposit.toLocaleString("vi-VN")}đ).`);
       return;
     }
 
@@ -509,16 +511,19 @@ function Wizard({
                   <span className="label">
                     Tiền cọc bảo đảm (Security Deposit)
                     <InfoTip label="Giải thích tiền cọc bảo đảm">
-                      Cọc giữ chỗ của khách chuyển 100% thành tiền cọc bảo đảm khi ký HĐ, <b>không trừ</b> vào tiền thuê tháng đầu.
+                      Cọc giữ chỗ 2.000.000đ của khách chuyển 100% thành tiền cọc bảo đảm khi ký HĐ, <b>không trừ</b> vào tiền thuê tháng đầu. Quy định: từ 50% (0.5 tháng) đến 4 lần (4 tháng) giá thuê.
                     </InfoTip>
                   </span>
                   <input
                     className="input"
                     inputMode="numeric"
-                    placeholder="Để trống = 1 tháng tiền thuê"
+                    placeholder="Để trống = 1 tháng tiền thuê (50% – 4x)"
                     value={f.suggestedDeposit ? Number(f.suggestedDeposit).toLocaleString("vi-VN") : ""}
                     onChange={(e) => set("suggestedDeposit", e.target.value.replace(/\D/g, ""))}
                   />
+                  <span className="muted xs" style={{ marginTop: 4 }}>
+                    Quy định: từ 50% (0.5 tháng) đến tối đa 4 lần giá thuê tháng. Cọc giữ chỗ 2.000.000đ chuyển 100% vào khoản này, không khấu trừ tiền thuê tháng đầu.
+                  </span>
                 </label>
               </div>
 

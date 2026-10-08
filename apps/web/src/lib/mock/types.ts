@@ -16,6 +16,25 @@ export interface HoldAudit {
   to: number | null;                  // null = gỡ override về mặc định
 }
 
+export interface DepositPolicy {
+  /** Tỷ lệ cọc tối thiểu theo giá thuê tháng (mặc định 0.5 = 50%) */
+  minRatio: number;
+  /** Tỷ lệ cọc tối đa theo giá thuê tháng (mặc định 4.0 = 400% / 4 lần) */
+  maxRatio: number;
+  /** Tỷ lệ cọc khuyến nghị mặc định (mặc định 1.0 = 100% / 1 tháng) */
+  defaultRatio: number;
+}
+
+export interface DepositAudit {
+  id: string;
+  at: string;
+  by: string;
+  minRatio: number;
+  maxRatio: number;
+  defaultRatio: number;
+  reason?: string;
+}
+
 // ─── Lịch xem nhà ───────────────────────────────────────────────────────────────────────────
 
 export type DispatchTier = "top" | "zone_pool" | "wide_pool";
@@ -374,4 +393,8 @@ export interface MockState {
   holdPolicy: HoldPolicy;
   /** Lịch sử thay đổi thời hạn giữ chỗ (SPEC-P01 §3) */
   holdAudit: HoldAudit[];
+  /** Cấu hình quy định tiền cọc theo hợp đồng thuê (tối thiểu 50%, tối đa 4 lần giá thuê tháng) */
+  depositPolicy: DepositPolicy;
+  /** Lịch sử thay đổi quy định tiền cọc */
+  depositAudit?: DepositAudit[];
 }

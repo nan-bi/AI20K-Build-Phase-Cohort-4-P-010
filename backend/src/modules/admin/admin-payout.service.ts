@@ -130,7 +130,7 @@ export class AdminPayoutService {
     const byHost = new Map<string, { fullName: string | null; total: Prisma.Decimal; count: number }>();
     for (const r of rows) {
       const cur = byHost.get(r.hostId) ?? {
-        fullName: r.host.profile.fullName,
+        fullName: r.host?.profile?.fullName ?? null,
         total: new Prisma.Decimal(0),
         count: 0,
       };

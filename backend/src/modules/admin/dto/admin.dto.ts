@@ -193,3 +193,32 @@ export class DepositQueryDto {
   @IsOptional()
   pageSize?: number;
 }
+
+export class UpdateDepositPolicyDto {
+  @ApiPropertyOptional({ example: 0.5, description: 'Tỷ lệ cọc tối thiểu theo giá thuê tháng (ví dụ 0.5 = 50%)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(2.0)
+  minRatio?: number;
+
+  @ApiPropertyOptional({ example: 4.0, description: 'Tỷ lệ cọc tối đa theo giá thuê tháng (ví dụ 4.0 = 400% / 4 lần)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1.0)
+  @Max(10.0)
+  maxRatio?: number;
+
+  @ApiPropertyOptional({ example: 1.0, description: 'Tỷ lệ cọc khuyến nghị mặc định (ví dụ 1.0 = 100% / 1 tháng)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(10.0)
+  defaultRatio?: number;
+
+  @ApiPropertyOptional({ example: 'Cập nhật quy định cọc căn cứ theo giá thuê tháng', description: 'Lý do thay đổi (lưu Audit)' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+

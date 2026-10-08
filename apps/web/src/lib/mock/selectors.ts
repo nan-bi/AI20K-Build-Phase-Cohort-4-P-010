@@ -1,6 +1,6 @@
 import { MANDATE_TERM_MONTHS, TENANT_MODIFY_LEAD_MS } from "./cost";
 import { ALL_SLOT_TIMES, MIN_LEAD_MS, slotDate } from "./slots";
-import type { Booking, BookingDispatch, BookingStatus, FeeConfig, Mandate, MockState, Notice } from "./types";
+import type { Booking, BookingDispatch, BookingStatus, DepositPolicy, FeeConfig, Mandate, MockState, Notice } from "./types";
 import {
   HOSTS,
   UNITS,
@@ -44,6 +44,37 @@ export function unitStatus(state: MockState, unitOrId: Unit | string, now: numbe
 
 export function holdHoursFor(state: MockState, unitId: string): number {
   return state.holdPolicy?.byUnit?.[unitId] ?? state.holdPolicy?.defaultHours ?? 48;
+}
+
+export function depositPolicyFor(state: MockState): DepositPolicy {
+  return state.depositPolicy ?? { minRatio: 0.5, maxRatio: 4.0, defaultRatio: 1.0 };
+}
+
+export function validateDepositAmount(
+  state: MockState,
+  monthlyRent: number,
+  depositAmount: number,
+): { ok: boolean; min: number; max: number; error?: string } {
+  const policy = depositPolicyFor(state);
+  const min = Math.round(monthlyRent * policy.minRatio);
+  const max = Math.round(monthlyRent * policy.maxRatio);
+  if (depositAmount < min) {
+    return {
+      ok: false,
+      min,
+      max,
+      error: `Tiền cọc không được nhỏ hơn ${Math.round(policy.minRatio * 100)}% giá thuê tháng (${min.toLocaleString("vi-VN")}đ).`,
+    };
+  }
+  if (depositAmount > max) {
+    return {
+      ok: false,
+      min,
+      max,
+      error: `Tiền cọc không được lớn hơn ${policy.maxRatio} lần giá thuê tháng (${max.toLocaleString("vi-VN")}đ).`,
+    };
+  }
+  return { ok: true, min, max };
 }
 
 export function holdEndsAt(b: Booking): number | undefined {

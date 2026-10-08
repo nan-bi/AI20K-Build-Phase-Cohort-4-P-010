@@ -1,9 +1,0 @@
-
- RUN  v5.0.1 /Users/namdev/Documents/Code/VinAI/build_phase/P-010/apps/web
-
-
- Test Files  1 passed (1)
-      Tests  29 passed (29)
-   Start at  13:18:00
-   Duration  888ms (transform 49%, tests 35%, import 12%, worker 4%)
-

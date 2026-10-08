@@ -22,6 +22,7 @@ import {
   ResolveUncDto,
   KeyReasonDto,
   DepositQueryDto,
+  UpdateDepositPolicyDto,
 } from './dto/admin.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -220,6 +221,19 @@ export class AdminController {
   @ApiOperation({ summary: 'Cập nhật thời hạn giữ chỗ (1–14 ngày), có Audit Log' })
   updateHoldPolicy(@Body() dto: UpdateHoldPolicyDto, @CurrentUser() user: any) {
     return this.feeService.updateHoldPolicy(dto, { id: user.id, role: user.role });
+  }
+
+  @Get('settings/deposit-policy')
+  @ApiOperation({ summary: 'Xem quy định tiền cọc (tối thiểu 50%, tối đa 4 lần giá thuê tháng)' })
+  getDepositPolicy() {
+    return this.feeService.getDepositPolicy();
+  }
+
+  @Post('settings/deposit-policy')
+  @Put('settings/deposit-policy')
+  @ApiOperation({ summary: 'Cập nhật quy định tiền cọc theo giá thuê, có Audit Log' })
+  updateDepositPolicy(@Body() dto: UpdateDepositPolicyDto, @CurrentUser() user: any) {
+    return this.feeService.updateDepositPolicy(dto, { id: user.id, role: user.role });
   }
 
   @Get('payouts')

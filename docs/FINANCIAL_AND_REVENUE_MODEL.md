@@ -194,18 +194,21 @@ Khoản chi trả theo lượng tiêu thụ thực tế (Pay-as-you-go) cho các
 
 ---
 
-### 3.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Field Ops & Dynamic Incentives)
-Khoản thù lao chi trả trực tiếp cho mạng lưới Field Host nội khu theo cơ chế biến phí linh hoạt cấu hình trên Trang Quản Trị (`AdminCommission.tsx`, `seed.ts`):
+### 3.3. Chi Phí Điều Phối Thực Địa & Thù Lao Field Host (Mô Hình Hoa Hồng Lai 3 Tầng)
+Khoản thù lao chi trả trực tiếp cho mạng lưới Field Host nội khu áp dụng chuẩn hóa theo **Mô hình Hoa hồng Lai 3 Tầng (3-Tier Hybrid Commission Architecture)**:
+> **Nguyên tắc cốt lõi đã chốt:**  
+> **Thù lao lượt dẫn (Bảo đảm công sức)** $+$ **% Phí giao dịch / Thưởng chốt deal (Động lực bứt phá)** $+$ **Hệ số sao & Thưởng căn tồn (Chất lượng & Tốc độ)**.  
+> Cân bằng hoàn hảo giữa việc nuôi sống lực lượng CTV thường trực và tạo động lực chốt sale; bảo vệ $100\%$ dòng tiền biến phí (**Asset-Light**) của sàn và được cấu hình linh hoạt trực tiếp trên Trang Quản Trị (`AdminCommission.tsx`, `seed.ts`, `backend/src/modules/admin/admin-fee.service.ts`).
 
-| Khoản mục hiện trường | Cơ chế chi trả | Mức chi trả quy chuẩn (Web v0.9.2) | Điều kiện áp dụng & Phạm vi cấu hình Admin |
-|---|---|---|---|
-| **Thù lao lượt dẫn khách (Viewing Fee)** | Biến phí trả qua Ví Host | **50.000 VNĐ / lượt dẫn**<br>(`DEFAULT_FEES.baseViewingFee`) | Host quẹt thẻ đưa khách lên phòng, mở cửa thành công. Admin cấu hình được trong khoảng 0 – 500.000 VNĐ. Khách hủy sát giờ < 2h: hưởng 50% thù lao. |
-| **Hoa hồng chốt cọc (Deal Commission)** | Thưởng thành tích chốt cọc | **400.000 VNĐ / hợp đồng**<br>(`DEFAULT_FEES.dealCommission`) | Áp dụng khi khách quét VietQR cọc 2 triệu chuyển căn sang `holding` và hoàn tất ký Hợp đồng thuê 3 bước. Admin cấu hình 0 – 2.000.000 VNĐ. |
-| **Hệ số đánh giá sao (Rating Multiplier)** | Thưởng chất lượng dịch vụ | $\times \mathbf{1.2}$ nếu $\ge 4.8\star$<br>$\times 1.0$ nếu $4.5 - 4.7\star$<br>$\times 0.8$ nếu $< 4.5\star$ | Nhân trực tiếp vào tổng thù lao cuối tháng để khuyến khích thái độ phục vụ văn minh (`DEFAULT_FEES.ratingMultiplier = 1.2`). |
-| **Thưởng nóng chiến dịch (Campaign Bonus)** | Thưởng kích cầu mùa vụ | **200.000 VNĐ / deal**<br>(`DEFAULT_FEES.campaignBonus`) | Kích hoạt trong giai đoạn cao điểm hoặc chiến dịch giải phóng phòng trống nhanh (áp dụng tối đa 3 deal đầu kỳ cho mỗi Host). |
-| **Thẻ cư dân thang máy RFID** | Thẻ cư dân BQL cấp | **50.000 – 100.000 VNĐ / thẻ** | Chi phí một lần duy nhất lúc tiếp nhận CTV Host; thẻ được thu hồi hoặc luân chuyển, khấu hao trong 24 tháng. |
-| **Chi phí ổ khóa / Lockbox (CapEx)** | **TUYỆT ĐỐI 0 VNĐ** | **0 VNĐ** | Cấp mã số qua app hoặc dùng chìa cơ tập trung; tuyệt đối không dùng Lockbox treo cửa vi phạm quy chế BQL. |
-| **Định mức chi phí Field Ops trung bình** | Tính trên 1 deal thành công | **~650.000 – 750.000 VNĐ / deal** | (Bao gồm: 3 lượt dẫn $\times$ 50k + 400k hoa hồng chốt cọc + thưởng sao rating $\ge 4.8\star$). |
+| Tầng chi trả | Khoản mục hiện trường | Cơ chế chi trả | Mức chi trả quy chuẩn (Web v0.9.2) | Ý nghĩa chiến lược & Phạm vi cấu hình Admin |
+|:---:|---|---|---|---|
+| **TẦNG 1**<br>(Công sức) | **Thù lao lượt dẫn khách (Viewing Fee)** | Biến phí trả qua Ví Host | **50.000 VNĐ / lượt dẫn**<br>(`DEFAULT_FEES.baseViewingFee`) | Host quẹt thẻ đưa khách lên phòng, mở cửa thành công. Nuôi sống Host hàng ngày, cam kết SLA sảnh $< 3$ phút. Admin cấu hình: 0 – 500.000 VNĐ. Khách hủy sát giờ < 2h: hưởng 50% thù lao. |
+| **TẦNG 2**<br>(Hiệu quả) | **Hoa hồng chốt cọc (Deal Commission)** | Thưởng thành tích chốt cọc | **400.000 VNĐ / hợp đồng**<br>(Tương đương $25\% - 35\%$ phí sàn; `DEFAULT_FEES.dealCommission`) | Áp dụng khi khách quét VietQR cọc 2 triệu chuyển căn sang `holding` và hoàn tất ký Hợp đồng thuê 3 bước. Gắn chặt quyền lợi Host với việc chốt HĐ thành công. Admin cấu hình: 0 – 2.000.000 VNĐ. |
+| **TẦNG 3**<br>(Chất lượng & Kích cầu) | **Hệ số đánh giá sao (Rating Multiplier)** | Thưởng chất lượng dịch vụ | $\times \mathbf{1.2}$ nếu $\ge 4.8\star$<br>$\times 1.0$ nếu $4.5 - 4.7\star$<br>$\times 0.8$ nếu $< 4.5\star$ | Nhân trực tiếp vào tổng hoa hồng cuối tháng; triệt tiêu hoàn toàn tình trạng chèo kéo khách hay ép cọc văn hóa thấp (`DEFAULT_FEES.ratingMultiplier = 1.2`). |
+| **TẦNG 3**<br>(Chất lượng & Kích cầu) | **Thưởng nóng chiến dịch & Căn tồn kho (Campaign / Slow-Inventory Bonus)** | Thưởng kích cầu mùa vụ & giải phóng phòng trống | **200.000 VNĐ / deal**<br>(`DEFAULT_FEES.campaignBonus`) | Kích hoạt tự động khi căn hộ có số ngày trống $> 21$ ngày hoặc đợt kích cầu cao điểm, giải quyết triệt để nỗi đau số 1 của Chủ nhà (Trống phòng kéo dài). Admin cấu hình: 0 – 1.000.000 VNĐ. |
+| **Hạ tầng** | **Thẻ cư dân thang máy RFID** | Thẻ cư dân BQL cấp | **50.000 – 100.000 VNĐ / thẻ** | Chi phí một lần duy nhất lúc tiếp nhận CTV Host; thẻ được thu hồi hoặc luân chuyển, khấu hao trong 24 tháng. |
+| **Hạ tầng** | **Chi phí ổ khóa / Lockbox (CapEx)** | **TUYỆT ĐỐI 0 VNĐ** | **0 VNĐ** | Cấp mã số qua app hoặc dùng chìa cơ tập trung; tuyệt đối không dùng Lockbox treo cửa vi phạm quy chế BQL. |
+| **Tổng kết** | **Định mức chi phí Field Ops trung bình** | Tính trên 1 deal thành công | **~650.000 – 750.000 VNĐ / deal** | (Bao gồm: 3 lượt dẫn $\times$ 50k + 400k hoa hồng chốt cọc + thưởng sao rating $\ge 4.8\star$; chiếm $\approx 10\% - 15\%$ tổng doanh thu phí giao dịch của sàn). |
 
 ---
 
@@ -349,7 +352,8 @@ Nguồn doanh thu tài chính an toàn sinh ra từ việc quản lý lượng t
    * Quét qua VietQR động gạch nợ tức thì; căn hộ lập tức khóa trạng thái `holding`.
    * **Thời hạn giữ chỗ do Admin cài đặt:** Mặc định **48 giờ**, Admin có thể cấu hình linh hoạt từ **12 đến 72 giờ** trên toàn sàn hoặc thiết lập riêng cho từng căn (`AdminSettings.tsx`, `cost.ts`).
 2. **Dòng tiền Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (Security Deposit):**
-   * Khi ký Hợp đồng thuê chính thức, khoản cọc 2.000.000 VNĐ ban đầu được **chuyển đổi 100%** thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (tương đương 1 đến 2 tháng tiền thuê, bình quân **$10.000.000 – 16.000.000 \text{ VNĐ/căn}$**).
+   * **Quy định tỷ lệ cọc theo giá thuê:** Số tiền cọc được căn cứ dựa trên giá của hợp đồng thuê cụ thể, trong đó **không được nhỏ hơn 50% giá thuê mỗi tháng** ($0.5\times$) và **không được lớn hơn 4 lần số tiền thuê mỗi tháng** ($4.0\times$). Tỷ lệ và khung cọc này được cài đặt, quản lý và kiểm toán trực tiếp trên trang Admin (`AdminSettings.tsx`, `GET/PUT /admin/settings/deposit-policy`).
+   * Khi ký Hợp đồng thuê chính thức, khoản cọc giữ chỗ 2.000.000 VNĐ ban đầu được **chuyển đổi 100%** thành một phần của Tiền Cọc Bảo Đảm Tài Sản & Nội Thất (bình quân **$5.000.000 – 20.000.000 \text{ VNĐ/căn}$** tùy layout và giá thuê).
    * Khoản tiền này được giữ nguyên suốt kỳ hạn thuê và **tuyệt đối KHÔNG khấu trừ vào tiền thuê tháng đầu tiên**.
    * Số tiền này nằm bảo chứng trong tài khoản ký quỹ mở tại Ngân hàng liên kết suốt kỳ hạn hợp đồng (6 – 12 tháng) và chỉ giải tỏa khi hai bên đối soát bàn giao trả phòng.
 3. **Cơ chế bảo toàn dòng tiền & cấn trừ tự động theo Nội quy BQL (`house-rules.ts`):**

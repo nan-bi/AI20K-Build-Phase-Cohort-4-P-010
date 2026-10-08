@@ -47,7 +47,7 @@ export class AdminInventoryService {
         doorLockType: u.doorLockType,
         isVerified: u.isVerified,
         managementFee: Number(u.managementFee),
-        createdAt: u.createdAt.toISOString(),
+        createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
         mandateStatus: m?.status || 'NONE',
         exitCountdownDays: effective
           ? Math.max(0, Math.ceil((effective.getTime() - now.getTime()) / DAY_MS))
