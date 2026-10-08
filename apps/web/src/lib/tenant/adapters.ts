@@ -46,8 +46,6 @@ export function toUnit(dto: TenantUnit): UnitWithExtras {
     petFriendly: dto.petFriendly,
     minMonths: dto.minMonths,
     verifiedAt: dto.verifiedAt,
-    title: dto.title,
-    description: dto.description,
     items: (dto.items || []) as ItemKey[],
     holdHours: dto.holdHours ?? 48,
     activeViewingAt: dto.activeViewingAt ?? null,

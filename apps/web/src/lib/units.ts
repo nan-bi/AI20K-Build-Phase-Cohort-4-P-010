@@ -98,8 +98,6 @@ export interface Unit {
   petFriendly: boolean;
   minMonths: number;
   verifiedAt: string;
-  title: string;
-  description: string;
   items: ItemKey[];
   photos?: string[];
 }

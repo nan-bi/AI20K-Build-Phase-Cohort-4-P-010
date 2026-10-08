@@ -143,7 +143,11 @@ export function blankLine(item: { code: string; group: InventoryGroup; name: str
 export function blankDraft(detail: Pick<InspectionDetail, "catalog" | "areaM2" | "furnished" | "layoutKind" | "floor" | "askRent" | "suggestedDeposit" | "declared">): InspectionDraft {
   const inventory = detail.catalog.map((item) => {
     const n = Number(item.code);
-    return blankLine(item, (n >= 25 && n <= 29) || (detail.furnished === true && n >= 1 && n <= 27));
+    if (n >= 25 && n <= 29) return blankLine(item, true); // sàn, tường, điện, cửa, thẻ: căn nào cũng có
+    const declared = detail.declared?.inventoryCodes;
+    // Chủ nhà đã chọn món có sẵn ⇒ tick đúng các món đó; hồ sơ cũ (không khai) ⇒ căn có nội thất thì tick 1–27.
+    if (detail.furnished !== false && declared) return blankLine(item, declared.includes(item.code));
+    return blankLine(item, detail.furnished === true && n >= 1 && n <= 27);
   });
   return {
     declared: {

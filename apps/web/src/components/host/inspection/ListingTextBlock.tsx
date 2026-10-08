@@ -7,7 +7,7 @@ import consign from "@/components/consign/Consign.module.css";
 interface Props {
   detail: InspectionDetail;
   draft: InspectionDraft;
-  /** Field lỗi của phiếu (`listing.title`, `listing.highlights.1`, `listing.description`…). */
+  /** Field lỗi của phiếu (`listing.highlights.1`…). */
   invalidField: string | null;
   invalidMessage: string | null;
   onChange: (patch: (d: InspectionDraft) => InspectionDraft) => void;
@@ -23,19 +23,16 @@ function listingErrors(field: string | null, message: string | null): Record<str
 
 /** Khối "Giới thiệu căn": hiện bản chủ khai, Inspector sửa. Nội dung công khai ⇒ CẤM SĐT/link/giá (server chặn lần nữa). */
 export function ListingTextBlock({ detail, draft, invalidField, invalidMessage, onChange }: Props) {
-  const hasOwnerText = Boolean(detail.declared?.title || detail.declared?.description || detail.declared?.highlights?.length);
+  const hasOwnerText = Boolean(detail.declared?.highlights?.length);
   return (
     <div id="insp-listing" className={consign.formCard}>
       <h3 className={consign.formCardTitle}>Giới thiệu căn</h3>
       <p className="muted small" style={{ margin: 0 }}>
-        {hasOwnerText ? "Điền sẵn từ chủ nhà — sửa cho đúng thực tế." : "Chủ nhà chưa viết phần giới thiệu — hãy viết giúp (bắt buộc có tiêu đề)."} Hiện công khai trên tin đăng.
+        {hasOwnerText ? "Điền sẵn từ chủ nhà — sửa cho đúng thực tế." : "Chủ nhà chưa ghi điểm nổi bật — có thể bổ sung (không bắt buộc)."} Hiện công khai trên tin đăng.
       </p>
       <ListingFields
-        title={draft.listing.title}
         highlights={draft.listing.highlights}
-        description={draft.listing.description}
         idPrefix="insp-listing"
-        titleRequired
         errors={listingErrors(invalidField, invalidMessage)}
         onChange={(patch) => onChange((d) => ({ ...d, listing: { ...d.listing, ...patch } }))}
       />

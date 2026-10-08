@@ -7,6 +7,7 @@ import type {
   DoorAuditEntry,
   ExitResult,
   Finance,
+  InventoryCatalogEntry,
   MyProfile,
   PricingDecisionResult,
   SignOtpInfo,
@@ -49,6 +50,7 @@ export const landlordApi = {
   cancelExit: (mandateId: string) => api.post<{ mandateId: string; status: "active" }>(`${BASE}/mandates/cancel-exit`, { mandateId }),
 
   buildings: () => api.get<BuildingOption[]>("/properties/buildings"),
+  inventoryCatalog: () => api.get<InventoryCatalogEntry[]>(`${BASE}/inventory-catalog`),
   profile: () => api.get<MyProfile>("/me/profile"),
 };
 

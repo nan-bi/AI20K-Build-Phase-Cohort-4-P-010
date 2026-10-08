@@ -32,8 +32,6 @@ const mockUnit: TenantUnit = {
   petFriendly: true,
   minMonths: 6,
   verifiedAt: "2026-10-01T08:00:00Z",
-  title: "Căn 1PN+",
-  description: "",
   holdHours: 48,
   activeViewingAt: null,
   securityDeposit: 7000000,

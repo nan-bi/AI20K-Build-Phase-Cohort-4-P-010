@@ -19,7 +19,7 @@ function makeDetail(over: Partial<InspectionDetail> = {}): InspectionDetail {
     hostAcceptedAt: "2026-10-04T02:00:00.000Z", decidedAt: null, suggestedDeposit: 18_000_000, leaseTerm: "long", note: null,
     landlordPhotos: [], photos: [], doorKind: "smart", doorCodeOnFile: true, catalog: catalog(),
     limits: { minSidePx: 200, perLineMax: 4, listingMin: 4, listingMax: 12, totalMax: 100 }, report: null,
-    declared: { bathrooms: 2, direction: "Đông Nam", title: "2PN góc view hồ", highlights: ["View hồ"], description: "Nội thất gỗ mới" },
+    declared: { bathrooms: 2, direction: "Đông Nam", highlights: ["View hồ"] },
     ...over,
   };
 }
@@ -44,14 +44,14 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     const { draft } = setup();
     expect(draft.facts).toEqual({ areaM2: "62", layout: "2PN", bathrooms: "2", direction: "Đông Nam", floor: "12" });
     expect(draft.pricing).toEqual({ rent: "9000000", securityDeposit: "18000000", reason: "" });
-    expect(draft.listing).toEqual({ title: "2PN góc view hồ", highlights: ["View hồ", "", ""], description: "Nội thất gỗ mới" });
+    expect(draft.listing).toEqual({ highlights: ["View hồ", "", ""] });
   });
 
   it("API chưa trả declared ⇒ WC mặc định theo layout, hướng Chưa rõ, listing rỗng", () => {
     const d = blankDraft(makeDetail({ declared: undefined, layoutKind: "3PN" }));
     expect(d.facts.bathrooms).toBe("2");
     expect(d.facts.direction).toBe("");
-    expect(d.listing).toEqual({ title: "", highlights: ["", "", ""], description: "" });
+    expect(d.listing).toEqual({ highlights: ["", "", ""] });
   });
 
   it("không đổi giá/cọc ⇒ nút 'Đạt — đăng ngay', payload pricing = bản chủ khai, không reason", () => {
@@ -62,7 +62,7 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     const dto = toSubmitDto(draft);
     expect(dto.pricing).toEqual({ rent: 9_000_000, securityDeposit: 18_000_000 });
     expect(dto.facts).toEqual({ areaM2: 62, layout: "2PN", bathrooms: 2, direction: "Đông Nam", floor: 12 });
-    expect(dto.listing).toEqual({ title: "2PN góc view hồ", highlights: ["View hồ"], description: "Nội thất gỗ mới" });
+    expect(dto.listing).toEqual({ highlights: ["View hồ"] });
   });
 
   it("đổi giá ⇒ payload có pricing mới + reason, nút đổi nhãn, thiếu reason bị chặn đúng ô", () => {
@@ -113,21 +113,19 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     expect(f({ direction: "" })).toBeUndefined();
   });
 
-  it("listing: SĐT/URL/tiền bị chặn đúng ô; tiêu đề bắt buộc", () => {
+  it("listing: SĐT/URL/tiền bị chặn đúng ô; điểm nổi bật không bắt buộc", () => {
     const { detail, draft } = setup();
     const l = (patch: Partial<InspectionDraft["listing"]>) => validateExtras({ ...draft, listing: { ...draft.listing, ...patch } }, detail)?.field;
-    expect(l({ title: "" })).toBe("listing.title");
-    expect(l({ title: "Gọi 0979841233" })).toBe("listing.title");
+    expect(l({ highlights: ["", "", ""] })).toBeUndefined();
     expect(l({ highlights: ["OK", "zalo.me/abc", ""] })).toBe("listing.highlights.1");
-    expect(l({ description: "Giá 8tr5" })).toBe("listing.description");
-    expect(l({ description: "d".repeat(601) })).toBe("listing.description");
-    expect(listingForbiddenField("highlights", { title: "", highlights: ["OK", "", "Giá 7 triệu"], description: "" })).toBe("listing.highlights.2");
-    expect(listingForbiddenField("title", draft.listing)).toBe("listing.title");
+    expect(l({ highlights: ["Gọi 0979841233", "", ""] })).toBe("listing.highlights.0");
+    expect(l({ highlights: ["h".repeat(61), "", ""] })).toBe("listing.highlights.0");
+    expect(listingForbiddenField("highlights", { highlights: ["OK", "", "Giá 7 triệu"] })).toBe("listing.highlights.2");
   });
 
   it("không đạt ⇒ không gửi facts/pricing/listing và không kiểm V12–V14", () => {
     const { detail, draft } = setup();
-    const rej = { ...draft, recommendation: "reject" as const, note: "Không đạt", listing: { title: "", highlights: ["", "", ""], description: "" } };
+    const rej = { ...draft, recommendation: "reject" as const, note: "Không đạt", listing: { highlights: ["", "", ""] } };
     expect(validateDraftFull(rej, detail)).toBeNull();
     const dto = toSubmitDto(rej);
     expect(dto).not.toHaveProperty("facts");

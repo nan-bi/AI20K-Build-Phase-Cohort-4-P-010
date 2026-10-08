@@ -52,8 +52,6 @@ export interface TenantUnit {
   petFriendly: boolean;
   minMonths: number;
   verifiedAt: string;
-  title: string;
-  description: string;
   holdHours: number; // 12..72 — B4
   activeViewingAt: string | null; // ca xem sớm nhất hôm nay đang CONFIRMED/LOBBY/RECEIVING/VIEWING — nhãn FOMO
   securityDeposit: number; // Tiền cọc bảo đảm: units.securityDeposit ?? baseRentPrice

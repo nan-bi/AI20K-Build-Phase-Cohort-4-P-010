@@ -2,12 +2,12 @@
  * Bản sao phía client của `backend/src/modules/property/listing-text.ts` (B7, SPEC-P01 §4).
  * Server vẫn là chốt chặn; test `listing-text.test.ts` chạy cùng bảng mẫu P1-3.
  */
-export type ListingTextField = "title" | "highlights" | "description";
+export type ListingTextField = "highlights";
 export type ListingTextReason = "phone" | "url" | "money";
 
 export const LISTING_TEXT_FORBIDDEN = "LISTING_TEXT_FORBIDDEN";
 
-export const LISTING_LIMITS = { title: 80, highlight: 60, highlights: 3, description: 600 } as const;
+export const LISTING_LIMITS = { highlight: 60, highlights: 3 } as const;
 
 export const REASON_LABEL: Record<ListingTextReason, string> = {
   phone: "số điện thoại",
@@ -126,12 +126,10 @@ export function listingTextMessage(reason: ListingTextReason): string {
 }
 
 export interface ListingDraft {
-  title: string;
   highlights: string[];
-  description: string;
 }
 
-/** Lỗi theo ô: key `title` | `description` | `highlights.<i>`. */
+/** Lỗi theo ô: key `highlights.<i>`. */
 export function validateListing(draft: ListingDraft): Record<string, string> {
   const errs: Record<string, string> = {};
   const check = (key: string, value: string, max: number) => {
@@ -142,15 +140,12 @@ export function validateListing(draft: ListingDraft): Record<string, string> {
     const r = value.trim() ? detectListingTextViolation(value) : null;
     if (r) errs[key] = listingTextMessage(r);
   };
-  check("title", draft.title, LISTING_LIMITS.title);
   draft.highlights.forEach((h, i) => check(`highlights.${i}`, h, LISTING_LIMITS.highlight));
-  check("description", draft.description, LISTING_LIMITS.description);
   return errs;
 }
 
 /** Chuyển lỗi 400 LISTING_TEXT_FORBIDDEN của server thành key ô. `field` highlights ⇒ ô đầu tiên vi phạm. */
 export function serverFieldToKey(field: string | undefined, highlights: string[]): string | null {
-  if (field === "title" || field === "description") return field;
   if (field === "highlights") {
     const i = highlights.findIndex((h) => h.trim() && detectListingTextViolation(h));
     return `highlights.${i >= 0 ? i : 0}`;

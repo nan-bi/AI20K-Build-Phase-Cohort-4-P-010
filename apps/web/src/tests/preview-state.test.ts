@@ -41,7 +41,7 @@ const dto = {
   code: "VHOP-S1.02-1208", building: "S1.02", zoneName: "The Sapphire 1", floor: 12, door: "08", layout: "2PN", layoutLabel: "2PN",
   bedrooms: 2, bathrooms: 2, areaM2: 62, direction: "Đông Nam", view: "Hồ điều hòa", furnishing: "full", items: ["ac"], rent: 8_000_000,
   marketAvg: 10_000_000, managementFee: 500000, parkingFeeEstimate: 120000, utilityCostEstimate: 500000, status: "available", lock: "smart",
-  photos: [], interest24h: 0, petFriendly: false, minMonths: 6, verifiedAt: "2026-10-01T08:00:00Z", title: "2PN", description: "x",
+  photos: [], interest24h: 0, petFriendly: false, minMonths: 6, verifiedAt: "2026-10-01T08:00:00Z",
   holdHours: 48, activeViewingAt: null,
 } as unknown as TenantUnit;
 

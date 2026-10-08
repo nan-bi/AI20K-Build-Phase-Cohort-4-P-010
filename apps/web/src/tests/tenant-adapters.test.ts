@@ -30,8 +30,6 @@ describe("tenant adapters (toUnit & toBookingView)", () => {
     petFriendly: true,
     minMonths: 6,
     verifiedAt: "2026-10-01T08:00:00Z",
-    title: "Căn 1PN+ Sapphire 1",
-    description: "Nội thất cao cấp",
     holdHours: 48,
     activeViewingAt: "2026-10-04T09:30:00Z",
     securityDeposit: 14000000,

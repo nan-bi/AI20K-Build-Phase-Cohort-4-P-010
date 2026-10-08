@@ -38,6 +38,9 @@ export function LandlordInfoBlock({ detail }: { detail: InspectionDetail }) {
           { label: "Tiền cọc đề xuất", value: `${vnd(detail.suggestedDeposit)}đ` },
           ...(detail.leaseTerm ? [{ label: "Thời gian thuê", value: LEASE_TERM_LABEL[detail.leaseTerm] }] : []),
           { label: "Nội thất", value: detail.furnished === false ? "Không nội thất" : "Có nội thất" },
+          ...(detail.furnished !== false && detail.declared?.inventoryCodes
+            ? [{ label: "Món chủ nhà khai", value: `${detail.declared.inventoryCodes.length} món — đã tick sẵn ở bảng kê (mục 5), hãy đối chiếu và sửa theo thực tế` }]
+            : []),
           { label: "Loại khoá", value: lockText(detail.locks) },
           ...(detail.note ? [{ label: "Ghi chú của chủ nhà", value: detail.note }] : []),
         ]}

@@ -123,8 +123,8 @@ describe("W1 validateDraft", () => {
       expect(validateDraft(withSpec(bad), detail)?.field, bad).toBe("inventory.24.spec");
     }
     expect(validateDraft(withSpec("Da bò Hàn Quốc, 3 chỗ"), detail)).toBeNull();
-    expect(listingForbiddenField("inventory.24.spec", { title: "", highlights: ["", "", ""], description: "" })).toBe("inventory.24.spec");
-    expect(listingForbiddenField("inventory.32.name", { title: "", highlights: ["", "", ""], description: "" })).toBe("inventory.32.name");
+    expect(listingForbiddenField("inventory.24.spec", { highlights: ["", "", ""] })).toBe("inventory.24.spec");
+    expect(listingForbiddenField("inventory.32.name", { highlights: ["", "", ""] })).toBe("inventory.32.name");
   });
 
   it("V4: thiếu độ mới / số lượng sai", () => {

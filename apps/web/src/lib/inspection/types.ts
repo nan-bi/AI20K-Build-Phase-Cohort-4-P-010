@@ -46,9 +46,7 @@ export interface InspectionPricing {
 }
 
 export interface InspectionListing {
-  title: string;
   highlights: string[];
-  description: string;
 }
 
 export interface InspectionReport {
@@ -134,9 +132,9 @@ export interface InspectionLimits {
 export interface DeclaredListingInfo {
   bathrooms?: number;
   direction?: string | null;
-  title?: string | null;
   highlights?: string[];
-  description?: string | null;
+  /** Mã hạng mục chủ nhà khai có sẵn; null/thiếu = hồ sơ cũ không khai ⇒ dùng quy tắc mặc định. */
+  inventoryCodes?: string[] | null;
 }
 
 export interface InspectionDetail extends InspectionCard {
@@ -233,10 +231,8 @@ export interface PricingDraft {
 }
 
 export interface ListingDraft {
-  title: string;
   /** Luôn 3 ô; ô rỗng bị bỏ khi gửi. */
   highlights: string[];
-  description: string;
 }
 
 export interface SubmitInspectionDto {

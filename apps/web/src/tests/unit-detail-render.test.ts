@@ -44,8 +44,6 @@ const dto: TenantUnit = {
   petFriendly: false,
   minMonths: 6,
   verifiedAt: "2026-10-01T08:00:00Z",
-  title: "2PN góc view hồ",
-  description: "Nội thất gỗ mới",
   holdHours: 48,
   activeViewingAt: null,
   securityDeposit: 13500000,

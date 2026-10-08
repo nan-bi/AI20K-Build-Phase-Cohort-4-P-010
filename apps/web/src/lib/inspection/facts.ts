@@ -83,9 +83,7 @@ export function blankPricing(detail: Source): PricingDraft {
 export function blankListing(detail: Source): ListingDraft {
   const h = detail.declared?.highlights ?? [];
   return {
-    title: detail.declared?.title ?? "",
     highlights: [h[0] ?? "", h[1] ?? "", h[2] ?? ""],
-    description: detail.declared?.description ?? "",
   };
 }
 
@@ -132,20 +130,12 @@ export function validateExtras(draft: InspectionDraft, detail: Pick<InspectionDe
   if (reason.length > REASON_MAX) return err("pricing.reason", `Lý do tối đa ${REASON_MAX} ký tự.`);
 
   const l = draft.listing;
-  const title = l.title.trim();
-  if (title.length < 1 || title.length > LISTING_LIMITS.title) return err("listing.title", `Tiêu đề từ 1 đến ${LISTING_LIMITS.title} ký tự.`);
-  const tv = detectListingTextViolation(title);
-  if (tv) return err("listing.title", listingTextMessage(tv));
   const hs = l.highlights.map((h) => h.trim());
   for (let i = 0; i < hs.length; i++) {
     if (hs[i].length > LISTING_LIMITS.highlight) return err(`listing.highlights.${i}`, `Điểm nổi bật tối đa ${LISTING_LIMITS.highlight} ký tự.`);
     const v = hs[i] ? detectListingTextViolation(hs[i]) : null;
     if (v) return err(`listing.highlights.${i}`, listingTextMessage(v));
   }
-  const desc = l.description.trim();
-  if (desc.length > LISTING_LIMITS.description) return err("listing.description", `Mô tả tối đa ${LISTING_LIMITS.description} ký tự.`);
-  const dv = desc ? detectListingTextViolation(desc) : null;
-  if (dv) return err("listing.description", listingTextMessage(dv));
   return null;
 }
 
@@ -161,17 +151,13 @@ export function toExtrasDto(draft: InspectionDraft): { facts: InspectionFacts; p
       ...(reason ? { reason } : {}),
     },
     listing: {
-      title: draft.listing.title.trim(),
       highlights: draft.listing.highlights.map((h) => h.trim()).filter(Boolean),
-      description: draft.listing.description.trim(),
     },
   };
 }
 
-/** Lỗi 400 `LISTING_TEXT_FORBIDDEN` của submit (`field` title|highlights|description) → `field` của phiếu. */
+/** Lỗi 400 `LISTING_TEXT_FORBIDDEN` của submit (`field` highlights) → `field` của phiếu. */
 export function listingForbiddenField(field: string | undefined, listing: ListingDraft): string {
-  if (field === "title") return "listing.title";
-  if (field === "description") return "listing.description";
   if (field && /^inventory\.\d+\.(spec|name)$/.test(field)) return field; // F8: ô nội thất
   const i = listing.highlights.findIndex((h) => h.trim() && detectListingTextViolation(h.trim()));
   return `listing.highlights.${i >= 0 ? i : 0}`;

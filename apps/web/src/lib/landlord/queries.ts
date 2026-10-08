@@ -14,6 +14,7 @@ export const queries = {
   finance: { key: "finance", fetch: landlordApi.finance } satisfies QueryDef<unknown>,
   profile: { key: "profile", fetch: landlordApi.profile } satisfies QueryDef<unknown>,
   buildings: { key: "buildings", fetch: landlordApi.buildings } satisfies QueryDef<unknown>,
+  inventoryCatalog: { key: "inventory-catalog", fetch: landlordApi.inventoryCatalog } satisfies QueryDef<unknown>,
   unit: (id: string) => ({ key: `unit:${id}`, fetch: () => landlordApi.unit(id) }),
   consignment: (id: string) => ({ key: `consignment:${id}`, fetch: () => landlordApi.consignment(id) }),
 };

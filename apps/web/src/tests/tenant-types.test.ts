@@ -32,8 +32,6 @@ describe("tenant-types contract verification", () => {
       petFriendly: true,
       minMonths: 6,
       verifiedAt: "2026-10-01T08:00:00Z",
-      title: "Căn hộ 1PN+",
-      description: "Đẹp",
       holdHours: 48,
       activeViewingAt: null,
       securityDeposit: 7000000,

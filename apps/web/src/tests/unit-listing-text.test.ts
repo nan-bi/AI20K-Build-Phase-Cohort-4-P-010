@@ -65,16 +65,14 @@ describe("W1 validator text client = server", () => {
   });
 
   it("validateListing: tô lỗi đúng ô, giới hạn độ dài, ô sạch không lỗi", () => {
-    expect(validateListing({ title: "2PN góc view hồ", highlights: ["View hồ", "", ""], description: "Nội thất gỗ mới" })).toEqual({});
-    const e = validateListing({ title: "Gọi 0979841233", highlights: ["", "Giá 8tr5", ""], description: "x".repeat(601) });
-    expect(Object.keys(e).sort()).toEqual(["description", "highlights.1", "title"]);
-    expect(validateListing({ title: "a".repeat(81), highlights: [], description: "" }).title).toMatch(/80/);
-    expect(validateListing({ title: "", highlights: ["h".repeat(61), "", ""], description: "" })["highlights.0"]).toMatch(/60/);
+    expect(validateListing({ highlights: ["View hồ", "", ""] })).toEqual({});
+    const e = validateListing({ highlights: ["Gọi 0979841233", "Giá 8tr5", ""] });
+    expect(Object.keys(e).sort()).toEqual(["highlights.0", "highlights.1"]);
+    expect(validateListing({ highlights: ["h".repeat(61), "", ""] })["highlights.0"]).toMatch(/60/);
   });
 
   it("serverFieldToKey: field của LISTING_TEXT_FORBIDDEN ⇒ đúng ô (highlights ⇒ ô vi phạm đầu tiên)", () => {
-    expect(serverFieldToKey("title", [])).toBe("title");
-    expect(serverFieldToKey("description", [])).toBe("description");
+    expect(serverFieldToKey("title", [])).toBeNull();
     expect(serverFieldToKey("highlights", ["OK", "Gọi 0979841233", ""])).toBe("highlights.1");
     expect(serverFieldToKey("lạ", [])).toBeNull();
   });

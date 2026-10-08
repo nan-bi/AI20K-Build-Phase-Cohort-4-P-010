@@ -145,14 +145,6 @@ export function UnitDetail({ unit, autoOpenBooking, embedded = false }: { unit: 
           {/* Stats Grid */}
           <UnitStatsGrid unit={unit} />
 
-          {/* Description */}
-          <section className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Giới thiệu căn hộ</h2>
-            <p className="text-base text-muted-foreground leading-relaxed">
-              {[unit.title, unit.description].filter(Boolean).join(". ")}
-            </p>
-          </section>
-
           {/* All-in Cost Configurator */}
           <section className="space-y-6" aria-labelledby="allin">
             <h2 id="allin" className="text-2xl font-bold tracking-tight text-foreground">Chi phí mỗi tháng (All-in Cost)</h2>

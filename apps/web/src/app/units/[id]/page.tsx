@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const dto = await fetchUnit(id).catch(() => null);
   if (!dto) return {};
   const unit = toUnit(dto);
-  return { title: `Căn ${unitAddress(unit)} · ${unit.zoneName || zoneById(unit.zoneId)?.name || "Ocean Park"}`, description: unit.title };
+  return { title: `Căn ${unitAddress(unit)} · ${unit.zoneName || zoneById(unit.zoneId)?.name || "Ocean Park"}`, description: `Căn ${unitAddress(unit)} tại Vinhomes Ocean Park: ảnh đã kiểm định, chi phí All-in rõ ràng, có Field Host đón tại sảnh.` };
 }
 
 export default async function UnitPage({

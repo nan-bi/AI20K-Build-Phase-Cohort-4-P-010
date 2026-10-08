@@ -1,6 +1,6 @@
 /** Kiểu dữ liệu trả về từ `/api/v1/landlord/*` — khớp backend/src/modules/landlord (landlord-*.service.ts). */
 
-import type { LandlordInspectionView } from "@/lib/inspection/types";
+import type { InventoryGroup, LandlordInspectionView } from "@/lib/inspection/types";
 
 export type UnitStatus = "available" | "viewing" | "holding" | "rented" | "unlisted" | "maintenance";
 export type MandateStatus = "pending_inspection" | "active" | "exiting" | "ended";
@@ -168,19 +168,23 @@ export interface CreateConsignmentInput {
   door: string;
   layout: LayoutKind;
   areaM2: number;
-  /** Số WC 1–4 — backend bắt buộc (thiếu ⇒ 400). */
-  bathrooms: number;
-  /** Một trong 8 hướng (`DIRECTIONS`); bỏ khỏi payload khi "Chưa rõ". */
-  direction?: string;
-  title?: string;
-  highlights?: string[];
-  description?: string;
   askRent: number;
   suggestedDeposit: number;
   leaseTerm: LeaseTermPref;
   furnished: boolean;
   locks: LockKind[];
   doorCode?: string;
+  /** Ghi chú cho Host/Admin (≤ 300 ký tự): quy chế căn. */
+  note?: string;
+  /** Mã hạng mục (catalog 32 món) chủ khai có sẵn; màn thẩm định của Host tick sẵn các món này. */
+  inventoryCodes?: string[];
+}
+
+/** Một hạng mục trong bảng kê 32 món (Điều 5) để chủ nhà chọn. */
+export interface InventoryCatalogEntry {
+  code: string;
+  group: InventoryGroup;
+  name: string;
 }
 
 export interface SignOtpInfo {

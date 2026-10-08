@@ -86,7 +86,7 @@ describe("ResultsPanel: tiêu đề tổng + Xem thêm", () => {
         code: `VHOP-S1.02-${1000 + i}`, building: "S1.02", zoneName: "S1", floor: 10, door: "08", layout: "1PN", layoutLabel: "1PN", bedrooms: 1, bathrooms: 1,
         areaM2: 40, direction: "Đông", view: "Hồ", furnishing: "full", items: [], rent: 8_000_000, marketAvg: 9_000_000, managementFee: 400000,
         parkingFeeEstimate: 120000, utilityCostEstimate: 500000, status: "available", lock: "smart", photos: [], interest24h: 0, petFriendly: false,
-        minMonths: 6, verifiedAt: "2026-10-01T08:00:00Z", title: "t", description: "d", holdHours: 48, activeViewingAt: null,
+        minMonths: 6, verifiedAt: "2026-10-01T08:00:00Z", holdHours: 48, activeViewingAt: null,
       } as never);
     const units = Array.from({ length: 20 }, (_, i) => mk(i));
     const results = units.map((unit) => ({ unit, cost: allInCost(unit, DEFAULT_HOUSEHOLD), reasons: [], score: 1 })) as never;

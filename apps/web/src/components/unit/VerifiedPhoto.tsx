@@ -23,7 +23,7 @@ export function VerifiedPhoto({ unit, index = 1, sizes, priority, stamp = "compa
     <div className={`${styles.frame} ${className ?? ""}`}>
       {photo ? <Image
         src={photo}
-        alt={`Căn ${unit.code}, ảnh ${index}: ${unit.title}`}
+        alt={`Căn ${unit.code}, ảnh ${index}`}
         fill
         sizes={sizes}
         priority={priority}
