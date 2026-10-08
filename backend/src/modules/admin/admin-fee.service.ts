@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { UpdateCommissionParamDto, UpdateHoldPolicyDto } from './dto/admin.dto';
+import { UpdateCommissionParamDto, UpdateHoldPolicyDto, UpdateDepositPolicyDto } from './dto/admin.dto';
 
 export interface AdminActor {
   id: string;
@@ -32,6 +32,15 @@ export const HOLD_DAYS_KEY = 'holding_duration_days';
 export const HOLD_DAYS_DEFAULT = 7;
 export const HOLD_DAYS_MIN = 1;
 export const HOLD_DAYS_MAX = 14;
+
+export const DEPOSIT_MIN_RATIO_KEY = 'deposit_min_ratio';
+export const DEPOSIT_MAX_RATIO_KEY = 'deposit_max_ratio';
+export const DEPOSIT_DEFAULT_RATIO_KEY = 'deposit_default_ratio';
+export const DEPOSIT_DEFAULTS = {
+  MIN_RATIO: 0.5,
+  MAX_RATIO: 4.0,
+  DEFAULT_RATIO: 1.0,
+};
 
 @Injectable()
 export class AdminFeeService {
@@ -122,6 +131,78 @@ export class AdminFeeService {
       ...this.holdPolicyView(days),
       holdPolicy: this.holdPolicyView(days),
       message: `Đã cập nhật thời hạn giữ chỗ mặc định toàn sàn: ${days} ngày.`,
+    };
+  }
+
+  async getDepositPolicy() {
+    const [minRow, maxRow, defRow] = await Promise.all([
+      this.prisma.feeConfig.findUnique({ where: { configKey: DEPOSIT_MIN_RATIO_KEY } }),
+      this.prisma.feeConfig.findUnique({ where: { configKey: DEPOSIT_MAX_RATIO_KEY } }),
+      this.prisma.feeConfig.findUnique({ where: { configKey: DEPOSIT_DEFAULT_RATIO_KEY } }),
+    ]);
+    const minRatio = minRow ? Number(minRow.paramValue) : DEPOSIT_DEFAULTS.MIN_RATIO;
+    const maxRatio = maxRow ? Number(maxRow.paramValue) : DEPOSIT_DEFAULTS.MAX_RATIO;
+    const defaultRatio = defRow ? Number(defRow.paramValue) : DEPOSIT_DEFAULTS.DEFAULT_RATIO;
+    return {
+      minRatio,
+      maxRatio,
+      defaultRatio,
+      description: 'Số tiền cọc căn cứ theo giá của hợp đồng thuê: không nhỏ hơn 50% và không lớn hơn 4 lần số tiền thuê mỗi tháng.',
+    };
+  }
+
+  async updateDepositPolicy(dto: UpdateDepositPolicyDto, actor: AdminActor) {
+    const current = await this.getDepositPolicy();
+    const minRatio = dto.minRatio ?? current.minRatio;
+    const maxRatio = dto.maxRatio ?? current.maxRatio;
+    const defaultRatio = dto.defaultRatio ?? current.defaultRatio;
+
+    if (minRatio < 0.1 || minRatio > 2.0) {
+      throw new BadRequestException('Tỷ lệ cọc tối thiểu phải từ 0.1 (10%) đến 2.0 (200%)');
+    }
+    if (maxRatio < minRatio || maxRatio > 10.0) {
+      throw new BadRequestException('Tỷ lệ cọc tối đa phải lớn hơn tỷ lệ tối thiểu và không vượt quá 10.0 (1000%)');
+    }
+    if (defaultRatio < minRatio || defaultRatio > maxRatio) {
+      throw new BadRequestException('Tỷ lệ cọc mặc định phải nằm trong khoảng tỷ lệ tối thiểu và tối đa');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await Promise.all([
+        tx.feeConfig.upsert({
+          where: { configKey: DEPOSIT_MIN_RATIO_KEY },
+          update: { paramValue: minRatio, updatedBy: actor.id },
+          create: { configKey: DEPOSIT_MIN_RATIO_KEY, paramValue: minRatio, paramUnit: 'hệ số', updatedBy: actor.id },
+        }),
+        tx.feeConfig.upsert({
+          where: { configKey: DEPOSIT_MAX_RATIO_KEY },
+          update: { paramValue: maxRatio, updatedBy: actor.id },
+          create: { configKey: DEPOSIT_MAX_RATIO_KEY, paramValue: maxRatio, paramUnit: 'hệ số', updatedBy: actor.id },
+        }),
+        tx.feeConfig.upsert({
+          where: { configKey: DEPOSIT_DEFAULT_RATIO_KEY },
+          update: { paramValue: defaultRatio, updatedBy: actor.id },
+          create: { configKey: DEPOSIT_DEFAULT_RATIO_KEY, paramValue: defaultRatio, paramUnit: 'hệ số', updatedBy: actor.id },
+        }),
+      ]);
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      actorRole: actor.role,
+      actionType: 'DEPOSIT_POLICY_UPDATED',
+      entityName: 'FeeConfig',
+      entityId: 'deposit_policy',
+      oldValue: { minRatio: current.minRatio, maxRatio: current.maxRatio, defaultRatio: current.defaultRatio },
+      newValue: { minRatio, maxRatio, defaultRatio, reason: dto.reason?.trim() || 'Cập nhật quy định cọc theo giá thuê' },
+    } as any);
+
+    return {
+      success: true,
+      minRatio,
+      maxRatio,
+      defaultRatio,
+      message: 'Đã cập nhật quy định tiền cọc và lưu nhật ký kiểm toán.',
     };
   }
 

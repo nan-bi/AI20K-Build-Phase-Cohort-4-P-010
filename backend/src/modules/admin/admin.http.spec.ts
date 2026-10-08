@@ -1,7 +1,7 @@
 import { Global, INestApplication, Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 import * as cookieParser from 'cookie-parser';
 import * as request from 'supertest';
@@ -13,6 +13,7 @@ import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { TransformInterceptor } from '../../common/interceptors/transform.interceptor';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { SessionTokenService } from '../auth/session/session-token.service';
 import { hashPassword } from '../auth/password-hasher';
 import { createFakePrisma, seedProfile } from '../auth/testing/fake-prisma';
 import { AdminController } from './admin.controller';
@@ -69,6 +70,7 @@ const ADMIN_ROUTES: Route[] = [
 
 describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
   let app: INestApplication;
+  let moduleRef: TestingModule;
 
   beforeEach(async () => {
     const prisma = createFakePrisma();
@@ -103,7 +105,7 @@ describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
       { get: (_t, p) => (typeof p === 'symbol' || ['then', 'onModuleInit', 'onApplicationBootstrap'].includes(p) ? undefined : jest.fn(async () => ({}))) },
     );
 
-    const moduleRef = await Test.createTestingModule({ imports: [TestAppModule] })
+    moduleRef = await Test.createTestingModule({ imports: [TestAppModule] })
       .overrideProvider(AdminService)
       .useValue(fakeService)
       .overrideProvider(AdminFeeService)
@@ -130,13 +132,16 @@ describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
 
     const passwordHash = await hashPassword('Matkhau-123');
     seedProfile(prisma as any, { id: '00000000-0000-4000-8000-0000000000aa', email: 'ops@example.com', roleCode: 'ops_admin', passwordHash });
+    for (const r of WRONG_ROLES) {
+      seedProfile(prisma as any, { id: `00000000-0000-4000-8000-00000000000${r.length}`, email: `${r}@example.com`, roleCode: r, passwordHash });
+    }
   });
 
   afterEach(() => app.close());
 
-  const call = (agent: request.SuperTest<request.Test>, r: Route, demoRole?: string) => {
+  const call = (agent: request.SuperTest<request.Test>, r: Route, token?: string) => {
     const req = agent[r.method](`/api/v1/admin/${r.path}`);
-    if (demoRole) req.set('x-demo-role', demoRole);
+    if (token) req.set('Authorization', `Bearer ${token}`);
     return r.method === 'get' ? req : req.send({});
   };
 
@@ -159,8 +164,9 @@ describe('/admin/* — xác thực + @Roles(ops_admin)', () => {
 
   const WRONG_ROLES = ['tenant', 'landlord', 'field_host', 'area_lead', 'compliance_officer'];
   it.each(WRONG_ROLES)('vai %s ⇒ 403 ở mọi route admin', async (role) => {
+    const token = moduleRef.get(SessionTokenService).sign(`00000000-0000-4000-8000-00000000000${role.length}`, `${role}@example.com`).accessToken;
     for (const r of ADMIN_ROUTES) {
-      const res = await call(request(app.getHttpServer()) as any, r, role);
+      const res = await call(request(app.getHttpServer()) as any, r, token);
       expect([r.method, r.path, res.status]).toEqual([r.method, r.path, 403]);
     }
   });

@@ -55,6 +55,12 @@ export class LandlordConsignmentService {
     private readonly assigner: InspectorAssigner,
   ) {}
 
+  private async configValue(key: string, fallback: number): Promise<number> {
+    const row = await this.prisma.feeConfig.findUnique({ where: { configKey: key } }).catch(() => null);
+    if (!row || typeof row.paramValue !== 'number' || isNaN(row.paramValue)) return fallback;
+    return row.paramValue;
+  }
+
   async list(landlordId: string) {
     const mandates = await this.prisma.exclusiveMandate.findMany({
       where: { unit: { landlordId } },
@@ -106,8 +112,14 @@ export class LandlordConsignmentService {
 
     const locks = this.parseLocks(dto.locks);
     const suggestedDeposit = dto.suggestedDeposit ?? dto.askRent;
-    if (!dto.draft && (suggestedDeposit < 2_000_000 || suggestedDeposit > 3 * dto.askRent)) {
-      throw new BadRequestException('Tiền cọc đề xuất phải từ 2.000.000đ đến 3 lần giá thuê.');
+    const minRatio = await this.configValue('deposit_min_ratio', 0.5);
+    const maxRatio = await this.configValue('deposit_max_ratio', 4.0);
+    const minDeposit = Math.round(minRatio * dto.askRent);
+    const maxDeposit = Math.round(maxRatio * dto.askRent);
+    if (!dto.draft && (suggestedDeposit < minDeposit || suggestedDeposit > maxDeposit)) {
+      throw new BadRequestException(
+        `Tiền cọc đề xuất phải từ ${Math.round(minRatio * 100)}% đến ${maxRatio} lần giá thuê (${minDeposit.toLocaleString('vi-VN')}đ – ${maxDeposit.toLocaleString('vi-VN')}đ).`,
+      );
     }
 
     const building = await this.prisma.building.findUnique({ where: { buildingCode: dto.building } });

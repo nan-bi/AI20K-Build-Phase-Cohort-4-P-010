@@ -137,4 +137,48 @@ describe('AdminFeeService — hold-policy qua FeeConfig holding_duration_days', 
     await expect(svc.updateHoldPolicy({ days }, ACTOR)).rejects.toBeInstanceOf(BadRequestException);
     expect(store.get('holding_duration_days')).toBe(7);
   });
+
+  describe('Deposit Policy — Quy định tiền cọc', () => {
+    it('getDepositPolicy trả về mặc định minRatio=0.5, maxRatio=4.0, defaultRatio=1.0 khi chưa cấu hình', async () => {
+      const { svc } = build({});
+      const policy = await svc.getDepositPolicy();
+      expect(policy).toEqual(
+        expect.objectContaining({
+          minRatio: 0.5,
+          maxRatio: 4.0,
+          defaultRatio: 1.0,
+        }),
+      );
+    });
+
+    it('updateDepositPolicy thành công khi minRatio=0.5, maxRatio=4.0, ghi AuditLog', async () => {
+      const { svc, store, audit } = build({});
+      const res = await svc.updateDepositPolicy(
+        { minRatio: 0.5, maxRatio: 4.0, defaultRatio: 1.0, reason: 'Chính sách cọc chuẩn' },
+        ACTOR,
+      );
+      expect(res.success).toBe(true);
+      expect(store.get('deposit_min_ratio')).toBe(0.5);
+      expect(store.get('deposit_max_ratio')).toBe(4.0);
+      expect(store.get('deposit_default_ratio')).toBe(1.0);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actionType: 'DEPOSIT_POLICY_UPDATED',
+          entityName: 'FeeConfig',
+        }),
+      );
+    });
+
+    it('từ chối minRatio < 0.1 hoặc maxRatio < minRatio', async () => {
+      const { svc } = build({});
+      await expect(
+        svc.updateDepositPolicy({ minRatio: 0.05, maxRatio: 4.0 }, ACTOR),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      await expect(
+        svc.updateDepositPolicy({ minRatio: 2.0, maxRatio: 1.0 }, ACTOR),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });
+

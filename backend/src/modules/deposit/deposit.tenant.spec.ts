@@ -173,6 +173,9 @@ function fakePrisma() {
         return log;
       }),
     },
+    profile: {
+      findFirst: jest.fn(async () => ({ id: 'admin-system-id' })),
+    },
     $transaction: jest.fn(async (cb: any) => {
       if (typeof cb === 'function') {
         return cb(prisma);

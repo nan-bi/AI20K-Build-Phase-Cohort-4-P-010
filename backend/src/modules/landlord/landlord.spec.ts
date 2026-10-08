@@ -205,8 +205,8 @@ describe('LandlordConsignmentService', () => {
 
   it.each([
     ['layout lạ', { layout: 'penthouse' }],
-    ['cọc nhỏ hơn 2tr', { suggestedDeposit: 1_000_000 }],
-    ['cọc quá 3 lần giá thuê', { suggestedDeposit: 6_500_000 * 3 + 1 }],
+    ['cọc nhỏ hơn 50% giá thuê', { suggestedDeposit: 3_000_000 }],
+    ['cọc quá 4 lần giá thuê', { suggestedDeposit: 6_500_000 * 4 + 1 }],
     ['khóa lạ', { locks: ['laser'] }],
     ['tầng vượt số tầng của tòa', { floor: 40 }],
   ])('từ chối %s bằng 400', async (_name, patch) => {

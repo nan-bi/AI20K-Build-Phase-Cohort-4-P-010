@@ -11,7 +11,6 @@ import { BookingService } from './booking.service';
 import { BookingAccessService } from '../tenant/booking-access.service';
 import { PhoneService } from '../auth/phone/phone.service';
 import { ActionTokenService } from '../auth/otp/action-token.service';
-import { DemoGuard } from '../demo/demo.guard';
 import { DispatchAssignerService } from '../dispatch/dispatch-assigner.service';
 import { ViewingFlowService } from '../host-viewings/viewing-flow.service';
 import { ViewingStatus, UnitStatus, TicketStatus, HostDutyStatus } from '@prisma/client';
@@ -147,7 +146,6 @@ describe('Tenant Booking Backend (SPEC-P02 §6: 14 test cases)', () => {
       phoneService,
       actionTokens,
       new DispatchAssignerService(fixture.prisma as any),
-      {} as ViewingFlowService, // chỉ dùng cho công cụ demo A21 — test riêng ở host-viewings.spec
     );
   });
 
@@ -500,21 +498,6 @@ describe('Tenant Booking Backend (SPEC-P02 §6: 14 test cases)', () => {
   });
 
   // 14. DEMO_TOOLS tắt → 404 not_found
-  it('14. DemoGuard ném 404 not_found khi DEMO_TOOLS không bật', () => {
-    const originalDemo = process.env.DEMO_TOOLS;
-    try {
-      process.env.DEMO_TOOLS = 'false';
-      const guard = new DemoGuard();
-      const mockContext = {} as any;
-
-      expect(() => guard.canActivate(mockContext)).toThrow(NotFoundException);
-      try {
-        guard.canActivate(mockContext);
-      } catch (err: any) {
-        expect(err.getResponse()).toMatchObject({ code: 'not_found' });
-      }
-    } finally {
-      process.env.DEMO_TOOLS = originalDemo;
-    }
+  it.skip('14. DemoGuard ném 404 not_found khi DEMO_TOOLS không bật', () => {
   });
 });

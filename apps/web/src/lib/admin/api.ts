@@ -99,6 +99,9 @@ export const adminApi = {
   holdPolicy: () => api.get<{ defaultHours: number; holdingDurationDays: number }>("/admin/settings/hold-policy"),
   updateHoldPolicy: (days: number, reason: string) =>
     api.put<{ success: boolean; defaultHours: number; holdingDurationDays: number }>("/admin/settings/hold-policy", { days, reason }),
+  depositPolicy: () => api.get<{ minRatio: number; maxRatio: number; defaultRatio: number }>("/admin/settings/deposit-policy"),
+  updateDepositPolicy: (data: { minRatio?: number; maxRatio?: number; defaultRatio?: number; reason: string }) =>
+    api.put<{ success: boolean; policy: { minRatio: number; maxRatio: number; defaultRatio: number } }>("/admin/settings/deposit-policy", data),
   payouts: (period?: string) => api.get<AdminPayoutStatement>(`/admin/payouts${period ? `?period=${encodeURIComponent(period)}` : ""}`),
   hostEarnings: () => api.get<HostEarnings>("/host/earnings"),
   contracts: () => api.get<AdminContract[]>("/admin/contracts"),
@@ -138,6 +141,9 @@ export const useAdminCommission = (): Query<{ configs: AdminFeeConfig[] }> =>
 
 export const useAdminHoldPolicy = (): Query<{ defaultHours: number; holdingDurationDays: number }> =>
   useApiQuery({ key: "admin-hold-policy", fetch: adminApi.holdPolicy, errorText: fail });
+
+export const useAdminDepositPolicy = (): Query<{ minRatio: number; maxRatio: number; defaultRatio: number }> =>
+  useApiQuery({ key: "admin-deposit-policy", fetch: adminApi.depositPolicy, errorText: fail });
 
 export const useAdminPayouts = (): Query<AdminPayoutStatement> =>
   useApiQuery({ key: "admin-payouts", fetch: adminApi.payouts, errorText: fail });
