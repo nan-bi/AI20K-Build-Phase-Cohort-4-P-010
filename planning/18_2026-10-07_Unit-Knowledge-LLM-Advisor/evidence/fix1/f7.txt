@@ -1,6 +1,0 @@
-$ grep -rniE "langgraph|langchain" ai-engine ... # TRƯỚC
-README.md:3:Dịch vụ trợ lý AI (FastAPI + OpenRouter, không dùng langchain). Chỉ backend NestJS gọi (`X-Internal-Key`); web đi qua relay `POST /api/v1/assistant/chat`.
-app/agent.py:1:"""Vòng tool-calling tự viết (không langchain/langgraph). Tối đa MAX_TOOL_ROUNDS vòng gọi tool / lượt."""
-exit-lines=       2
-$ grep ... # SAU
-lines=       0

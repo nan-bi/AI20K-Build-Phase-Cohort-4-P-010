@@ -1,6 +1,0 @@
-    ✕ pipes SSE verbatim, sends internal key and only firstName (10003 ms)
-    ✕ khách: lượt 1-2 qua, lượt 3 => 401 LOGIN_REQUIRED và không gọi ai-engine (13 ms)
-    ✕ hai IP độc lập (6 ms)
-    ✕ đã đăng nhập: lượt 3 vẫn qua (10003 ms)
-    ✕ guestChatTurns: mặc định 2, đọc env hợp lệ (5002 ms)
-Tests:       5 failed, 11 passed, 16 total
