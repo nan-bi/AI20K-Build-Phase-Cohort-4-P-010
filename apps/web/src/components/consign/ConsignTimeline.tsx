@@ -1,14 +1,26 @@
 import { Check, Clock, X } from "lucide-react";
-import type { Consignment } from "@/lib/mock/types";
 import { fmtDateTime } from "@/lib/format";
-import { isInspectOverdue } from "@/lib/mock/selectors-inspection";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import type { ConsignStatusKey } from "./status";
 import styles from "./Consign.module.css";
 
 /** Chỉ các trường tiến trình cần để hiển thị hồ sơ ký gửi từ API. */
-export type TimelineSource = Pick<Consignment, "status" | "signedAt" | "hostAcceptedAt" | "decidedAt" | "note" | "inspectDueAt"> & {
+export interface TimelineSource {
+  status: ConsignStatusKey;
+  signedAt?: string;
+  hostAcceptedAt?: string;
+  decidedAt?: string;
+  note?: string;
+  inspectDueAt?: string;
   report?: { submittedAt?: string };
-};
+}
+
+/** Quá hạn thẩm định 48h: chỉ khi đang chờ/đang thẩm định. */
+function isInspectOverdue(c: Pick<TimelineSource, "status" | "inspectDueAt">, now: number): boolean {
+  if (c.status !== "awaiting_host" && c.status !== "inspecting") return false;
+  if (!c.inspectDueAt) return false;
+  return now > new Date(c.inspectDueAt).getTime();
+}
 
 /** Trạng thái tương thích hồ sơ cũ — API hiện tại không phát trạng thái này. */
 const ADMIN_MOCK_STATUS = "reviewing";
@@ -21,9 +33,9 @@ interface ConsignTimelineProps {
 export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
   const overdue = isInspectOverdue(c, now);
 
-  // 4 mốc (hồ sơ 16): không còn bước Admin duyệt. Hồ sơ cũ có thể mang trạng thái đã bỏ — coi như
+  // 5 mốc (hồ sơ 16 + hồ sơ 18: bước chủ nhà đồng ý giá): không còn bước Admin duyệt. Hồ sơ cũ có thể mang trạng thái đã bỏ — coi như
   // "Thẩm định" đã xong, "Kết quả" đang chờ.
-  const inspected = Boolean(c.report?.submittedAt) || c.status === ADMIN_MOCK_STATUS || c.status === "approved" || c.status === "rejected";
+  const inspected = Boolean(c.report?.submittedAt) || c.status === ADMIN_MOCK_STATUS || c.status === "awaiting_landlord" || c.status === "approved" || c.status === "rejected";
   const decided = c.status === "approved" || c.status === "rejected";
   const steps = [
     {
@@ -45,6 +57,13 @@ export function ConsignTimeline({ c, now }: ConsignTimelineProps) {
       time: c.report?.submittedAt ? fmtDateTime(c.report.submittedAt) : undefined,
       isDone: inspected,
       isCurrent: c.status === "inspecting",
+      isDanger: false,
+    },
+    {
+      label: "Chờ bạn đồng ý giá",
+      time: undefined,
+      isDone: c.status === "approved",
+      isCurrent: c.status === "awaiting_landlord",
       isDanger: false,
     },
     {

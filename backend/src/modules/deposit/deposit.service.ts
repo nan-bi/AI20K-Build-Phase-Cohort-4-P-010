@@ -1,3 +1,4 @@
+import { holdingDepositAmount } from './deposit-amount';
 import {
   Injectable,
   BadRequestException,
@@ -172,7 +173,7 @@ export class DepositService {
       }
 
       const depositCode = `DEP-${ref}`;
-      const amount = 2000000; // Constant: CẤM accept from client!
+      const amount = holdingDepositAmount(); // Constant: CẤM accept from client!
       const randNum = Math.floor(1000 + Math.random() * 9000);
       const randHex = Math.random().toString(16).substring(2, 6).toUpperCase();
       const vietqrRef = `VQ-${randNum}-${randHex}`;
@@ -241,7 +242,7 @@ export class DepositService {
     }
     const outcome = await this.markPaid({
       depositCode: deposit.depositCode,
-      amount: 2000000,
+      amount: holdingDepositAmount(),
       bankRefNumber: `DEMO-${deposit.depositCode}`,
       actor: 'bank',
       actorId: user.id,
@@ -308,7 +309,7 @@ export class DepositService {
       const effectiveActorId = deposit.viewing?.tenantId || input.actorId || (await this.systemActorId(tx));
 
       // 3. Amount check (must be exactly 2.000.000)
-      if (Number(input.amount) !== 2000000) {
+      if (Number(input.amount) !== holdingDepositAmount()) {
         await tx.auditLog.create({
           data: {
             actorId: effectiveActorId,
@@ -317,7 +318,7 @@ export class DepositService {
             entityName: 'HoldingDeposit',
             entityId: deposit.id,
             newValue: {
-              expected: 2000000,
+              expected: holdingDepositAmount(),
               received: input.amount,
               bankRefNumber: input.bankRefNumber,
             },
@@ -347,7 +348,7 @@ export class DepositService {
           data: {
             depositId: deposit.id,
             transType: 'INBOUND_DEPOSIT',
-            amount: 2000000,
+            amount: holdingDepositAmount(),
             bankRefNumber: input.bankRefNumber,
             executedAt: execTime,
           },
@@ -357,7 +358,7 @@ export class DepositService {
           data: {
             depositId: deposit.id,
             transType: 'REFUND',
-            amount: 2000000,
+            amount: holdingDepositAmount(),
             bankRefNumber: `${input.bankRefNumber}-R`,
             executedAt: execTime,
           },
@@ -404,7 +405,7 @@ export class DepositService {
         data: {
           depositId: deposit.id,
           transType: 'INBOUND_DEPOSIT',
-          amount: 2000000,
+          amount: holdingDepositAmount(),
           bankRefNumber: input.bankRefNumber,
           executedAt: paidAt,
         },

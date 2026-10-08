@@ -64,7 +64,17 @@ export interface InspectionPhotoView {
   url: string | null;
 }
 
+export interface DeclaredListingInfo {
+  bathrooms: number;
+  direction: string | null;
+  highlights: string[];
+  /** Mã hạng mục chủ nhà khai có sẵn (catalog 32 món); null = hồ sơ cũ không khai ⇒ web dùng quy tắc mặc định. */
+  inventoryCodes: string[] | null;
+}
+
 export interface InspectionDetail extends InspectionCard {
+  /** Chủ nhà khai lúc ký gửi (đọc từ `units`) — màn thẩm định điền sẵn để Inspector xác nhận/sửa. */
+  declared: DeclaredListingInfo;
   suggestedDeposit: number;
   leaseTerm: 'mid' | 'long' | 'fixed' | null;
   note: string | null;
@@ -80,7 +90,7 @@ export interface InspectionDetail extends InspectionCard {
 }
 
 export interface InspectionResult {
-  stage: 'approved' | 'rejected';
+  stage: 'approved' | 'rejected' | 'awaiting_landlord';
   unitCode: string;
   listedAt: string | null;
 }

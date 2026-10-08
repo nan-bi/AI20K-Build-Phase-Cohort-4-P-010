@@ -1,13 +1,13 @@
 /** Kiểu dữ liệu trả về từ `/api/v1/landlord/*` — khớp backend/src/modules/landlord (landlord-*.service.ts). */
 
-import type { LandlordInspectionView } from "@/lib/inspection/types";
+import type { InventoryGroup, LandlordInspectionView } from "@/lib/inspection/types";
 
 export type UnitStatus = "available" | "viewing" | "holding" | "rented" | "unlisted" | "maintenance";
 export type MandateStatus = "pending_inspection" | "active" | "exiting" | "ended";
 export type LayoutKind = "Studio" | "1PN" | "2PN" | "3PN";
 export type LockKind = "smart" | "physical";
 export type LeaseTermPref = "mid" | "long" | "fixed";
-export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "approved" | "rejected";
+export type ConsignmentStatus = "draft" | "awaiting_host" | "inspecting" | "awaiting_landlord" | "approved" | "rejected";
 
 export interface MandateSummary {
   id: string;
@@ -108,6 +108,23 @@ export interface ConsignmentPhoto {
   url: string | null;
 }
 
+/** Đề xuất giá/cọc bảo đảm của Inspector, chờ chủ nhà đồng ý (stage `awaiting_landlord`). */
+export interface PricingProposal {
+  rent: number;
+  securityDeposit: number;
+  reason: string | null;
+  proposedAt: string;
+  original: { rent: number; securityDeposit: number };
+}
+
+export interface PricingDecisionResult {
+  stage: "approved" | "rejected";
+  unitCode: string;
+  listedAt: string | null;
+  rent?: number;
+  securityDeposit?: number;
+}
+
 export interface Consignment {
   id: string;
   unitId: string;
@@ -141,6 +158,8 @@ export interface Consignment {
   decidedAt: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
+  /** Khác null chỉ khi `status = awaiting_landlord`. */
+  pricingProposal?: PricingProposal | null;
 }
 
 export interface CreateConsignmentInput {
@@ -155,6 +174,17 @@ export interface CreateConsignmentInput {
   furnished: boolean;
   locks: LockKind[];
   doorCode?: string;
+  /** Ghi chú cho Host/Admin (≤ 300 ký tự): quy chế căn. */
+  note?: string;
+  /** Mã hạng mục (catalog 32 món) chủ khai có sẵn; màn thẩm định của Host tick sẵn các món này. */
+  inventoryCodes?: string[];
+}
+
+/** Một hạng mục trong bảng kê 32 món (Điều 5) để chủ nhà chọn. */
+export interface InventoryCatalogEntry {
+  code: string;
+  group: InventoryGroup;
+  name: string;
 }
 
 export interface SignOtpInfo {
@@ -162,6 +192,8 @@ export interface SignOtpInfo {
   otpRequired: boolean;
   maskedPhone: string | null;
   expiresInSeconds: number;
+  /** Chỉ có ở chế độ demo (chưa có nhà cung cấp OTP, ngoài production). */
+  devCode?: string;
 }
 
 export interface ExitResult {

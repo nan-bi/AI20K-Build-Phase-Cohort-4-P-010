@@ -1,0 +1,64 @@
+$ vitest run
+
+ RUN  v5.0.1 /Users/namdev/Documents/Code/VinAI/build_phase/P-010/apps/web
+
+ ❯ src/tests/assistant-search-context.test.ts (11 tests | 2 failed) 30ms
+   ❯ nextPinned: thu hẹp dần, không bao giờ tự xoá (6)
+     × search 0 căn (unitCodes rỗng, matched 0) ⇒ GIỮ danh sách cũ + note 2ms
+     × 0 căn nhưng chưa có danh sách cũ ⇒ không note 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/tests/assistant-search-context.test.ts > nextPinned: thu hẹp dần, không bao giờ tự xoá > search 0 căn (unitCodes rỗng, matched 0) ⇒ GIỮ danh sách cũ + note
+AssertionError: expected [] to deeply equal [ 'A', 'B', 'C' ]
+
+- Expected
++ Received
+
+- [
+-   "A",
+-   "B",
+-   "C",
+- ]
++ []
+
+ ❯ src/tests/assistant-search-context.test.ts:48:22
+     46|   it("search 0 căn (unitCodes rỗng, matched 0) ⇒ GIỮ danh sách cũ + no…
+     47|     const r = nextPinned(prev, { unitCodes: [], mode: "search", matche…
+     48|     expect(r.pinned).toEqual(prev);
+       |                      ^
+     49|     expect(r.note).toBe("kept");
+     50|     expect(r.applied).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/tests/assistant-search-context.test.ts > nextPinned: thu hẹp dần, không bao giờ tự xoá > 0 căn nhưng chưa có danh sách cũ ⇒ không note
+AssertionError: expected { pinned: [], note: null, …(1) } to match object { pinned: null, note: null }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "note": null,
+-   "pinned": null,
++   "pinned": [],
+  }
+
+ ❯ src/tests/assistant-search-context.test.ts:53:86
+     51|   });
+     52|   it("0 căn nhưng chưa có danh sách cũ ⇒ không note", () => {
+     53|     expect(nextPinned(null, { unitCodes: [], mode: "search", matched: …
+       |                                                                                      ^
+     54|   });
+     55|   it("lượt không có event ⇒ giữ nguyên", () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 27 passed (28)
+      Tests  2 failed | 313 passed (315)
+   Start at  17:03:21
+   Duration  818ms (tests 46%, transform 29%, import 21%, worker 3%)
+
+[ELIFECYCLE] Test failed. See above for more details.

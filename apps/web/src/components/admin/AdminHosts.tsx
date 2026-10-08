@@ -7,16 +7,20 @@ import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
-import type { HostRoleCode } from "@/lib/auth/portals";
 import {
   adminHostsApi,
+  choiceOfRoles,
   hostErrorText,
+  hostRoleLabel,
   invalidateHosts,
+  rolesOfChoice,
   useHostList,
   useHostZones,
   type HostAdminView,
   type HostFilters,
+  type HostRoleChoice,
 } from "@/lib/admin/hosts";
+import { HostRoleRadios } from "./HostRoleRadios";
 import styles from "./Admin.module.css";
 
 export const DUTY_LABEL: Record<HostAdminView["dutyStatus"], { label: string; badge: string }> = {
@@ -25,7 +29,6 @@ export const DUTY_LABEL: Record<HostAdminView["dutyStatus"], { label: string; ba
   OFF_DUTY: { label: "Nghỉ ca", badge: "badge-plain" },
 };
 
-export const ROLE_LABEL: Record<HostRoleCode, string> = { sale: "Sale", inspector: "Thẩm định" };
 
 type RoleFilter = "all" | "sale" | "inspector" | "both";
 type ActiveFilter = "all" | "true" | "false";
@@ -112,8 +115,7 @@ export function AdminHosts() {
         >
           <option value="all">Mọi vai</option>
           <option value="sale">Sale</option>
-          <option value="inspector">Thẩm định</option>
-          <option value="both">Cả hai</option>
+          <option value="inspector">Sale + Thẩm định</option>
         </select>
         <select className="select" value={zone} onChange={(e) => setZone(e.target.value)} aria-label="Lọc theo phân khu">
           <option value="all">Mọi phân khu</option>
@@ -157,13 +159,7 @@ export function AdminHosts() {
                 key: "roles",
                 header: "Vai",
                 render: (h) => (
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {h.roles.map((r) => (
-                      <span key={r} className={`badge ${r === "sale" ? "badge-kelp" : "badge-plain"}`}>
-                        {ROLE_LABEL[r]}
-                      </span>
-                    ))}
-                  </div>
+                  <span className={`badge ${choiceOfRoles(h.roles) === "sale" ? "badge-kelp" : "badge-plain"}`}>{hostRoleLabel(h.roles)}</span>
                 ),
               },
               {
@@ -201,21 +197,17 @@ function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: strin
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [zone, setZone] = useState("");
-  const [roles, setRoles] = useState<HostRoleCode[]>(["sale"]);
+  const [roleChoice, setRoleChoice] = useState<HostRoleChoice>("sale");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   const chosenZone = zone || zones[0] || "";
-  const toggleRole = (r: HostRoleCode) =>
-    setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
-
   async function submit() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim()) || fullName.trim().length < 2) {
       return setErr("Nhập email và họ tên hợp lệ.");
     }
     if (!chosenZone) return setErr("Chọn phân khu phụ trách.");
-    if (roles.length === 0) return setErr("Chọn ít nhất một vai cho Field Host.");
     if (password && password.length < 8) return setErr("Mật khẩu tối thiểu 8 ký tự (hoặc để trống).");
     setBusy(true);
     setErr("");
@@ -223,7 +215,7 @@ function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: strin
       email: email.trim(),
       fullName: fullName.trim(),
       assignedZone: chosenZone,
-      roles,
+      roles: rolesOfChoice(roleChoice),
       ...(password ? { password } : {}),
     });
     setBusy(false);
@@ -233,7 +225,7 @@ function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: strin
     setEmail("");
     setFullName("");
     setPassword("");
-    setRoles(["sale"]);
+    setRoleChoice("sale");
     onClose();
     router.push(`/admin/hosts/${res.data.id}`);
   }
@@ -273,16 +265,7 @@ function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: strin
 
         <div className="field">
           <span className="label">Vai đảm nhiệm</span>
-          <div style={{ display: "flex", gap: 16, marginTop: 4, flexWrap: "wrap" }}>
-            <label className="check">
-              <input type="checkbox" checked={roles.includes("sale")} onChange={() => toggleRole("sale")} />
-              <span>Sale (Dẫn khách xem phòng)</span>
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={roles.includes("inspector")} onChange={() => toggleRole("inspector")} />
-              <span>Thẩm định (Kiểm tra 32 hạng mục)</span>
-            </label>
-          </div>
+          <HostRoleRadios name="create-host-role" value={roleChoice} onChange={setRoleChoice} />
         </div>
 
         <label className="field">

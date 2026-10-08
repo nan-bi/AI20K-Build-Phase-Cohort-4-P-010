@@ -95,7 +95,9 @@ describe('FieldHostsService', () => {
     async function seedThree() {
       const ctx = setup();
       const a = await ctx.service.create(input({ email: 'sale@x.vn', fullName: 'Sale An', roles: ['sale'] }) as any, ADMIN, CTX);
-      const b = await ctx.service.create(input({ email: 'insp@x.vn', fullName: 'Insp Binh', roles: ['inspector'], assignedZone: 'The Zenpark' }) as any, ADMIN, CTX);
+      const b = await ctx.service.create(input({ email: 'insp@x.vn', fullName: 'Insp Binh', roles: ['sale', 'inspector'], assignedZone: 'The Zenpark' }) as any, ADMIN, CTX);
+      // Dữ liệu cũ (trước hồ sơ 18): Host chỉ có INSPECTOR — API mới không cho tạo nữa nên ghi thẳng vào bảng giả.
+      ctx.prisma.fieldHost.rows.find((r: any) => r.id === b.id).roles = ['INSPECTOR'];
       const c = await ctx.service.create(input({ email: 'both@x.vn', fullName: 'Both Chi', roles: ['sale', 'inspector'] }) as any, ADMIN, CTX);
       return { ...ctx, a, b, c };
     }

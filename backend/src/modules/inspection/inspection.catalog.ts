@@ -311,3 +311,15 @@ export const INSPECTION_CATALOG: ReadonlyArray<CatalogItem> = [
     checkHint: "Đút vặn ổ nhẹ nhàng",
   },
 ];
+
+/** Nhãn nhóm hạng mục (nguồn duy nhất; API đọc căn lấy `groupLabel` từ đây — hồ sơ 18 SPEC-P01 §3). */
+export const INSPECTION_GROUPS: Readonly<Record<'I' | 'II' | 'III' | 'IV' | 'V' | 'VI' | 'VII' | 'VIII', string>> = {
+  I: "Phòng khách & sinh hoạt chung",
+  II: "Bếp & bàn ăn",
+  III: "Phòng ngủ",
+  IV: "Phòng tắm & vệ sinh (WC)",
+  V: "Ban công / logia & giặt phơi",
+  VI: "Điều hòa",
+  VII: "Kết cấu hoàn thiện & chiếu sáng",
+  VIII: "Khóa, thẻ từ & điều khiển",
+};

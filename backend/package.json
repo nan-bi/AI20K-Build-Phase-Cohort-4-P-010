@@ -19,7 +19,11 @@
     "test": "jest",
     "create:admin": "ts-node --transpile-only scripts/create-admin.ts",
     "set:password": "ts-node --transpile-only scripts/set-password.ts",
-    "rekey:door-codes": "ts-node --transpile-only scripts/rekey-door-codes.ts"
+    "rekey:door-codes": "ts-node --transpile-only scripts/rekey-door-codes.ts",
+    "fix:host-roles": "ts-node --transpile-only scripts/fix-host-roles.ts",
+    "backfill:unit-inventory": "ts-node --transpile-only scripts/backfill-unit-inventory.ts",
+    "seed:unit-inventory": "ts-node --transpile-only scripts/seed-unit-inventory.ts",
+    "seed:units": "ts-node --transpile-only prisma/seed_excel_units.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.4",

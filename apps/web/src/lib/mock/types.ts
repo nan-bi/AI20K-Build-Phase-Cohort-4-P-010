@@ -331,6 +331,8 @@ export interface ChatMessage {
   /** Tin trả lời có kết quả tìm căn. */
   resultIds?: string[];
   criteria?: CriteriaState;
+  /** Nút/liên kết kèm tin (vd mời đăng nhập). */
+  cta?: { label: string; href: string };
 }
 
 export interface ChatState {

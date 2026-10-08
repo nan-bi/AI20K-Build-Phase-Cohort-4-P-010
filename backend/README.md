@@ -219,6 +219,8 @@ cp .env.example .env
 
 _(Nếu dùng Supabase Cloud, điền `DATABASE_URL`, `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`. Nếu chạy local dev offline, cấu hình database local theo Docker Compose.)_
 
+**Trợ lý AI (relay `modules/assistant`):** `POST /api/v1/assistant/chat` (`@Public`, giới hạn 20 req/phút/IP) chuyển tiếp SSE nguyên văn tới ai-engine (`ai-engine/`). Cần 2 biến: `AI_ENGINE_URL` (vd `http://localhost:8001`) và `AI_ENGINE_INTERNAL_KEY` (trùng `INTERNAL_KEY` của ai-engine). Body `{messages[≤20, content≤2000], locale:'vi'|'en'}`; backend tự gắn tên gọi từ phiên (không gửi id/email/SĐT). Thiếu `AI_ENGINE_URL` hoặc ai-engine chết ⇒ 503 `AI_UPSTREAM_DOWN`, web rơi về bộ lọc cũ. Khách chưa đăng nhập chỉ được `ASSISTANT_GUEST_TURNS` (mặc định 2) lượt chấp nhận mỗi IP (X-Forwarded-For đầu tiên, bộ nhớ, cửa sổ 24h); lượt sau ⇒ 401 `{code:"LOGIN_REQUIRED"}` không gọi ai-engine.
+
 ### Bước 3: Khởi chạy Database local (Tùy chọn nếu không dùng Supabase Cloud)
 
 ```bash
@@ -279,3 +281,11 @@ Portal `host` ↔ role `field_host`, `admin` ↔ `ops_admin`. Google: điền `G
 và thêm `${WEB_APP_URL}/api/v1/auth/google/callback` vào *Authorized redirect URIs* của OAuth client (Google Cloud Console) — không cần
 cấu hình gì ở Supabase Dashboard. Cùng email đã đăng ký bằng mật khẩu thì Google dùng chung Profile đó. Schema là nguồn chân lý duy nhất ở `prisma/schema.prisma`
 (`prisma/legacy/drop_web_schema.sql` gỡ schema cũ của apps/web nếu DB từng áp migration đó).
+
+### Seed nội thất DEMO cho căn chưa qua thẩm định (hồ sơ 18, fix4)
+```bash
+npm run seed:unit-inventory                 # chạy khô: bảng unit | furnishing | số món | độ mới TB
+npm run seed:unit-inventory -- --apply      # ghi thật (xoá dòng cũ của căn rồi tạo lại, 1 transaction)
+npm run seed:unit-inventory -- --overwrite  # ghi cả căn đã có dòng (mặc định bỏ qua)
+```
+Sinh định danh theo `unitCode`, theo `furnishing` (FULL ~85–100%, BASIC ~35–55%, EMPTY không món) trong 32 hạng mục catalog. Dữ liệu demo; căn thật sẽ bị ghi đè khi niêm yết qua thẩm định. `GET /units/:code` trả thêm `code` và `conditionPct` (độ mới %) cho từng dòng.

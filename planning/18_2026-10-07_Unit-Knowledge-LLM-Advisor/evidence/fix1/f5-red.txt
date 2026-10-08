@@ -1,0 +1,14 @@
+$ uv run pytest tests/test_injection.py -q  # RED (hằng số có, chưa bọc/lọc)
+>       assert names[-1] == "error" and evs[-1]["data"]["code"] == "POLICY_VIOLATION"
+E       AssertionError: assert ('done' == 'error'
+E         
+E         - error
+E         + done)
+
+tests/test_injection.py:49: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_injection.py::test_get_unit_wraps_and_truncates - Assertion...
+FAILED tests/test_injection.py::test_search_and_compare_have_no_description
+FAILED tests/test_injection.py::test_obeying_llm_is_blocked_with_policy_violation
+3 failed, 3 passed in 0.15s
+exit=

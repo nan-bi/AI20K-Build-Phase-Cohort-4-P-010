@@ -12,6 +12,7 @@ import { LandlordFeeService } from './landlord-fee.service';
 import { LandlordController } from './landlord.controller';
 import { LandlordFinanceService } from './landlord-finance.service';
 import { LandlordMandateService } from './landlord-mandate.service';
+import { LandlordPricingService } from './landlord-pricing.service';
 import { LandlordPhotoService, displayName } from './landlord-photo.service';
 import { sniffImage } from './landlord-photo-storage.service';
 import { LandlordUnitsService } from './landlord-units.service';
@@ -929,6 +930,7 @@ describe('LandlordController qua HTTP — phân quyền & lấy landlordId từ 
   const consignments = { list: jest.fn(async () => []), create: jest.fn(async () => ({})), get: jest.fn(), sign: jest.fn() };
   const mandates = { requestExit: jest.fn(async () => ({})), cancelExit: jest.fn() };
   const photos = { add: jest.fn(async () => []), remove: jest.fn(async () => []) };
+  const pricing = { decide: jest.fn(async () => ({ stage: 'approved' })) };
 
   /** Thay SupabaseAuthGuard: vai trò + id lấy từ header test; RolesGuard là bản thật. */
   @Injectable()
@@ -949,6 +951,7 @@ describe('LandlordController qua HTTP — phân quyền & lấy landlordId từ 
         { provide: LandlordConsignmentService, useValue: consignments },
         { provide: LandlordFinanceService, useValue: { getFinance: jest.fn(async () => ({})) } },
         { provide: LandlordMandateService, useValue: mandates },
+        { provide: LandlordPricingService, useValue: pricing },
         { provide: LandlordPhotoService, useValue: photos },
         { provide: APP_GUARD, useClass: HeaderAuthGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
@@ -1037,5 +1040,16 @@ describe('LandlordController qua HTTP — phân quyền & lấy landlordId từ 
       .set('x-test-role', 'landlord')
       .expect(400);
     expect(consignments.get).not.toHaveBeenCalled();
+  });
+
+  it('POST pricing-decision: chỉ landlord (tenant 403), decision lạ 400, landlordId lấy từ phiên', async () => {
+    const id = '00000000-0000-4000-8000-0000000000c1';
+    const post = (role: string, body: object) =>
+      request(app.getHttpServer()).post(`/landlord/consignments/${id}/pricing-decision`).set('x-test-user', ME).set('x-test-role', role).send(body);
+    await post('tenant', { decision: 'accept' }).expect(403);
+    await post('landlord', { decision: 'maybe' }).expect(400);
+    expect(pricing.decide).not.toHaveBeenCalled();
+    await post('landlord', { decision: 'accept' }).expect(200);
+    expect(pricing.decide).toHaveBeenCalledWith(ME, id, 'accept');
   });
 });

@@ -15,7 +15,7 @@ export class MatchmakerService {
 
   async findTopRecommendations(dto: MatchmakerRequestDto) {
     const startTime = Date.now();
-    const { maxAllInBudget, preferredLayout, motorbikes = 1, cars = 0, occupants = 2 } = dto;
+    const { maxAllInBudget, preferredLayout, motorbikes = 1, cars = 0, occupants = 2, limit = 3 } = dto;
 
     // 1. Quét toàn bộ rổ hàng AVAILABLE thông qua PropertyService
     const availableUnits = await this.propertyService.getUnits({
@@ -62,7 +62,7 @@ export class MatchmakerService {
       return a.allInCost.allInTotal - b.allInCost.allInTotal;
     });
 
-    const top3 = eligibleUnits.slice(0, 3).map((item: any, index: number) => {
+    const top3 = eligibleUnits.slice(0, limit).map((item: any, index: number) => {
       const savingMonthly = item.costComparison.savingAmount;
       return {
         rank: index + 1,
@@ -86,6 +86,7 @@ export class MatchmakerService {
         totalScannedUnits: totalScanned,
         eliminatedUnits: eliminatedCount,
         matchedUnits: top3.length,
+        totalMatched: eligibleUnits.length, // số căn khớp trước khi cắt theo limit
         executionTimeSeconds: (executionTimeMs / 1000).toFixed(2),
       },
       topRecommendations: top3,

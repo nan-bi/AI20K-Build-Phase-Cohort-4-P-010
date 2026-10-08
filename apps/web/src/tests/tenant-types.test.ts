@@ -32,10 +32,12 @@ describe("tenant-types contract verification", () => {
       petFriendly: true,
       minMonths: 6,
       verifiedAt: "2026-10-01T08:00:00Z",
-      title: "Căn hộ 1PN+",
-      description: "Đẹp",
       holdHours: 48,
       activeViewingAt: null,
+      securityDeposit: 7000000,
+      holdingDeposit: 2000000,
+      highlights: [],
+      inventory: [],
     };
     expect(unit.code).toBeDefined();
     expect(unit.holdHours).toBeGreaterThanOrEqual(12);

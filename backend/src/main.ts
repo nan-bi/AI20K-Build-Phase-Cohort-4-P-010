@@ -5,11 +5,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { ACCESS_COOKIE } from './modules/auth/auth.constants';
+import { useBodyParsers } from './modules/assistant/body-limit';
 
 async function bootstrap() {
   const logger = new Logger('VinStayBootstrap');
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  useBodyParsers(app); // json/urlencoded 256kb (relay chatbot tối đa ≈120KB); quá lớn ⇒ 413, không phải 500
 
   // Sau Next.js proxy (`/api/v1` rewrite) thì IP client nằm ở X-Forwarded-For; TRUST_PROXY=1 để rate limit
   // và audit log thấy IP thật. Chỉ bật khi backend không lộ trực tiếp ra Internet (nếu không client tự giả IP).

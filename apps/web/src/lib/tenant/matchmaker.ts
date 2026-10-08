@@ -298,11 +298,6 @@ const FAQS: Faq[] = [
       "Bạn chọn khung giờ (sáng 08:30–11:30 hoặc chiều 14:00–18:00), xác thực số điện thoại bằng mã 4 số gửi qua Zalo, rồi Field Host của khu sẽ nhận lịch trong 3 phút. Trước giờ hẹn 10 phút mình nhắn Zalo kèm nút “Tôi đã có mặt tại sảnh”, Host xuống sảnh đón và đưa bạn lên phòng trong khoảng 60 giây.",
   },
   {
-    test: /hop dong|ky so|cccd|can cuoc|ocr/,
-    answer:
-      "Sau khi cọc, bạn chụp 2 mặt CCCD một lần duy nhất. AI đọc thông tin trong khoảng 5 giây và tự điền Thỏa thuận đặt cọc; bạn ký bằng mã OTP Zalo. Dữ liệu được mã hoá AES-256 theo Nghị định 13/2023/NĐ-CP và ảnh gốc không gửi cho môi giới hay chủ nhà.",
-  },
-  {
     test: /tho|sua chua|hong hoc|bao tri/,
     answer:
       "VinStay và Field Host không nhận sửa chữa. Khi có sự cố, Host giới thiệu danh bạ thợ ngoài uy tín tại Ocean Park; bạn và thợ tự thoả thuận giá và trách nhiệm trực tiếp.",

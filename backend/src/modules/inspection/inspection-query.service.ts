@@ -19,7 +19,7 @@ import { MandateWithLandlord, awaitingTier, stageOf, toCard, toPhotoView } from 
 import type { InspectionBoard, InspectionDetail } from './inspection.types';
 
 const INCLUDE = { unit: { include: { building: true, landlord: { select: { fullName: true } } } } } as const;
-const OWNER_STAGES: ConsignmentStage[] = ['inspecting', 'approved', 'rejected'];
+const OWNER_STAGES: ConsignmentStage[] = ['inspecting', 'awaiting_landlord', 'approved', 'rejected'];
 
 /** Đọc ca thẩm định cho Inspector: bảng (E1) và chi tiết (E2). Chỉ đọc, không ghi. */
 @Injectable()
@@ -58,7 +58,7 @@ export class InspectionQueryService {
         else if (tier === 'open') open.push({ due, m, meta });
       } else if (stage === 'inspecting' && meta.hostId === actor.hostId) {
         mine.push({ due, m, meta });
-      } else if ((stage === 'approved' || stage === 'rejected') && meta.decidedBy === actor.hostId) {
+      } else if ((stage === 'approved' || stage === 'rejected' || stage === 'awaiting_landlord') && meta.decidedBy === actor.hostId) {
         done.push({ at: new Date(meta.decidedAt ?? 0).getTime(), m, meta });
       }
     }
@@ -112,6 +112,12 @@ export class InspectionQueryService {
     const form = meta.form;
     return {
       ...toCard(m, meta, tier, now),
+      declared: {
+        bathrooms: m.unit.bathrooms ?? 1,
+        direction: m.unit.direction ?? null,
+        highlights: m.unit.highlights ?? [],
+        inventoryCodes: meta.form.inventoryCodes ?? null,
+      },
       suggestedDeposit: form.suggestedDeposit ?? Number(m.unit.baseRentPrice),
       leaseTerm: form.leaseTerm ?? null,
       note: form.note ?? null,

@@ -57,7 +57,7 @@ export function InventoryBlock({ draft, catalog, photos, invalidField, onChange 
     <div className={consign.formCard}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--s-3)" }}>
         <div>
-          <h3 className={consign.formCardTitle}>5. Bảng kê trang thiết bị (Điều 5)</h3>
+          <h3 className={consign.formCardTitle}>5. Bảng kê trang thiết bị</h3>
           <p className="muted small" style={{ margin: "var(--s-1) 0 0" }}>
             {n} hạng mục chuẩn chia theo 8 khu vực. Mỗi hạng mục có mặt cần 1–{photos.perLineMax} ảnh chụp tại căn (bằng chứng cho Hộ chiếu bàn giao, không công khai).
           </p>
@@ -107,7 +107,7 @@ export function InventoryBlock({ draft, catalog, photos, invalidField, onChange 
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--s-3)", marginTop: "var(--s-2)" }}>
         <div>
-          <h4 className={consign.formCardTitle}>Hạng mục phát sinh ngoài catalog</h4>
+          <h4 className={consign.formCardTitle}>Hạng mục phát sinh ngoài</h4>
           <p className="muted small" style={{ margin: "var(--s-1) 0 0" }}>
             Tối đa {MAX_EXTRA_LINES} món đặc thù (két sắt, cây cảnh, máy chiếu…).
           </p>

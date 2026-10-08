@@ -49,17 +49,19 @@ interface BookingSheetProps {
   unit: Unit;
   open: boolean;
   onClose: () => void;
+  /** Nhúng trong màn Preview của chat: liên kết rời trang mở tab mới để không mất hội thoại. */
+  newTab?: boolean;
 }
 
-export function BookingSheet({ unit, open, onClose }: BookingSheetProps) {
+export function BookingSheet({ unit, open, onClose, newTab }: BookingSheetProps) {
   return (
     <Modal open={open} onClose={onClose} variant="sheet" title={`Đặt lịch xem căn ${unitAddress(unit)}`} hideClose={false}>
-      {open && <Flow unit={unit} onClose={onClose} />}
+      {open && <Flow unit={unit} onClose={onClose} newTab={newTab} />}
     </Modal>
   );
 }
 
-function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
+function Flow({ unit, onClose, newTab }: { unit: Unit; onClose: () => void; newTab?: boolean }) {
   const { user } = useSession();
   const role = useRole();
   const isTenant = role === "tenant";
@@ -319,7 +321,7 @@ function Flow({ unit, onClose }: { unit: Unit; onClose: () => void }) {
         </div>
 
         <div className={styles.doneActions}>
-          <Link href={`/booking/${booking.ref}`} className="btn btn-primary btn-lg btn-block">
+          <Link href={`/booking/${booking.ref}`} {...(newTab ? { target: "_blank", rel: "noopener" } : {})} className="btn btn-primary btn-lg btn-block">
             Xem lịch hẹn chi tiết
           </Link>
           <button type="button" className="btn btn-quiet btn-block" onClick={onClose}>

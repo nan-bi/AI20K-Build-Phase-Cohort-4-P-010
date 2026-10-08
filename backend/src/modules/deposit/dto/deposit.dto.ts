@@ -1,3 +1,4 @@
+import { holdingDepositAmount } from '../deposit-amount';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl } from 'class-validator';
 
@@ -24,7 +25,7 @@ export class VietQrWebhookInputDto {
   @IsString()
   transferContent?: string;
 
-  @ApiProperty({ example: 2000000, description: 'Số tiền chuyển khoản' })
+  @ApiProperty({ example: holdingDepositAmount(), description: 'Số tiền chuyển khoản' })
   @IsNotEmpty()
   @IsNumber()
   amount: number;

@@ -111,3 +111,10 @@
     transform: none;
   }
 }
+
+/* Dòng nhỏ báo trợ lý AI tạm bận (đang dùng bộ lọc nhanh). */
+.notice {
+  font-size: 12px;
+  opacity: 0.75;
+  padding-block: 4px;
+}

@@ -23,8 +23,11 @@ export class FakeInspectionDb {
   units: Row[] = [];
   mandates: Row[] = [];
   media: Row[] = [];
+  inventory: Row[] = [];
   doorKeys: Row[] = [];
   audits: Row[] = [];
+  /** `fee_configs` giả: `{ configKey, paramValue }`. Rỗng ⇒ publisher dùng đơn giá mặc định. */
+  feeConfigs: Row[] = [];
   private seq = 0;
   private lock: Promise<unknown> = Promise.resolve();
   private failing = new Set<string>();
@@ -90,6 +93,23 @@ export class FakeInspectionDb {
         return hit ? { ...hit } : null;
       },
     },
+    unitInventoryItem: {
+      deleteMany: async ({ where }: Row) => {
+        this.guard('unitInventoryItem.deleteMany');
+        const keep = this.inventory.filter((m) => m.unitId !== where.unitId);
+        const count = this.inventory.length - keep.length;
+        this.inventory.splice(0, this.inventory.length, ...keep);
+        return { count };
+      },
+      createMany: async ({ data }: Row) => {
+        this.guard('unitInventoryItem.createMany');
+        (data as Row[]).forEach((d) => {
+          if (this.inventory.some((x) => x.unitId === d.unitId && x.code === d.code)) throw new Error('fake-db: unique (unitId, code)');
+          this.inventory.push({ id: this.id('inv'), ...d });
+        });
+        return { count: (data as Row[]).length };
+      },
+    },
     doorAccessKey: {
       findUnique: async ({ where }: Row) => {
         const k = this.doorKeys.find((x) => x.unitId === where.unitId);
@@ -111,6 +131,12 @@ export class FakeInspectionDb {
         return { count: hit.length };
       },
     },
+    feeConfig: {
+      findUnique: async ({ where }: Row) => {
+        const r = this.feeConfigs.find((x) => x.configKey === where.configKey);
+        return r ? { ...r } : null;
+      },
+    },
     fieldHost: {
       findUnique: async ({ where }: Row) => {
         const h = this.hosts.find((x) => (where.id ? x.id === where.id : x.profileId === where.profileId));
@@ -130,7 +156,7 @@ export class FakeInspectionDb {
     $transaction: async (cb: (tx: Row) => Promise<unknown>) => {
       const run = this.lock.then(async () => {
         const snap = structuredClone({
-          hosts: this.hosts, units: this.units, mandates: this.mandates, media: this.media, doorKeys: this.doorKeys, audits: this.audits,
+          hosts: this.hosts, units: this.units, mandates: this.mandates, media: this.media, inventory: this.inventory, doorKeys: this.doorKeys, audits: this.audits,
         });
         try {
           return await cb(this.prisma);

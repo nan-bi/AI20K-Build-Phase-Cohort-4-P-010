@@ -1,12 +1,15 @@
-import type { ConsignmentStatus } from "@/lib/mock/types";
+import type { ConsignmentStatus as ApiConsignmentStatus } from "@/lib/landlord/types";
 import type { StatusTone } from "@/components/ui/StatusBadge";
+
+/** `reviewing` chỉ để đọc hồ sơ lịch sử; API không còn phát. */
+export type ConsignStatusKey = ApiConsignmentStatus | "reviewing";
 
 /**
  * Khoá `reviewing` GIỮ LẠI để đọc các hồ sơ lịch sử — dữ liệu từ API hiện tại
  * không bao giờ mang trạng thái này (hồ sơ 16 bỏ bước Admin duyệt).
  */
 export const CONSIGN_STATUS_META: Record<
-  ConsignmentStatus,
+  ConsignStatusKey,
   { label: string; tone: StatusTone; landlordHint: string }
 > = {
   draft: {
@@ -23,6 +26,11 @@ export const CONSIGN_STATUS_META: Record<
     label: "Đang thẩm định thực tế",
     tone: "info",
     landlordHint: "Field Host đang kiểm tra thực tế. Thẩm định đạt ⇒ căn lên danh sách ngay.",
+  },
+  awaiting_landlord: {
+    label: "Chờ bạn đồng ý giá",
+    tone: "warn",
+    landlordHint: "Thẩm định viên đề xuất giá hoặc tiền cọc bảo đảm khác bạn khai. Căn chỉ được đăng sau khi bạn đồng ý.",
   },
   reviewing: {
     label: "Chờ Admin duyệt",

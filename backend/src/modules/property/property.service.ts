@@ -14,9 +14,15 @@ import {
 import { TenantUnit } from '../tenant/tenant.types';
 import { generateAllSlotsBetween } from '../tenant/slots.helper';
 
+/** Thời gian giữ danh sách công khai; đủ ngắn để trạng thái căn không lệch lâu. */
+export const CATALOG_CACHE_MS = 20_000;
+const CATALOG_CACHE_MAX = 50;
+
 @Injectable()
 export class PropertyService {
   private readonly logger = new Logger(PropertyService.name);
+
+  private readonly catalogCache = new Map<string, { at: number; value: TenantUnit[] }>();
 
   constructor(private prisma: PrismaService) {}
 
@@ -68,6 +74,24 @@ export class PropertyService {
    * Lọc: zone, layout, maxRent, q. Sắp xếp baseRentPrice asc.
    */
   async getUnits(filter: PropertyFilterDto): Promise<TenantUnit[]> {
+    // Danh sách công khai đọc Supabase từ xa (nhiều truy vấn nối tiếp, ~5–12s): giữ kết quả ngắn hạn theo bộ lọc.
+    // Trạng thái căn có thể trễ tối đa CATALOG_CACHE_MS; luồng đặt lịch/cọc luôn đọc DB trực tiếp, không qua đây.
+    const key = JSON.stringify(filter ?? {}, Object.keys(filter ?? {}).sort());
+    const now = Date.now();
+    const hit = this.catalogCache.get(key);
+    if (hit && now - hit.at < CATALOG_CACHE_MS) return hit.value;
+    const value = await this.loadUnits(filter);
+    if (this.catalogCache.size >= CATALOG_CACHE_MAX) this.catalogCache.delete(this.catalogCache.keys().next().value as string);
+    this.catalogCache.set(key, { at: now, value });
+    return value;
+  }
+
+  /** Xoá cache danh sách (dùng khi cần dữ liệu tươi ngay, vd sau khi niêm yết). */
+  clearCatalogCache(): void {
+    this.catalogCache.clear();
+  }
+
+  private async loadUnits(filter: PropertyFilterDto): Promise<TenantUnit[]> {
     const { zone, layout, maxRent, q, buildingCode, layoutType, status } = filter;
 
     const where: any = {
@@ -113,7 +137,6 @@ export class PropertyService {
       const keyword = q.trim();
       where.OR = [
         { unitCode: { contains: keyword, mode: 'insensitive' } },
-        { title: { contains: keyword, mode: 'insensitive' } },
       ];
     }
 
@@ -210,6 +233,7 @@ export class PropertyService {
       include: {
         building: true,
         media: { orderBy: { order: 'asc' } },
+        inventoryItems: { orderBy: { code: 'asc' } },
       },
     });
 

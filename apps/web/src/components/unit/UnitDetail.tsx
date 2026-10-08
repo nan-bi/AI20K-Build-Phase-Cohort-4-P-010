@@ -2,20 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Bath, BedDouble, Building2, CalendarPlus, Check, Compass, Layers, LockKeyhole, MessageCircle, Minus, Plus, Ruler, Share2, ShieldCheck, Sofa, Users } from "lucide-react";
+import { Building2, CalendarPlus, Check, LockKeyhole, MessageCircle, Minus, Plus, Share2, ShieldCheck, Users } from "lucide-react";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { toast } from "@/components/ui/Toast";
 import { allInCost, DEFAULT_HOUSEHOLD, isBargain, RATES, savingsPct, type Household } from "@/lib/pricing/cost";
 import { vnd, vndShort } from "@/lib/format";
 import { HOUSE_RULES } from "@/lib/legal/house-rules";
-import {
-  FURNISHING_LABEL,
-  ITEM_LABEL,
-  PASSPORT_ITEMS,
-  unitAddress,
-  zoneById,
-  type Unit,
-} from "@/lib/units";
+import { ITEM_LABEL, unitAddress, zoneById } from "@/lib/units";
+import type { UnitWithExtras } from "@/lib/tenant/adapters";
 import { AllInBar } from "./AllInBar";
 import { FavoriteButton } from "./FavoriteButton";
 import { Gallery } from "./Gallery";
@@ -23,6 +17,7 @@ import { LocationMap } from "./LocationMap";
 import { UnitBadges } from "./UnitBadges";
 import { similarUnits, useCatalog } from "@/lib/tenant/catalog";
 import { UnitCard } from "./UnitCard";
+import { DepositTerms, UnitHighlights, UnitInventorySection, UnitStatsGrid } from "./UnitSections";
 import { useRouter } from "next/navigation";
 import { refreshSession, useSession } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
@@ -63,7 +58,8 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
   );
 }
 
-export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBooking: boolean }) {
+/** `embedded` = nhúng trong màn Preview của chat: bỏ breadcrumb, "Hỏi AI", căn tương tự, một cột; đặt lịch giữ nguyên modal tại chỗ. */
+export function UnitDetail({ unit, autoOpenBooking, embedded = false }: { unit: UnitWithExtras; autoOpenBooking: boolean; embedded?: boolean }) {
   const { user, ready } = useSession();
   const router = useRouter();
   const zone = zoneById(unit.zoneId);
@@ -79,21 +75,23 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
   const cost = allInCost(unit, hh);
   const sv = savingsPct(unit);
   const bookable = status === "available";
-  const holdHours = (unit as Unit & { holdHours?: number }).holdHours ?? 48;
-  const catalog = useCatalog(status !== "available");
+  const holdHours = unit.holdHours ?? 48;
+  const catalog = useCatalog(!embedded && status !== "available");
   const similar = similarUnits(catalog.units, unit, 3);
 
   const handleOpenBooking = async () => {
     const session = ready ? { user } : await refreshSession();
     if (session.user?.portal !== "tenant") {
-      router.push(loginHref);
+      // Nhúng trong chat: đăng nhập ở tab mới để không mất hội thoại.
+      if (embedded) window.open(loginHref, "_blank", "noopener");
+      else router.push(loginHref);
       return;
     }
     setManualBooking(true);
   };
 
   const share = async () => {
-    const url = window.location.href;
+    const url = embedded ? `${window.location.origin}/units/${unit.code || unit.id}` : window.location.href;
     try {
       if (navigator.share) await navigator.share({ title: unitAddress(unit), url });
       else {
@@ -103,28 +101,19 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
     } catch {}
   };
 
-  const stats = [
-    { icon: Ruler, label: "Diện tích", value: `${unit.areaM2} m²` },
-    { icon: BedDouble, label: "Phòng ngủ", value: unit.layoutLabel },
-    { icon: Bath, label: "Vệ sinh", value: `${unit.bathrooms} WC` },
-    { icon: Compass, label: "Hướng", value: unit.direction },
-    { icon: Layers, label: "Tầng", value: `Tầng ${unit.floor}` },
-    { icon: Sofa, label: "Nội thất", value: FURNISHING_LABEL[unit.furnishing] },
-  ];
-
   return (
-    <div className="max-w-7xl mx-auto w-full px-4 md:px-8 py-6 md:py-10 flex flex-col gap-8 pb-32 md:pb-12">
-      <nav className="text-sm font-medium text-muted-foreground flex items-center flex-wrap gap-2" aria-label="Đường dẫn">
+    <div className={embedded ? "w-full px-4 md:px-6 py-4 flex flex-col gap-8 pb-28" : "max-w-7xl mx-auto w-full px-4 md:px-8 py-6 md:py-10 flex flex-col gap-8 pb-32 md:pb-12"}>
+      {!embedded && <nav className="text-sm font-medium text-muted-foreground flex items-center flex-wrap gap-2" aria-label="Đường dẫn">
         <Link href="/" className="hover:text-foreground transition-colors">Trang chủ</Link>
         <span>/</span>
         <Link href="/units" className="hover:text-foreground transition-colors">Tìm căn</Link>
         <span>/</span>
         <span className="text-foreground">{zoneName}</span>
-      </nav>
+      </nav>}
 
       <Gallery unit={unit} />
 
-      <div className="flex flex-col lg:flex-row gap-12 relative items-start">
+      <div className={embedded ? "flex flex-col gap-10 relative items-start" : "flex flex-col lg:flex-row gap-12 relative items-start"}>
         <div className="flex-1 flex flex-col gap-12 min-w-0 w-full">
           {/* Header */}
           <header className="flex flex-col gap-4 border-b border-border pb-8">
@@ -150,28 +139,11 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
                 </Button>
               </div>
             </div>
+            <UnitHighlights highlights={unit.highlights} />
           </header>
 
           {/* Stats Grid */}
-          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-            {stats.map(({ icon: Icon, label, value }) => (
-              <li key={label} className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 border border-border/50 text-center">
-                <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />
-                <div className="flex flex-col gap-0.5 mt-1">
-                  <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                  <strong className="text-sm text-foreground">{value}</strong>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {/* Description */}
-          <section className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Giới thiệu căn hộ</h2>
-            <p className="text-base text-muted-foreground leading-relaxed">
-              {unit.title}. {unit.description}
-            </p>
-          </section>
+          <UnitStatsGrid unit={unit} />
 
           {/* All-in Cost Configurator */}
           <section className="space-y-6" aria-labelledby="allin">
@@ -245,25 +217,8 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
             </div>
           </section>
 
-          {/* Handover Passport */}
-          <section className="space-y-6 bg-zinc-950 text-zinc-50 p-8 rounded-3xl">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight">Hộ chiếu bàn giao số</h2>
-              <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl">
-                Lúc nhận nhà, Field Host và bạn cùng chụp ảnh có dấu thời gian cho 10 hạng mục dưới đây. Đây là căn cứ đối soát khi trả phòng: hao mòn tự nhiên không bị trừ cọc.
-              </p>
-            </div>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pt-4">
-              {PASSPORT_ITEMS.map((p, i) => (
-                <li key={p} className="flex items-center gap-3 text-zinc-300">
-                  <span className="font-mono text-xs font-bold text-zinc-500 bg-zinc-900 w-6 h-6 flex items-center justify-center rounded-md shrink-0">
-                    {i + 1}
-                  </span>
-                  <span className="font-medium text-sm">{p}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {/* Nội thất chi tiết (đọc từ units + unit_inventory_items) */}
+          <UnitInventorySection inventory={unit.inventory} />
 
           {/* Map Location */}
           <section className="space-y-6">
@@ -281,14 +236,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
                 <dt className="font-semibold text-foreground">Kỳ hạn tối thiểu</dt>
                 <dd className="text-muted-foreground text-sm leading-relaxed">{unit.minMonths} tháng</dd>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <dt className="font-semibold text-foreground">Tiền cọc bảo đảm</dt>
-                <dd className="text-muted-foreground text-sm leading-relaxed">Tương đương 1 tháng tiền thuê ({vnd(unit.rent)}đ), giữ nguyên suốt kỳ thuê</dd>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <dt className="font-semibold text-foreground">Cọc giữ chỗ</dt>
-                <dd className="text-muted-foreground text-sm leading-relaxed">{vnd(RATES.holdingDeposit)}đ, Căn được giữ riêng cho bạn {holdHours} giờ kể từ khi ngân hàng báo có, chuyển 100% vào tiền cọc bảo đảm, không trừ vào tiền thuê tháng đầu</dd>
-              </div>
+              <DepositTerms unit={unit} holdHours={holdHours} />
               <div className="flex flex-col gap-1.5">
                 <dt className="font-semibold text-foreground">Nếu không ký hợp đồng</dt>
                 <dd className="text-muted-foreground text-sm leading-relaxed">Không ký trong {holdHours} giờ vì lý do cá nhân thì xử lý cọc theo Điều 328 BLDS (50% bù chủ nhà, 50% phí vận hành). Nếu chủ nhà bẻ cọc đền gấp đôi, bất khả kháng hoàn 100% trong 24 giờ làm việc</dd>
@@ -332,7 +280,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
         </div>
 
         {/* Sidebar Sticky Booking Card */}
-        <aside className="w-full lg:w-[380px] shrink-0 sticky top-24" aria-label="Đặt lịch xem phòng">
+        <aside className={embedded ? "w-full shrink-0" : "w-full lg:w-[380px] shrink-0 sticky top-24"} aria-label="Đặt lịch xem phòng">
           <Card className="flex flex-col p-6 gap-6 bg-card border-border shadow-xl rounded-3xl">
             <div className="flex flex-col gap-2">
               <div className="flex items-baseline gap-2 flex-wrap pb-4 border-b border-border/50">
@@ -350,9 +298,11 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
                 <Button size="lg" className="w-full h-14 rounded-xl text-base shadow-md font-semibold" onClick={handleOpenBooking}>
                   <CalendarPlus size={20} className="mr-2" /> Đặt lịch xem phòng
                 </Button>
-                <Button variant="outline" size="lg" className="w-full h-12 rounded-xl text-sm font-medium" render={<Link href="/" />}>
-                  <MessageCircle size={18} className="mr-2" /> Hỏi AI thêm về căn này
-                </Button>
+                {!embedded && (
+                  <Button variant="outline" size="lg" className="w-full h-12 rounded-xl text-sm font-medium" render={<Link href="/" />}>
+                    <MessageCircle size={18} className="mr-2" /> Hỏi AI thêm về căn này
+                  </Button>
+                )}
 
                 <Separator className="my-2" />
 
@@ -363,7 +313,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
                   </li>
                   <li className="flex items-start gap-3">
                     <Check size={16} className="text-emerald-500 mt-0.5 shrink-0" strokeWidth={3} />
-                    <span className="text-sm text-muted-foreground font-medium">Chỉ cọc 2.000.000đ khi bạn ưng ý</span>
+                    <span className="text-sm text-muted-foreground font-medium">Chỉ cọc {vnd(unit.holdingDeposit)}đ khi bạn ưng ý</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check size={16} className="text-emerald-500 mt-0.5 shrink-0" strokeWidth={3} />
@@ -388,7 +338,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
         </aside>
       </div>
 
-      {similar.length > 0 && (
+      {!embedded && similar.length > 0 && (
         <section className="mt-8 pt-12 border-t border-border" aria-label="Căn tương tự">
           <h2 className="text-2xl font-bold tracking-tight text-foreground mb-8">Căn tương tự cùng layout</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -413,7 +363,7 @@ export function UnitDetail({ unit, autoOpenBooking }: { unit: Unit; autoOpenBook
         </div>
       )}
 
-      <BookingSheet unit={unit} open={booking} onClose={() => { setManualBooking(false); setDismissAutoBooking(true); }} />
+      <BookingSheet unit={unit} newTab={embedded} open={booking} onClose={() => { setManualBooking(false); setDismissAutoBooking(true); }} />
     </div>
   );
 }

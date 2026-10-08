@@ -1,0 +1,148 @@
+FAIL src/modules/property/unit-data.spec.ts
+  P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units
+    ✓ P1-1: ghi bathrooms/direction/title/highlights/description/securityDeposit/minLeaseMonths/furnishing (13 ms)
+    ✓ P1-1: không có leaseTerm/suggestedDeposit/furnished ⇒ minLeaseMonths 6, securityDeposit null, furnishing giữ mặc định (2 ms)
+    ✓ P1-1: text vi phạm ⇒ 400 LISTING_TEXT_FORBIDDEN, không tạo căn (2 ms)
+    ✓ P1-2: direction ngoài 8 giá trị ⇒ 400 (ValidationPipe); 8 giá trị hợp lệ qua (43 ms)
+  P1-3 — assertListingText
+    ✓ vi phạm 0979841233 ⇒ phone (1 ms)
+    ✓ vi phạm 0979 841 233 ⇒ phone
+    ✓ vi phạm +84 979 841 233 ⇒ phone
+    ✓ vi phạm zalo.me/x ⇒ url
+    ✓ vi phạm 8tr5 ⇒ money
+    ✓ vi phạm 7 triệu ⇒ money
+    ✓ vi phạm 500k ⇒ money
+    ✓ vi phạm giá 8.000.000 ⇒ money
+    ✓ hợp lệ Tầng 12
+    ✓ hợp lệ 45m²
+    ✓ hợp lệ 45 m2
+    ✓ hợp lệ 2PN 2WC
+    ✓ hợp lệ View hồ
+    ✓ hợp lệ Năm 2024 (1 ms)
+    ✓ hợp lệ 1 WC
+  P1-3b — assertListingText chống lách (F1)
+    ✓ chặn LH ０９７９８４１２３３ ⇒ phone
+    ✓ chặn LH 𝟎𝟗𝟕𝟗𝟖𝟒𝟏𝟐𝟑𝟑 ⇒ phone
+    ✓ chặn LH ٠٩٧٩٨٤١٢٣٣ ⇒ phone (1 ms)
+    ✓ chặn LH 0979​841​233 ⇒ phone (1 ms)
+    ✓ chặn LH 0979/841/233 ⇒ phone
+    ✓ chặn LH 0979_841_233 ⇒ phone
+    ✓ chặn LH o979841233 ⇒ phone
+    ✓ chặn LH không chín bảy chín tám bốn một hai ba ba ⇒ phone
+    ✓ chặn LH 0979 a 841 b 233 ⇒ phone
+    ✓ chặn ib zalo . me/abc ⇒ url
+    ✓ chặn ib zalo me slash abc ⇒ url
+    ✓ chặn nhắn z a l o chủ nhà ⇒ url
+    ✓ chặn xem bit.ly/vinstay-op ⇒ url
+    ✓ chặn xem tinyurl.com/abc ⇒ url
+    ✓ chặn xem nhaop1.vn/can-dep ⇒ url
+    ✓ chặn nhắn m.me/chunha ⇒ url (1 ms)
+    ✓ chặn mail chunha@gmail.com ⇒ url
+    ✓ chặn giá chỉ tám triệu ⇒ money
+    ✓ chặn tám tr ⇒ money (1 ms)
+    ✓ chặn mười lăm triệu ⇒ money
+    ✓ chặn giá 8 củ 5 ⇒ money
+    ✓ chặn giá ８ｔｒ５ ⇒ money (1 ms)
+    ✓ chặn giá 8 t r 5 ⇒ money
+    ✓ chặn giá $350 ⇒ money
+    ✓ chặn giá 5 000 000 ⇒ money (1 ms)
+    ✓ chặn giá 8_000_000 ⇒ money
+    ✓ cho qua Cách hồ 200m, đi bộ 5 phút (1 ms)
+    ✓ cho qua Cách hồ 200m
+    ✓ cho qua Sàn rộng 3m, trần cao 2m
+    ✓ cho qua Căn góc 2 mặt thoáng
+    ✓ cho qua gần 3 dãy shophouse
+    ✓ cho qua An ninh 24/7, 1 km tới VinUni
+    ✓ cho qua Nhà đẹp. Mẹ chủ ở Hà Nội
+    ✓ cho qua Tủ lạnh, tủ quần áo, tủ bếp, tủ giày (1 ms)
+    ✓ cho qua Tầng 12, 2 phòng ngủ, 2 WC, 1 ban công
+    ✓ cho qua 45m²
+    ✓ cho qua 45 m2
+    ✓ cho qua Diện tích 45m2
+    ✓ cho qua Tầng 12
+    ✓ cho qua 2PN 2WC (1 ms)
+    ✓ cho qua Năm 2024
+  P1-4 — niêm yết ghi unit_inventory_items
+    ✓ chỉ ghi dòng present=true; lần publish thứ 2 không nhân đôi (14 ms)
+  F8 — spec/tên dòng X của Inspector đi qua assertListingText
+    ✕ spec chứa SĐT ⇒ 400 LISTING_TEXT_FORBIDDEN field inventory.<i>.spec, chưa ghi DB (4 ms)
+    ✕ tên dòng X chứa link ⇒ 400 field inventory.<i>.name; spec sạch được ghi vào DB (3 ms)
+  P1-5/P1-6/P1-7 — mapper API đọc căn
+    ✓ P1-5: inventory không lộ condition/compensation/photoIds; list (không include) ⇒ [] (3 ms)
+    ✕ F9: mã X (không phải số) xếp sau số, theo thứ tự nhập; mã số sắp theo giá trị số (6 ms)
+    ✓ P1-6: securityDeposit null ⇒ baseRentPrice; có giá trị ⇒ dùng giá trị; highlights (1 ms)
+    ✓ P1-7: holdingDeposit = holdingDepositAmount() (không đổi 2.000.000); điều khoản dùng cùng hàm
+  P1-8 — backfill idempotent
+    ✓ chạy 2 lần cùng số dòng, chỉ dòng present, upsert theo unitId+code (1 ms)
+
+  ● F8 — spec/tên dòng X của Inspector đi qua assertListingText › spec chứa SĐT ⇒ 400 LISTING_TEXT_FORBIDDEN field inventory.<i>.spec, chưa ghi DB
+
+    expect(received).toMatchObject(expected)
+
+    Matcher error: received value must be a non-null object
+
+    Received has value: null
+
+      154 |     const input = validInput(photos);
+      155 |     input.inventory[2] = { ...input.inventory[2], spec: 'Sofa da, LH chủ 0979841233' };
+    > 156 |     expect(await body(w.flow.submit(w.actor(a), c.mandate.id, input))).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: 'inventory.2.spec', reason: 'phone' });
+          |                                                                        ^
+      157 |     expect(w.db.inventory.filter((r) => r.unitId === c.unit.id)).toHaveLength(0);
+      158 |   });
+      159 |
+
+      at Object.<anonymous> (modules/property/unit-data.spec.ts:156:72)
+
+  ● F8 — spec/tên dòng X của Inspector đi qua assertListingText › tên dòng X chứa link ⇒ 400 field inventory.<i>.name; spec sạch được ghi vào DB
+
+    expect(received).toMatchObject(expected)
+
+    Matcher error: received value must be a non-null object
+
+    Received has value: null
+
+      163 |     clean.inventory[2] = { ...clean.inventory[2], spec: 'Da bò, Hàn Quốc' };
+      164 |     const withX = { ...clean, inventory: [...clean.inventory, { code: 'X1', group: 'I' as const, name: 'zalo.me/abc', present: false, liability: 'misuse' as const, photoIds: [] }] };
+    > 165 |     expect(await body(w.flow.submit(w.actor(a), c.mandate.id, withX as any))).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: `inventory.${clean.inventory.length}.name` });
+          |                                                                               ^
+      166 |     await w.flow.submit(w.actor(a), c.mandate.id, clean);
+      167 |     expect(w.db.inventory.find((r) => r.unitId === c.unit.id && r.code === clean.inventory[2].code)).toMatchObject({ spec: 'Da bò, Hàn Quốc' });
+      168 |   });
+
+      at Object.<anonymous> (modules/property/unit-data.spec.ts:165:79)
+
+  ● P1-5/P1-6/P1-7 — mapper API đọc căn › F9: mã X (không phải số) xếp sau số, theo thứ tự nhập; mã số sắp theo giá trị số
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 3
+
+      Array [
+    -   "n1",
+    -   "n2",
+    +   "nX2",
+        "n10",
+        "nX1",
+    -   "nX2",
+    +   "n1",
+    +   "n2",
+        "nX10",
+        "nZ",
+      ]
+
+      192 |   it('F9: mã X (không phải số) xếp sau số, theo thứ tự nhập; mã số sắp theo giá trị số', () => {
+      193 |     const items = ['X2', '10', 'X1', '2', '1', 'X10', 'Z'].map((code) => ({ code, groupCode: 'I', name: `n${code}`, qty: 1 }));
+    > 194 |     expect(toTenantUnit(unit({ inventoryItems: items })).inventory.map((i) => i.name)).toEqual(['n1', 'n2', 'n10', 'nX1', 'nX2', 'nX10', 'nZ']);
+          |                                                                                        ^
+      195 |   });
+      196 |
+      197 |   it('P1-6: securityDeposit null ⇒ baseRentPrice; có giá trị ⇒ dùng giá trị; highlights', () => {
+
+      at Object.<anonymous> (modules/property/unit-data.spec.ts:194:88)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 65 passed, 68 total
+Snapshots:   0 total
+Time:        5.303 s
+Ran all test suites matching /src\/modules\/property\/unit-data.spec.ts/i.

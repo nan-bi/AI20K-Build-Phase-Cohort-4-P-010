@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RequestContext } from '../auth/auth.service';
 import { authError } from '../auth/auth.errors';
 import { hashPassword } from '../auth/password-hasher';
-import { HostRoleCode, toHostRoleCodes, toHostRoleEnums } from '../auth/host-roles';
+import { HostRoleCode, normalizeHostRoles, toHostRoleCodes, toHostRoleEnums } from '../auth/host-roles';
 import { PhoneService } from '../auth/phone/phone.service';
 import { decryptPhoneForDisplay } from '../auth/phone/phone-display';
 import { AuthSessionService } from '../auth/session/auth-session.service';
@@ -98,7 +98,7 @@ export class FieldHostsService {
     const email = dto.email.trim().toLowerCase();
     const fullName = dto.fullName.trim();
     const assignedZone = await this.assertZone(dto.assignedZone);
-    const roles = toHostRoleEnums(dto.roles);
+    const roles = normalizeHostRoles(dto.roles);
     // Băm scrypt TRƯỚC transaction: không giữ giao dịch mở trong lúc tính toán nặng.
     const passwordHash = dto.password ? await hashPassword(dto.password) : null;
     const roleId = await this.roleIds.idOf('field_host');
@@ -154,6 +154,7 @@ export class FieldHostsService {
     const { fullName, assignedZone, roles, password, isActive } = dto;
     if ([fullName, assignedZone, roles, password, isActive].every((v) => v === undefined)) throw authError('invalid_request');
 
+    const normalizedRoles = roles !== undefined ? normalizeHostRoles(roles) : undefined;
     const host = await this.load(id);
     const zone = assignedZone !== undefined ? await this.assertZone(assignedZone) : undefined;
     const passwordHash = password ? await hashPassword(password) : undefined;
@@ -178,8 +179,8 @@ export class FieldHostsService {
       newGeneral.password = '<changed>'; // CẤM ghi giá trị hay hash vào log
     }
     const oldRoles = toHostRoleCodes(host.roles);
-    const rolesChanged = roles !== undefined && !sameRoles(toHostRoleCodes(toHostRoleEnums(roles)), oldRoles);
-    if (rolesChanged) hostData.roles = toHostRoleEnums(roles);
+    const rolesChanged = normalizedRoles !== undefined && !sameRoles(toHostRoleCodes(normalizedRoles), oldRoles);
+    if (rolesChanged) hostData.roles = normalizedRoles;
     const activeChanged = isActive !== undefined && isActive !== host.profile.isActive;
     if (activeChanged) {
       profileData.isActive = isActive;
@@ -199,7 +200,7 @@ export class FieldHostsService {
       if (Object.keys(hostData).length) await tx.fieldHost.update({ where: { id }, data: hostData });
 
       if (rolesChanged) {
-        await this.audit(tx, actor, ctx, 'HOST_ROLES_UPDATE', id, { roles: oldRoles }, { roles: roles && toHostRoleCodes(toHostRoleEnums(roles)) });
+        await this.audit(tx, actor, ctx, 'HOST_ROLES_UPDATE', id, { roles: oldRoles }, { roles: normalizedRoles && toHostRoleCodes(normalizedRoles) });
       }
       if (Object.keys(newGeneral).length) await this.audit(tx, actor, ctx, 'HOST_UPDATE', id, oldGeneral, newGeneral);
       if (activeChanged) {

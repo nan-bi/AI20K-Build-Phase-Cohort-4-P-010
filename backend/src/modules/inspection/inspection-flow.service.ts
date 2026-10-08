@@ -5,7 +5,7 @@ import { toDoorView } from '../host-viewings/host-viewings.mappers';
 import type { DoorAccessView, HostActor, ReqCtx } from '../host-viewings/host-viewings.types';
 import { AuditService } from '../audit/audit.service';
 import { ConsignmentMetaStore } from '../landlord/consignment-meta.store';
-import { ConsignmentMeta, consignmentStage } from '../landlord/landlord.mappers';
+import { ConsignmentMeta, PricingProposal, consignmentStage } from '../landlord/landlord.mappers';
 import { DOOR_REVEALED_KEEP } from './inspection.constants';
 import {
   doorCodeMissing,
@@ -18,13 +18,13 @@ import {
 } from './inspection.errors';
 import { assertCaseOwner, isOpenPool, mutateInspection } from './inspection.helpers';
 import { InspectionQueryService } from './inspection-query.service';
-import { buildReport, validateSubmission } from './inspection-report.validator';
+import { buildReport, originalPricing, pricingChanged, validateSubmission } from './inspection-report.validator';
 import { ListingPublisher } from './listing-publisher.service';
 import type { InspectionDetail, InspectionResult, SubmitInspectionInput } from './inspection.types';
 
 /**
  * Nguồn chuyển trạng thái DUY NHẤT của hồ sơ thẩm định (B2):
- * `awaiting_host → inspecting → approved | rejected` (cộng `draft → awaiting_host` ở `LandlordConsignmentService.sign`).
+ * `awaiting_host → inspecting → approved | rejected | awaiting_landlord` (đổi giá/cọc ⇒ chủ duyệt ở `LandlordPricingService`; cộng `draft → awaiting_host` ở `LandlordConsignmentService.sign`).
  * Mọi thao tác chạy trong `ConsignmentMetaStore.mutate` (khóa dòng) và KIỂM LẠI stage + chủ ca TRONG khóa.
  */
 @Injectable()
@@ -141,10 +141,29 @@ export class InspectionFlowService {
       let listedAt: string | null = null;
       let next: ConsignmentMeta;
       if (approve) {
-        const published = await this.publisher.publish(tx, locked, report, meta.inspection?.photos ?? [], { now, doorPin });
-        extra = published.mandateData;
-        listedAt = published.listedAt;
-        next = { ...meta, stage: 'approved', report, ...decided };
+        // PIN thật lưu ngay (kể cả khi chờ chủ duyệt giá): CẤM để PIN trong meta.
+        if (doorPin) await this.publisher.storeDoorPin(tx, locked.unitId, doorPin, now);
+        const pricing = report.pricing as NonNullable<typeof report.pricing>; // validateSubmission đã bảo đảm có khi approve
+        if (pricingChanged(pricing, meta)) {
+          // Đổi giá/cọc ⇒ chủ nhà duyệt (B4): KHÔNG niêm yết, căn giữ UNLISTED, ủy quyền giữ PENDING_INSPECTION.
+          const proposal: PricingProposal = {
+            rent: pricing.rent,
+            securityDeposit: pricing.securityDeposit,
+            reason: pricing.reason ?? null,
+            proposedAt: now.toISOString(),
+            original: originalPricing(meta),
+          };
+          extra = {};
+          next = { ...meta, stage: 'awaiting_landlord', report, pricingProposal: proposal, ...decided };
+        } else {
+          const published = await this.publisher.publish(tx, locked, report, meta.inspection?.photos ?? [], {
+            now,
+            agreed: { rent: pricing.rent, securityDeposit: pricing.securityDeposit },
+          });
+          extra = published.mandateData;
+          listedAt = published.listedAt;
+          next = { ...meta, stage: 'approved', report, ...decided };
+        }
       } else {
         extra = { status: MandateStatus.TERMINATED };
         next = { ...meta, stage: 'rejected', report, decisionNote: report.note, ...decided };
@@ -156,7 +175,7 @@ export class InspectionFlowService {
         meta: next,
         extra,
         result: {
-          result: { stage: next.stage as 'approved' | 'rejected', unitCode: locked.unit.unitCode, listedAt } as InspectionResult,
+          result: { stage: next.stage as InspectionResult['stage'], unitCode: locked.unit.unitCode, listedAt } as InspectionResult,
           unitId: locked.unitId,
           mandateId: locked.id,
           report,

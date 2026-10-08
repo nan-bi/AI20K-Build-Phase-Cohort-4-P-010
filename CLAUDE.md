@@ -34,6 +34,16 @@ npm run start:dev   # :4000, Swagger /api/docs
 npm test            # jest (Prisma/Supabase giả)
 ```
 
+**AI Engine** (`ai-engine/`, hồ sơ 18) — Python + uv, chatbot LLM (FastAPI + OpenRouter, `openai/gpt-4o-mini`), service riêng với `.venv` riêng; web gọi qua relay Nest `POST /api/v1/assistant/chat`, lỗi ⇒ bộ lọc regex cũ. Thư mục `src/` + `.venv` ở root vẫn là template cũ, không dùng:
+
+```bash
+cd ai-engine
+uv sync && cp .env.example .env     # điền OPENROUTER_API_KEY, INTERNAL_KEY
+uv run uvicorn app.main:app --reload --port 8100
+uv run ruff check . && uv run pytest   # không cần key thật
+uv run python -m app.eval              # eval với LLM thật (cần key)
+```
+
 **Next.js side** (`apps/web/`) — pnpm, UI 4 cổng. **Cổng Chủ nhà và Khách thuê đã nối backend NestJS thật** (`/api/v1/*`); cổng Admin và các màn Field Host chưa nối (thu nhập, sổ tay) tiếp tục dùng mock hỗ trợ demo; Field Host "Lịch & yêu cầu" (`/host/dispatch`, `/host/viewing/[ref]`) và "Thẩm định ký gửi" (`/host/inspections*`, đạt ⇒ tự niêm yết, không qua Admin) đã nối API (xem `apps/web/README.md`):
 
 ```bash

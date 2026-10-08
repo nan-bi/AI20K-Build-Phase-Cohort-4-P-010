@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { LayoutList } from "lucide-react";
 import { Facade } from "@/components/brand/Facade";
 import { LogoMark } from "@/components/brand/Logo";
@@ -49,12 +50,13 @@ export function Messages({ greeting, messages, thinking, freshId, onFreshDone, o
   };
 
   // Bỏ qua lần chạy đầu (mount): so với giá trị lần trước để đúng cả khi Strict Mode chạy effect hai lần.
-  const prev = useRef({ count: messages.length, thinking });
+  const tail = messages.at(-1)?.text.length ?? 0; // tin đang stream dài ra ⇒ cuộn theo
+  const prev = useRef({ count: messages.length, thinking, tail });
   useEffect(() => {
-    if (prev.current.count === messages.length && prev.current.thinking === thinking) return;
-    prev.current = { count: messages.length, thinking };
+    if (prev.current.count === messages.length && prev.current.thinking === thinking && prev.current.tail === tail) return;
+    prev.current = { count: messages.length, thinking, tail };
     scroll();
-  }, [messages.length, thinking]);
+  }, [messages.length, thinking, tail]);
 
   return (
     <div className={styles.list} role="log" aria-live="polite" aria-label="Cuộc trò chuyện với VinStay AI">
@@ -78,11 +80,14 @@ export function Messages({ greeting, messages, thinking, freshId, onFreshDone, o
               </span>
             )}
             <div className={styles.col}>
-              <div className={`${styles.bubble} ${mine ? styles.mine : ""}`}>{fresh ? <Typewriter text={m.text} onTick={scroll} onDone={onFreshDone} /> : m.text}</div>
+              <div className={`${styles.bubble} ${mine ? styles.mine : ""} ${m.id.startsWith("notice-") ? styles.notice : ""}`}>{fresh ? <Typewriter text={m.text} onTick={scroll} onDone={onFreshDone} /> : m.text}</div>
               {!mine && m.resultIds && m.resultIds.length > 0 && onShowResults && !fresh && (
                 <button type="button" className={styles.results} onClick={() => onShowResults(m.resultIds!.length)}>
                   <LayoutList size={15} /> Xem {m.resultIds.length} căn khớp
                 </button>
+              )}
+              {!mine && m.cta && (
+                <Link href={m.cta.href} className={styles.results}>{m.cta.label}</Link>
               )}
               <span className={styles.time}>{fmtTime(m.at)}</span>
             </div>

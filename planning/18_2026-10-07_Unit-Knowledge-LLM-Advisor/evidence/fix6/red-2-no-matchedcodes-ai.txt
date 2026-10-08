@@ -1,0 +1,27 @@
+......................................................F.F............... [ 92%]
+......                                                                   [100%]
+=================================== FAILURES ===================================
+___________ test_matched_codes_ranked_subset_and_internal_key_hidden ___________
+
+    async def test_matched_codes_ranked_subset_and_internal_key_hidden():
+        evs, _, tool = await go({"max_all_in_budget": 10_000_000}, reply="Mình thấy VHOP-S1.05-1203.")
+        ev = next(e for e in evs if e["event"] == "units")["data"]
+>       assert ev["matchedCodes"] == ["VHOP-S1.02-0607", "VHOP-S1.05-1203"]  # thứ tự xếp hạng (cùng 12% ⇒ All-in thấp trước)
+               ^^^^^^^^^^^^^^^^^^
+E       KeyError: 'matchedCodes'
+
+tests/test_progressive.py:64: KeyError
+__________________ test_units_event_when_bot_mentions_nothing __________________
+
+    async def test_units_event_when_bot_mentions_nothing():
+        evs, _, _ = await go({"max_all_in_budget": 10_000_000}, reply="Có 2 căn khớp, bạn cho mình ngân sách nhé.")
+        ev = next(e for e in evs if e["event"] == "units")["data"]
+>       assert ev["unitCodes"] == [] and len(ev["matchedCodes"]) == 2 and ev["mode"] == "search"
+                                             ^^^^^^^^^^^^^^^^^^
+E       KeyError: 'matchedCodes'
+
+tests/test_progressive.py:86: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_progressive.py::test_matched_codes_ranked_subset_and_internal_key_hidden
+FAILED tests/test_progressive.py::test_units_event_when_bot_mentions_nothing
+2 failed, 76 passed in 0.17s

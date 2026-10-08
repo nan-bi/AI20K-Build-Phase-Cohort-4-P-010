@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, Bath, BedDouble, CalendarCheck, Compass, Ruler } from "lucide-react";
 import { vnd, vndShort } from "@/lib/format";
@@ -19,16 +20,24 @@ interface UnitCardProps {
   rank?: number;
   reasons?: string[];
   priority?: boolean;
+  /** Có ⇒ bấm thẻ mở chi tiết tại chỗ (không điều hướng); href vẫn giữ để mở tab mới bằng chuột giữa/Ctrl. */
+  onSelect?: (unit: Unit, book: boolean) => void;
 }
 
-export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority }: UnitCardProps) {
+export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority, onSelect }: UnitCardProps) {
   const zoneName = unit.zoneName || zoneById(unit.zoneId)?.name || "Phân khu chưa cập nhật";
   const feature = variant === "feature";
+  const href = `/units/${unit.code || unit.id}`;
+  const open = (book: boolean) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!onSelect || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    onSelect(unit, book);
+  };
 
   return (
     <Card className={`group flex flex-col overflow-hidden transition-all hover:shadow-lg border-border bg-card ${feature ? "md:flex-row md:items-stretch" : ""}`}>
       <div className={`relative ${feature ? "md:w-[420px] shrink-0" : "w-full aspect-[4/3]"}`}>
-        <Link href={`/units/${unit.code || unit.id}`} aria-label={`Xem chi tiết căn ${unitAddress(unit)}`} className="absolute inset-0 z-0">
+        <Link href={href} onClick={open(false)} aria-label={`Xem chi tiết căn ${unitAddress(unit)}`} className="absolute inset-0 z-0">
           <VerifiedPhoto
             unit={unit}
             sizes={feature ? "(max-width: 900px) 100vw, 420px" : "(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 340px"}
@@ -51,7 +60,7 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
       <div className="flex flex-col flex-1 p-5 gap-4">
         <div>
           <h3 className="text-xl font-bold tracking-tight text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-            <Link href={`/units/${unit.code || unit.id}`} className="focus:outline-none">
+            <Link href={href} onClick={open(false)} className="focus:outline-none">
               {unitAddress(unit)}
             </Link>
           </h3>
@@ -87,7 +96,7 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
 
         <AllInBar cost={cost} />
 
-        {feature && reasons && reasons.length > 0 && (
+        {reasons && reasons.length > 0 && (
           <ul className="flex flex-col gap-2 mt-2">
             {reasons.slice(0, 3).map((r) => (
               <li key={r} className="text-sm text-muted-foreground bg-muted/50 p-2.5 rounded-lg border border-border/50">
@@ -101,14 +110,14 @@ export function UnitCard({ unit, cost, variant = "grid", rank, reasons, priority
           <Button
             variant="outline"
             className="h-10 flex-1 rounded-xl px-4 text-sm font-semibold"
-            render={<Link href={`/units/${unit.code || unit.id}`} />}
+            render={<Link href={href} onClick={open(false)} />}
           >
             Chi tiết
             <ArrowRight size={15} aria-hidden="true" />
           </Button>
           <Button
             className="h-10 flex-[1.35] rounded-xl px-4 text-sm font-semibold shadow-sm"
-            render={<Link href={`/units/${unit.code || unit.id}?book=1`} />}
+            render={<Link href={`${href}?book=1`} onClick={open(true)} />}
           >
             <CalendarCheck size={16} aria-hidden="true" />
             Đặt lịch xem

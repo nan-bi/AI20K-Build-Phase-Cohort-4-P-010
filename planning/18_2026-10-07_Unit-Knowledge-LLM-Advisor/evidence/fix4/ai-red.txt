@@ -1,0 +1,20 @@
+...............F.............................................            [100%]
+=================================== FAILURES ===================================
+________________ test_inventory_exposes_condition_pct_and_code _________________
+
+    def test_inventory_exposes_condition_pct_and_code():
+        from app.tools._common import unit_detail
+    
+        unit = {"code": "VHOP-S1.02-0607", "inventory": [
+            {"code": "1", "groupLabel": "Phòng khách", "name": "Bộ ghế Sofa", "qty": 1, "spec": "Da, màu xám", "conditionPct": 90},
+            {"code": "8", "groupLabel": "Bếp", "name": "Tủ lạnh", "qty": 1},
+        ]}
+        inv = unit_detail(unit)["inventory"]
+>       assert inv[0]["conditionPct"] == 90 and inv[0]["code"] == "1"
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'conditionPct'
+
+tests/test_core_api_envelope.py:76: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_core_api_envelope.py::test_inventory_exposes_condition_pct_and_code
+1 failed, 60 passed in 0.15s

@@ -5,6 +5,9 @@
 
 import { PrismaClient, LayoutType, DoorLockType, UnitStatus } from '@prisma/client';
 
+import { assertListingText } from '../src/modules/property/listing-text';
+import { layoutTypeToKind } from '../src/modules/tenant/tenant.mappers';
+
 const prisma = new PrismaClient();
 
 const BUILDINGS: Record<string, { zone: string; floors: number; lat: number; lng: number }> = {
@@ -1583,6 +1586,25 @@ const UNITS_DATA: any[] = [
   }
 ];
 
+/**
+ * Title/description công khai (hồ sơ 18 SPEC-P01 §5): description gốc vi phạm B7 (SĐT/URL/tiền) ⇒ null,
+ * title sinh từ trường cấu trúc. KHÔNG sửa tay dữ liệu JSON phía trên.
+ */
+function seedListingText(u: any): { title: string; description: string | null; rejected: boolean } {
+  const title = `${layoutTypeToKind(u.layoutType as LayoutType)} ${u.carpetAreaM2}m² · ${u.zoneName}`;
+  let description: string | null = typeof u.description === 'string' && u.description.trim() ? u.description.trim() : null;
+  let rejected = false;
+  if (description) {
+    try {
+      assertListingText('description', description);
+    } catch {
+      description = null;
+      rejected = true;
+    }
+  }
+  return { title, description, rejected };
+}
+
 async function main() {
   console.log('🚀 Pushing normalized units to Supabase PostgreSQL...');
 
@@ -1635,10 +1657,13 @@ async function main() {
   // 4. Upsert Units & Media
   console.log(`👉 Upserting ${UNITS_DATA.length} Cleaned & Standardized Units...`);
   let inserted = 0;
+  let descriptionsDropped = 0;
   for (const u of UNITS_DATA) {
     const buildingId = buildingIdMap[u.buildingCode];
     if (!buildingId) continue;
 
+    const text = seedListingText(u);
+    if (text.rejected) descriptionsDropped++;
     const unit = await prisma.unit.upsert({
       where: { unitCode: u.unitCode },
       update: {
@@ -1656,6 +1681,8 @@ async function main() {
         isVerified: u.isVerified,
         status: UnitStatus.AVAILABLE,
         isHot: u.isHot,
+        title: text.title,
+        description: text.description,
       },
       create: {
         unitCode: u.unitCode,
@@ -1673,6 +1700,8 @@ async function main() {
         isVerified: u.isVerified,
         status: UnitStatus.AVAILABLE,
         isHot: u.isHot,
+        title: text.title,
+        description: text.description,
       },
     });
 
@@ -1709,7 +1738,7 @@ async function main() {
     inserted++;
   }
 
-  console.log(`✅ Successfully synced ${inserted} units and their media to Supabase PostgreSQL!`);
+  console.log(`✅ Successfully synced ${inserted} units and their media to Supabase PostgreSQL! (descriptions dropped by assertListingText: ${descriptionsDropped})`);
 }
 
 main()

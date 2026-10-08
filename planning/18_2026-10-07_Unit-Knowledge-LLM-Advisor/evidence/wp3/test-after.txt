@@ -1,0 +1,11 @@
+$ vitest run
+
+ RUN  v5.0.1 /Users/namdev/Documents/Code/VinAI/build_phase/P-010/apps/web
+
+
+ Test Files  25 passed (25)
+      Tests  233 passed (233)
+   Start at  12:52:20
+   Duration  791ms (tests 46%, transform 30%, import 22%, worker 2%)
+
+exit 0

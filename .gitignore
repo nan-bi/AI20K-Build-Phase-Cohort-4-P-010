@@ -61,7 +61,7 @@ out/
 
 #uv
 .python-version
-pyproject.toml
+/pyproject.toml
 
 # Chrome debug profile & temporary data
 **/chrome_debug_profile/

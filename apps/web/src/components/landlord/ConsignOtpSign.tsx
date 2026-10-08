@@ -143,6 +143,11 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
       <p className="muted small">
         Mã 4 số đã gửi tới <b className="tnum">{info.maskedPhone ?? fmtPhone(normalizePhone(phone))}</b>. Nhập mã để ký ủy quyền.
       </p>
+      {info.devCode && (
+        <p className="small">
+          Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{info.devCode}</b>.
+        </p>
+      )}
       <OtpInput value={code} error={wrong} autoFocus disabled={busy} onChange={(v) => { setCode(v); setWrong(false); if (v.length === 4) void sign(v); }} />
       <button type="button" className="btn btn-quiet btn-sm" style={{ alignSelf: "flex-start" }} disabled={cooldown > 0 || busy} onClick={send}>
         {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã"}

@@ -13,6 +13,8 @@ import type {
   Liability,
   SubmitInspectionDto,
 } from "./types";
+import { detectListingTextViolation, listingTextMessage } from "@/lib/units/listing-text";
+import { blankFacts, blankListing, blankPricing, toExtrasDto, validateExtras } from "./facts";
 
 /**
  * Hàm THUẦN của cổng thẩm định (hồ sơ 16, SPEC-P03 §1) — không import mock, không DOM, test được trong Node.
@@ -138,10 +140,14 @@ export function blankLine(item: { code: string; group: InventoryGroup; name: str
 }
 
 /** Quy tắc khởi tạo checklist theo loại hồ sơ và nội thất căn hộ. */
-export function blankDraft(detail: Pick<InspectionDetail, "catalog" | "areaM2" | "furnished">): InspectionDraft {
+export function blankDraft(detail: Pick<InspectionDetail, "catalog" | "areaM2" | "furnished" | "layoutKind" | "floor" | "askRent" | "suggestedDeposit" | "declared">): InspectionDraft {
   const inventory = detail.catalog.map((item) => {
     const n = Number(item.code);
-    return blankLine(item, (n >= 25 && n <= 29) || (detail.furnished === true && n >= 1 && n <= 27));
+    if (n >= 25 && n <= 29) return blankLine(item, true); // sàn, tường, điện, cửa, thẻ: căn nào cũng có
+    const declared = detail.declared?.inventoryCodes;
+    // Chủ nhà đã chọn món có sẵn ⇒ tick đúng các món đó; hồ sơ cũ (không khai) ⇒ căn có nội thất thì tick 1–27.
+    if (detail.furnished !== false && declared) return blankLine(item, declared.includes(item.code));
+    return blankLine(item, detail.furnished === true && n >= 1 && n <= 27);
   });
   return {
     declared: {
@@ -160,6 +166,9 @@ export function blankDraft(detail: Pick<InspectionDetail, "catalog" | "areaM2" |
     recommendation: "approve",
     note: "",
     doorPin: "",
+    facts: blankFacts(detail),
+    pricing: blankPricing(detail),
+    listing: blankListing(detail),
   };
 }
 
@@ -235,6 +244,8 @@ export function validateDraft(draft: InspectionDraft, detail: Pick<InspectionDet
     if (inv[i].code !== `X${i - 31}` || name.length < 1 || name.length > 60) {
       return { field: `inventory.${i}.name`, message: `Hạng mục phát sinh ${inv[i].code} cần có tên (1–60 ký tự).` };
     }
+    const nameViolation = detectListingTextViolation(name); // F8: tên X ra trang công khai
+    if (nameViolation) return { field: `inventory.${i}.name`, message: `Tên hạng mục ${inv[i].code}: ${listingTextMessage(nameViolation)}` };
   }
   const perLineMax = detail.limits.perLineMax;
   for (let i = 0; i < inv.length; i++) {
@@ -253,6 +264,8 @@ export function validateDraft(draft: InspectionDraft, detail: Pick<InspectionDet
     if (l.photoIds.length > perLineMax) return { field: `inventory.${i}.photoIds`, message: `“${label}”: tối đa ${perLineMax} ảnh.` };
     // V7
     if (l.spec.trim().length > 80) return { field: `inventory.${i}.spec`, message: `“${label}”: quy cách tối đa 80 ký tự.` };
+    const specViolation = l.spec.trim() ? detectListingTextViolation(l.spec) : null; // F8: spec ra trang công khai
+    if (specViolation) return { field: `inventory.${i}.spec`, message: `“${label}”: ${listingTextMessage(specViolation)}` };
     if (l.note.trim().length > 120) return { field: `inventory.${i}.note`, message: `“${label}”: ghi chú tối đa 120 ký tự.` };
     if (l.compensation.trim() !== "") {
       const n = Number(l.compensation);
@@ -282,8 +295,18 @@ export function validateDraft(draft: InspectionDraft, detail: Pick<InspectionDet
   return null;
 }
 
+/** V1–V11 rồi V12–V14 (facts/pricing/listing). Workspace dùng bản này; `validateDraft` giữ nguyên cho V1–V11. */
+export function validateDraftFull(
+  draft: InspectionDraft,
+  detail: Pick<InspectionDetail, "areaM2" | "doorKind" | "doorCodeOnFile" | "limits" | "askRent" | "suggestedDeposit">,
+): DraftError | null {
+  return validateDraft(draft, detail) ?? validateExtras(draft, detail);
+}
+
 /** `field` của backend/validateDraft → id phần tử cần cuộn tới (hàng dòng thì bỏ phần thuộc tính). */
 export function fieldAnchorId(field: string): string {
+  // Trường hồ sơ 18 (facts./pricing./listing.): id kebab-case (areaM2 ⇒ area-m2) theo quy ước anchor B2.
+  if (/^(facts|pricing|listing)(\.|$)/.test(field)) return `insp-${field.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`).replace(/\./g, "-")}`;
   const m = /^(inventory\.\d+)(\..*)?$/.exec(field);
   return `insp-${(m ? m[1] : field).replace(/\./g, "-")}`;
 }
@@ -324,6 +347,8 @@ export function toSubmitDto(draft: InspectionDraft): SubmitInspectionDto {
   if (note) dto.note = note;
   const pin = draft.doorPin.trim();
   if (draft.recommendation === "approve" && pin) dto.doorPin = pin;
+  // Không đạt: không gửi facts/pricing/listing (backend bỏ qua pricing; phiếu chỉ cần lý do).
+  if (draft.recommendation === "approve") Object.assign(dto, toExtrasDto(draft));
   return dto;
 }
 

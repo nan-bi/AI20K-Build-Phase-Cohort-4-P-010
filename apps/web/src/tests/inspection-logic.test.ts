@@ -18,6 +18,7 @@ import {
   toSubmitDto,
   validateDraft,
 } from "@/lib/inspection/logic";
+import { listingForbiddenField } from "@/lib/inspection/facts";
 import { TaskLimiter, isRetryableUpload, uploadWithRecovery } from "@/lib/inspection/uploadQueue";
 import type { CatalogItem, InspectionDetail, InspectionPhotoView, InventoryGroup } from "@/lib/inspection/types";
 
@@ -113,6 +114,17 @@ describe("W1 validateDraft", () => {
     const withLine27 = { ...draft, inventory: draft.inventory.map((l) => (l.code === "27" ? { ...l, present: true, condition: 70, photoIds: [] } : l)) };
     const err = validateDraft(withLine27, detail);
     expect(err?.field).toBe("inventory.26.photoIds");
+  });
+
+  it("F8: spec chứa SĐT/link/tiền ⇒ lỗi đúng ô inventory.<i>.spec; tên dòng X chứa link ⇒ inventory.<i>.name", () => {
+    const { detail, draft } = validSetup();
+    const withSpec = (spec: string) => ({ ...draft, inventory: draft.inventory.map((l) => (l.code === "25" ? { ...l, spec } : l)) });
+    for (const bad of ["Sofa da, LH chủ 0979841233", "xem zalo.me/abc", "mua 8tr5", "LH ０９７９８４１２３３"]) {
+      expect(validateDraft(withSpec(bad), detail)?.field, bad).toBe("inventory.24.spec");
+    }
+    expect(validateDraft(withSpec("Da bò Hàn Quốc, 3 chỗ"), detail)).toBeNull();
+    expect(listingForbiddenField("inventory.24.spec", { highlights: ["", "", ""] })).toBe("inventory.24.spec");
+    expect(listingForbiddenField("inventory.32.name", { highlights: ["", "", ""] })).toBe("inventory.32.name");
   });
 
   it("V4: thiếu độ mới / số lượng sai", () => {

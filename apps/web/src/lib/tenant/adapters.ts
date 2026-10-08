@@ -1,10 +1,16 @@
-import type { TenantBooking, TenantUnit } from "./types";
+import type { TenantBooking, TenantUnit, UnitInventoryLine } from "./types";
 import { zoneOfName, type ItemKey, type Unit } from "@/lib/units";
 
 export type UnitWithExtras = Unit & {
   photos: string[];
   holdHours: number;
   activeViewingAt: string | null;
+  /** `null` = chưa rõ hướng ⇒ trang căn ẩn ô Hướng (không ghi "Chưa rõ"). */
+  directionRaw: string | null;
+  securityDeposit: number;
+  holdingDeposit: number;
+  highlights: string[];
+  inventory: UnitInventoryLine[];
 };
 
 export function toUnit(dto: TenantUnit): UnitWithExtras {
@@ -12,6 +18,7 @@ export function toUnit(dto: TenantUnit): UnitWithExtras {
   const photos = dto.photos && dto.photos.length > 0 ? dto.photos : [];
   return {
     id: dto.code,
+    landlordId: "", // Charter bảo mật chủ nhà: API công khai không trả chủ nhà
     code: dto.code,
     building: dto.building,
     zoneId: zone?.id,
@@ -39,11 +46,14 @@ export function toUnit(dto: TenantUnit): UnitWithExtras {
     petFriendly: dto.petFriendly,
     minMonths: dto.minMonths,
     verifiedAt: dto.verifiedAt,
-    title: dto.title,
-    description: dto.description,
     items: (dto.items || []) as ItemKey[],
     holdHours: dto.holdHours ?? 48,
     activeViewingAt: dto.activeViewingAt ?? null,
+    directionRaw: dto.direction ?? null,
+    securityDeposit: dto.securityDeposit ?? dto.rent,
+    holdingDeposit: dto.holdingDeposit,
+    highlights: dto.highlights ?? [],
+    inventory: dto.inventory ?? [],
   };
 }
 

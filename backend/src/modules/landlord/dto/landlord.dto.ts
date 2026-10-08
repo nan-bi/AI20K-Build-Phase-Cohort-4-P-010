@@ -16,6 +16,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { DIRECTIONS } from '../../property/unit-facts';
 
 export class RequestExitMandateDto {
   @ApiProperty({ description: 'ID của ủy quyền (lấy từ `mandate.id` trong GET /landlord/units)' })
@@ -65,6 +66,18 @@ export class CreateConsignmentDto {
   @Max(300)
   areaM2: number;
 
+  @ApiPropertyOptional({ example: 2, description: 'Số phòng vệ sinh (1–4). Bỏ trống = theo loại căn (2PN/3PN: 2, còn lại: 1); Inspector xác nhận lại khi thẩm định' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  bathrooms?: number;
+
+  @ApiPropertyOptional({ example: 'Đông Nam', description: 'Hướng căn hộ: Đông | Tây | Nam | Bắc | Đông Nam | Đông Bắc | Tây Nam | Tây Bắc' })
+  @IsOptional()
+  @IsIn(DIRECTIONS as unknown as string[])
+  direction?: string;
+
   @ApiProperty({ example: 6500000, description: 'Giá thuê kỳ vọng (VNĐ/tháng, tối thiểu 3.000.000)' })
   @IsNumber()
   @Min(3_000_000)
@@ -105,6 +118,13 @@ export class CreateConsignmentDto {
   @MaxLength(300)
   note?: string;
 
+  @ApiPropertyOptional({ example: ['8', '21'], description: 'Mã hạng mục (catalog 32 món) chủ nhà khai là có sẵn; thẩm định tick sẵn' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(32)
+  @IsString({ each: true })
+  inventoryCodes?: string[];
+
   @ApiPropertyOptional({ default: false, description: 'true = bản nháp: bỏ kiểm tra tiền cọc đề xuất' })
   @IsOptional()
   @IsBoolean()
@@ -133,4 +153,11 @@ export class SendConsignmentOtpDto {
   @IsOptional()
   @IsString()
   phone?: string;
+}
+
+/** Quyết định của chủ nhà về giá + cọc bảo đảm do Inspector đề xuất (hồ sơ 18, 01 §4.3). */
+export class PricingDecisionDto {
+  @ApiProperty({ enum: ['accept', 'decline'] })
+  @IsIn(['accept', 'decline'])
+  decision: 'accept' | 'decline';
 }
