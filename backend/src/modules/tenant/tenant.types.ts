@@ -53,8 +53,6 @@ export interface TenantUnit {
   petFriendly: boolean;
   minMonths: number;
   verifiedAt: string;
-  title: string;
-  description: string;
   holdHours: number; // 12..72
   activeViewingAt: string | null;
   /** Cọc bảo đảm: `units.securityDeposit ?? baseRentPrice`. */

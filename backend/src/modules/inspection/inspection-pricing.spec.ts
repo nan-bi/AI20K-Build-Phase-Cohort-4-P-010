@@ -30,14 +30,14 @@ describe('Inspection — giá/cọc đổi ⇒ chủ nhà duyệt (hồ sơ 18)'
   const submit = (c: { mandate: { id: string } }, photos: ReturnType<typeof fullPhotos>, over: Record<string, unknown> = {}) =>
     w.flow.submit(w.actor(a), c.mandate.id, validInput(photos, over as any));
 
-  it('P2-3: pass + giá/cọc không đổi ⇒ approved ngay, căn AVAILABLE, giá = askRent, ghi facts/title', async () => {
+  it('P2-3: pass + giá/cọc không đổi ⇒ approved ngay, căn AVAILABLE, giá = askRent, ghi facts/highlights', async () => {
     const { c, photos } = setup();
     const out = await submit(c, photos);
     expect(out).toMatchObject({ stage: 'approved', unitCode: c.unit.unitCode });
     expect(out.listedAt).toBeTruthy();
     expect(w.unitRow(c.unit)).toMatchObject({
       status: 'AVAILABLE', baseRentPrice: 6_500_000, securityDeposit: 6_500_000, marketAvgPrice: 6_500_000,
-      bathrooms: 1, direction: 'Đông Nam', floorNumber: 12, title: '1PN sáng, view hồ',
+      bathrooms: 1, direction: 'Đông Nam', floorNumber: 12,
     });
     expect(w.unitRow(c.unit).highlights).toEqual(['View hồ', 'Nội thất đầy đủ', 'Gần sảnh']);
     expect(w.metaOf(c.mandate).pricingProposal).toBeUndefined();
@@ -116,10 +116,10 @@ describe('Inspection — giá/cọc đổi ⇒ chủ nhà duyệt (hồ sơ 18)'
 
   it('validator: listing có SĐT / số tiền ⇒ 400 LISTING_TEXT_FORBIDDEN (field + reason)', async () => {
     const { c, photos } = setup();
-    const listing = { title: 'Căn đẹp', highlights: ['Gọi 0979841233'], description: 'x' };
+    const listing = { highlights: ['Gọi 0979841233'] };
     expect(await bodyOf(submit(c, photos, { listing }))).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: 'highlights', reason: 'phone' });
-    const money = { title: 'Giá 8tr5 rẻ', highlights: [], description: '' };
-    expect(await bodyOf(submit(c, photos, { listing: money }))).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: 'title', reason: 'money' });
+    const money = { highlights: ['Giá 8tr5 rẻ'] };
+    expect(await bodyOf(submit(c, photos, { listing: money }))).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: 'highlights', reason: 'money' });
     expect(w.metaOf(c.mandate).stage).toBe('inspecting');
   });
 

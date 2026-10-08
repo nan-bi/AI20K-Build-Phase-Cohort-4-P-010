@@ -59,9 +59,7 @@ export class PricingDto {
 }
 
 export class ListingDto {
-  @IsString() title: string;
   @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) highlights: string[];
-  @IsString() description: string;
 }
 
 export class SubmitInspectionDto implements SubmitInspectionInput {

@@ -24,7 +24,7 @@ export interface PublishOptions {
  *
  * Ghi: unit (AVAILABLE + Verified + furnishing + doorNumber) · unit_media (đúng ảnh niêm yết, theo thứ tự) ·
  * door_access_keys (nếu có `doorPin`). Cột ủy quyền (ACTIVE + validUntil) trả về qua `mandateData` để `mutate` ghi
- * chung câu UPDATE với meta (đỡ một vòng DB). Hồ sơ 18: ghi thêm facts thực tế, giá/cọc đã thoả thuận (`agreed`), title/highlights/description;
+ * chung câu UPDATE với meta (đỡ một vòng DB). Hồ sơ 18: ghi thêm facts thực tế, giá/cọc đã thoả thuận (`agreed`), highlights;
  * `marketAvgPrice = agreed.rent` ⇒ vẫn chưa có badge "Căn hời" (H9). PIN cửa lưu riêng qua `storeDoorPin` (lúc nộp phiếu, kể cả khi chưa niêm yết).
  */
 @Injectable()
@@ -71,9 +71,7 @@ export class ListingPublisher {
         marketAvgPrice: agreed.rent,
         ...(listing
           ? {
-              title: listing.title,
               highlights: listing.highlights,
-              description: listing.description || null,
             }
           : {}),
       },

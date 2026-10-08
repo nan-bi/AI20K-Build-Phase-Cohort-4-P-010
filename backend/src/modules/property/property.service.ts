@@ -137,7 +137,6 @@ export class PropertyService {
       const keyword = q.trim();
       where.OR = [
         { unitCode: { contains: keyword, mode: 'insensitive' } },
-        { title: { contains: keyword, mode: 'insensitive' } },
       ];
     }
 

@@ -20,7 +20,7 @@ import { LandlordFinanceService } from './landlord-finance.service';
 import { LandlordMandateService } from './landlord-mandate.service';
 import { LandlordPricingService } from './landlord-pricing.service';
 import { LandlordPhotoService, UploadedImage } from './landlord-photo.service';
-import { MAX_PHOTOS, MAX_PHOTO_BYTES } from './landlord.mappers';
+import { MAX_PHOTOS, MAX_PHOTO_BYTES, inventoryCatalogView } from './landlord.mappers';
 import { LandlordUnitsService } from './landlord-units.service';
 import { LandlordService } from './landlord.service';
 import {
@@ -55,6 +55,12 @@ export class LandlordController {
   @ApiOperation({ summary: 'Tổng quan chủ nhà (bản tối thiểu — UI dashboard làm sau)' })
   getDashboard(@CurrentUser('id') landlordId: string) {
     return this.dashboard.getLandlordDashboard(landlordId);
+  }
+
+  @Get('inventory-catalog')
+  @ApiOperation({ summary: '32 hạng mục trang thiết bị (Điều 5) để chủ nhà chọn món có sẵn khi ký gửi' })
+  getInventoryCatalog() {
+    return inventoryCatalogView();
   }
 
   @Get('units')

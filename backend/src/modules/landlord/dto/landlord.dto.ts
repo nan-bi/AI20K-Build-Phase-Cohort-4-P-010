@@ -66,36 +66,17 @@ export class CreateConsignmentDto {
   @Max(300)
   areaM2: number;
 
-  @ApiProperty({ example: 1, description: 'Số phòng vệ sinh (1–4)' })
+  @ApiPropertyOptional({ example: 2, description: 'Số phòng vệ sinh (1–4). Bỏ trống = theo loại căn (2PN/3PN: 2, còn lại: 1); Inspector xác nhận lại khi thẩm định' })
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(4)
-  bathrooms: number;
+  bathrooms?: number;
 
   @ApiPropertyOptional({ example: 'Đông Nam', description: 'Hướng căn hộ: Đông | Tây | Nam | Bắc | Đông Nam | Đông Bắc | Tây Nam | Tây Bắc' })
   @IsOptional()
   @IsIn(DIRECTIONS as unknown as string[])
   direction?: string;
-
-  @ApiPropertyOptional({ example: 'Căn 1PN view hồ, đủ nội thất', description: 'Tiêu đề tin (≤ 80). CẤM SĐT/URL/số tiền' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(80)
-  title?: string;
-
-  @ApiPropertyOptional({ example: ['View hồ'], description: 'Tối đa 3 điểm nổi bật, mỗi dòng ≤ 60 ký tự' })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(3)
-  @IsString({ each: true })
-  @MaxLength(60, { each: true })
-  highlights?: string[];
-
-  @ApiPropertyOptional({ example: 'Căn góc thoáng mát', description: 'Mô tả (≤ 600). CẤM SĐT/URL/số tiền' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(600)
-  description?: string;
 
   @ApiProperty({ example: 6500000, description: 'Giá thuê kỳ vọng (VNĐ/tháng, tối thiểu 3.000.000)' })
   @IsNumber()
@@ -136,6 +117,13 @@ export class CreateConsignmentDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  @ApiPropertyOptional({ example: ['8', '21'], description: 'Mã hạng mục (catalog 32 món) chủ nhà khai là có sẵn; thẩm định tick sẵn' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(32)
+  @IsString({ each: true })
+  inventoryCodes?: string[];
 
   @ApiPropertyOptional({ default: false, description: 'true = bản nháp: bỏ kiểm tra tiền cọc đề xuất' })
   @IsOptional()

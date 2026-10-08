@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 
-export type ListingTextField = 'title' | 'highlights' | 'description';
+export type ListingTextField = 'highlights';
 export type ListingTextReason = 'phone' | 'url' | 'money';
 
 export const LISTING_TEXT_FORBIDDEN = 'LISTING_TEXT_FORBIDDEN';

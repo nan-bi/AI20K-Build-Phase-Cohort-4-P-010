@@ -1,4 +1,5 @@
 import { DoorLockType, LayoutType, MandateStatus, UnitStatus } from '@prisma/client';
+import { INSPECTION_CATALOG } from '../inspection/inspection.catalog';
 
 /** Điều khoản thoát ủy quyền: báo trước 15 ngày (legal/01 Điều 8). */
 export const EXIT_NOTICE_DAYS = 15;
@@ -75,6 +76,8 @@ export interface ConsignmentForm {
   furnished: boolean | null;
   locks: ('smart' | 'physical')[];
   note: string | null;
+  /** Mã hạng mục (catalog 32 món, Điều 5) chủ nhà khai là có sẵn; màn thẩm định tick sẵn các món này. Hồ sơ cũ không có khoá này. */
+  inventoryCodes?: string[];
 }
 
 /**
@@ -166,9 +169,7 @@ export interface InspectionPricing {
 
 /** Nội dung công khai Inspector có thể sửa so với bản chủ khai. */
 export interface InspectionListing {
-  title: string;
   highlights: string[];
-  description: string;
 }
 
 /** Đề xuất giá/cọc chờ chủ nhà duyệt (stage `awaiting_landlord`). */
@@ -327,3 +328,16 @@ export function lastMonths(count: number, now: Date): MonthWindow[] {
     return { key, label: `T${start.getMonth() + 1}`, start, end };
   });
 }
+
+export interface InventoryCatalogEntry {
+  code: string;
+  group: string;
+  name: string;
+}
+
+/** Danh sách 32 hạng mục để chủ nhà chọn món có sẵn (chỉ mã/nhóm/tên; gợi ý chụp và trách nhiệm đền bù là việc của Host). */
+export const inventoryCatalogView = (): InventoryCatalogEntry[] =>
+  INSPECTION_CATALOG.map(({ code, group, name }) => ({ code, group, name }));
+
+const CATALOG_CODES = new Set(INSPECTION_CATALOG.map((i) => i.code));
+export const isCatalogCode = (code: string): boolean => CATALOG_CODES.has(code);

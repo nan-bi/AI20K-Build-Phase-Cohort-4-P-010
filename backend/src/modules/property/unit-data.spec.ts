@@ -6,6 +6,7 @@ import { buildDepositTerms } from '../deposit/deposit-terms';
 import { ConsignmentMetaStore } from '../landlord/consignment-meta.store';
 import { LandlordAccessService } from '../landlord/landlord-access.service';
 import { LandlordConsignmentService } from '../landlord/landlord-consignment.service';
+import { inventoryCatalogView, readConsignmentMeta } from '../landlord/landlord.mappers';
 import { CreateConsignmentDto } from '../landlord/dto/landlord.dto';
 import { INSPECTION_CATALOG, INSPECTION_GROUPS } from '../inspection/inspection.catalog';
 import { InspectorAssigner } from '../inspection/inspector-assigner.service';
@@ -21,15 +22,14 @@ const building = { id: 'b1', buildingCode: 'S1.02', zoneName: 'The Sapphire 1', 
 
 function makeCreateService() {
   const unitCreate = jest.fn(async ({ data }: any) => ({ id: 'u1', ...data }));
+  const mandateCreate = jest.fn(async ({ data }: any) => ({
+        id: 'm1', ...data, createdAt: new Date(), signedAt: null,
+        unit: { id: 'u1', unitCode: data.unitCode, floorNumber: 12, layoutType: 'ONE_BED_PLUS', carpetAreaM2: 47, baseRentPrice: 6_500_000, doorLockType: 'ELECTRONIC_PIN', building },
+      }));
   const tx: any = {
     unit: { create: unitCreate },
     doorAccessKey: { create: jest.fn() },
-    exclusiveMandate: {
-      create: jest.fn(async ({ data }: any) => ({
-        id: 'm1', ...data, createdAt: new Date(), signedAt: null,
-        unit: { id: 'u1', unitCode: data.unitCode, floorNumber: 12, layoutType: 'ONE_BED_PLUS', carpetAreaM2: 47, baseRentPrice: 6_500_000, doorLockType: 'ELECTRONIC_PIN', building },
-      })),
-    },
+    exclusiveMandate: { create: mandateCreate },
   };
   const prisma: any = {
     building: { findUnique: jest.fn(async () => building) },
@@ -47,20 +47,20 @@ function makeCreateService() {
     new ConsignmentMetaStore(prisma),
     new InspectorAssigner(),
   );
-  return { service, unitCreate };
+  return { service, unitCreate, mandateCreate };
 }
 
 const baseDto = { building: 'S1.02', floor: 12, door: '08', layout: '1PN', areaM2: 47, askRent: 6_500_000, bathrooms: 2 };
 
 describe('P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units', () => {
-  it('P1-1: ghi bathrooms/direction/title/highlights/description/securityDeposit/minLeaseMonths/furnishing', async () => {
+  it('P1-1: ghi bathrooms/direction/securityDeposit/minLeaseMonths/furnishing', async () => {
     const { service, unitCreate } = makeCreateService();
     await service.create(ME, {
-      ...baseDto, direction: 'Đông Nam', title: 'Căn 1PN view hồ', highlights: ['View hồ', 'Tầng cao'], description: 'Căn góc thoáng mát',
+      ...baseDto, direction: 'Đông Nam',
       suggestedDeposit: 13_000_000, leaseTerm: 'long', furnished: false,
     } as any);
     expect(unitCreate.mock.calls[0][0].data).toMatchObject({
-      bathrooms: 2, direction: 'Đông Nam', title: 'Căn 1PN view hồ', highlights: ['View hồ', 'Tầng cao'], description: 'Căn góc thoáng mát',
+      bathrooms: 2, direction: 'Đông Nam',
       securityDeposit: 13_000_000, minLeaseMonths: 12, furnishing: 'EMPTY', marketAvgPrice: 6_500_000,
     });
   });
@@ -69,16 +69,54 @@ describe('P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units', () => {
     const { service, unitCreate } = makeCreateService();
     await service.create(ME, baseDto as any);
     const data = unitCreate.mock.calls[0][0].data;
-    expect(data).toMatchObject({ minLeaseMonths: 6, securityDeposit: null, highlights: [], direction: null, title: null, description: null });
+    expect(data).toMatchObject({ minLeaseMonths: 6, securityDeposit: null, direction: null });
     expect(data).not.toHaveProperty('furnishing');
   });
 
-  it('P1-1: text vi phạm ⇒ 400 LISTING_TEXT_FORBIDDEN, không tạo căn', async () => {
+  it('form ký gửi không còn ô số WC: bỏ trống ⇒ theo loại căn (Studio/1PN: 1, 2PN/3PN: 2); có gửi thì giữ nguyên', async () => {
+    const { bathrooms: _omit, ...noWc } = baseDto;
+    for (const [layout, expected] of [['Studio', 1], ['1PN', 1], ['2PN', 2], ['3PN', 2]] as const) {
+      const { service, unitCreate } = makeCreateService();
+      await service.create(ME, { ...noWc, layout } as any);
+      expect(unitCreate.mock.calls[0][0].data.bathrooms).toBe(expected);
+    }
     const { service, unitCreate } = makeCreateService();
-    const err: any = await service.create(ME, { ...baseDto, description: 'LH em 0979841233' } as any).catch((e) => e);
+    await service.create(ME, { ...noWc, layout: '2PN', bathrooms: 3 } as any);
+    expect(unitCreate.mock.calls[0][0].data.bathrooms).toBe(3);
+  });
+
+  it('chủ nhà khai món có sẵn từ catalog 32 món: lưu vào meta.form.inventoryCodes (bỏ trùng); không khai thì không có khoá', async () => {
+    const { service, mandateCreate } = makeCreateService();
+    await service.create(ME, { ...baseDto, inventoryCodes: ['8', '21', '8', '24'] } as any);
+    expect(readConsignmentMeta(mandateCreate.mock.calls[0][0].data.doorAccessConfig)?.form.inventoryCodes).toEqual(['8', '21', '24']);
+    const other = makeCreateService();
+    await other.service.create(ME, baseDto as any);
+    expect(readConsignmentMeta(other.mandateCreate.mock.calls[0][0].data.doorAccessConfig)?.form).not.toHaveProperty('inventoryCodes');
+  });
+
+  it('inventoryCodes có mã ngoài catalog ⇒ 400, không tạo căn', async () => {
+    const { service, unitCreate } = makeCreateService();
+    const err: any = await service.create(ME, { ...baseDto, inventoryCodes: ['8', '99'] } as any).catch((e) => e);
     expect(err).toBeInstanceOf(BadRequestException);
-    expect(err.getResponse()).toMatchObject({ code: 'LISTING_TEXT_FORBIDDEN', field: 'description', reason: 'phone' });
     expect(unitCreate).not.toHaveBeenCalled();
+  });
+
+  it('GET landlord/inventory-catalog: đủ 32 món, chỉ lộ code/group/name (không lộ gợi ý chụp, trách nhiệm đền bù)', () => {
+    const view = inventoryCatalogView();
+    expect(view).toHaveLength(32);
+    expect(Object.keys(view[0]).sort()).toEqual(['code', 'group', 'name']);
+    expect(view.map((v) => v.code)).toEqual(INSPECTION_CATALOG.map((i) => i.code));
+  });
+
+  it('form ký gửi không còn điểm nổi bật: DTO bỏ qua `highlights`/`title`/`description` gửi thừa, không ghi vào căn', async () => {
+    const pipe = new ValidationPipe({ transform: true, whitelist: true });
+    const dto: any = await pipe.transform({ ...baseDto, highlights: ['x'], title: 't', description: 'd' }, { type: 'body', metatype: CreateConsignmentDto });
+    expect(dto).not.toHaveProperty('highlights');
+    expect(dto).not.toHaveProperty('title');
+    expect(dto).not.toHaveProperty('description');
+    const { service, unitCreate } = makeCreateService();
+    await service.create(ME, dto);
+    expect(unitCreate.mock.calls[0][0].data).not.toHaveProperty('highlights');
   });
 
   it('P1-2: direction ngoài 8 giá trị ⇒ 400 (ValidationPipe); 8 giá trị hợp lệ qua', async () => {
@@ -86,7 +124,6 @@ describe('P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units', () => {
     const meta = { type: 'body' as const, metatype: CreateConsignmentDto };
     await expect(pipe.transform({ ...baseDto, direction: 'Trung tâm' }, meta)).rejects.toMatchObject({ status: 400 });
     await expect(pipe.transform({ ...baseDto, bathrooms: 0 }, meta)).rejects.toMatchObject({ status: 400 });
-    await expect(pipe.transform({ ...baseDto, highlights: ['a', 'b', 'c', 'd'] }, meta)).rejects.toMatchObject({ status: 400 });
     for (const d of DIRECTIONS) await expect(pipe.transform({ ...baseDto, direction: d }, meta)).resolves.toBeDefined();
     expect(DIRECTIONS).toHaveLength(8);
   });
@@ -95,7 +132,7 @@ describe('P1-1/P1-2 — tạo ký gửi ghi thông tin căn vào units', () => {
 describe('P1-3 — assertListingText', () => {
   const reasonOf = (v: string) => {
     try {
-      assertListingText('description', v);
+      assertListingText('highlights', v);
       return null;
     } catch (e: any) {
       return e.getResponse().reason;

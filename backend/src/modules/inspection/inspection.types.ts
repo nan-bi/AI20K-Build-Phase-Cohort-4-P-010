@@ -67,9 +67,9 @@ export interface InspectionPhotoView {
 export interface DeclaredListingInfo {
   bathrooms: number;
   direction: string | null;
-  title: string | null;
   highlights: string[];
-  description: string | null;
+  /** Mã hạng mục chủ nhà khai có sẵn (catalog 32 món); null = hồ sơ cũ không khai ⇒ web dùng quy tắc mặc định. */
+  inventoryCodes: string[] | null;
 }
 
 export interface InspectionDetail extends InspectionCard {

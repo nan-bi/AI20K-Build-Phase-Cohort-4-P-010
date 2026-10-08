@@ -66,7 +66,7 @@ export function buildWorld() {
       const unit = {
         id: `unit-${n}`, unitCode: `VHOP-S1.02-${10 + n}08`, floorNumber: 10 + n, layoutType: 'ONE_BED_PLUS', carpetAreaM2: o.areaM2 ?? 47,
         baseRentPrice: 6_500_000, marketAvgPrice: 6_500_000, securityDeposit: null, bathrooms: 1, direction: null, managementFee: 446_500,
-        landlordId: o.landlordId ?? 'landlord-1', title: null, highlights: [], description: null, doorLockType: lock, status: 'UNLISTED', isVerified: false, verifiedAt: null,
+        landlordId: o.landlordId ?? 'landlord-1', highlights: [], doorLockType: lock, status: 'UNLISTED', isVerified: false, verifiedAt: null,
         furnishing: 'FULL', doorNumber: null,
         building: { buildingCode: 'S1.02', zoneName: ZONE }, landlord: { fullName: o.name ?? 'Nguyễn Thị Mai' },
       };
@@ -134,7 +134,7 @@ export function validInput(photos: InspectionPhoto[], over: Partial<SubmitInspec
     functions: { ac: true, kitchen: true, waterHeater: true, drainage: true },
     facts: { areaM2: 47, layout: '1PN', bathrooms: 1, direction: 'Đông Nam', floor: 12 },
     pricing: { rent: 6_500_000, securityDeposit: 6_500_000 },
-    listing: { title: '1PN sáng, view hồ', highlights: ['View hồ', 'Nội thất đầy đủ', 'Gần sảnh'], description: 'Căn sạch, thoáng, đầy đủ nội thất.' },
+    listing: { highlights: ['View hồ', 'Nội thất đầy đủ', 'Gần sảnh'] },
     netAreaM2: 44,
     furnishing: 'full',
     listingPhotoIds: photos.filter((p) => p.slot === 'listing').map((p) => p.id),

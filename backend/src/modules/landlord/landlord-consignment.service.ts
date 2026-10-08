@@ -6,7 +6,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Furnishing, MandateStatus, OtpPurpose, PhysicalKeyState, UnitStatus } from '@prisma/client';
-import { assertListingText } from '../property/listing-text';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { OtpService } from '../auth/otp/otp.service';
@@ -24,6 +23,7 @@ import {
   INSPECT_SLA_HOURS,
   LockKind,
   consignmentStage,
+  isCatalogCode,
   maskPhone,
   parseLock,
   readConsignmentMeta,
@@ -99,12 +99,10 @@ export class LandlordConsignmentService {
     const layout = toLayoutType(dto.layout);
     if (!layout) throw new BadRequestException(`Loại căn không hợp lệ: ${dto.layout}`);
 
-    const title = dto.title?.trim() || null;
-    const description = dto.description?.trim() || null;
-    const highlights = (dto.highlights ?? []).map((h) => h.trim()).filter(Boolean);
-    if (title) assertListingText('title', title);
-    for (const h of highlights) assertListingText('highlights', h);
-    if (description) assertListingText('description', description);
+
+    const inventoryCodes = [...new Set(dto.inventoryCodes ?? [])];
+    const unknown = inventoryCodes.find((c) => !isCatalogCode(c));
+    if (unknown) throw new BadRequestException(`Hạng mục không có trong bảng kê: ${unknown}`);
 
     const locks = this.parseLocks(dto.locks);
     const suggestedDeposit = dto.suggestedDeposit ?? dto.askRent;
@@ -138,6 +136,7 @@ export class LandlordConsignmentService {
         furnished: dto.furnished ?? null,
         locks,
         note: dto.note?.trim() || null,
+        ...(dto.inventoryCodes ? { inventoryCodes } : {}),
       },
     };
 
@@ -154,11 +153,8 @@ export class LandlordConsignmentService {
           managementFee: Math.round(dto.areaM2 * mgmtRate),
           // Chưa có số liệu thị trường: đặt bằng giá chào ⇒ chưa có badge "Căn hời" (không còn bước Admin duyệt; giữ nguyên giá trị này khi niêm yết).
           marketAvgPrice: dto.askRent,
-          bathrooms: dto.bathrooms,
+          bathrooms: dto.bathrooms ?? (layout === 'STUDIO' || layout === 'ONE_BED_PLUS' ? 1 : 2),
           direction: dto.direction ?? null,
-          title,
-          highlights,
-          description,
           securityDeposit: dto.suggestedDeposit ?? null,
           minLeaseMonths: dto.leaseTerm === 'long' || dto.leaseTerm === 'fixed' ? 12 : 6,
           ...(dto.furnished === true ? { furnishing: Furnishing.FULL } : dto.furnished === false ? { furnishing: Furnishing.EMPTY } : {}),

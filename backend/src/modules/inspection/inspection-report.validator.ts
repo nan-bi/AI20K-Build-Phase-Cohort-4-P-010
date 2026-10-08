@@ -179,19 +179,13 @@ function validateFactsPricingListing(input: SubmitInspectionInput, meta: Consign
 
   const l = input.listing;
   if (l === undefined || l === null) {
-    if (approve) throw reportInvalid('listing', 'Thiếu tiêu đề, điểm nổi bật và mô tả công khai.');
+    if (approve) throw reportInvalid('listing', 'Thiếu điểm nổi bật công khai.');
   } else {
-    const title = typeof l.title === 'string' ? l.title.trim() : '';
-    if (title.length < 1 || title.length > 80) throw reportInvalid('listing.title', 'Tiêu đề từ 1 đến 80 ký tự.');
     const highlights = Array.isArray(l.highlights) ? l.highlights.map((h) => (typeof h === 'string' ? h.trim() : '')) : null;
     if (!highlights || highlights.length > 3 || highlights.some((h) => h.length < 1 || h.length > 60)) {
       throw reportInvalid('listing.highlights', 'Tối đa 3 điểm nổi bật, mỗi điểm 1–60 ký tự.');
     }
-    const description = typeof l.description === 'string' ? l.description.trim() : '';
-    if (typeof l.description !== 'string' || description.length > 600) throw reportInvalid('listing.description', 'Mô tả tối đa 600 ký tự.');
-    assertListingText('title', title);
     for (const h of highlights) assertListingText('highlights', h);
-    if (description) assertListingText('description', description);
   }
 }
 
@@ -247,9 +241,7 @@ export function buildReport(input: SubmitInspectionInput, meta: ConsignmentMeta,
     ...(input.listing
       ? {
           listing: {
-            title: input.listing.title.trim(),
             highlights: input.listing.highlights.map((h) => h.trim()),
-            description: input.listing.description.trim(),
           },
         }
       : {}),

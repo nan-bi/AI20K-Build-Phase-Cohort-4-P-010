@@ -117,8 +117,6 @@ export function toTenantUnit(
       petFriendly: false,
       minMonths: 6,
       verifiedAt: new Date().toISOString(),
-      title: '',
-      description: '',
       holdHours: 48,
       activeViewingAt: null,
       securityDeposit: 0,
@@ -173,8 +171,6 @@ export function toTenantUnit(
       : unit.updatedAt
         ? new Date(unit.updatedAt).toISOString()
         : '',
-    title: unit.title ?? '',
-    description: unit.description ?? '',
     holdHours: holdHours ?? unit.holdHoursOverride ?? 48,
     activeViewingAt: activeViewingAt ?? null,
     securityDeposit: unit.securityDeposit != null ? Number(unit.securityDeposit) : Number(unit.baseRentPrice),

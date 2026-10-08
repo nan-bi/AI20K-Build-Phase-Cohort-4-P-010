@@ -115,9 +115,8 @@ export class InspectionQueryService {
       declared: {
         bathrooms: m.unit.bathrooms ?? 1,
         direction: m.unit.direction ?? null,
-        title: m.unit.title ?? null,
         highlights: m.unit.highlights ?? [],
-        description: m.unit.description ?? null,
+        inventoryCodes: meta.form.inventoryCodes ?? null,
       },
       suggestedDeposit: form.suggestedDeposit ?? Number(m.unit.baseRentPrice),
       leaseTerm: form.leaseTerm ?? null,

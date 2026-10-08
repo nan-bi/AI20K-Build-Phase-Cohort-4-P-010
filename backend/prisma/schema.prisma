@@ -221,8 +221,6 @@ model Unit {
   amenities           Amenity[]    @default([])
   petFriendly         Boolean      @default(false) @map("pet_friendly")
   minLeaseMonths      Int          @default(6) @map("min_lease_months")
-  title               String?      @db.VarChar(120)
-  description         String?
   securityDeposit     Decimal?     @map("security_deposit") @db.Decimal(12, 2) // null ⇒ = baseRentPrice (Q3)
   highlights          String[]     @default([]) // tối đa 3, mỗi dòng ≤ 60 ký tự
   holdHoursOverride   Int?         @map("hold_hours_override")
