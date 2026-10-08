@@ -31,8 +31,6 @@ UNIT_A = {
     "petFriendly": True,
     "minMonths": 6,
     "status": "available",
-    "title": "Căn đẹp",
-    "description": "Thoáng",
     "holdHours": 48,
     "highlights": ["Ban công"],
     "securityDeposit": 8_000_000,

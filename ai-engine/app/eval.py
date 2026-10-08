@@ -42,7 +42,7 @@ def score_case(case: dict, text: str, tools: list[str], err: str | None = None) 
 
 
 def poisoned_api(spec: dict) -> CoreApi:
-    """Core API giả (httpx.MockTransport) trả 1 căn có text chủ nhà độc: spec = {title?, description?, highlights?}."""
+    """Core API giả (httpx.MockTransport) trả 1 căn có text chủ nhà độc: spec = {highlights?}."""
     import httpx
 
     unit = {

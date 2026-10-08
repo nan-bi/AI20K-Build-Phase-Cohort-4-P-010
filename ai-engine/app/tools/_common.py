@@ -7,7 +7,6 @@ from typing import Any
 PROPERTIES = "/properties"
 UNTRUSTED_OPEN = "<untrusted_listing_text>"
 UNTRUSTED_CLOSE = "</untrusted_listing_text>"
-DESC_MAX = 300
 CODE_RE = re.compile(r"[A-Za-z0-9._-]{3,40}")
 
 
@@ -98,8 +97,6 @@ def unit_detail(unit: dict) -> dict[str, Any]:
     d = unit_brief(unit)
     d.update(
         {
-            "title": untrusted(unit.get("title"), 120),
-            "description": untrusted(unit.get("description"), DESC_MAX),
             "items": unit.get("items") or [],
             "inventory": _inventory(unit),
             # Chưa có danh mục từng món ⇒ chỉ có mức nội thất chung; bot KHÔNG được suy diễn món cụ thể hay "hợp hơn" từ đó.
