@@ -64,3 +64,23 @@ Bước 1 M1–M8 chạy dừng ở ca lệch đầu tiên; M9 chạy sau khi gh
 ## Bằng chứng
 
 Lưu tạm trong scratchpad phiên Claude Code (có thể mất khi phiên kết thúc): `tc04/ids.txt`, `tc04/step1.log`, `tc04/step1_M8.json`, `tc04/rest.log`, `tc04/records_after.txt`, script `tc04_lib.js`, `tc04_step1.js`, `tc04_step1b.js`, `tc04_rest.js`.
+
+---
+
+## Chạy lại 2026-10-09 (commit `4b00d24`)
+
+**Kết quả: PASS: 66/66 kiểm tra Pass, 0 Fail.** [BUG-TC04-01](bugs/BUG-TC04-01.md) và [BUG-TC04-02](bugs/BUG-TC04-02.md) **đã được sửa**. Môi trường: local backend `:4000`, DB Supabase cloud; chỉ GET hoặc body rỗng. Bằng chứng: [tc04.txt](evidence/TC-01-05_2026-10-09/tc04.txt).
+
+Tài khoản: `khachthue.demo` (tenant), `chunha.oceanpark` (landlord), `admin@vinstay.vn` (ops_admin) đăng nhập bằng mật khẩu demo. **Host demo không đăng nhập được** (401, xem TC-03), nên vai `field_host` dùng token tự ký bằng đúng khóa cho profile Host demo `e9cc29ee-…`. Kiểu token này đã được đối chứng hợp lệ ở T7.
+
+Ma trận cập nhật theo code hiện tại (sau đợt sửa 2026-10-06): M8 chỉ `field_host`; M9 `tenant`/`landlord`/`ops_admin` (người không phải bên của HĐ bị chặn); M10 chỉ `field_host`; M7 dùng id `signed_documents` (`9aa2b1b6-…`) thay vì id `contracts`.
+
+| Nhóm | Số kiểm | Kết quả | Dòng đáng chú ý (nguyên văn) |
+|---|---|---|---|
+| 1. Vô danh × M1–M10 | 10 | 10 Pass | M8 `GET /host/earnings` ⇒ `HTTP 401 · {"code":"unauthorized","message":"Chưa đăng nhập hoặc phiên đã hết hạn"}` (trước: 200 lộ thu nhập). M9 ⇒ 401 (trước: 200). M10 ⇒ 401 (trước: 400) |
+| 2. 4 vai × M1–M10 | 40 | 40 Pass | M7 admin ⇒ `HTTP 200 · {"manifestVersion":"1.0.0","documentId":"9aa2b1b6-…",…}` (trước: 404 do sai loại id). M9 tenant/landlord không phải bên HĐ ⇒ 403. M10 field_host body rỗng ⇒ 400 `invalid_request` (qua xác thực) |
+| 3. IDOR I0–I5 | 6 | 6 Pass | I0 lịch của mình `VS-WUKVH` ⇒ 200; I1 `VS-7CDZT` ⇒ 404 `booking_not_found`; I2 PDF HĐ người khác ⇒ 404; I3, I4 căn của landlord khác ⇒ 404; I5 ca của Host khác ⇒ 404 `viewing_not_found` |
+| 4. Token T1–T9 | 9 | 9 Pass | T1–T6 (Bearer/cookie sai, khóa sai, `alg=none`, hết hạn, sai issuer) ⇒ 401; T7 đối chứng ⇒ 200; T8 `x-demo-role` ⇒ 401; T9 tenant `portal=admin` ⇒ `403 wrong_portal`, `cookie_set=false` |
+| 5. Quét lộ thông tin | 65 response | Pass | `Số response chứa dấu hiệu stack trace/thông tin nội bộ: 0` |
+
+Vẫn chưa kiểm: Host chỉ có một vai con (không có tài khoản); M9 khi có biên bản bàn giao thật; M10 với body hợp lệ (cố ý không tạo dữ liệu). Dữ liệu phát sinh: chỉ log đăng nhập vào `auth_audit_log` (3 lượt `login_succeeded` + 1 lượt `wrong_portal` của T9; chưa tra ID).

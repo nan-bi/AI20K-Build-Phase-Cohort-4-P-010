@@ -1,5 +1,7 @@
 # BUG-TC01-01 — `GET /properties/units` nhận `maxRent` âm, trả 200 rỗng thay vì 4xx
 
+> **Trạng thái 2026-10-09: VẪN CÒN.** `GET /api/v1/properties/units?maxRent=-1` ⇒ `HTTP 200 · {"success":true,"statusCode":200,"data":[],…}`. Xem [TC-01 chạy lại](../TC-01_search-filter.md) và lỗi liên quan [BUG-TC01-02](BUG-TC01-02.md).
+
 - **Test case:** TC-01 bước 5a (giá trị biên/sai)
 - **Môi trường:** local, backend NestJS `http://localhost:4000` (`backend/.env`, `NODE_ENV=development`, DB Supabase cloud), commit `9e9ad74` (main)
 - **Ngày phát hiện:** 2026-10-04

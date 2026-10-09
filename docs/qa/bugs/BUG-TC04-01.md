@@ -1,5 +1,7 @@
 # BUG-TC04-01 🔴 — `GET /host/earnings` không cần đăng nhập, lộ dữ liệu thu nhập Field Host theo `hostId`
 
+> **Trạng thái 2026-10-09: ĐÃ SỬA, xác nhận lại.** `GET /api/v1/host/earnings` không đăng nhập ⇒ `HTTP 401 · {"code":"unauthorized"}`; endpoint chỉ còn cho vai `field_host`. Xem [TC-04 chạy lại](../TC-04_auth-rbac.md).
+
 - **Test case:** TC-04 bước 1 / M8 (truy cập không đăng nhập)
 - **Môi trường:** local, backend NestJS `http://localhost:4000` (`backend/.env`, `NODE_ENV=development`, DB Supabase cloud), commit `9e9ad74` (main)
 - **Ngày phát hiện:** 2026-10-04
