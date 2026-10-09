@@ -64,3 +64,42 @@ Lần chạy đầu bước 1.2 nhận `HTTP 429 … "Vui lòng đợi trước 
 ## Bằng chứng
 
 Lưu tạm trong scratchpad phiên Claude Code (có thể mất khi phiên kết thúc): `tc03/snapshot_before.txt`, `tc03/step1-2.log`, `tc03/step1-2_attempt1_429.log`, `tc03/step1_booking.json`, `tc03/step2_get.json`, `tc03/step2_me.json`, `tc03/step2_db.txt`, `tc03/step3.log`, `tc03/step3_dispatch_sla.json`, `tc03/step4.log`, `tc03/step5_after.txt`.
+
+---
+
+## Chạy lại 2026-10-09 (commit `4b00d24`)
+
+**Kết quả: PASS** ở mọi bước đã chạy; bước 3.2 vẫn **KHÔNG THỰC THI ĐƯỢC**, nhưng vì lý do mới (xem dưới). Môi trường: local backend `:4000`, DB Supabase cloud. Kênh OTP: `devCode` (`OTP_ECHO_DEV_CODE=true`). **Có ghi DB** (ID ở cuối mục). Bằng chứng: [tc03.txt](evidence/TC-01-05_2026-10-09/tc03.txt), [tc03b.txt](evidence/TC-01-05_2026-10-09/tc03b.txt).
+
+Trạng thái trước: `counts {"viewings":11,"dispatchTickets":11,"otpCodes":12}`; căn chọn tự động trong phân khu Host demo: `VHOP-S1.01-0412` (S1.01, The Sapphire 1, `AVAILABLE`, chủ `33333333-…`); busy-slots rỗng. Lịch `VS-HZLLC` của lần trước không còn trong tài khoản khách thuê demo.
+
+| Bước | Dữ liệu gửi | Actual (rút gọn, nguyên văn) | Pass/Fail |
+|---|---|---|---|
+| 1.1 | `POST /auth/login` khách thuê demo | `HTTP 200`, `"role":"tenant","isPhoneVerified":true`, có cookie `vs_access` | Pass |
+| 1.2 | `POST /auth/otp/send {"phone":"0900000101","purpose":"TENANT_VIEWING"}` | `HTTP 200 · {"expiresInSeconds":300,"devCode":"<che>"}` | Pass |
+| 1.3 | `POST /auth/otp/verify` | `HTTP 200 · {"actionToken":"<che>","expiresInSeconds":900}` | Pass |
+| 1.4 | `POST /bookings {"unitCode":"VHOP-S1.01-0412","slot":"2026-10-12T02:30:00.000Z","contactName":"QA TC03 Rerun","partySize":2,…}` | `HTTP 201 3227ms · {"ref":"VS-WUKVH","status":"pending",…}` | Pass |
+| 2.1 | `GET /bookings/VS-WUKVH` | `HTTP 200`, khớp căn và slot | Pass |
+| 2.2 | `GET /me/bookings` | `HTTP 200`, có `VS-WUKVH` | Pass |
+| 2.3 | Đọc DB | `"bookingRefCode":"VS-WUKVH","contactName":"QA TC03 Rerun","partySize":2,"viewingSlot":"2026-10-12T02:30:00.000Z","status":"PENDING_CONFIRMATION"`; ticket `tier 1`, `OFFERED`, giao **Host demo** `89c11ee6-…` | Pass |
+| 3.1 | Admin `GET /admin/dispatch-sla` | `{"ticketId":"ba5b754b-…","bookingRef":"VS-WUKVH","hostName":"Field Host Demo","tier":1,"slaSeconds":180,"status":"OFFERED","isBreached":false}` | Pass |
+| 3.2 Host | `POST /auth/login host.oceanpark@vinstay.vn portal=host` (mật khẩu demo được cấp) | `HTTP 401 · {"code":"invalid_credentials","message":"Email hoặc mật khẩu không đúng"}` | **KHÔNG THỰC THI ĐƯỢC**: mật khẩu Host demo không đúng |
+| 3.2 Chủ nhà | `chunha.oceanpark@vinstay.vn` đăng nhập OK; `GET /landlord/units` | `HTTP 200 · {"data":[]}`: chủ nhà demo **không sở hữu căn nào** | **KHÔNG THỰC THI ĐƯỢC**: không có căn của chủ nhà demo để đặt lịch |
+| 4a | Thiếu `contactName` | `HTTP 400 · "invalid_request"` | Pass |
+| 4b | Slot quá khứ `2026-10-03T02:30Z` | `HTTP 422 · "slot_invalid"` | Pass |
+| 4c | `unitCode: VHOP-ZZ.99-9999` | `HTTP 404 · "unit_not_found"` | Pass |
+| 4d | Gửi lại payload 1.4 | `HTTP 409 · "slot_taken"` | Pass |
+| 5 | Chụp lại DB | `{"viewings":12,"dispatchTickets":12,"otpCodes":13}`; chỉ có 1 lịch, 1 ticket, 1 OTP mới; căn vẫn `AVAILABLE` | Pass |
+
+Ghi nhận cũ còn nguyên: thông báo 4d "vừa có người đặt" dù chính khách vừa đặt; 4b nói "tối thiểu 30 phút" chứ không nói ngày đã qua.
+
+Để chạy được 3.2: cấp lại mật khẩu đúng cho `host.oceanpark@vinstay.vn` (hoặc Admin đặt lại); gán ít nhất một căn `AVAILABLE` cho `chunha.oceanpark@vinstay.vn`.
+
+### Dữ liệu test cần dọn (KHÔNG tự xoá)
+
+| Bảng | ID | Ghi chú |
+|---|---|---|
+| `viewings` | `c5a68b99-62a2-4386-824f-1606d6fa241e` | ref `VS-WUKVH`, slot 2026-10-12 09:30 VN |
+| `dispatch_tickets` | `ba5b754b-ddd9-4e1f-92d2-b857a8eb670f` | `OFFERED` cho Host demo `89c11ee6-5097-44a3-9a6e-50d1928d7eb0` |
+| `otp_codes` | `9ab6541a-2e9a-43a1-9998-3b543455b0be` | `CONSUMED` |
+| `auth_audit_log` | `cb25c71d-679e-40f2-8147-b3135ef33cb3`, `290c4630-3250-4fed-a579-b66ff649e936`, `7e10d630-42af-48cc-a377-b6347d1180cb`, `b25f9234-1e57-4db4-b28b-ef9cafb83d5a` (`login_succeeded`); `0cf1422a-d143-4d39-9933-bd02593fb50b` (`otp_sent`); `cb6a3595-0900-4449-af3d-601c2e8b93e0` (`otp_verified`); `8b2954d7-0a86-4864-96f0-15c7fac333fd`, `932178b8-a4c2-4968-aac4-448b50546da7` (`login_failed`, Host demo) | Log hợp lệ, không bắt buộc xoá |

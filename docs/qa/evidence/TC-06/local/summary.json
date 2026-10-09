@@ -1,0 +1,188 @@
+{
+  "anonApi": {
+    "biFunnel": 401,
+    "fieldHosts": 401
+  },
+  "loggedIn": true,
+  "credentialsGiven": true,
+  "results": [
+    {
+      "route": "anon/admin/dashboard",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/login?next=%2Fadmin%2Fdashboard",
+      "h1": "Một lựa chọn tốt bắt đầu từ thông tin rõ ràng.",
+      "errorText": null,
+      "shot": "anon_admin_dashboard.png"
+    },
+    {
+      "route": "anon/admin/hosts",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [
+        "POST /api/v1/auth/login"
+      ],
+      "status": 200,
+      "finalUrl": "/admin/login?next=%2Fadmin%2Fhosts",
+      "h1": "Một lựa chọn tốt bắt đầu từ thông tin rõ ràng.",
+      "errorText": null,
+      "shot": "anon_admin_hosts.png"
+    },
+    {
+      "route": "/admin/dashboard",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/dashboard",
+      "h1": "Tổng quan vận hành",
+      "errorText": null,
+      "shot": "admin_dashboard.png"
+    },
+    {
+      "route": "/admin/inventory",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/inventory",
+      "h1": "Căn hộ và ký gửi",
+      "errorText": null,
+      "shot": "admin_inventory.png"
+    },
+    {
+      "route": "/admin/bookings",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/bookings",
+      "h1": "Điều phối lịch xem",
+      "errorText": null,
+      "shot": "admin_bookings.png"
+    },
+    {
+      "route": "/admin/contracts",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts",
+      "h1": "Sổ hợp đồng",
+      "errorText": null,
+      "shot": "admin_contracts.png"
+    },
+    {
+      "route": "/admin/contracts/parties",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts/parties",
+      "h1": "Theo bên ký",
+      "errorText": null,
+      "shot": "admin_contracts_parties.png"
+    },
+    {
+      "route": "/admin/contracts/templates",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts/templates",
+      "h1": "Mẫu hợp đồng",
+      "errorText": null,
+      "shot": "admin_contracts_templates.png"
+    },
+    {
+      "route": "/admin/hosts",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/hosts",
+      "h1": "Danh sách Field Host",
+      "errorText": null,
+      "shot": "admin_hosts.png"
+    },
+    {
+      "route": "/admin/commission",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/commission",
+      "h1": "Biến phí Field Host",
+      "errorText": null,
+      "shot": "admin_commission.png"
+    },
+    {
+      "route": "/admin/settings",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/settings",
+      "h1": "Cài đặt",
+      "errorText": null,
+      "shot": "admin_settings.png"
+    },
+    {
+      "route": "/admin/inventory/[detail]",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/inventory/5eba8921-450f-4618-9dba-79e2198e8160",
+      "h1": "VHOP-BE-STU-1212",
+      "errorText": null,
+      "shot": "admin_inventory__detail_.png"
+    },
+    {
+      "route": "/admin/hosts/[detail]",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/hosts/89c11ee6-5097-44a3-9a6e-50d1928d7eb0",
+      "h1": "Field Host Demo",
+      "errorText": null,
+      "shot": "admin_hosts__detail_.png"
+    },
+    {
+      "route": "/admin/contracts/[detail]",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts/mandate-d9a8f64b-e030-4208-89b2-b868b61e79e0",
+      "h1": "UQ-2026-BE-STU-8DFC2D",
+      "errorText": null,
+      "shot": "admin_contracts__detail_.png"
+    },
+    {
+      "route": "/admin/contracts/parties/[detail]",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts/parties/33333333-3333-3333-3333-333333333333",
+      "h1": "Nguyễn Văn Minh (Chủ nhà Ký gửi)",
+      "errorText": null,
+      "shot": "admin_contracts_parties__detail_.png"
+    },
+    {
+      "route": "/admin/contracts/templates/[detail]",
+      "consoleErrors": [],
+      "apiErrors": [],
+      "writes": [],
+      "status": 200,
+      "finalUrl": "/admin/contracts/templates/CORE-01",
+      "h1": "HĐ ký gửi quản lý cho thuê độc quyền",
+      "errorText": "Kết quả đối soát hình ảnh song song giữa lúc nhận phòng và lúc trả phòng theo quy định tại Phụ lục 01 là căn cứ độc quyền để Bên B kích hoạt lệnh quyết toán, cấn trừ bồi thường (nếu có lỗi vi phạm) và giải tỏa hoàn trả tiền cọc cho khách thuê qua tài khoản ký quỹ ngân hàng.",
+      "shot": "admin_contracts_templates__detail_.png"
+    }
+  ]
+}

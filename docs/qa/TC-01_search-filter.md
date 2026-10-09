@@ -47,3 +47,34 @@ Số kỳ vọng đếm trực tiếp từ DB ngay trước khi gọi API:
 ## Bằng chứng
 
 Lưu tạm trong scratchpad phiên Claude Code (có thể mất khi phiên kết thúc): `tc01/step1.json` … `tc01/step5b.json`, script `tc01_run.js`, `tc01_expected.js`, log khởi động `backend.log`, `backend2.log`, `backend3.log`.
+
+---
+
+## Chạy lại 2026-10-09 (commit `4b00d24`)
+
+**Kết quả: FAIL**: bước 1–4 Pass (cả API và UI), 5a vẫn Fail ([BUG-TC01-01](bugs/BUG-TC01-01.md)), phát hiện mới [BUG-TC01-02](bugs/BUG-TC01-02.md). Môi trường: local backend `:4000` + web `:3000`, DB Supabase cloud; API chỉ GET, DB chỉ đọc. Bằng chứng: [evidence/TC-01-05_2026-10-09/tc01.txt](evidence/TC-01-05_2026-10-09/tc01.txt), ảnh UI ở [ui-tc01/](evidence/TC-01-05_2026-10-09/ui-tc01/).
+
+Số kỳ vọng đếm từ DB ngay trước khi gọi API (dữ liệu đã đổi so với 2026-10-04):
+
+```
+[DB expected] all=52 zone=2 layout=17 rent=32 combo=1 empty=0
+```
+
+| Bước | Request | Actual (nguyên văn) | Pass/Fail |
+|---|---|---|---|
+| 1 | `GET /properties/units` | `HTTP 200 1095ms \| count=52 expected=52 predicateViolations=[] missing=[] extra=[]` | Pass |
+| 2a | `?zone=sapphire2` | `HTTP 200 538ms \| count=2 expected=2 … missing=[] extra=[]` | Pass |
+| 2b | `?layout=2PN` | `HTTP 200 476ms \| count=17 expected=17 … missing=[] extra=[]` | Pass |
+| 2c | `?maxRent=8000000` | `HTTP 200 485ms \| count=32 expected=32 … missing=[] extra=[]` | Pass |
+| 3 | `?zone=sapphire2&layout=2PN` | `HTTP 200 473ms \| count=1 expected=1` (căn `VHOP-S2.18-1602`) | Pass |
+| 4 (API) | `?maxRent=1000` | `{"success":true,"statusCode":200,"data":[],…}` | Pass |
+| 4 (UI) | Chat trang chủ, tài khoản khách thuê: "Ngân sách 3 triệu" | "Đã lọc 52 căn trống nhưng hiện không có kết quả khớp…" + "Không có căn nào vừa với bộ lọc này" + gợi ý căn rẻ nhất `BE3 · Tầng 13 · Căn 01`, All-in 5.758.750đ | **Pass** (lần trước không chạy được) |
+| 5a | `?maxRent=-1` | `HTTP 200 · {"success":true,"statusCode":200,"data":[],…}` | **FAIL**: BUG-TC01-01 vẫn còn |
+| 5b | `?maxRent=abc` | `HTTP 400 · {…"code":"invalid_request","message":["maxRent must be a number conforming to the specified constraints"]…}` | Pass |
+| 5c (mới) | `?maxAllInCost=-5` | `HTTP 200`, trả **toàn bộ 52 căn** | **FAIL** → BUG-TC01-02 |
+| 5d (mới) | `?occupants=-3` | `HTTP 200`, trả danh sách đầy đủ | **FAIL** → BUG-TC01-02 |
+
+Ghi nhận UI (chưa tính là bug):
+- Câu "Tìm căn hộ giá thuê dưới 1 triệu" / "Ngân sách tối đa 1 triệu/tháng": bộ lọc nhanh **bỏ qua mọi ngân sách < 3 triệu** (`apps/web/src/lib/tenant/matchmaker.ts:58`) nên trả lời "Hãy nhập ngân sách tối đa…" dù khách vừa nhập ngân sách.
+- Khách chưa đăng nhập chỉ có 2 lượt chat thử; 2 lượt bị tính dù cả hai đều lỗi 503 (AI không chạy), lượt 3 nhận "Bạn đã dùng 2 lượt tư vấn thử. Đăng nhập…" (`summary_khach_het-luot.json`).
+- "Ngân sách 8 triệu" trên UI ra 17 căn (lọc theo **All-in**), API `maxRent=8000000` ra 32 căn (lọc theo **giá thuê**). Hai số khác nhau là đúng thiết kế.

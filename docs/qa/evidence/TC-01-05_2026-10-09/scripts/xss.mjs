@@ -1,0 +1,16 @@
+import { chromium } from "playwright-core";
+const browser = await chromium.launch({ channel: "msedge", headless: true });
+const ctx = await browser.newContext({ locale: "vi-VN" });
+await ctx.request.post("http://localhost:3000/api/v1/auth/login", { data: { email: "khachthue.demo@vinstay.vn", password: process.env.TENANT_PASSWORD, portal: "tenant" } });
+const page = await ctx.newPage();
+let dialogs = 0;
+page.on("dialog", async (d) => { dialogs++; await d.dismiss(); });
+await page.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+const payload = '<img src=x onerror=alert(1)><script>alert(2)</script>';
+await page.locator("textarea").first().fill(payload);
+await page.locator("textarea").first().press("Enter");
+await page.waitForTimeout(6000);
+const shown = (await page.locator("main").innerText()).includes("<img src=x onerror=alert(1)>");
+const injectedImg = await page.locator('main img[src="x"]').count();
+console.log(JSON.stringify({ dialogs, payloadShownAsText: shown, injectedImgElements: injectedImg }));
+await browser.close();

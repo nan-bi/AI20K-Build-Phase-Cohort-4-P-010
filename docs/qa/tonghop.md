@@ -1,8 +1,8 @@
-# BÁO CÁO TỔNG HỢP QA — VinStay AI, TC-01 → TC-05
+# BÁO CÁO TỔNG HỢP QA — VinStay AI, TC-01 → TC-06
 
 Ngày 2026-10-04 · commit `9e9ad74` (main) · backend NestJS local `:4000` + web Next.js `:3000`, DB Supabase cloud qua `backend/.env`. Chỉ dùng kết quả đã ghi trong phiên test, không thêm suy diễn.
 
-Báo cáo chi tiết: [TC-01](TC-01_search-filter.md) · [TC-02](TC-02_ai-apartment-qa.md) · [TC-03](TC-03_booking-e2e.md) · [TC-04](TC-04_auth-rbac.md) · [TC-05](TC-05_ai-bad-input.md) · phiếu bug trong [bugs/](bugs/).
+Báo cáo chi tiết: [TC-01](TC-01_search-filter.md) · [TC-02](TC-02_ai-apartment-qa.md) · [TC-03](TC-03_booking-e2e.md) · [TC-04](TC-04_auth-rbac.md) · [TC-05](TC-05_ai-bad-input.md) · [TC-06](TC-06_admin-portal.md) · phiếu bug trong [bugs/](bugs/).
 
 ## 1. Bảng tổng
 
@@ -77,3 +77,60 @@ Kiểm tra lại ngày 2026-10-06: `npm run build` thành công; toàn bộ back
 Đối chiếu `Prisma.dmmf` với `information_schema.columns` trên Supabase cho thấy 27/27 bảng có mặt; chỉ model `Unit.bedrooms` không tồn tại trong DB. Đã bỏ field khỏi Prisma schema và seed, tính số phòng từ `layoutType`, rồi chạy lại API thật: 21 tòa nhà và 54 căn công khai; unit detail, busy-slots và Matchmaker đều trả thành công (Matchmaker tìm 3 căn). Không chạy migration và không ghi/xóa dữ liệu Supabase.
 
 Frontend typecheck, build và 26 suite vẫn pass (267 tests) theo lần chạy trước; frontend không đổi trong vòng kiểm tra này. Các test-double/Jest mock ở những suite backend khác vẫn còn; yêu cầu thay toàn bộ test mock bằng kiểm thử API thật chưa hoàn tất. `npm audit` cũng chưa được xác minh lại vì truy cập registry bị chặn trong lần chạy gần nhất.
+
+## 6. TC-06 Cổng Admin — 2026-10-09
+
+Commit `4b00d24` (main). Chi tiết: [TC-06](TC-06_admin-portal.md) · biên bản chức năng: [ADMIN_PORTAL_FUNCTIONAL_RECORD.md](../ADMIN_PORTAL_FUNCTIONAL_RECORD.md).
+
+| TC | Kết quả | Số lỗi | Mức độ cao nhất |
+|---|---|---|---|
+| TC-06 Cổng Admin | **Pass có điều kiện**: backend `admin` + `field-hosts` 208 test (pass hết khi không timeout; bộ test chập chờn); web typecheck, lint, build exit 0; trình duyệt 14/14 trang `/admin/*` tải được ở cả local và deploy | 1 ([BUG-TC06-01](bugs/BUG-TC06-01.md)) | Cao |
+
+| Chỉ số | Lần trước | 2026-10-09 |
+|---|---|---|
+| Web test | 26 suite, 267 test pass | 34 file, 347 test: **345 pass, 2 fail** (`landing-anchors.test.ts`, trang Landing, ngoài phạm vi Admin) |
+| Backend Admin | (nằm trong 587/587) | 208/208 pass sau `npx prisma generate`; trước đó `admin-flows.spec.ts` không biên dịch được do Prisma client local cũ |
+
+| Bug-ID | TC liên quan | Mô tả | Mức độ |
+|---|---|---|---|
+| [BUG-TC06-01](bugs/BUG-TC06-01.md) | TC-06 / F15 | `POST /admin/door-keys/:id/rotate` lưu mã mới thiếu tiền tố `aes:` ⇒ Host nhận `door_code_missing` sau khi Admin xoay mã (đọc code, chưa tái hiện trên DB) | Cao |
+
+Phát hiện cần chốt (xem biên bản mục 6): API Admin trả SĐT/CCCD đã giải mã; F14 nhắc gia hạn luôn 503; F10 hủy cọc chỉ ghi audit; F4 duyệt ký gửi trả 501 có chủ đích; F7, F9, F10, F15 chưa có màn; UI Biến phí chỉ sửa 5/10 tham số; xuất CSV không ghi audit; **bản deploy Vercel khác `main`** và `/auth/session` trả 429 khi chuyển trang nhanh; `docs/UI_FLOW_SPEC.md` còn ghi khóa căn 7 ngày; dấu vết RFID còn trong schema.
+
+Rà soát lần 1 (Trần Thu Phương, dùng agent thẩm định độc lập): 🔁 SỬA ⇒ biên bản v2. Rà soát lần 2 (Trần Thu Phương): duyệt trình duyệt local + deploy. Rà soát lần 3 (Trần Thị Lan, Nguyễn Phương Nam, Nguyễn Khánh Duy): đang chờ. Bằng chứng ảnh chụp: [evidence/TC-06/](evidence/TC-06/).
+
+## 7. Chạy lại TC-01 → TC-05 — 2026-10-09
+
+Commit `4b00d24` (main) · backend local `:4000` + web local `:3000`, DB Supabase cloud · trình duyệt Edge headless cho phần UI. Lịch sử lần chạy 2026-10-04 ở mục 1–4 được giữ nguyên. Bằng chứng (log, script, ảnh): [evidence/TC-01-05_2026-10-09/](evidence/TC-01-05_2026-10-09/).
+
+| TC | 2026-10-04 | 2026-10-09 | Thay đổi chính |
+|---|---|---|---|
+| [TC-01](TC-01_search-filter.md) Tìm kiếm & lọc | Fail (5a) | **Fail** (5a, 5c, 5d) | Bước 4 trên UI nay đã chạy và Pass. BUG-TC01-01 vẫn còn; thêm [BUG-TC01-02](bugs/BUG-TC01-02.md) (`maxAllInCost` bị bỏ qua, nhận số âm) |
+| [TC-02](TC-02_ai-apartment-qa.md) AI trả lời đúng dữ liệu | Không áp dụng | **Bị chặn** | Đã có AI Engine + relay nhưng không môi trường nào chạy LLM (local thiếu khóa, deploy `503 AI_UPSTREAM_DOWN`). 5 câu qua UI rơi vào bộ lọc nhanh: không bịa, nhưng không trả lời câu hỏi cụ thể |
+| [TC-03](TC-03_booking-e2e.md) Đặt lịch đầu-cuối | Pass (3.2 không chạy được) | **Pass** (3.2 không chạy được) | Lịch `VS-WUKVH` tạo thành công, ticket giao Host demo. 3.2: mật khẩu Host demo sai (401), chủ nhà demo không có căn |
+| [TC-04](TC-04_auth-rbac.md) Authentication & Authorization | Fail (2 bug 🔴) | **Pass 66/66** | [BUG-TC04-01](bugs/BUG-TC04-01.md), [BUG-TC04-02](bugs/BUG-TC04-02.md) **đã sửa** |
+| [TC-05](TC-05_ai-bad-input.md) Input xấu cho AI | Không áp dụng | **Pass ở lớp relay + UI; nhóm 4–5 bị chặn** | Validation, rate limit, chống XSS, không lộ lỗi nội bộ: đạt. Chuỗi chỉ có khoảng trắng lọt qua validation. Lượt thử của khách bị trừ cả khi AI lỗi |
+
+### Bug — trạng thái mới
+
+| Bug-ID | Mức độ | Trạng thái 2026-10-09 |
+|---|---|---|
+| [BUG-TC01-01](bugs/BUG-TC01-01.md) | Thấp | Vẫn còn |
+| [BUG-TC01-02](bugs/BUG-TC01-02.md) | Trung bình | Mới |
+| [BUG-TC04-01](bugs/BUG-TC04-01.md) | 🔴 | Đã sửa (xác nhận lại) |
+| [BUG-TC04-02](bugs/BUG-TC04-02.md) | 🔴 | Đã sửa (xác nhận lại) |
+| [BUG-TC06-01](bugs/BUG-TC06-01.md) | Cao | Mới (TC-06) |
+
+### Dữ liệu test cần dọn (KHÔNG tự xoá)
+
+Chỉ TC-03 tạo dữ liệu nghiệp vụ: viewing `c5a68b99-62a2-4386-824f-1606d6fa241e` (`VS-WUKVH`), dispatch ticket `ba5b754b-ddd9-4e1f-92d2-b857a8eb670f`, OTP `9ab6541a-2e9a-43a1-9998-3b543455b0be`. Danh sách log đăng nhập ở [TC-03](TC-03_booking-e2e.md). Lịch `VS-WUKVH` đang mời Host demo, nên dọn trước khi demo.
+
+### Chưa kiểm được và lý do
+
+| Phần | Lý do |
+|---|---|
+| Hành vi LLM (TC-02 hallucination, TC-05 nhóm 4–5) | Chưa có môi trường chạy AI Engine thật |
+| Bộ test `ai-engine/tests` (LLM giả) | Ổ C: đầy 100%, `uv sync` lỗi `os error 112` |
+| TC-03 bước 3.2 | Mật khẩu `host.oceanpark@vinstay.vn` trong bảng tài khoản demo không đúng; `chunha.oceanpark@vinstay.vn` không sở hữu căn |
+
+Phát hiện môi trường: `ai-engine/.venv` không nằm trong `.gitignore` (chạy `uv sync` theo README sẽ sinh thư mục chưa theo dõi trong repo).

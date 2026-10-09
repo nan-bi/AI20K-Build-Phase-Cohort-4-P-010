@@ -1,0 +1,69 @@
+[
+  {
+    "q": "Căn VHOP-S2.18-1602 giá thuê bao nhiêu một tháng?",
+    "answer": "21:52\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:52\nĐã lọc 52 căn trống và tìm thấy 2 căn phù hợp. Kết quả bên cạnh được xếp theo mức phù hợp.\nXem 2 căn khớp\n21:52\nNhập yêu cầu tìm căn\nBộ lọc · 1\n2 căn khớp yêu cầu\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nToà S2.18\nGợi ý phù hợp\nĐã xác minh 09:20 2/10/26\nGợi ý #1\nS2.18 · Tầng 9 · Căn 09\nThe Sapphire 2 · Chưa cập nhật\n47 m²\n1PN+\n1 WC\nChưa cập nhật\n7.896.500\nđ/tháng\nAll-in: thuê 7 triệu + phí 897 nghìn\nThấp hơn giá trung bình toà 7%\nChưa cập nhật · hướng Chưa cập nhật\nChi tiết\nĐặt lịch xem\nĐã xác minh 09:18 2/10/26\nGợi ý #2\nS2.18 · Tầng 16 · Căn 02\nThe Sapphire 2 · Chưa cập nhật\n64 m²\n2PN\n1 WC\nChưa cập nhật\n11.058.000\nđ/tháng\nAll-in: thuê 10 triệu + phí 1,06 triệu\nChưa cập nhật · hướng Chưa cập nhật\nChi tiết\nĐặt lịch xem",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites"
+    ],
+    "shot": "q1.png"
+  },
+  {
+    "q": "Có căn 2 phòng ngủ nào ở Sapphire 2 không?",
+    "answer": "21:52\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:52\nĐã lọc 52 căn trống và tìm thấy 1 căn phù hợp. Kết quả bên cạnh được xếp theo mức phù hợp.\nXem 1 căn khớp\n21:52\nNhập yêu cầu tìm căn\nBộ lọc · 2\n1 căn khớp yêu cầu\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\n2 phòng ngủ\nSapphire 2\nGợi ý phù hợp\nĐã xác minh 09:18 2/10/26\nGợi ý #1\nS2.18 · Tầng 16 · Căn 02\nThe Sapphire 2 · Chưa cập nhật\n64 m²\n2PN\n1 WC\nChưa cập nhật\n11.058.000\nđ/tháng\nAll-in: thuê 10 triệu + phí 1,06 triệu\nChưa cập nhật · hướng Chưa cập nhật\nChi tiết\nĐặt lịch xem",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites"
+    ],
+    "shot": "q2.png"
+  },
+  {
+    "q": "Căn VHOP-S2.18-1602 có cho nuôi chó không?",
+    "answer": "21:52\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:52\nĐã lọc 52 căn trống nhưng hiện không có kết quả khớp. Hãy thử bỏ bớt điều kiện hoặc tăng ngân sách.\n21:52\nNhập yêu cầu tìm căn\nBộ lọc · 1\nChưa có căn để hiện\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nToà S2.18\nNuôi thú cưng\nKhông có căn nào vừa với bộ lọc này\nChưa có căn nào khớp đủ các điều kiện này. Bạn thử bớt tầng, đồ dùng hoặc mở rộng phân khu nhé.\nBỏ bớt điều kiện",
+    "emptyState": true,
+    "net": [
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units"
+    ],
+    "shot": "q3.png"
+  },
+  {
+    "q": "Căn VHOP-ZZ.99-9999 giá thuê bao nhiêu?",
+    "answer": "21:52\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:52\nMình chỉ có thể lọc căn theo dữ liệu hiện có. Hãy nhập ngân sách tối đa hoặc chọn tiêu chí bằng các bộ lọc bên dưới.\n21:52\nNhập yêu cầu tìm căn\nBộ lọc\nChưa có căn để hiện\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nChưa có căn để hiện\nHãy cho mình biết ngân sách, số người ở hoặc loại căn bạn muốn, mình sẽ gợi ý ngay tại đây. Bạn cũng có thể chọn bộ lọc bên dưới khung chat.",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units"
+    ],
+    "shot": "q4.png"
+  },
+  {
+    "q": "Thủ đô của nước Pháp là gì?",
+    "answer": "21:53\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:53\nMình chỉ có thể lọc căn theo dữ liệu hiện có. Hãy nhập ngân sách tối đa hoặc chọn tiêu chí bằng các bộ lọc bên dưới.\n21:53\nNhập yêu cầu tìm căn\nBộ lọc\nChưa có căn để hiện\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nChưa có căn để hiện\nHãy cho mình biết ngân sách, số người ở hoặc loại căn bạn muốn, mình sẽ gợi ý ngay tại đây. Bạn cũng có thể chọn bộ lọc bên dưới khung chat.",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units"
+    ],
+    "shot": "q5.png"
+  }
+]

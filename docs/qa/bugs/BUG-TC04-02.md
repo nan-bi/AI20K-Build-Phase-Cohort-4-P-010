@@ -1,5 +1,7 @@
 # BUG-TC04-02 🔴 — `GET /handovers/contracts/:contractId` không cần đăng nhập
 
+> **Trạng thái 2026-10-09: ĐÃ SỬA, xác nhận lại.** Không đăng nhập: `GET /handovers/contracts/:id` ⇒ 401, `POST /handovers` ⇒ 401. Tenant/landlord không phải bên của hợp đồng ⇒ 403. Xem [TC-04 chạy lại](../TC-04_auth-rbac.md).
+
 - **Test case:** TC-04 bước 1 / M9 (truy cập không đăng nhập)
 - **Môi trường:** local, backend NestJS `http://localhost:4000` (`backend/.env`, `NODE_ENV=development`, DB Supabase cloud), commit `9e9ad74` (main)
 - **Ngày phát hiện:** 2026-10-04

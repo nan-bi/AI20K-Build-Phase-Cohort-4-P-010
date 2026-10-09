@@ -1,0 +1,29 @@
+[
+  {
+    "q": "Ngân sách 3 triệu",
+    "answer": "21:51\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:51\nĐã lọc 52 căn trống nhưng hiện không có kết quả khớp. Hãy thử bỏ bớt điều kiện hoặc tăng ngân sách.\n21:51\nNhập yêu cầu tìm căn\nBộ lọc · 1\nChưa có căn để hiện\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nAll-in ≤ 3 triệu\nKhông có căn nào vừa với bộ lọc này\nCăn rẻ nhất khớp các điều kiện còn lại là BE3 · Tầng 13 · Căn 01 với All-in 5.758.750đ/tháng, cao hơn ngân sách 2,76 triệu. Bạn thử nâng ngân sách hoặc bớt một điều kiện nhé.\nNâng ngân sách thêm 1 triệu\nBỏ bớt điều kiện",
+    "emptyState": true,
+    "net": [
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units"
+    ],
+    "shot": "q1.png"
+  },
+  {
+    "q": "Ngân sách 8 triệu",
+    "answer": "21:52\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:52\nĐã lọc 52 căn trống và tìm thấy 17 căn phù hợp trong ngân sách 8 triệu. Kết quả bên cạnh được xếp theo mức phù hợp.\nXem 3 căn khớp\n21:52\nNhập yêu cầu tìm căn\nBộ lọc · 1\n17 căn khớp yêu cầu\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nSắp xếp\nPhù hợp nhất\nAll-in thấp đến cao\nDiện tích lớn nhất\nAll-in ≤ 8 triệu\nGợi ý phù hợp\nĐã xác minh 09:20 2/10/26\nGợi ý #1\nCăn hời −33%\nS1.02 · Tầng 10 · Căn 01\nThe Sapphire 1 · Chưa cập nhật\n47 m²\n1PN+\n1 WC\nChưa cập nhật\n5.896.500\nđ/tháng\nAll-in: thuê 5 triệu + phí 897 nghìn\nRẻ hơn mặt bằng toà 33% cùng layout\nAll-in 5,9 triệu, dưới ngân sách 2,1 triệu\nChưa cập nhật · hướng Chưa cập nhật\nChi tiết\nĐặt lịch xem\nĐã xác minh 09:21 2/10/26\nGợi ý #2\nCăn hời −27%\nS1.08 · Tầng 26 · Căn 11\nThe Sapphire 1 · Chưa cập nhật\n47 m²\n1PN+\n1 WC\nChưa cập nhật\n6.396.500\nđ/tháng\nAll-in: thuê 5,5 triệu + phí 897 ng",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/me/favorites",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units",
+      "200 GET /api/v1/me/favorites"
+    ],
+    "shot": "q2.png"
+  }
+]

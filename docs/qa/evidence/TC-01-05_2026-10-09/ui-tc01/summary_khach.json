@@ -1,0 +1,14 @@
+[
+  {
+    "q": "Tìm căn hộ giá thuê dưới 1 triệu",
+    "answer": "21:50\nTrợ lý AI tạm bận — đang dùng bộ lọc nhanh\n21:50\nMình chỉ có thể lọc căn theo dữ liệu hiện có. Hãy nhập ngân sách tối đa hoặc chọn tiêu chí bằng các bộ lọc bên dưới.\n21:50\nNhập yêu cầu tìm căn\nBộ lọc\nChưa có căn để hiện\nĐã quét 52 căn đang mở · tính cho 1 người, 1 xe máy\nChưa có căn để hiện\nHãy cho mình biết ngân sách, số người ở hoặc loại căn bạn muốn, mình sẽ gợi ý ngay tại đây. Bạn cũng có thể chọn bộ lọc bên dưới khung chat.",
+    "emptyState": false,
+    "net": [
+      "200 GET /api/v1/auth/session",
+      "200 GET /api/v1/properties/units",
+      "503 POST /api/v1/assistant/chat",
+      "200 GET /api/v1/properties/units"
+    ],
+    "shot": "q1.png"
+  }
+]

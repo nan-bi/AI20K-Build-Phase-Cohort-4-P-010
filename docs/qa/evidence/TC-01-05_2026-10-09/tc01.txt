@@ -1,0 +1,12 @@
+[DB expected] all=52 zone=2 layout=17 rent=32 combo=1 empty=0
+1 | GET /properties/units | HTTP 200 52ms | count=52 expected=52 predicateViolations=[] missing=[] extra=[] | PASS
+2a | GET /properties/units?zone=sapphire2 | HTTP 200 4ms | count=2 expected=2 predicateViolations=[] missing=[] extra=[] | PASS
+2b | GET /properties/units?layout=2PN | HTTP 200 6ms | count=17 expected=17 predicateViolations=[] missing=[] extra=[] | PASS
+2c | GET /properties/units?maxRent=8000000 | HTTP 200 16ms | count=32 expected=32 predicateViolations=[] missing=[] extra=[] | PASS
+3 | GET /properties/units?zone=sapphire2&layout=2PN | HTTP 200 16ms | count=1 expected=1 predicateViolations=[] missing=[] extra=[] | PASS
+   combo codes: VHOP-S2.18-1602
+4 | GET /properties/units?maxRent=1000 | HTTP 200 16ms · {"success":true,"statusCode":200,"data":[],"timestamp":"2026-10-09T14:49:50.945Z"}
+5a | GET /properties/units?maxRent=-1 | HTTP 200 4ms · {"success":true,"statusCode":200,"data":[],"timestamp":"2026-10-09T14:49:50.949Z"}
+5b | GET /properties/units?maxRent=abc | HTTP 400 12ms · {"success":false,"statusCode":400,"timestamp":"2026-10-09T14:49:50.961Z","path":"/api/v1/properties/units?maxRent=abc","code":"invalid_request","message":["maxRent must be a number conforming to the specified constraints"],"errors":null}
+5c | GET /properties/units?maxAllInCost=-5 | HTTP 200 3ms · {"success":true,"statusCode":200,"data":[{"id":"d12f5963-a3b0-4523-ad91-2bc5c77e45da","code":"VHOP-S1.02-1001","building":"S1.02","zoneName":"The Sapphire 1","floor":10,"door":"01","layout":"1PN","layoutLabel":"1PN+","bedrooms":1,"bathrooms":1,"areaM2":47,"direction":null,"view":null,"furnishing":"f
+5d | GET /properties/units?occupants=-3 | HTTP 200 9ms · {"success":true,"statusCode":200,"data":[{"id":"d12f5963-a3b0-4523-ad91-2bc5c77e45da","code":"VHOP-S1.02-1001","building":"S1.02","zoneName":"The Sapphire 1","floor":10,"door":"01","layout":"1PN","layoutLabel":"1PN+","bedrooms":1,"bathrooms":1,"areaM2":47,"direction":null,"view":null,"furnishing":"f
