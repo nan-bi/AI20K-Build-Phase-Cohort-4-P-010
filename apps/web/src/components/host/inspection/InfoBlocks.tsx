@@ -111,7 +111,7 @@ export function DoorBlock({ detail }: { detail: InspectionDetail }) {
       {missing && (
         <div className={styles.guide} role="alert">
           Chưa có mã cửa trong hệ thống. Liên hệ chủ nhà qua hỗ trợ VinStay để lấy mã
-          {smart ? "; nếu thẩm định Đạt, bạn sẽ nhập mã PIN thật của cửa ở bước Kết luận." : "."}
+          {smart ? "; khi đẩy căn lên, bạn sẽ nhập mã PIN thật của cửa ở ô cuối phiếu." : "."}
         </div>
       )}
 

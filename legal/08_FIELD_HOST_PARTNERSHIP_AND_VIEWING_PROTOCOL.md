@@ -62,7 +62,7 @@ Hai Bên tự nguyện thống nhất xác lập Hợp đồng hợp tác đối
 
 ---
 
-### ĐIỀU 2: THUẬT TOÁN ĐIỀU PHỐI LEAD AUTO-DISPATCH 3 TẦNG & CAM KẾT TIẾP NHẬN TICKET (SLA 3 PHÚT)
+### ĐIỀU 2: THUẬT TOÁN ĐIỀU PHỐI LEAD AUTO-DISPATCH 3 TẦNG & CAM KẾT TIẾP NHẬN TICKET
 Nhằm triệt tiêu triệt để tình trạng tranh giành khách (Lead Cannibalization), phân bổ thiếu minh bạch hoặc để khách thuê phải chờ đợi vạ vật tại sảnh tòa nhà, hệ thống VinStay AI vận hành thuật toán tự động phân bổ ticket khách hàng 3 tầng không có sự can thiệp thủ công của con người:
 
 ```

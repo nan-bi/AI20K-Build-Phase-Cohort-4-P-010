@@ -92,14 +92,6 @@ export function pricingChanged(p: PricingDraft, detail: Pick<InspectionDetail, "
   return Math.round(Number(p.rent)) !== Math.round(detail.askRent) || Math.round(Number(p.securityDeposit)) !== Math.round(detail.suggestedDeposit);
 }
 
-/** Nhãn nút nộp: đổi giá ⇒ gửi chủ duyệt; không đổi ⇒ "Đạt — đăng ngay". */
-export function submitLabel(draft: Pick<InspectionDraft, "recommendation" | "pricing">, detail: Pick<InspectionDetail, "askRent" | "suggestedDeposit">): string {
-  if (draft.recommendation !== "approve") return "Nộp phiếu không đạt";
-  return pricingChanged(draft.pricing, detail) ? "Đạt — gửi chủ nhà duyệt giá" : "Đạt — đăng ngay";
-}
-
-export const PRICE_CHANGE_WARNING = "Căn sẽ chờ chủ nhà đồng ý giá mới trước khi đăng";
-
 const err = (field: string, message: string): DraftError => ({ field, message });
 
 /** V12–V14, chỉ khi Đạt. `field` cùng dạng backend (`facts.bathrooms`, `pricing.reason`, `listing.highlights.1`…). */

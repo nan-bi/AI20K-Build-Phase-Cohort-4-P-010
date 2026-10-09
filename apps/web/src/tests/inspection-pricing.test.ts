@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { blankDraft, syncPhotos, toSubmitDto, validateDraftFull } from "@/lib/inspection/logic";
-import { listingForbiddenField, pricingChanged, submitLabel, toExtrasDto, validateExtras } from "@/lib/inspection/facts";
+import { listingForbiddenField, pricingChanged, toExtrasDto, validateExtras } from "@/lib/inspection/facts";
 import type { CatalogItem, InspectionDetail, InspectionDraft, InspectionPhotoView, InventoryGroup } from "@/lib/inspection/types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
@@ -54,10 +54,9 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     expect(d.listing).toEqual({ highlights: ["", "", ""] });
   });
 
-  it("không đổi giá/cọc ⇒ nút 'Đạt — đăng ngay', payload pricing = bản chủ khai, không reason", () => {
+  it("không đổi giá/cọc ⇒ payload pricing = bản chủ khai, không reason", () => {
     const { detail, draft } = setup();
     expect(pricingChanged(draft.pricing, detail)).toBe(false);
-    expect(submitLabel(draft, detail)).toBe("Đạt — đăng ngay");
     expect(validateDraftFull(draft, detail)).toBeNull();
     const dto = toSubmitDto(draft);
     expect(dto.pricing).toEqual({ rent: 9_000_000, securityDeposit: 18_000_000 });
@@ -69,7 +68,6 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     const { detail, draft } = setup();
     const changed = { ...draft, pricing: { rent: "8500000", securityDeposit: "18000000", reason: "" } };
     expect(pricingChanged(changed.pricing, detail)).toBe(true);
-    expect(submitLabel(changed, detail)).toBe("Đạt — gửi chủ nhà duyệt giá");
     expect(validateDraftFull(changed, detail)).toMatchObject({ field: "pricing.reason" });
     const ok = { ...changed, pricing: { ...changed.pricing, reason: "  Giá cùng tầng thấp hơn  " } };
     expect(validateDraftFull(ok, detail)).toBeNull();
@@ -131,7 +129,6 @@ describe("W5 màn thẩm định: giá & cọc", () => {
     expect(dto).not.toHaveProperty("facts");
     expect(dto).not.toHaveProperty("pricing");
     expect(dto).not.toHaveProperty("listing");
-    expect(submitLabel(rej, detail)).toBe("Nộp phiếu không đạt");
   });
 
   it("toExtrasDto bỏ ô nổi bật rỗng, hướng rỗng ⇒ null", () => {
@@ -142,18 +139,14 @@ describe("W5 màn thẩm định: giá & cọc", () => {
   });
 });
 
-describe("W5 render khối Giá & cọc / Thông tin thực tế", () => {
-  it("đổi giá ⇒ hiện cảnh báo chờ chủ + ô Lý do; không đổi ⇒ không có", async () => {
-    const { ConclusionBlock } = await import("@/components/host/inspection/ConclusionBlock");
-    const { detail, draft } = setup();
-    const noop = () => {};
-    const same = renderToStaticMarkup(createElement(ConclusionBlock, { detail, draft, invalidField: null, forcePin: false, onChange: noop }));
-    expect(same).toContain("Giá &amp; cọc");
-    expect(same).not.toContain("Căn sẽ chờ chủ nhà đồng ý giá mới trước khi đăng");
-    expect(same).not.toContain("Lý do đổi giá/cọc");
-    const diff = renderToStaticMarkup(createElement(ConclusionBlock, { detail, draft: { ...draft, pricing: { ...draft.pricing, rent: "8000000" } }, invalidField: null, forcePin: false, onChange: noop }));
-    expect(diff).toContain("Căn sẽ chờ chủ nhà đồng ý giá mới trước khi đăng");
-    expect(diff).toContain("Lý do đổi giá/cọc");
+describe("W5 render khối PIN cửa / Thông tin thực tế", () => {
+  it("ô PIN cửa hiện đúng nhãn bắt buộc khi đẩy căn lên; không còn khối Giá & cọc / Kết luận", async () => {
+    const { DoorPinBlock } = await import("@/components/host/inspection/DoorPinBlock");
+    const { draft } = setup();
+    const html = renderToStaticMarkup(createElement(DoorPinBlock, { draft, invalid: false, onChange: () => {} }));
+    expect(html).toContain("Mã PIN thật của cửa");
+    expect(html).toContain("Bắt buộc khi đẩy căn lên");
+    expect(html).not.toContain("Giá &amp; cọc");
   });
 
   it("ô facts đã sửa có nhãn 'Đã sửa (chủ khai: …)'", async () => {
