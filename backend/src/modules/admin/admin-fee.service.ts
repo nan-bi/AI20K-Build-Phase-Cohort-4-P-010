@@ -2,7 +2,8 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { UpdateCommissionParamDto, UpdateHoldPolicyDto, UpdateDepositPolicyDto } from './dto/admin.dto';
+import { UpdateCommissionParamDto, UpdateDepositPolicyDto, UpdateLandlordFeeDto } from './dto/admin.dto';
+import { DEFAULT_SERVICE_FEE_PERCENT, SERVICE_FEE_CONFIG_KEY } from '../landlord/landlord.mappers';
 
 export interface AdminActor {
   id: string;
@@ -22,16 +23,15 @@ export const FEE_RULES: Record<string, FeeRule> = {
   host_deal_commission: { min: 200_000, max: 1_000_000, unit: 'VND/cọc' },
   host_rating_multiplier_5star: { min: 1.1, max: 1.5, unit: 'hệ số' },
   host_peak_hour_multiplier: { min: 1.1, max: 1.5, unit: 'hệ số' },
+  // Thưởng nóng theo chiến dịch: cộng thêm cho mỗi deal chốt cọc, tối đa 3 deal/tuần/Host; 0 = tắt chiến dịch.
+  host_campaign_bonus: { min: 0, max: 1_000_000, unit: 'VND/deal' },
+  // Thù lao thẩm định ký gửi: trả cho Host vai Thẩm định cho mỗi phiếu thẩm định đã nộp (đạt hay không đạt).
+  host_inspection_fee: { min: 50_000, max: 500_000, unit: 'VND/ca' },
   host_slow_inventory_bonus: { min: 100_000, max: 500_000, unit: 'VND' },
   host_handover_inspection_fee: { min: 50_000, max: 100_000, unit: 'VND/ca' },
   host_peak_hour_start: { min: 0, max: 23, unit: 'giờ', integer: true },
   host_peak_hour_end: { min: 1, max: 24, unit: 'giờ', integer: true },
 };
-
-export const HOLD_DAYS_KEY = 'holding_duration_days';
-export const HOLD_DAYS_DEFAULT = 7;
-export const HOLD_DAYS_MIN = 1;
-export const HOLD_DAYS_MAX = 14;
 
 export const DEPOSIT_MIN_RATIO_KEY = 'deposit_min_ratio';
 export const DEPOSIT_MAX_RATIO_KEY = 'deposit_max_ratio';
@@ -101,36 +101,61 @@ export class AdminFeeService {
     };
   }
 
-  async getHoldPolicy() {
-    const row = await this.prisma.feeConfig.findUnique({ where: { configKey: HOLD_DAYS_KEY } });
-    return this.holdPolicyView(row ? Number(row.paramValue) : HOLD_DAYS_DEFAULT);
+  /** Nhật ký thay đổi tham số biến phí (AuditLog FEE_CONFIG_UPDATED), mới nhất trước. */
+  async getCommissionAudit(limit = 30) {
+    const rows: any[] = await this.prisma.auditLog.findMany({
+      where: { actionType: 'FEE_CONFIG_UPDATED' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { actor: { select: { fullName: true, email: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      at: new Date(r.createdAt).toISOString(),
+      by: r.actor?.fullName || r.actor?.email || r.actorRole,
+      configKey: r.entityId,
+      from: typeof r.oldValue?.paramValue === 'number' ? r.oldValue.paramValue : null,
+      to: typeof r.newValue?.paramValue === 'number' ? r.newValue.paramValue : null,
+      reason: typeof r.newValue?.reason === 'string' ? r.newValue.reason : null,
+    }));
   }
 
-  async updateHoldPolicy(dto: UpdateHoldPolicyDto, actor: AdminActor) {
-    if (dto.unitId) {
-      throw new BadRequestException('Thời hạn giữ chỗ chỉ cấu hình toàn sàn (nguồn duy nhất: holding_duration_days)');
-    }
-    const days = dto.days ?? (dto.hours !== undefined ? Math.ceil(dto.hours / 24) : undefined);
-    if (days === undefined || !Number.isInteger(days) || days < HOLD_DAYS_MIN || days > HOLD_DAYS_MAX) {
-      throw new BadRequestException(`Thời hạn giữ chỗ phải là số nguyên ngày từ ${HOLD_DAYS_MIN} đến ${HOLD_DAYS_MAX}`);
-    }
+  /** Phí dịch vụ ký gửi thu của chủ nhà (% tiền thuê). Chưa cấu hình ⇒ mức tạm mặc định (cùng nguồn với màn Khoản thu của chủ nhà). */
+  async getLandlordFee() {
+    const row = await this.prisma.feeConfig.findUnique({ where: { configKey: SERVICE_FEE_CONFIG_KEY } });
+    return {
+      percent: row ? Number(row.paramValue) : DEFAULT_SERVICE_FEE_PERCENT,
+      source: row ? ('config' as const) : ('default' as const),
+      defaultPercent: DEFAULT_SERVICE_FEE_PERCENT,
+      min: 0,
+      max: 30,
+      updatedAt: row?.updatedAt ?? null,
+    };
+  }
 
-    const { old } = await this.writeConfig(HOLD_DAYS_KEY, days, 'ngày', actor);
+  async updateLandlordFee(dto: UpdateLandlordFeeDto, actor: AdminActor) {
+    const reason = (dto.reason ?? '').trim();
+    if (!reason) throw new BadRequestException('Bắt buộc nhập lý do thay đổi');
+    const percent = dto.percent;
+    // Tối đa 2 chữ số thập phân: cột FeeConfig.paramValue là Decimal(12,2).
+    if (!Number.isFinite(percent) || percent < 0 || percent > 30 || Math.round(percent * 100) / 100 !== percent) {
+      throw new BadRequestException('Phí dịch vụ phải từ 0% đến 30% (tối đa 2 chữ số thập phân)');
+    }
+    const { old } = await this.writeConfig(SERVICE_FEE_CONFIG_KEY, percent, '%', actor);
     await this.audit.log({
       actorId: actor.id,
       actorRole: actor.role,
-      actionType: 'HOLD_POLICY_UPDATED',
+      actionType: 'LANDLORD_FEE_UPDATED',
       entityName: 'FeeConfig',
-      entityId: HOLD_DAYS_KEY,
+      entityId: SERVICE_FEE_CONFIG_KEY,
       oldValue: { paramValue: old },
-      newValue: { paramValue: days, reason: dto.reason?.trim() || null },
-    });
-
+      newValue: { paramValue: percent, reason },
+    } as any);
     return {
       success: true,
-      ...this.holdPolicyView(days),
-      holdPolicy: this.holdPolicyView(days),
-      message: `Đã cập nhật thời hạn giữ chỗ mặc định toàn sàn: ${days} ngày.`,
+      percent,
+      source: 'config' as const,
+      message: 'Đã cập nhật phí dịch vụ ký gửi. Màn của chủ nhà cập nhật trong tối đa 1 phút.',
     };
   }
 
@@ -204,10 +229,6 @@ export class AdminFeeService {
       defaultRatio,
       message: 'Đã cập nhật quy định tiền cọc và lưu nhật ký kiểm toán.',
     };
-  }
-
-  private holdPolicyView(days: number) {
-    return { defaultHours: days * 24, byUnit: {} as Record<string, number>, holdingDurationDays: days };
   }
 
   private assertInRange(key: string, value: number, rule: FeeRule) {

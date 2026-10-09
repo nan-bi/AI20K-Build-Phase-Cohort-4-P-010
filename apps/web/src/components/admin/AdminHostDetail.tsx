@@ -1,8 +1,11 @@
 "use client";
 
+import { CrumbLabel } from "@/components/ui/Breadcrumbs";
 import { useState } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { Lock, ShieldCheck, Unlock } from "lucide-react";
+import { vnd } from "@/lib/format";
+import { AcceptTime, DutyStatus } from "./AdminHosts";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,6 +16,7 @@ import {
   adminHostsApi,
   choiceOfRoles,
   hostErrorText,
+  hostRoleLabel,
   invalidateHosts,
   rolesOfChoice,
   useHost,
@@ -100,12 +104,73 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
     reload();
   }
 
+  const s = host.stats;
+  const lockBlocked = host.isActive && s.openTickets > 0;
+
   return (
     <div className={styles.page}>
+      <CrumbLabel label={host.fullName ?? host.email} />
       <PageHeader
         title={host.fullName ?? host.email ?? "Field Host"}
+        description={`${host.assignedZone} · ${hostRoleLabel(host.roles)} · tham gia ${new Date(host.createdAt).toLocaleDateString("vi-VN")}`}
         back={{ href: "/admin/hosts", label: "Field Host" }}
+        actions={
+          host.isActive ? (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              style={{ color: "var(--danger)" }}
+              disabled={busy || lockBlocked}
+              title={lockBlocked ? "Host còn ca đang mở — điều phối lại trước khi khoá" : undefined}
+              onClick={() => setConfirmLock(true)}
+            >
+              <Lock size={15} /> Khoá tài khoản
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => save({ isActive: true }, "Đã mở khoá tài khoản")}>
+              <Unlock size={15} /> Mở khoá tài khoản
+            </button>
+          )
+        }
       />
+
+      {!host.isActive && (
+        <div role="status" className={styles.lockBanner}>
+          <Lock size={20} />
+          <div>
+            <b>Tài khoản đang bị khoá.</b> Host không đăng nhập được, không xuất hiện trong điều phối nên không nhận ca dẫn khách hay
+            thẩm định mới. Lịch sử ca và thu nhập vẫn được giữ nguyên. Bấm “Mở khoá tài khoản” để khôi phục.
+          </div>
+        </div>
+      )}
+
+      <div className={styles.kpiStrip}>
+        <div className={styles.kpiCard}>
+          <div>
+            <div className={styles.kpiLabel}>Trạng thái trực</div>
+            <div className={styles.kpiVal}>
+              <DutyStatus host={host} />
+            </div>
+          </div>
+        </div>
+        <Stat label="Ca đã dẫn xong" value={String(s.completedViewings)} sub={s.openTickets > 0 ? `${s.openTickets} ca đang mở` : "Không có ca đang mở"} />
+        <Stat label="Deal chốt cọc" value={String(s.deals)} sub="Cọc 2.000.000đ đã thu" />
+        <div className={styles.kpiCard}>
+          <div>
+            <div className={styles.kpiLabel}>Nhận ca trung bình</div>
+            <div className={styles.kpiVal}>
+              <AcceptTime seconds={s.avgAcceptSeconds} />
+            </div>
+            <div className={styles.kpiLabel}>Mục tiêu ≤ 3′00″</div>
+          </div>
+        </div>
+        <Stat
+          label="Khách bỏ hẹn"
+          value={s.noShowRate === null ? "—" : `${String(s.noShowRate).replace(".", ",")}%`}
+          sub={`Đánh giá ${String(host.rating).replace(".", ",")}★`}
+        />
+        <Stat label="Thu nhập tuần này" value={`${vnd(s.weekEarnings)}đ`} sub="Theo bảng kê biến phí" />
+      </div>
 
       <Section
         title="Phân quyền & Vai đảm nhiệm"
@@ -187,24 +252,33 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
         </div>
       </Section>
 
-      <Section title="Trạng thái tài khoản">
-        {host.isActive ? (
-          <button type="button" className="btn btn-quiet" disabled={busy} onClick={() => setConfirmLock(true)}>
-            Khoá tài khoản
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy}
-            onClick={() => save({ isActive: true }, "Đã mở khoá tài khoản")}
-          >
-            Mở khoá
-          </button>
-        )}
+      <Section
+        title="Trạng thái tài khoản"
+        description="Khoá là tạm ngừng tài khoản, không xoá dữ liệu. Dùng khi Host nghỉ việc, vi phạm quy chuẩn tiếp đón hoặc làm mất thẻ cư dân."
+      >
+        <div className="card" style={{ padding: "var(--s-4)", display: "grid", gap: 10 }}>
+          <p>
+            Hiện tại:{" "}
+            {host.isActive ? <StatusBadge tone="ok">Đang hoạt động</StatusBadge> : <StatusBadge tone="danger">Đã khoá</StatusBadge>}
+          </p>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
+            <li>Khoá ⇒ Host bị đăng xuất ngay, không đăng nhập lại được và không được điều phối ca mới (dẫn khách lẫn thẩm định).</li>
+            <li>Lịch sử ca, đánh giá và các khoản thu nhập đã ghi nhận được giữ nguyên để đối soát.</li>
+            <li>Host đang có ca được giao, đã nhận hoặc đang đón khách thì không khoá được — điều phối lại ca đó trước.</li>
+            <li>Mở khoá ⇒ Host đăng nhập lại bình thường, bắt đầu ở trạng thái “Nghỉ ca” cho tới khi tự bật trực.</li>
+          </ul>
+          {lockBlocked && (
+            <p className="small" style={{ color: "var(--danger)" }}>
+              Host đang có {s.openTickets} ca mở nên chưa khoá được.{" "}
+              <Link href="/admin/bookings" className="link">
+                Mở màn điều phối
+              </Link>
+            </p>
+          )}
+        </div>
       </Section>
 
-      <Section title="Hoạt động ticket" description="Số ticket điều phối theo trạng thái. Thu nhập và lịch xem chi tiết có ở hồ sơ kế tiếp.">
+      <Section title="Hoạt động ticket" description="Số ticket điều phối của Host theo trạng thái.">
         <KeyValue
           items={(Object.keys(TICKET_LABEL) as TicketStatusKey[]).map((k) => ({
             label: TICKET_LABEL[k],
@@ -216,8 +290,8 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
       <Modal
         open={confirmLock}
         onClose={() => setConfirmLock(false)}
-        title="Khoá tài khoản Field Host?"
-        description="Host sẽ bị đăng xuất và không đăng nhập được nữa. Lịch sử ca và hoa hồng được giữ nguyên. Có thể mở khoá sau."
+        title={`Khoá tài khoản ${host.fullName ?? host.email ?? "Field Host"}?`}
+        description="Host sẽ bị đăng xuất ngay, không đăng nhập được và không nhận ca mới. Lịch sử ca và thu nhập được giữ nguyên. Có thể mở khoá bất cứ lúc nào."
         footer={
           <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={lock}>
             Khoá tài khoản
@@ -226,6 +300,18 @@ function HostForms({ host, reload }: { host: HostAdminDetail; reload: () => void
       >
         <p className="muted small">Host đang có ca được giao hoặc đang dẫn sẽ không khoá được cho tới khi điều phối lại.</p>
       </Modal>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className={styles.kpiCard}>
+      <div>
+        <div className={styles.kpiLabel}>{label}</div>
+        <div className={styles.kpiVal}>{value}</div>
+        <div className={styles.kpiLabel}>{sub}</div>
+      </div>
     </div>
   );
 }

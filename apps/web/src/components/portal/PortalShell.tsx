@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/Logo";
 import { signOut } from "@/lib/auth/client";
 import { initials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export interface PortalNavItem {
   href: string;
@@ -27,6 +28,8 @@ interface PortalShellProps {
   signOutHref?: string;
   /** Nội dung phụ trong sidebar, giữa nav và khối người dùng. */
   sideSlot?: React.ReactNode;
+  /** Nhãn breadcrumb cho các đường dẫn không nằm trong `nav` (vd. trang con tĩnh). */
+  crumbLabels?: Record<string, string>;
 }
 
 /** Thuần, export để test: active khi khớp href, href/…, hoặc một tiền tố trong match (khớp p hoặc p/…). */
@@ -45,8 +48,9 @@ export function isNavActive(pathname: string, item: Pick<PortalNavItem, "href" |
 }
 
 /** Khung dashboard có sidebar cho cổng Chủ nhà và Admin (trên mobile sidebar thành thanh cuộn ngang). */
-export function PortalShell({ portal, userName, userMeta, nav, children, signOutHref, sideSlot }: PortalShellProps) {
+export function PortalShell({ portal, userName, userMeta, nav, children, signOutHref, sideSlot, crumbLabels }: PortalShellProps) {
   const pathname = usePathname();
+  const labels = { ...Object.fromEntries(nav.map((n) => [n.href, n.label])), ...crumbLabels };
 
   return (
     <div className="flex flex-col md:flex-row min-h-[100dvh] bg-background text-foreground">
@@ -113,6 +117,7 @@ export function PortalShell({ portal, userName, userMeta, nav, children, signOut
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-muted/20 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
+        <Breadcrumbs root={{ href: nav[0]?.href ?? "/", label: portal }} labels={labels} />
         {children}
       </main>
     </div>

@@ -59,8 +59,10 @@ const ADMIN_ROUTES: Route[] = [
   { method: 'get', path: 'contract-parties/x' },
   { method: 'get', path: 'commission-engine' },
   { method: 'post', path: 'commission-engine/config' },
-  { method: 'get', path: 'settings/hold-policy' },
-  { method: 'post', path: 'settings/hold-policy' },
+  { method: 'post', path: 'exclusive-inventory/x/hold-hours' },
+  // Tạm tắt cùng endpoint phí dịch vụ chủ nhà:
+  // { method: 'get', path: 'settings/landlord-fee' },
+  // { method: 'post', path: 'settings/landlord-fee' },
   { method: 'get', path: 'deposits' },
   { method: 'post', path: 'deposits/x/resolve-unc' },
   { method: 'get', path: 'door-keys' },

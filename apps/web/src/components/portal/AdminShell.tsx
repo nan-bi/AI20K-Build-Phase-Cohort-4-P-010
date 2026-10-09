@@ -13,6 +13,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       userName={session.user?.fullName ?? session.user?.email ?? (session.ready ? "Tài khoản" : "Đang tải…")}
       userMeta={session.user?.portal ?? "Quản trị"}
       signOutHref={loginPathFor("admin")}
+      crumbLabels={{
+        "/admin/contracts/parties": "Theo bên ký",
+        "/admin/contracts/templates": "Mẫu hợp đồng",
+      }}
       nav={[
         { href: "/admin/dashboard", label: "Tổng quan", icon: Gauge },
         { href: "/admin/inventory", label: "Căn hộ & ký gửi", icon: Building2 },

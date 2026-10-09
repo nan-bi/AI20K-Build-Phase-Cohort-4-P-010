@@ -1,5 +1,6 @@
 "use client";
 
+import { CrumbLabel } from "@/components/ui/Breadcrumbs";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ContractsSubnav } from "@/components/contracts/ContractsSubnav";
@@ -40,6 +41,7 @@ export function AdminContractPartyDetail({ partyKey }: { partyKey: string }) {
   ];
 
   return <div className={styles.page}>
+      <CrumbLabel label={party.name} />
     <PageHeader title={party.name || "Bên ký kết"} description={`${roleName} · thông tin liên hệ và hợp đồng gắn với hồ sơ thực tế.`} actions={<Link href="/admin/contracts/parties" className="btn btn-secondary"><ArrowLeft size={16} /> Về danh sách</Link>} />
     <ContractsSubnav />
     <div className={styles.kpis}>

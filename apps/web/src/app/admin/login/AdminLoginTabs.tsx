@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Tabs } from "@/components/auth/Tabs";
 import { PortalAuth } from "@/components/auth/PortalAuth";
+import { safeNext } from "@/lib/auth/portals";
 
 type Tab = "host" | "admin";
 
@@ -31,6 +32,7 @@ export function AdminLoginTabs() {
         portal={tab}
         label={tab === "host" ? "Field Host" : "quản trị"}
         allowSignup={false}
+        next={safeNext(searchParams.get("next"))}
         initialError={searchParams.get("tab") === tab ? searchParams.get("error") : null}
         initialNotice={
           searchParams.get("tab") === tab && searchParams.get("confirmed") === "1"

@@ -1114,7 +1114,7 @@ model HostPayout {
   host         FieldHost @relation(fields: [hostId], references: [id])
   @@map("host_payouts")
 }
-model FeeConfig {                   // gồm cả holding_duration_days = 7
+model FeeConfig {
   id          String   @id @default(uuid()) @db.Uuid
   configKey   String   @unique @map("config_key") @db.VarChar(50)
   paramValue  Decimal  @map("param_value") @db.Decimal(12, 2)

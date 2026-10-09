@@ -128,30 +128,35 @@ export class VoidHoldDto {
   note: string;
 }
 
-export class UpdateHoldPolicyDto {
-  @ApiPropertyOptional({ description: 'Không còn hỗ trợ cấu hình riêng từng căn; nếu gửi sẽ bị từ chối' })
-  @IsOptional()
-  @IsString()
-  unitId?: string;
+export class UpdateLandlordFeeDto {
+  @ApiProperty({ example: 5, description: 'Phí dịch vụ ký gửi tính theo % tiền thuê tháng, trừ vào khoản chủ nhà nhận khi có khách thuê (0–30)' })
+  @IsNumber()
+  @Min(0)
+  @Max(30)
+  percent: number;
 
-  @ApiPropertyOptional({ example: 7, description: 'Số ngày giữ chỗ (nguyên, 1–14); ghi vào FeeConfig holding_duration_days' })
+  @ApiProperty({ example: 'Chốt mức phí quý 4', description: 'Lý do thay đổi (lưu Audit)' })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+}
+
+export class UpdateUnitHoldHoursDto {
+  @ApiPropertyOptional({
+    example: 48,
+    nullable: true,
+    description: 'Số giờ khoá căn sau khi khách chuyển cọc (nguyên, 12–72). null/bỏ trống = đặt lại mặc định 48 giờ',
+  })
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(14)
-  days?: number;
-
-  @ApiPropertyOptional({ example: 48, description: 'Tương thích cũ: số giờ (12–72), quy đổi lên số ngày nguyên. Bỏ qua nếu có days' })
-  @IsOptional()
-  @IsNumber()
   @Min(12)
   @Max(72)
-  hours?: number;
+  hours?: number | null;
 
-  @ApiPropertyOptional({ example: 'Mùa cao điểm', description: 'Lý do thay đổi (lưu Audit)' })
-  @IsOptional()
+  @ApiProperty({ example: 'Kích cầu: căn đang hot, rút ngắn để quay vòng nhanh', description: 'Lý do thay đổi (lưu Audit)' })
+  @IsNotEmpty()
   @IsString()
-  reason?: string;
+  reason: string;
 }
 
 export class PayoutQueryDto {

@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, UserPlus } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Compass, Lock, Moon, RotateCcw, Search, UserPlus, Users } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
+import { fmtPhone, vnd } from "@/lib/format";
 import {
+  ACCEPT_SLA_SECONDS,
   adminHostsApi,
-  choiceOfRoles,
   hostErrorText,
-  hostRoleLabel,
   invalidateHosts,
+  mmss,
   rolesOfChoice,
   useHostList,
   useHostZones,
@@ -21,17 +22,17 @@ import {
   type HostRoleChoice,
 } from "@/lib/admin/hosts";
 import { HostRoleRadios } from "./HostRoleRadios";
+import { HostsSubnav } from "./HostsSubnav";
 import styles from "./Admin.module.css";
 
-export const DUTY_LABEL: Record<HostAdminView["dutyStatus"], { label: string; badge: string }> = {
-  ONLINE_AVAILABLE: { label: "Đang trực", badge: "badge-kelp" },
-  BUSY_VIEWING: { label: "Đang bận", badge: "badge-amber-soft" },
-  OFF_DUTY: { label: "Nghỉ ca", badge: "badge-plain" },
+export const DUTY_LABEL: Record<HostAdminView["dutyStatus"], { label: string; badge: string; dot: string; hint: string }> = {
+  ONLINE_AVAILABLE: { label: "Đang trực", badge: "badge-kelp", dot: styles.dotOn, hint: "Sẵn sàng nhận ca" },
+  BUSY_VIEWING: { label: "Đang dẫn khách", badge: "badge-amber-soft", dot: styles.dotBusy, hint: "Đang trong ca xem" },
+  OFF_DUTY: { label: "Nghỉ ca", badge: "badge-plain", dot: styles.dotOff, hint: "Không nhận ca mới" },
 };
 
-
-type RoleFilter = "all" | "sale" | "inspector" | "both";
-type ActiveFilter = "all" | "true" | "false";
+type RoleFilter = "all" | "sale" | "inspector";
+type StatusFilter = "all" | HostAdminView["dutyStatus"] | "locked";
 
 const initials = (name: string) =>
   name
@@ -41,14 +42,43 @@ const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join("");
 
-const fmtLogin = (iso: string | null) => (iso ? new Date(iso).toLocaleString("vi-VN") : "Chưa đăng nhập");
+/** Trạng thái hiển thị: tài khoản bị khoá luôn ưu tiên hơn trạng thái trực. */
+const statusOf = (h: HostAdminView): StatusFilter => (h.isActive ? h.dutyStatus : "locked");
+
+export function DutyStatus({ host }: { host: HostAdminView }) {
+  if (!host.isActive) {
+    return (
+      <span className={styles.lockedBadge} title="Tài khoản bị khoá: không đăng nhập, không nhận ca">
+        <Lock size={11} /> Đã khoá
+      </span>
+    );
+  }
+  const d = DUTY_LABEL[host.dutyStatus];
+  return (
+    <span className={styles.dutyCell} title={d.hint}>
+      <span className={`${styles.dot} ${d.dot}`} />
+      {d.label}
+    </span>
+  );
+}
+
+export function AcceptTime({ seconds }: { seconds: number | null }) {
+  if (seconds === null) return <span className="muted">—</span>;
+  const slow = seconds > ACCEPT_SLA_SECONDS;
+  return (
+    <span className={`${slow ? styles.warnText : styles.okText} tnum`} title={slow ? "Vượt SLA 3 phút" : "Trong SLA 3 phút"}>
+      {slow ? <AlertTriangle size={14} aria-label="Vượt SLA" /> : <CheckCircle2 size={14} aria-label="Đạt SLA" />}
+      {mmss(seconds)}
+    </span>
+  );
+}
 
 export function AdminHosts() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [active, setActive] = useState<ActiveFilter>("all");
   const [zone, setZone] = useState("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -56,29 +86,87 @@ export function AdminHosts() {
     return () => clearTimeout(t);
   }, [q]);
 
+  // Bộ đếm KPI/pill tính trên toàn bộ Host; bộ lọc tìm/phân khu/vai gửi backend.
+  const all = useHostList({});
   const filters: HostFilters = {
     q: debouncedQ,
     role: roleFilter === "all" ? undefined : roleFilter,
     zone: zone === "all" ? undefined : zone,
-    active: active === "all" ? undefined : active === "true",
   };
   const list = useHostList(filters);
   const zones = useHostZones();
   const zoneOptions = zones.state.status === "ready" ? zones.state.data : [];
 
-  const rows = list.state.status === "ready" ? list.state.data : [];
-  const sale = rows.filter((h) => h.roles.includes("sale")).length;
-  const inspector = rows.filter((h) => h.roles.includes("inspector")).length;
+  const everyone = all.state.status === "ready" ? all.state.data : [];
+  const count = (s: StatusFilter) => everyone.filter((h) => statusOf(h) === s).length;
+  const sale = everyone.filter((h) => h.roles.includes("sale")).length;
+  const inspector = everyone.filter((h) => h.roles.includes("inspector")).length;
+
+  const matched = list.state.status === "ready" ? list.state.data : [];
+  const rows = status === "all" ? matched : matched.filter((h) => statusOf(h) === status);
+  const isFiltered = q !== "" || zone !== "all" || roleFilter !== "all" || status !== "all";
+
+  function resetFilters() {
+    setQ("");
+    setZone("all");
+    setRoleFilter("all");
+    setStatus("all");
+  }
+
+  const pills: { key: StatusFilter; label: string; dot?: string; icon?: typeof Lock }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "ONLINE_AVAILABLE", label: "Đang trực", dot: styles.dotOn },
+    { key: "BUSY_VIEWING", label: "Đang dẫn khách", dot: styles.dotBusy },
+    { key: "OFF_DUTY", label: "Nghỉ ca", dot: styles.dotOff },
+    { key: "locked", label: "Đã khoá", icon: Lock },
+  ];
+
+  const columns: DataTableColumn<HostAdminView>[] = [
+    {
+      key: "host",
+      header: "Field Host",
+      render: (h) => (
+        <span className={styles.person}>
+          <span className={styles.avatar}>{initials(h.fullName ?? h.email ?? "?")}</span>
+          <span>
+            <b>{h.fullName ?? "(chưa có tên)"}</b>
+            <span className="muted xs" style={{ display: "block" }}>
+              {h.phone ? fmtPhone(h.phone) : h.email}
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    { key: "zone", header: "Phân khu", render: (h) => h.assignedZone },
+    {
+      key: "roles",
+      header: "Vai",
+      render: (h) => (
+        <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+          {h.roles.includes("sale") && <span className="badge badge-kelp">Sale</span>}
+          {h.roles.includes("inspector") && <span className="badge badge-plain">Thẩm định</span>}
+        </span>
+      ),
+    },
+    { key: "status", header: "Trạng thái", render: (h) => <DutyStatus host={h} /> },
+    { key: "viewings", header: "Ca đã dẫn", align: "right", render: (h) => h.stats.completedViewings },
+    { key: "deals", header: "Deal", align: "right", render: (h) => h.stats.deals },
+    { key: "accept", header: "Nhận ca TB", render: (h) => <AcceptTime seconds={h.stats.avgAcceptSeconds} /> },
+    {
+      key: "noshow",
+      header: "Bỏ hẹn",
+      align: "right",
+      render: (h) => (h.stats.noShowRate === null ? <span className="muted">—</span> : `${String(h.stats.noShowRate).replace(".", ",")}%`),
+    },
+    { key: "rating", header: "Đánh giá", align: "right", render: (h) => `${String(h.rating).replace(".", ",")}★` },
+    { key: "earn", header: "Thu nhập tuần", align: "right", render: (h) => <b>{vnd(h.stats.weekEarnings)}đ</b> },
+  ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Danh sách Field Host"
-        description={
-          list.state.status === "ready"
-            ? `${rows.length} Host · ${sale} Sale · ${inspector} Thẩm định · thù lao là biến phí, không lương cứng`
-            : "Đang tải…"
-        }
+        description="Mạng lưới Host đón khách tại sảnh và thẩm định căn ký gửi · thù lao biến phí theo hiệu quả, không lương cứng"
         actions={
           <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
             <UserPlus size={17} /> Thêm Field Host
@@ -86,50 +174,67 @@ export function AdminHosts() {
         }
       />
 
-      <div className={styles.tools}>
-        <label className={styles.search}>
-          <Search size={16} />
-          <span className="sr-only">Tìm Host</span>
-          <input
-            className="input"
-            placeholder="Tìm theo tên, email hoặc số điện thoại"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </label>
-        <select
-          className="select"
-          value={active}
-          onChange={(e) => setActive(e.target.value as ActiveFilter)}
-          aria-label="Lọc theo tài khoản"
-        >
-          <option value="all">Mọi tài khoản</option>
-          <option value="true">Đang hoạt động</option>
-          <option value="false">Đã khoá</option>
-        </select>
-        <select
-          className="select"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-          aria-label="Lọc theo vai"
-        >
-          <option value="all">Mọi vai</option>
-          <option value="sale">Sale</option>
-          <option value="inspector">Sale + Thẩm định</option>
-        </select>
-        <select className="select" value={zone} onChange={(e) => setZone(e.target.value)} aria-label="Lọc theo phân khu">
-          <option value="all">Mọi phân khu</option>
-          {zoneOptions.map((z) => (
-            <option key={z} value={z}>
-              {z}
-            </option>
-          ))}
-        </select>
+      <HostsSubnav />
+
+      <div className={styles.kpiStrip}>
+        <Kpi icon={Users} value={`${everyone.length} Field Host`} label={`${sale} Sale · ${inspector} Thẩm định`} />
+        <Kpi icon={Activity} value={`${count("ONLINE_AVAILABLE")} đang trực`} label="Sẵn sàng đón khách tại sảnh" />
+        <Kpi icon={Compass} value={`${count("BUSY_VIEWING")} đang dẫn khách`} label="Đang trong ca xem thực địa" />
+        <Kpi icon={Moon} value={`${count("OFF_DUTY")} nghỉ ca`} label={count("locked") > 0 ? `${count("locked")} tài khoản đã khoá` : "Không nhận ca mới"} />
+      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.tools}>
+          <label className={styles.search}>
+            <Search size={16} />
+            <span className="sr-only">Tìm Host</span>
+            <input className="input" placeholder="Tìm theo tên, email hoặc số điện thoại" value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
+          <select className="select" value={zone} onChange={(e) => setZone(e.target.value)} aria-label="Lọc theo phân khu">
+            <option value="all">Mọi phân khu</option>
+            {zoneOptions.map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+          <select className="select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as RoleFilter)} aria-label="Lọc theo vai">
+            <option value="all">Mọi vai</option>
+            <option value="sale">Sale (dẫn khách)</option>
+            <option value="inspector">Kiêm Thẩm định (ký gửi)</option>
+          </select>
+        </div>
+        <div className={styles.quickRow}>
+          <div className={styles.pills} role="tablist" aria-label="Lọc nhanh trạng thái">
+            {pills.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                role="tab"
+                aria-selected={status === p.key}
+                className={`${styles.pill} ${status === p.key ? styles.pillActive : ""}`}
+                onClick={() => setStatus(p.key)}
+              >
+                {p.dot && <span className={`${styles.dot} ${p.dot}`} />}
+                {p.icon && <p.icon size={12} />}
+                {p.label} ({p.key === "all" ? everyone.length : count(p.key)})
+              </button>
+            ))}
+          </div>
+          <span className={styles.resultCount}>
+            Hiển thị <b>{rows.length}</b> / {everyone.length} Host
+            {isFiltered && (
+              <button type="button" className={styles.resetBtn} onClick={resetFilters}>
+                <RotateCcw size={13} /> Đặt lại bộ lọc
+              </button>
+            )}
+          </span>
+        </div>
       </div>
 
       {list.state.status === "loading" && <div className="skeleton" style={{ height: 360 }} />}
       {list.state.status === "error" && (
-        <div role="alert">
+        <div role="alert" className="card">
           <p>{list.state.message}</p>
           <button type="button" className="btn btn-quiet" onClick={list.reload}>
             Thử lại
@@ -137,57 +242,34 @@ export function AdminHosts() {
         </div>
       )}
       {list.state.status === "ready" && (
-        <DataTable<HostAdminView>
-          columns={
-            [
-              {
-                key: "host",
-                header: "Field Host",
-                render: (h) => (
-                  <span className={styles.person}>
-                    <span className={styles.avatar}>{initials(h.fullName ?? h.email ?? "?")}</span>
-                    <span>
-                      <b>{h.fullName ?? "(chưa có tên)"}</b>
-                      <span className="muted xs">{h.email}</span>
-                      <span className="muted xs">{h.phone ?? "Chưa xác thực SĐT"}</span>
-                    </span>
-                  </span>
-                ),
-              },
-              { key: "zone", header: "Phân khu", render: (h) => h.assignedZone },
-              {
-                key: "roles",
-                header: "Vai",
-                render: (h) => (
-                  <span className={`badge ${choiceOfRoles(h.roles) === "sale" ? "badge-kelp" : "badge-plain"}`}>{hostRoleLabel(h.roles)}</span>
-                ),
-              },
-              {
-                key: "status",
-                header: "Trạng thái",
-                render: (h) =>
-                  h.isActive ? (
-                    <span className={`badge ${DUTY_LABEL[h.dutyStatus].badge}`}>{DUTY_LABEL[h.dutyStatus].label}</span>
-                  ) : (
-                    <span className="badge badge-plain">Đã khoá</span>
-                  ),
-              },
-              { key: "login", header: "Đăng nhập gần nhất", render: (h) => fmtLogin(h.lastLoginAt) },
-              {
-                key: "rating",
-                header: "Đánh giá",
-                align: "right",
-                render: (h) => `${String(h.rating).replace(".", ",")}★`,
-              },
-            ] satisfies DataTableColumn<HostAdminView>[]
-          }
-          rows={rows}
-          rowHref={(h) => `/admin/hosts/${h.id}`}
-          empty={<span className="muted">Không có Host nào khớp bộ lọc.</span>}
-        />
+        <section className={`card ${styles.tableCard}`}>
+          <DataTable<HostAdminView>
+            columns={columns}
+            rows={rows}
+            rowHref={(h) => `/admin/hosts/${h.id}`}
+            empty={<span className="muted">Không có Host nào khớp bộ lọc.</span>}
+          />
+        </section>
       )}
+      <p className="muted xs">
+        Nhận ca TB: thời gian từ lúc hệ thống mời đến lúc Host bấm nhận, mục tiêu ≤ 3 phút. Bỏ hẹn: tỷ lệ khách không đến trên các ca Host đã nhận. Bấm vào một hàng để mở hồ sơ Host.
+      </p>
 
       <CreateHostModal open={creating} zones={zoneOptions} onClose={() => setCreating(false)} />
+    </div>
+  );
+}
+
+function Kpi({ icon: Icon, value, label }: { icon: typeof Users; value: string; label: string }) {
+  return (
+    <div className={styles.kpiCard}>
+      <div className={styles.kpiIcon}>
+        <Icon size={20} />
+      </div>
+      <div>
+        <div className={styles.kpiVal}>{value}</div>
+        <div className={styles.kpiLabel}>{label}</div>
+      </div>
     </div>
   );
 }
@@ -270,13 +352,7 @@ function CreateHostModal({ open, zones, onClose }: { open: boolean; zones: strin
 
         <label className="field">
           <span className="label">Mật khẩu ban đầu (tuỳ chọn)</span>
-          <input
-            className="input"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <input className="input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <span className="muted xs">Để trống nếu Host chỉ đăng nhập bằng Google.</span>
         </label>
 

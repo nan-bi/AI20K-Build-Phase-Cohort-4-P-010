@@ -134,6 +134,46 @@ describe('FieldHostsService', () => {
       expect(await codeOf(service.detail('00000000-0000-4000-8000-000000000000'))).toBe('host_not_found');
     });
 
+    it('stats theo lô: ca hoàn tất, ca đang mở, deal, nhận ca TB, % bỏ hẹn, thu nhập tuần hiện tại', async () => {
+      const { service, prisma, a, b } = await seedThree();
+      const t0 = new Date('2026-10-08T03:00:00Z');
+      const at = (s: number) => new Date(t0.getTime() + s * 1000);
+      prisma.dispatchTicket.rows.push(
+        { id: 't1', hostId: a.id, status: 'COMPLETED', offeredAt: t0, acceptedAt: at(60), viewing: { status: 'COMPLETED' } },
+        { id: 't2', hostId: a.id, status: 'COMPLETED', offeredAt: t0, acceptedAt: at(240), viewing: { status: 'NO_SHOW' } },
+        { id: 't3', hostId: a.id, status: 'ACCEPTED', offeredAt: t0, acceptedAt: at(30), viewing: { status: 'CONFIRMED' } },
+        { id: 't4', hostId: a.id, status: 'OFFERED', offeredAt: t0, acceptedAt: null, viewing: { status: 'PENDING_CONFIRMATION' } },
+      );
+      prisma.holdingDeposit.rows.push(
+        { id: 'd1', attributedHostId: a.id, paymentStatus: 'PAID_HOLDING' },
+        { id: 'd2', attributedHostId: a.id, paymentStatus: 'REFUNDED' },
+      );
+      prisma.hostPayout.rows.push(
+        { id: 'p1', hostId: a.id, period: '2026-W41', amount: 50000 },
+        { id: 'p2', hostId: a.id, period: '2026-W41', amount: 400000 },
+        { id: 'p3', hostId: a.id, period: '2026-W40', amount: 999999 },
+      );
+
+      const stats = await service.statsFor([a.id, b.id], t0);
+      expect(stats.get(a.id)).toEqual({
+        completedViewings: 2,
+        openTickets: 2,
+        deals: 1,
+        avgAcceptSeconds: 110,
+        noShowRate: 50,
+        weekEarnings: 450000,
+      });
+      expect(stats.get(b.id)).toEqual({
+        completedViewings: 0,
+        openTickets: 0,
+        deals: 0,
+        avgAcceptSeconds: null,
+        noShowRate: null,
+        weekEarnings: 0,
+      });
+      expect((await service.list({})).every((h: any) => h.stats)).toBe(true);
+    });
+
     it('zones: phân khu không trùng, sắp chữ cái', async () => {
       const { service, prisma } = setup();
       prisma.building.rows.push({ id: 'b3', zoneName: 'The Sapphire 1' });

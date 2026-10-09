@@ -6,12 +6,20 @@ const OCCUPANCY_ALERT_THRESHOLD = 80;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+const DAY_MS = 86_400_000;
+const ICT_OFFSET_MS = 7 * 3_600_000;
+const TREND_DAYS = 14;
+/** Ngày lịch Asia/Ho_Chi_Minh dạng YYYY-MM-DD. */
+const ictDay = (d: Date) => new Date(d.getTime() + ICT_OFFSET_MS).toISOString().slice(0, 10);
+
 @Injectable()
 export class AdminBiService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getBiFunnelAndHeatmap() {
-    const [booked, checkedIn, deposited, signed, completed, noShow, units] = await Promise.all([
+  async getBiFunnelAndHeatmap(now: Date = new Date()) {
+    const trendFrom = new Date(now.getTime() - (TREND_DAYS - 1) * DAY_MS);
+    trendFrom.setTime(Date.parse(`${ictDay(trendFrom)}T00:00:00+07:00`));
+    const [booked, checkedIn, deposited, signed, completed, noShow, units, recent] = await Promise.all([
       this.prisma.viewing.count({ where: { status: { not: 'CANCELLED' } } }),
       this.prisma.viewing.count({ where: { lobbyCheckInAt: { not: null } } }),
       this.prisma.holdingDeposit.count({ where: { paymentStatus: { in: ['PAID_HOLDING', 'CONVERTED_TO_CONTRACT'] } } }),
@@ -19,7 +27,22 @@ export class AdminBiService {
       this.prisma.viewing.count({ where: { status: 'COMPLETED' } }),
       this.prisma.viewing.count({ where: { status: 'NO_SHOW' } }),
       this.prisma.unit.findMany({ include: { building: true } }),
+      this.prisma.viewing.findMany({
+        where: { createdAt: { gte: trendFrom }, status: { not: 'CANCELLED' } },
+        select: { createdAt: true },
+      }),
     ]);
+
+    // Lịch xem đặt mới mỗi ngày, 14 ngày gần nhất (kể cả ngày 0 lịch).
+    const perDay = new Map<string, number>();
+    for (const v of recent as Array<{ createdAt: Date }>) {
+      const key = ictDay(new Date(v.createdAt));
+      perDay.set(key, (perDay.get(key) ?? 0) + 1);
+    }
+    const dailyBookings = Array.from({ length: TREND_DAYS }, (_, i) => {
+      const date = ictDay(new Date(trendFrom.getTime() + i * DAY_MS));
+      return { date, count: perDay.get(date) ?? 0 };
+    });
 
     const raw: Array<{ stage: string; count: number | null }> = [
       { stage: '1. Truy cập & All-in Calculator', count: null },
@@ -66,6 +89,7 @@ export class AdminBiService {
     const count = (s: string) => (units as any[]).filter((u) => u.status === s).length;
     return {
       funnel,
+      dailyBookings,
       occupancyHeatmap,
       portfolioStatus: {
         totalUnits: units.length,

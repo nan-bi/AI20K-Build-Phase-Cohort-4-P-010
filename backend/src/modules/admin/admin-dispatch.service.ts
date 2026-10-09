@@ -64,6 +64,23 @@ export class AdminDispatchService {
     const tickets: any[] = await this.loadTickets();
     const byTier: Record<string, Record<string, number>> = {};
     let breachedCount = 0;
+    // Thời gian nhận ca = acceptedAt − offeredAt của các ticket Host đã nhận (AGENTS.md vận hành #5: SLA 3 phút).
+    const accept = new Map<string, { hostName: string; totalSec: number; accepted: number; overSla: number }>();
+    for (const t of tickets) {
+      if (t.hostId && t.acceptedAt) {
+        const sec = Math.max(0, Math.round((new Date(t.acceptedAt).getTime() - new Date(t.offeredAt).getTime()) / 1000));
+        const row = accept.get(t.hostId) ?? {
+          hostName: t.host?.profile?.fullName || 'Host chưa đặt tên',
+          totalSec: 0,
+          accepted: 0,
+          overSla: 0,
+        };
+        row.totalSec += sec;
+        row.accepted += 1;
+        if (sec > t.slaSeconds) row.overSla += 1;
+        accept.set(t.hostId, row);
+      }
+    }
     for (const t of tickets) {
       const row = (byTier[String(t.tier)] ??= {
         total: 0, offered: 0, accepted: 0, expired: 0, escalated: 0, breached: 0,
@@ -76,7 +93,20 @@ export class AdminDispatchService {
         breachedCount += 1;
       }
     }
-    return { byTier, breachedCount };
+    const byHost = [...accept.entries()]
+      .map(([hostId, r]) => ({
+        hostId,
+        hostName: r.hostName,
+        accepted: r.accepted,
+        avgAcceptSeconds: Math.round(r.totalSec / r.accepted),
+        overSla: r.overSla,
+      }))
+      .sort((a, b) => b.avgAcceptSeconds - a.avgAcceptSeconds);
+    const totalAccepted = byHost.reduce((s, h) => s + h.accepted, 0);
+    const avgAcceptSeconds = totalAccepted
+      ? Math.round(byHost.reduce((s, h) => s + h.avgAcceptSeconds * h.accepted, 0) / totalAccepted)
+      : null;
+    return { byTier, breachedCount, byHost, avgAcceptSeconds };
   }
 
   async reassign(viewingId: string, dto: ReassignBookingDto, actor: AdminActor, now: Date = new Date()) {

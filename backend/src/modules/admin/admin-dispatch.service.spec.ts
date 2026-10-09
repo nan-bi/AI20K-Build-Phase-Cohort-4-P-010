@@ -96,6 +96,28 @@ describe('AdminDispatchService — bảng SLA', () => {
     expect(s.byTier['1']).toEqual(expect.objectContaining({ total: 2, offered: 1, accepted: 1, breached: 1 }));
     expect(s.byTier['2']).toEqual(expect.objectContaining({ total: 1, escalated: 1, breached: 0 }));
   });
+
+  it('byHost: thời gian nhận ca trung bình = acceptedAt − offeredAt, đếm ca vượt SLA; bỏ ticket chưa nhận', async () => {
+    const { svc } = build([
+      ticket({ id: 'a', hostId: 'h1', status: 'ACCEPTED', slaSeconds: 180, offeredAt: ago(600), acceptedAt: ago(500) }),
+      ticket({ id: 'b', hostId: 'h1', status: 'COMPLETED', slaSeconds: 180, offeredAt: ago(900), acceptedAt: ago(600) }),
+      ticket({
+        id: 'c',
+        hostId: 'h2',
+        status: 'ACCEPTED',
+        offeredAt: ago(100),
+        acceptedAt: ago(40),
+        host: { profile: { fullName: 'Trần Mai' } },
+      }),
+      ticket({ id: 'd', hostId: 'h2', status: 'OFFERED' }),
+    ]);
+    const s = await svc.getSlaSummary(NOW);
+    expect(s.byHost).toEqual([
+      { hostId: 'h1', hostName: 'Lê Quốc Bảo', accepted: 2, avgAcceptSeconds: 200, overSla: 1 },
+      { hostId: 'h2', hostName: 'Trần Mai', accepted: 1, avgAcceptSeconds: 60, overSla: 0 },
+    ]);
+    expect(s.avgAcceptSeconds).toBe(153);
+  });
 });
 
 describe('AdminDispatchService — reassign (:id = Viewing id)', () => {

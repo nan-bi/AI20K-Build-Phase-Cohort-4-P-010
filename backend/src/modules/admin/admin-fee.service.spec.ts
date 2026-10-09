@@ -106,38 +106,7 @@ describe('AdminFeeService — biến phí', () => {
   });
 });
 
-describe('AdminFeeService — hold-policy qua FeeConfig holding_duration_days', () => {
-  it('đọc từ FeeConfig (mặc định 7 ngày), giữ trường cũ defaultHours và thêm holdingDurationDays', async () => {
-    const { svc } = build({});
-    const res: any = await svc.getHoldPolicy();
-    expect(res.holdingDurationDays).toBe(7);
-    expect(res.defaultHours).toBe(168);
-    expect(res).toHaveProperty('byUnit');
-  });
-
-  it('ghi days vào FeeConfig + audit; bộ nhớ không còn là nguồn dữ liệu', async () => {
-    const { svc, store, audit } = build({ holding_duration_days: 7 });
-    const res: any = await svc.updateHoldPolicy({ days: 10, reason: 'mùa cao điểm' }, ACTOR);
-    expect(store.get('holding_duration_days')).toBe(10);
-    expect(res.success).toBe(true);
-    expect(res.holdingDurationDays).toBe(10);
-    expect(audit.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityName: 'FeeConfig',
-        oldValue: expect.objectContaining({ paramValue: 7 }),
-        newValue: expect.objectContaining({ paramValue: 10 }),
-      }),
-    );
-    const again: any = await svc.getHoldPolicy();
-    expect(again.holdingDurationDays).toBe(10);
-  });
-
-  it.each([0, 15, 1.5])('từ chối days = %s (khoảng 1–14 ngày nguyên)', async (days) => {
-    const { svc, store } = build({ holding_duration_days: 7 });
-    await expect(svc.updateHoldPolicy({ days }, ACTOR)).rejects.toBeInstanceOf(BadRequestException);
-    expect(store.get('holding_duration_days')).toBe(7);
-  });
-
+describe('AdminFeeService — chính sách cọc', () => {
   describe('Deposit Policy — Quy định tiền cọc', () => {
     it('getDepositPolicy trả về mặc định minRatio=0.5, maxRatio=4.0, defaultRatio=1.0 khi chưa cấu hình', async () => {
       const { svc } = build({});
@@ -180,5 +149,67 @@ describe('AdminFeeService — hold-policy qua FeeConfig holding_duration_days', 
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
-});
 
+  it('getCommissionAudit đọc AuditLog FEE_CONFIG_UPDATED, trả người sửa + giá trị cũ/mới + lý do', async () => {
+    const { svc, prisma } = build({});
+    prisma.auditLog = {
+      findMany: jest.fn(async () => [
+        {
+          id: 'a1',
+          createdAt: new Date('2026-10-08T03:00:00Z'),
+          actorRole: 'ops_admin',
+          actor: { fullName: 'Quản trị viên', email: 'a@x.vn' },
+          entityId: 'host_deal_commission',
+          oldValue: { paramValue: 400000 },
+          newValue: { paramValue: 500000, reason: 'Kích cầu' },
+        },
+      ]),
+    };
+    const [row] = await svc.getCommissionAudit();
+    expect(prisma.auditLog.findMany.mock.calls[0][0].where).toEqual({ actionType: 'FEE_CONFIG_UPDATED' });
+    expect(row).toEqual({
+      id: 'a1',
+      at: '2026-10-08T03:00:00.000Z',
+      by: 'Quản trị viên',
+      configKey: 'host_deal_commission',
+      from: 400000,
+      to: 500000,
+      reason: 'Kích cầu',
+    });
+  });
+
+  describe('Phí dịch vụ ký gửi chủ nhà (landlord_service_fee_rate)', () => {
+    it('chưa cấu hình ⇒ mức tạm 5%, source default', async () => {
+      const { svc } = build({});
+      expect(await svc.getLandlordFee()).toEqual(expect.objectContaining({ percent: 5, source: 'default', defaultPercent: 5 }));
+    });
+
+    it('ghi vào FeeConfig đúng khoá + audit cũ/mới/lý do; đọc lại thấy source config', async () => {
+      const { svc, store, audit } = build({ landlord_service_fee_rate: 5 });
+      const res = await svc.updateLandlordFee({ percent: 7.5, reason: 'Chốt quý 4' }, ACTOR);
+      expect(store.get('landlord_service_fee_rate')).toBe(7.5);
+      expect(res).toEqual(expect.objectContaining({ success: true, percent: 7.5 }));
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actionType: 'LANDLORD_FEE_UPDATED',
+          entityId: 'landlord_service_fee_rate',
+          oldValue: { paramValue: 5 },
+          newValue: { paramValue: 7.5, reason: 'Chốt quý 4' },
+        }),
+      );
+      expect(await svc.getLandlordFee()).toEqual(expect.objectContaining({ percent: 7.5, source: 'config' }));
+    });
+
+    it.each([-1, 30.5, 5.555, Number.NaN])('từ chối percent = %s', async (percent) => {
+      const { svc, store } = build({ landlord_service_fee_rate: 5 });
+      await expect(svc.updateLandlordFee({ percent, reason: 'x' }, ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+      expect(store.get('landlord_service_fee_rate')).toBe(5);
+    });
+
+    it('thiếu lý do ⇒ 400, không ghi', async () => {
+      const { svc, store } = build({ landlord_service_fee_rate: 5 });
+      await expect(svc.updateLandlordFee({ percent: 6, reason: '  ' }, ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+      expect(store.get('landlord_service_fee_rate')).toBe(5);
+    });
+  });
+});

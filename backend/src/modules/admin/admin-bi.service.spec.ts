@@ -17,6 +17,11 @@ function build(over: { viewings?: any[]; deposits?: any[]; contracts?: any[]; un
           return true;
         }).length,
       ),
+      findMany: jest.fn(async ({ where = {} }: any = {}) =>
+        viewings.filter(
+          (v) => v.createdAt && v.createdAt >= where.createdAt.gte && v.status !== where.status?.not,
+        ),
+      ),
     },
     holdingDeposit: {
       count: jest.fn(
@@ -120,6 +125,25 @@ describe('AdminBiService — phễu BI', () => {
       expect.objectContaining({ total: 3, rented: 1, alert: 'ATTENTION_NEEDED' }),
     );
     expect(r.portfolioStatus).toEqual({ totalUnits: 8, rentedUnits: 5, holdingUnits: 1, availableUnits: 2 });
+  });
+
+  it('dailyBookings: 14 ngày theo giờ VN, đủ ngày 0 lịch, bỏ lịch đã hủy', async () => {
+    const now = new Date('2026-10-08T10:00:00+07:00');
+    const { svc } = build({
+      viewings: [
+        { status: 'CONFIRMED', createdAt: new Date('2026-10-08T00:30:00+07:00') },
+        { status: 'COMPLETED', createdAt: new Date('2026-10-07T23:59:00+07:00') },
+        { status: 'CONFIRMED', createdAt: new Date('2026-10-07T08:00:00+07:00') },
+        { status: 'CANCELLED', createdAt: new Date('2026-10-08T09:00:00+07:00') },
+        { status: 'CONFIRMED', createdAt: new Date('2026-09-20T09:00:00+07:00') },
+      ],
+    });
+    const r: any = await svc.getBiFunnelAndHeatmap(now);
+    expect(r.dailyBookings).toHaveLength(14);
+    expect(r.dailyBookings[0].date).toBe('2026-09-25');
+    expect(r.dailyBookings.at(-1)).toEqual({ date: '2026-10-08', count: 1 });
+    expect(r.dailyBookings.at(-2)).toEqual({ date: '2026-10-07', count: 2 });
+    expect(r.dailyBookings.reduce((s: number, d: any) => s + d.count, 0)).toBe(3);
   });
 
   it('lỗi DB thành lỗi, không trả số giả', async () => {
