@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/Toast";
-import { CONDITION_OPTIONS, GROUPS, GROUP_LABEL, MAX_EXTRA_LINES, blankLine, liabilityLabel } from "@/lib/inspection/logic";
+import { CONDITION_OPTIONS, GROUPS, GROUP_LABEL, MAX_EXTRA_LINES, blankLine } from "@/lib/inspection/logic";
 import type { CatalogItem, DraftLine, InspectionDraft, InventoryGroup } from "@/lib/inspection/types";
 import consign from "@/components/consign/Consign.module.css";
 import { PhotoStrip } from "./PhotoStrip";
@@ -169,7 +169,6 @@ function LineRow({ id, line, hint, bad, extra, photos, onPatch, onRemove }: RowP
             </span>
           </label>
         )}
-        {!extra && <span className={`${consign.liabilityBadge} ${line.liability === "misuse" ? consign.liabilityMisuse : consign.liabilityWear}`}>{liabilityLabel(line.liability)}</span>}
       </div>
 
       {extra && (
@@ -202,7 +201,7 @@ function LineRow({ id, line, hint, bad, extra, photos, onPatch, onRemove }: RowP
 
           <div className={consign.invFieldsExtra}>
             <input type="text" className="input" maxLength={120} placeholder="Ghi chú chi tiết hiện trạng…" value={line.note} onChange={(e) => onPatch({ note: e.target.value })} style={{ fontSize: "var(--fs-12)" }} />
-            <input type="number" min={0} step="50000" className="input" placeholder="Bồi thường (VNĐ)" value={line.compensation} onChange={(e) => onPatch({ compensation: e.target.value })} style={{ fontSize: "var(--fs-12)" }} />
+            <input type="number" min={0} step="50000" className="input" aria-label="Giá trị (VNĐ)" placeholder="Giá trị (VNĐ)" value={line.compensation} onChange={(e) => onPatch({ compensation: e.target.value })} style={{ fontSize: "var(--fs-12)" }} />
           </div>
 
           <PhotoStrip

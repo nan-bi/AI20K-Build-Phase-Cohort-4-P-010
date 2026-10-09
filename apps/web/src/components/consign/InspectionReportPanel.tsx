@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtDateTime, vnd } from "@/lib/format";
-import { DECLARED_FIELDS, DECLARED_LABEL, FUNCTION_LABEL, FURNISHING_LABEL, GROUP_LABEL, LOW_CONDITION, ROOM_LABEL, declaredValue, liabilityLabel } from "@/lib/inspection/logic";
+import { DECLARED_FIELDS, DECLARED_LABEL, FUNCTION_LABEL, FURNISHING_LABEL, GROUP_LABEL, LOW_CONDITION, ROOM_LABEL, declaredValue } from "@/lib/inspection/logic";
 import type { InspectionCard, InspectionPhotoView, InspectionReport, InventoryLineReport } from "@/lib/inspection/types";
 import styles from "@/components/host/inspection/Inspection.module.css";
 
@@ -125,7 +125,7 @@ export function InspectionReportPanel({ unit, report, photos, hostName }: Props)
                   <span className="muted small">Không có</span>
                 ),
             },
-            { key: "liab", header: "Trách nhiệm", render: (l) => (l.present ? <span className="small">{liabilityLabel(l.liability)}{l.compensation ? ` · ${vnd(l.compensation)}đ` : ""}</span> : "—") },
+            { key: "liab", header: "Giá trị", render: (l) => (l.present && l.compensation ? <span className="small">{vnd(l.compensation)}đ</span> : "—") },
             { key: "photos", header: "Ảnh", render: (l) => (l.present ? thumbs(l.photoIds, `${l.code}. ${l.name}`) : "—") },
           ]}
           rows={report.inventory}
