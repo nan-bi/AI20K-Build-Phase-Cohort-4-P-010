@@ -8,6 +8,14 @@ interface Opts {
   fees?: Record<string, number>;
   viewing?: any;
   deposit?: any;
+  /** Điểm khách đã chấm cho Host (mỗi phần tử một lịch xem). */
+  ratings?: number[];
+  /** Hồ sơ Host theo profileId (cho thù lao thẩm định). */
+  hostByProfile?: Record<string, any>;
+  /** Dòng AuditLog INSPECTION_SUBMITTED mà lượt quét sẽ thấy. */
+  inspectionLogs?: any[];
+  viewings?: any[];
+  deposits?: any[];
 }
 
 function build(opts: Opts = {}) {
@@ -28,8 +36,14 @@ function build(opts: Opts = {}) {
         Object.entries(fees).map(([configKey, v]) => ({ configKey, paramValue: D(v) })),
       ),
     },
-    viewing: { findUnique: jest.fn(async () => opts.viewing ?? null) },
-    holdingDeposit: { findUnique: jest.fn(async () => opts.deposit ?? null) },
+    viewing: { findUnique: jest.fn(async () => opts.viewing ?? null), findMany: jest.fn(async () => opts.viewings ?? []) },
+    holdingDeposit: { findUnique: jest.fn(async () => opts.deposit ?? null), findMany: jest.fn(async () => opts.deposits ?? []) },
+    auditLog: { findMany: jest.fn(async () => opts.inspectionLogs ?? []) },
+    dispatchTicket: {
+      findMany: jest.fn(async () =>
+        (opts.ratings ?? []).map((r, i) => ({ viewingId: `rv${i}`, viewing: { tenantRating: r } })),
+      ),
+    },
     hostPayout: {
       findFirst: jest.fn(async ({ where }: any) => payouts.find((p) => p.transRef === where.transRef) ?? null),
       create: jest.fn(async ({ data }: any) => {
@@ -40,6 +54,7 @@ function build(opts: Opts = {}) {
       findMany: jest.fn(async () => payouts),
     },
     fieldHost: {
+      findUnique: jest.fn(async ({ where }: any) => (opts.hostByProfile ?? {})[where.profileId] ?? null),
       update: jest.fn(async ({ data }: any) => {
         wallet.value = wallet.value.add(D(data.walletBalance.increment));
         return {};
@@ -149,18 +164,32 @@ describe('AdminPayoutService — B/C: hoa hồng cọc và thưởng 5 sao', () 
     expect(wallet.value.toString()).toBe('400000');
   });
 
-  it('C: rating 5 ⇒ thêm round(400.000 × (1,2 − 1)) = 80.000, transRef deposit:<id>:rating', async () => {
-    const { svc, payouts, wallet } = build({ deposit: deposit({ viewing: { id: 'v1', tenantRating: 5 } }) });
+  it('C: Host trung bình ≥ 4,8★ ⇒ thêm round(400.000 × (1,2 − 1)) = 80.000, transRef deposit:<id>:rating', async () => {
+    const { svc, payouts, wallet } = build({ deposit: deposit(), ratings: [5, 5, 5, 5, 4] }); // 4,8
     await svc.accrueDeposit('d1');
     expect(payouts.map((p) => p.transRef).sort()).toEqual(['deposit:d1', 'deposit:d1:rating']);
     expect(payouts.find((p) => p.transRef === 'deposit:d1:rating').amount.toString()).toBe('80000');
     expect(wallet.value.toString()).toBe('480000');
   });
 
-  it('rating 4 hoặc null ⇒ không có thưởng sao', async () => {
-    const { svc, payouts } = build({ deposit: deposit({ viewing: { id: 'v1', tenantRating: 4 } }) });
+  it('Host trung bình dưới 4,8★ (4,6) hoặc chưa có đánh giá nào ⇒ ×1, không có thưởng đánh giá', async () => {
+    for (const ratings of [[5, 5, 4, 4, 5], [], undefined]) {
+      const { svc, payouts } = build({ deposit: deposit(), ratings });
+      await svc.accrueDeposit('d1');
+      expect(payouts.map((p) => p.transRef)).toEqual(['deposit:d1']);
+    }
+  });
+
+  it('một lịch xem có nhiều ticket của cùng Host chỉ tính một đánh giá', async () => {
+    const { svc, prisma, payouts } = build({ deposit: deposit() });
+    // Gộp theo lịch xem: v1=4, v2..v5=5 ⇒ 24/5 = 4,8 ⇒ có thưởng. Nếu đếm trùng v1: 28/6 = 4,67 ⇒ không thưởng.
+    prisma.dispatchTicket.findMany.mockResolvedValue([
+      { viewingId: 'v1', viewing: { tenantRating: 4 } },
+      { viewingId: 'v1', viewing: { tenantRating: 4 } },
+      ...['v2', 'v3', 'v4', 'v5'].map((id) => ({ viewingId: id, viewing: { tenantRating: 5 } })),
+    ]);
     await svc.accrueDeposit('d1');
-    expect(payouts).toHaveLength(1);
+    expect(payouts.map((p) => p.transRef).sort()).toEqual(['deposit:d1', 'deposit:d1:rating']);
   });
 
   it('không tính khi chưa PAID_HOLDING hoặc không có attributedHostId', async () => {
@@ -173,7 +202,7 @@ describe('AdminPayoutService — B/C: hoa hồng cọc và thưởng 5 sao', () 
   });
 
   it('webhook gửi trùng: gọi hai lần chỉ cộng ví một lần', async () => {
-    const { svc, payouts, wallet } = build({ deposit: deposit({ viewing: { id: 'v1', tenantRating: 5 } }) });
+    const { svc, payouts, wallet } = build({ deposit: deposit(), ratings: [5, 5] });
     await svc.accrueDeposit('d1');
     await svc.accrueDeposit('d1');
     expect(payouts).toHaveLength(2);
@@ -197,6 +226,117 @@ describe('AdminPayoutService — B/C: hoa hồng cọc và thưởng 5 sao', () 
   });
 });
 
+describe('AdminPayoutService — D: thưởng nóng theo chiến dịch', () => {
+  const deposit = () => ({ id: 'd9', paymentStatus: 'PAID_HOLDING', attributedHostId: HOST, viewing: { id: 'v9' } });
+  const dealOf = (id: string) => ({ hostId: HOST, transRef: `deposit:${id}`, amount: D(400000) });
+
+  it('đang bật chiến dịch: mỗi deal cộng thêm host_campaign_bonus, transRef deposit:<id>:campaign', async () => {
+    const { svc, payouts, wallet } = build({ deposit: deposit(), fees: { host_campaign_bonus: 200000 } });
+    await svc.accrueDeposit('d9');
+    expect(payouts.map((p) => p.transRef).sort()).toEqual(['deposit:d9', 'deposit:d9:campaign']);
+    expect(payouts.find((p) => p.transRef === 'deposit:d9:campaign').amount.toString()).toBe('200000');
+    expect(wallet.value.toString()).toBe('600000');
+  });
+
+  it('tối đa 3 deal/tuần: deal thứ 3 còn được thưởng, deal thứ 4 thì không', async () => {
+    const third = build({ deposit: deposit(), fees: { host_campaign_bonus: 200000 } });
+    third.payouts.push(dealOf('a'), dealOf('b'));
+    await third.svc.accrueDeposit('d9');
+    expect(third.payouts.map((p) => p.transRef)).toContain('deposit:d9:campaign');
+
+    const fourth = build({ deposit: deposit(), fees: { host_campaign_bonus: 200000 } });
+    fourth.payouts.push(dealOf('a'), dealOf('b'), dealOf('c'));
+    await fourth.svc.accrueDeposit('d9');
+    expect(fourth.payouts.map((p) => p.transRef)).toContain('deposit:d9');
+    expect(fourth.payouts.map((p) => p.transRef)).not.toContain('deposit:d9:campaign');
+  });
+
+  it('khoản thưởng đánh giá / thưởng nóng / thù lao lượt không bị tính vào số deal trong tuần', async () => {
+    const { svc, payouts } = build({ deposit: deposit(), fees: { host_campaign_bonus: 200000 } });
+    payouts.push(
+      dealOf('a'),
+      { hostId: HOST, transRef: 'deposit:a:rating', amount: D(80000) },
+      { hostId: HOST, transRef: 'deposit:a:campaign', amount: D(200000) },
+      { hostId: HOST, transRef: 'viewing:v1', amount: D(50000) },
+      { hostId: HOST, transRef: 'viewing:v2', amount: D(50000) },
+    );
+    await svc.accrueDeposit('d9'); // chỉ 2 deal (a + d9) ⇒ còn trong hạn mức
+    expect(payouts.map((p) => p.transRef)).toContain('deposit:d9:campaign');
+  });
+
+  it('thiếu cấu hình hoặc bằng 0 ⇒ chiến dịch tắt, không ghi thưởng nóng', async () => {
+    for (const fees of [undefined, { host_campaign_bonus: 0 }]) {
+      const { svc, payouts } = build({ deposit: deposit(), fees });
+      await svc.accrueDeposit('d9');
+      expect(payouts.map((p) => p.transRef)).toEqual(['deposit:d9']);
+    }
+  });
+
+  it('webhook gửi trùng: thưởng nóng cũng chỉ ghi một lần', async () => {
+    const { svc, payouts } = build({ deposit: deposit(), fees: { host_campaign_bonus: 200000 } });
+    await svc.accrueDeposit('d9');
+    await svc.accrueDeposit('d9');
+    expect(payouts.filter((p) => p.transRef === 'deposit:d9:campaign')).toHaveLength(1);
+  });
+});
+
+describe('AdminPayoutService — E: thù lao thẩm định ký gửi', () => {
+  const PROFILE = 'p-insp';
+  const hostByProfile = { [PROFILE]: { id: HOST, roles: ['SALE', 'INSPECTOR'] } };
+
+  it('Host đã nộp phiếu ⇒ ghi một khoản host_inspection_fee, transRef inspection:<mandateId>, cộng ví', async () => {
+    const { svc, payouts, wallet } = build({ hostByProfile, fees: { host_inspection_fee: 150000 } });
+    expect(await svc.accrueInspection('m1', PROFILE, new Date('2026-10-05T03:00:00Z'))).toBe(1);
+    expect(payouts).toEqual([expect.objectContaining({ hostId: HOST, transRef: 'inspection:m1' })]);
+    expect(payouts[0].amount.toString()).toBe('150000');
+    expect(payouts[0].period).toBe('2026-W41');
+    expect(wallet.value.toString()).toBe('150000');
+  });
+
+  it('gọi lại không ghi trùng (idempotent)', async () => {
+    const { svc, payouts } = build({ hostByProfile, fees: { host_inspection_fee: 150000 } });
+    await svc.accrueInspection('m1', PROFILE);
+    expect(await svc.accrueInspection('m1', PROFILE)).toBe(0);
+    expect(payouts).toHaveLength(1);
+  });
+
+  it('chưa cấu hình / bằng 0 hoặc người nộp không phải Host ⇒ không ghi', async () => {
+    for (const o of [{ hostByProfile }, { hostByProfile, fees: { host_inspection_fee: 0 } }, { fees: { host_inspection_fee: 150000 } }]) {
+      const { svc, payouts } = build(o as any);
+      expect(await svc.accrueInspection('m1', PROFILE)).toBe(0);
+      expect(payouts).toHaveLength(0);
+    }
+  });
+
+  it('sweep quét cả phiếu thẩm định; thiếu cấu hình ở một khoản chỉ bị đếm skipped, không làm hỏng cả lượt', async () => {
+    const { svc, payouts } = build({
+      hostByProfile,
+      fees: { host_inspection_fee: 150000 },
+      viewings: [{ id: 'v-x' }],
+      inspectionLogs: [{ entityId: 'm1', actorId: PROFILE, createdAt: new Date('2026-10-05T03:00:00Z') }],
+    });
+    // viewing 'v-x' không tồn tại trong mock ⇒ accrueViewing trả 0; fees thiếu host_base_viewing_fee không được làm sập lượt quét
+    const r = await svc.sweep({ id: 'a', role: 'ops_admin' });
+    expect(r).toEqual(expect.objectContaining({ inspectionsScanned: 1, created: 1, skipped: 0 }));
+    expect(payouts.map((p) => p.transRef)).toEqual(['inspection:m1']);
+  });
+
+  it('bảng kê tách khoản thẩm định + vai Host (Sale+Thẩm định có thêm một khoản so với Sale thường)', async () => {
+    const { svc, prisma } = build();
+    prisma.hostPayout.findMany.mockResolvedValue([
+      { hostId: HOST, amount: D(57500), transRef: 'viewing:v1', host: { rating: D(5), roles: ['SALE', 'INSPECTOR'], profile: { fullName: 'An' } } },
+      { hostId: HOST, amount: D(150000), transRef: 'inspection:m1' },
+      { hostId: HOST, amount: D(150000), transRef: 'inspection:m2' },
+      { hostId: 'h-sale', amount: D(57500), transRef: 'viewing:v2', host: { rating: D(5), roles: ['SALE'], profile: { fullName: 'Bình' } } },
+    ]);
+    const { hosts }: any = await svc.getWeeklyStatement('2026-W41');
+    const an = hosts.find((h: any) => h.hostId === HOST);
+    const binh = hosts.find((h: any) => h.hostId === 'h-sale');
+    expect(an).toEqual(expect.objectContaining({ roles: ['sale', 'inspector'], inspections: 2, inspectionFee: 300000, viewings: 1, total: 357500 }));
+    expect(binh).toEqual(expect.objectContaining({ roles: ['sale'], inspections: 0, inspectionFee: 0 }));
+  });
+});
+
 describe('AdminPayoutService — bảng kê tuần và CSV', () => {
   it('getWeeklyStatement gộp theo host trong period ISO tuần, tổng bằng Decimal', async () => {
     const { svc, prisma } = build();
@@ -209,6 +349,32 @@ describe('AdminPayoutService — bảng kê tuần và CSV', () => {
     expect(res.hosts).toHaveLength(1);
     expect(res.hosts[0]).toEqual(expect.objectContaining({ hostId: HOST, total: 457500, count: 2 }));
     expect(prisma.hostPayout.findMany.mock.calls[0][0].where).toEqual(expect.objectContaining({ period: '2026-W41' }));
+  });
+
+  it('getWeeklyStatement tách khoản theo transRef: thù lao dẫn / hoa hồng / thưởng 5 sao', async () => {
+    const { svc, prisma } = build();
+    prisma.hostPayout.findMany.mockResolvedValue([
+      { hostId: HOST, amount: D(57500), transRef: 'viewing:v1', host: { rating: D(4.9), profile: { fullName: 'An' } } },
+      { hostId: HOST, amount: D(50000), transRef: 'viewing:v2' },
+      { hostId: HOST, amount: D(400000), transRef: 'deposit:d1' },
+      { hostId: HOST, amount: D(80000), transRef: 'deposit:d1:rating' },
+      { hostId: HOST, amount: D(200000), transRef: 'deposit:d1:campaign' },
+    ]);
+    const [row]: any[] = (await svc.getWeeklyStatement('2026-W41')).hosts;
+    expect(row).toEqual(
+      expect.objectContaining({
+        fullName: 'An',
+        rating: 4.9,
+        viewings: 2,
+        viewingFee: 107500,
+        deals: 1,
+        commission: 400000,
+        ratingBonus: 80000,
+        campaignBonus: 200000,
+        total: 787500,
+        count: 5,
+      }),
+    );
   });
 
   it('period sai định dạng ⇒ 400', async () => {

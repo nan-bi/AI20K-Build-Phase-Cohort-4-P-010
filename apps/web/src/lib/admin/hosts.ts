@@ -22,7 +22,23 @@ export interface HostAdminView {
   hasPassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  stats: HostStats;
 }
+
+/** Số liệu vận hành từ backend (`FieldHostsService.statsFor`). */
+export interface HostStats {
+  completedViewings: number;
+  /** Ca đang chạy; khác 0 thì backend chặn khoá tài khoản. */
+  openTickets: number;
+  deals: number;
+  avgAcceptSeconds: number | null;
+  noShowRate: number | null;
+  weekEarnings: number;
+}
+
+/** SLA nhận ticket 3 phút (AGENTS.md — điểm nghẽn vận hành #5). */
+export const ACCEPT_SLA_SECONDS = 180;
+export const mmss = (sec: number) => `${Math.floor(sec / 60)}′${String(sec % 60).padStart(2, "0")}″`;
 
 export interface HostAdminDetail extends HostAdminView {
   ticketStats: Record<TicketStatusKey, number>;

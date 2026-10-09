@@ -381,3 +381,180 @@
     width: 100%;
   }
 }
+
+/* ── Field Host: dải KPI + thanh lọc nhanh (bố cục theo bản duynk, màu theo biến theme) ── */
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.kpiCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.kpiIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--lagoon);
+}
+
+.kpiVal {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.kpiLabel {
+  font-size: 12px;
+  color: var(--ink-600);
+  margin-top: 2px;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.quickRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--surface-2);
+  padding: 4px;
+  border-radius: 10px;
+  gap: 3px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-600);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pill:hover {
+  color: var(--ink);
+}
+
+.pillActive {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dotOn {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgb(16 185 129 / 20%);
+}
+
+.dotBusy {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgb(245 158 11 / 20%);
+}
+
+.dotOff {
+  background: #94a3b8;
+}
+
+.dutyCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lockedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--danger-050);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.resultCount {
+  font-size: 13px;
+  color: var(--ink-600);
+}
+
+.resetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lockBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--danger-050);
+  border: 1px solid var(--danger);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.lockBanner > svg {
+  flex: none;
+  color: var(--danger);
+}

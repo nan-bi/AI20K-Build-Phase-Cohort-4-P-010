@@ -158,8 +158,21 @@ export function createFakePrisma() {
   const auditLog = new FakeTable(['id']);
   const building = new FakeTable(['id']);
   const dispatchTicket = new FakeTable(['id']);
+  const holdingDeposit = new FakeTable(['id']);
+  const hostPayout = new FakeTable(['id']);
 
-  const prisma: Record<string, any> = { role, profile, fieldHost, otpCode, authAuditLog, auditLog, building, dispatchTicket };
+  const prisma: Record<string, any> = {
+    role,
+    profile,
+    fieldHost,
+    otpCode,
+    authAuditLog,
+    auditLog,
+    building,
+    dispatchTicket,
+    holdingDeposit,
+    hostPayout,
+  };
   prisma.$transaction = jest.fn(async (arg: any) => (typeof arg === 'function' ? arg(prisma) : Promise.all(arg)));
   return prisma;
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import styles from "./DataTable.module.css";
 
 export interface DataTableColumn<T> {
@@ -33,6 +34,7 @@ export function DataTable<T>({ columns, rows, rowHref, empty }: DataTableProps<T
                 {col.header}
               </th>
             ))}
+            {rowHref && <th aria-hidden="true" />}
           </tr>
         </thead>
         <tbody>
@@ -55,6 +57,13 @@ export function DataTable<T>({ columns, rows, rowHref, empty }: DataTableProps<T
                     </td>
                   );
                 })}
+                {href && (
+                  <td aria-hidden="true" style={{ textAlign: "right" }}>
+                    <span className={styles.more}>
+                      Chi tiết <ChevronRight size={14} />
+                    </span>
+                  </td>
+                )}
               </tr>
             );
           })}

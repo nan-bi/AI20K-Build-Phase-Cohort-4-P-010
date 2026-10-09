@@ -1,9 +1,11 @@
 "use client";
 
+import { CrumbLabel } from "@/components/ui/Breadcrumbs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
+import { toast } from "@/components/ui/Toast";
 import { api } from "@/lib/apiClient";
 import styles from "./Admin.module.css";
 
@@ -22,6 +24,11 @@ interface InventoryDetail {
   status: string;
   isVerified: boolean;
   doorLockType: string;
+  /** Giờ khoá căn sau khi khách chuyển cọc (mức riêng nếu có, không thì mặc định). */
+  holdHours: number;
+  holdHoursOverride: number | null;
+  defaultHoldHours: number;
+  canEditHoldHours: boolean;
   landlord: { id: string; fullName: string | null; email: string | null } | null;
   media: { id: string; url: string; category: string; verifiedAt: string }[];
   mandate: {
@@ -38,6 +45,72 @@ interface InventoryDetail {
 
 const money = (value: number) => new Intl.NumberFormat("vi-VN").format(value);
 const dateTime = (value: string | null) => value ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+
+const HOLD_MIN = 12;
+const HOLD_MAX = 72;
+
+/** Thời gian khoá căn: từ lúc khách chuyển cọc 2.000.000đ đến lúc căn tự mở lại nếu chưa ký hợp đồng thuê. */
+function HoldHoursSection({ unit, onSaved }: { unit: InventoryDetail; onSaved: (next: Partial<InventoryDetail>) => void }) {
+  const [hours, setHours] = useState(String(unit.holdHours));
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const value = Number(hours);
+  const valid = Number.isInteger(value) && value >= HOLD_MIN && value <= HOLD_MAX;
+  const isDefault = unit.holdHoursOverride === null;
+
+  async function save(next: number | null) {
+    if (!reason.trim()) return toast("Nhập lý do thay đổi để lưu vết kiểm toán.");
+    setBusy(true);
+    const res = await api.post<{ holdHours: number; holdHoursOverride: number | null }>(
+      `/admin/exclusive-inventory/${encodeURIComponent(unit.id)}/hold-hours`,
+      { hours: next, reason: reason.trim() },
+    );
+    setBusy(false);
+    if (!res.ok) return toast(res.message || "Không lưu được thời gian khoá căn.");
+    toast(next === null ? `Đã đặt lại mặc định ${unit.defaultHoldHours} giờ.` : `Đã lưu: khoá căn ${next} giờ.`, "success");
+    setReason("");
+    setHours(String(res.data.holdHours));
+    onSaved({ holdHours: res.data.holdHours, holdHoursOverride: res.data.holdHoursOverride });
+  }
+
+  return (
+    <Section
+      title="Thời gian khoá căn"
+      description={`Khi khách chuyển cọc giữ chỗ, căn bị khoá trong khoảng này; hết hạn mà chưa ký hợp đồng thuê thì căn tự mở lại. Mặc định ${unit.defaultHoldHours} giờ, chỉnh được từ ${HOLD_MIN} đến ${HOLD_MAX} giờ.`}
+    >
+      <p style={{ marginBottom: 12 }}>
+        Hiện tại: <b>{unit.holdHours} giờ</b>{" "}
+        <span className="muted small">{isDefault ? "(mặc định)" : "(đã chỉnh riêng cho căn này)"}</span>
+      </p>
+      {unit.canEditHoldHours ? (
+        <div style={{ display: "grid", gap: 10, maxWidth: 480 }}>
+          <label className="field">
+            <span className="label">Thời gian khoá (giờ)</span>
+            <input className="input" type="number" min={HOLD_MIN} max={HOLD_MAX} step={1} value={hours} onChange={(e) => setHours(e.target.value)} style={{ width: 140 }} />
+          </label>
+          <label className="field">
+            <span className="label">Lý do thay đổi</span>
+            <input className="input" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="VD: Căn đang hot, rút ngắn để quay vòng nhanh" />
+          </label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy || !valid || value === unit.holdHours} onClick={() => void save(value)}>
+              Lưu thời gian khoá
+            </button>
+            {!isDefault && (
+              <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={() => void save(null)}>
+                Đặt lại mặc định ({unit.defaultHoldHours} giờ)
+              </button>
+            )}
+          </div>
+          {!valid && <p className="small" style={{ color: "var(--danger)" }}>Nhập số giờ nguyên từ {HOLD_MIN} đến {HOLD_MAX}.</p>}
+          <p className="muted xs">Chỉ áp dụng cho các cọc phát sinh sau khi lưu.</p>
+        </div>
+      ) : (
+        <p className="muted small">Chỉ chỉnh được khi căn còn trống. Căn đang giữ chỗ hoặc đã cho thuê giữ nguyên mức đã áp dụng cho khách.</p>
+      )}
+    </Section>
+  );
+}
 
 export function AdminInventoryDetail({ id }: { id: string }) {
   const [unit, setUnit] = useState<InventoryDetail | null>(null);
@@ -67,6 +140,7 @@ export function AdminInventoryDetail({ id }: { id: string }) {
 
   return (
     <div className={styles.page}>
+      <CrumbLabel label={unit.unitCode} />
       <PageHeader
         title={unit.unitCode}
         description={`${unit.building} · ${unit.zone} · tầng ${unit.floorNumber} · căn ${unit.doorNumber || "—"}`}
@@ -87,6 +161,8 @@ export function AdminInventoryDetail({ id }: { id: string }) {
             <div><dt>Niêm yết</dt><dd>{unit.isVerified ? "Đã xác minh" : "Chưa xác minh"}</dd></div>
           </dl>
         </Section>
+
+        <HoldHoursSection key={`${unit.holdHours}-${unit.status}`} unit={unit} onSaved={(next) => setUnit({ ...unit, ...next })} />
 
         <Section title="Hồ sơ chủ nhà">
           {unit.landlord ? <dl className={styles.reqMeta}>

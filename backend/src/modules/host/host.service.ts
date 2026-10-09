@@ -75,14 +75,17 @@ export class HostService {
     const totalEarnings = payoutRows.reduce((sum, payout) => sum + payout.amount, 0);
     const viewingPayouts = payoutRows.filter((payout) => payout.transRef?.startsWith('viewing:'));
     const dealPayouts = payoutRows.filter(
-      (payout) => payout.transRef?.startsWith('deposit:') && !payout.transRef.endsWith(':rating'),
+      (payout) => payout.transRef?.startsWith('deposit:') && !payout.transRef.endsWith(':rating') && !payout.transRef.endsWith(':campaign'),
     );
     const ratingPayouts = payoutRows.filter((payout) => payout.transRef?.endsWith(':rating'));
+    const campaignPayouts = payoutRows.filter((payout) => payout.transRef?.endsWith(':campaign'));
+    const inspectionPayouts = payoutRows.filter((payout) => payout.transRef?.startsWith('inspection:'));
 
     return {
       hostId: host.id,
       fullName: host.profile.fullName,
       rating: Number(host.rating),
+      roles: host.roles.map((r) => r.toLowerCase()),
       walletBalance: Number(host.walletBalance),
       stats: {
         totalViewings: viewingPayouts.length,
@@ -90,6 +93,9 @@ export class HostService {
         dealCommissionTotal: dealPayouts.reduce((sum, payout) => sum + payout.amount, 0),
         viewingFeeTotal: viewingPayouts.reduce((sum, payout) => sum + payout.amount, 0),
         ratingBonus: ratingPayouts.reduce((sum, payout) => sum + payout.amount, 0),
+        campaignBonus: campaignPayouts.reduce((sum, payout) => sum + payout.amount, 0),
+        totalInspections: inspectionPayouts.length,
+        inspectionFeeTotal: inspectionPayouts.reduce((sum, payout) => sum + payout.amount, 0),
         totalEarnings,
       },
       currentPeriod: payoutRows[0]?.period ?? null,

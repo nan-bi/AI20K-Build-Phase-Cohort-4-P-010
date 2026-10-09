@@ -185,8 +185,9 @@ export class AdminService {
         fullName: true,
         email: true,
         phoneEnc: true,
-        tenantContracts: { select: { id: true }, take: 1 },
-        landlordContracts: { select: { id: true }, take: 1 },
+        // Lấy ĐỦ hợp đồng (không `take`) — danh sách "Theo bên ký" đếm theo toàn bộ, chi tiết phải khớp.
+        tenantContracts: { select: { id: true, status: true } },
+        landlordContracts: { select: { id: true, status: true } },
       },
     });
     if (!profile) throw new NotFoundException('Không tìm thấy bên ký kết.');
@@ -198,13 +199,16 @@ export class AdminService {
         phone = null;
       }
     }
+    const all = [...profile.tenantContracts, ...profile.landlordContracts];
     return {
       id: profile.id,
       name: profile.fullName,
       email: profile.email,
       phone,
       role: profile.tenantContracts.length ? 'tenant' : 'landlord',
-      contracts: [...profile.tenantContracts, ...profile.landlordContracts].map((contract) => contract.id),
+      contracts: all.map((contract) => contract.id),
+      activeContracts: all.filter((c) => c.status === 'ACTIVE').length,
+      needsSignature: all.filter((c) => c.status === 'AWAITING_TENANT_SIGN' || c.status === 'AWAITING_LANDLORD_SIGN').length,
     };
   }
 }

@@ -173,3 +173,64 @@ describe('AdminInventoryService — terminate mandate', () => {
     await expect(svc.terminateMandate('m1', '  ', ACTOR, NOW)).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+describe('AdminInventoryService — thời gian khoá căn (từng căn)', () => {
+  const unitRow = (over: any = {}) => ({ id: 'u1', status: 'AVAILABLE', holdHoursOverride: null, ...over });
+
+  it('đặt riêng cho căn còn trống: ghi holdHoursOverride + audit cũ/mới/lý do', async () => {
+    const { svc, prisma, audit } = build({ unit: unitRow() });
+    const res = await svc.updateHoldHours('u1', 24, ' Căn hot, quay vòng nhanh ', ACTOR);
+    expect(prisma.unit.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { holdHoursOverride: 24 } });
+    expect(res).toEqual(expect.objectContaining({ holdHours: 24, holdHoursOverride: 24, defaultHoldHours: 48 }));
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'UNIT_HOLD_HOURS_UPDATED',
+        entityName: 'units',
+        entityId: 'u1',
+        oldValue: { holdHours: 48 },
+        newValue: { holdHours: 24, reset: false, reason: 'Căn hot, quay vòng nhanh' },
+      }),
+    );
+  });
+
+  it('hours = null ⇒ về mặc định 48 giờ (xoá mức riêng)', async () => {
+    const { svc, prisma, audit } = build({ unit: unitRow({ holdHoursOverride: 24 }) });
+    const res = await svc.updateHoldHours('u1', null, 'về mặc định', ACTOR);
+    expect(prisma.unit.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { holdHoursOverride: null } });
+    expect(res.holdHours).toBe(48);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ oldValue: { holdHours: 24 }, newValue: expect.objectContaining({ holdHours: 48, reset: true }) }),
+    );
+  });
+
+  it.each(['HOLDING', 'RENTED', 'UNLISTED', 'MAINTENANCE'])('409 khi căn đang %s: chỉ sửa được căn còn trống, không ghi, không audit', async (status) => {
+    const { svc, prisma, audit } = build({ unit: unitRow({ status }) });
+    await expect(svc.updateHoldHours('u1', 24, 'x', ACTOR)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.unit.update).not.toHaveBeenCalled();
+    expect(audit.log).not.toHaveBeenCalled();
+  });
+
+  it.each([11, 73, 24.5, 0, -1])('400 khi hours = %s (nguyên, 12–72)', async (hours) => {
+    const { svc, prisma } = build({ unit: unitRow() });
+    await expect(svc.updateHoldHours('u1', hours, 'x', ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.unit.update).not.toHaveBeenCalled();
+  });
+
+  it('400 khi thiếu lý do; 404 khi không có căn', async () => {
+    const { svc } = build({ unit: unitRow() });
+    await expect(svc.updateHoldHours('u1', 24, '  ', ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+    const none = build();
+    none.prisma.unit.findUnique.mockResolvedValueOnce(null);
+    await expect(none.svc.updateHoldHours('zz', 24, 'x', ACTOR)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('chi tiết căn trả holdHours hiệu lực + cờ canEditHoldHours chỉ bật khi AVAILABLE', async () => {
+    const base = { building: { buildingCode: 'S1' }, landlord: null, mandates: [], media: [], carpetAreaM2: 40, baseRentPrice: 1, managementFee: 1, marketAvgPrice: 1, unitCode: 'U', floorNumber: 1, layoutType: 'STUDIO', isVerified: true, doorLockType: 'ELECTRONIC_PIN' };
+    for (const [status, override, expectHours, canEdit] of [['AVAILABLE', null, 48, true], ['AVAILABLE', 36, 36, true], ['HOLDING', 36, 36, false]] as const) {
+      const { svc, prisma } = build();
+      prisma.unit.findFirst = jest.fn(async () => ({ ...base, id: 'u1', status, holdHoursOverride: override }));
+      const d: any = await svc.getExclusiveInventoryDetail('U');
+      expect(d).toEqual(expect.objectContaining({ holdHours: expectHours, canEditHoldHours: canEdit, defaultHoldHours: 48 }));
+    }
+  });
+});

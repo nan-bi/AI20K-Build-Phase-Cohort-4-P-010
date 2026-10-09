@@ -11,6 +11,7 @@ import { decryptPhoneForDisplay } from '../auth/phone/phone-display';
 import { AuthSessionService } from '../auth/session/auth-session.service';
 import { RoleIdService } from '../auth/session/role-ids.service';
 import { AuthenticatedUser } from '../auth/session/authenticated-user';
+import { isoWeekPeriod } from '../admin/admin-payout.service';
 import { CreateFieldHostDto, ListFieldHostsQueryDto, UpdateFieldHostDto } from './dto/field-hosts.dto';
 
 const HOST_INCLUDE = {
@@ -34,6 +35,24 @@ type HostRow = Prisma.FieldHostGetPayload<{ include: typeof HOST_INCLUDE }>;
 /** Ticket còn đang chạy: khoá Host lúc này sẽ bỏ rơi khách đang chờ ở sảnh. */
 const ACTIVE_TICKETS: TicketStatus[] = [TicketStatus.OFFERED, TicketStatus.ACCEPTED, TicketStatus.CHECKED];
 const TICKET_KEYS = Object.values(TicketStatus);
+
+/** Cọc đã thu thật ⇒ tính là một deal Host chốt được (Attribution Lock: attributedHostId). */
+const DEAL_STATUSES = ['PAID_HOLDING', 'CONVERTED_TO_CONTRACT'] as const;
+
+/** Số liệu vận hành của một Host cho bảng/ hồ sơ Admin (AGENTS.md vận hành #3–#5). */
+export interface HostStats {
+  /** Ca xem đã dẫn xong (ticket COMPLETED). */
+  completedViewings: number;
+  /** Ca đang chạy (OFFERED/ACCEPTED/CHECKED) — khác 0 thì không khoá được tài khoản. */
+  openTickets: number;
+  deals: number;
+  /** Trung bình acceptedAt − offeredAt; null khi chưa nhận ca nào. */
+  avgAcceptSeconds: number | null;
+  /** % khách bỏ hẹn trên các ca đã kết thúc của Host; null khi chưa có ca kết thúc. */
+  noShowRate: number | null;
+  /** Tổng HostPayout của tuần ISO hiện tại (giờ VN). */
+  weekEarnings: number;
+}
 
 const sameRoles = (a: HostRoleCode[], b: HostRoleCode[]) => a.length === b.length && a.every((r, i) => r === b[i]);
 const isUniqueViolation = (err: unknown) => (err as { code?: string })?.code === 'P2002';
@@ -70,7 +89,8 @@ export class FieldHostsService {
     else if (query.role) where.roles = { has: toHostRoleEnums([query.role])[0] };
 
     const rows = await this.prisma.fieldHost.findMany({ where, include: HOST_INCLUDE, orderBy: { createdAt: 'desc' } });
-    const views = rows.map((r) => this.toView(r));
+    const stats = await this.statsFor(rows.map((r) => r.id));
+    const views = rows.map((r) => ({ ...this.toView(r), stats: stats.get(r.id)! }));
 
     // SĐT chỉ có thể so sau khi giải mã nên tìm kiếm văn bản làm trong bộ nhớ (số Host nhỏ).
     const q = query.q?.trim().toLowerCase();
@@ -89,7 +109,67 @@ export class FieldHostsService {
     const groups = await this.prisma.dispatchTicket.groupBy({ by: ['status'], where: { hostId: id }, _count: true });
     const ticketStats = Object.fromEntries(TICKET_KEYS.map((k) => [k, 0])) as Record<TicketStatus, number>;
     for (const g of groups) ticketStats[g.status] = g._count;
-    return { ...this.toView(row), ticketStats };
+    const stats = (await this.statsFor([id])).get(id)!;
+    return { ...this.toView(row), ticketStats, stats };
+  }
+
+  /** Số liệu theo lô cho nhiều Host: mỗi bảng đúng một truy vấn, không N+1. */
+  async statsFor(hostIds: string[], now: Date = new Date()): Promise<Map<string, HostStats>> {
+    const out = new Map<string, HostStats>(
+      hostIds.map((id) => [
+        id,
+        { completedViewings: 0, openTickets: 0, deals: 0, avgAcceptSeconds: null, noShowRate: null, weekEarnings: 0 },
+      ]),
+    );
+    if (hostIds.length === 0) return out;
+
+    const [tickets, deposits, payouts] = await Promise.all([
+      this.prisma.dispatchTicket.findMany({
+        where: { hostId: { in: hostIds } },
+        select: { hostId: true, status: true, offeredAt: true, acceptedAt: true, viewing: { select: { status: true } } },
+      }),
+      this.prisma.holdingDeposit.findMany({
+        where: { attributedHostId: { in: hostIds }, paymentStatus: { in: [...DEAL_STATUSES] } },
+        select: { attributedHostId: true },
+      }),
+      this.prisma.hostPayout.findMany({
+        where: { hostId: { in: hostIds }, period: isoWeekPeriod(now) },
+        select: { hostId: true, amount: true },
+      }),
+    ]);
+
+    const accept = new Map<string, { sum: number; n: number }>();
+    const ended = new Map<string, { noShow: number; n: number }>();
+    for (const t of tickets as any[]) {
+      const s = out.get(t.hostId);
+      if (!s) continue;
+      if (t.status === TicketStatus.COMPLETED) s.completedViewings += 1;
+      if (ACTIVE_TICKETS.includes(t.status)) s.openTickets += 1;
+      if (t.acceptedAt && t.offeredAt) {
+        const a = accept.get(t.hostId) ?? { sum: 0, n: 0 };
+        a.sum += Math.max(0, (new Date(t.acceptedAt).getTime() - new Date(t.offeredAt).getTime()) / 1000);
+        a.n += 1;
+        accept.set(t.hostId, a);
+      }
+      const vs = t.viewing?.status;
+      if (vs === 'COMPLETED' || vs === 'NO_SHOW') {
+        const e = ended.get(t.hostId) ?? { noShow: 0, n: 0 };
+        e.n += 1;
+        if (vs === 'NO_SHOW') e.noShow += 1;
+        ended.set(t.hostId, e);
+      }
+    }
+    for (const [id, a] of accept) out.get(id)!.avgAcceptSeconds = Math.round(a.sum / a.n);
+    for (const [id, e] of ended) out.get(id)!.noShowRate = Math.round((e.noShow / e.n) * 1000) / 10;
+    for (const d of deposits as any[]) {
+      const s = out.get(d.attributedHostId);
+      if (s) s.deals += 1;
+    }
+    for (const p of payouts as any[]) {
+      const s = out.get(p.hostId);
+      if (s) s.weekEarnings += Number(p.amount);
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------ Tạo

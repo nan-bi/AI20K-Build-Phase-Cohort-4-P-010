@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -9,6 +9,7 @@ import { AdminBiService } from './admin-bi.service';
 import { AdminInventoryService } from './admin-inventory.service';
 import { AdminDepositService } from './admin-deposit.service';
 import { AdminKeyService } from './admin-key.service';
+import { AdminContractRegistryService } from './admin-contract-registry.service';
 import {
   TerminateMandateDto,
   UpdateCommissionParamDto,
@@ -17,7 +18,8 @@ import {
   ReassignBookingDto,
   EscalateTicketDto,
   VoidHoldDto,
-  UpdateHoldPolicyDto,
+  UpdateUnitHoldHoursDto,
+  // UpdateLandlordFeeDto, // tạm tắt cùng endpoint phí dịch vụ chủ nhà
   PayoutQueryDto,
   ResolveUncDto,
   KeyReasonDto,
@@ -40,6 +42,7 @@ export class AdminController {
     private readonly inventoryService: AdminInventoryService,
     private readonly depositService: AdminDepositService,
     private readonly keyService: AdminKeyService,
+    private readonly registryService: AdminContractRegistryService,
   ) {}
 
   @Get('bi-funnel')
@@ -64,6 +67,15 @@ export class AdminController {
   @ApiOperation({ summary: 'Chi tiết căn hộ trong rổ hàng độc quyền' })
   async getInventoryDetail(@Param('id') id: string) {
     return this.inventoryService.getExclusiveInventoryDetail(id);
+  }
+
+  @Post('exclusive-inventory/:id/hold-hours')
+  @ApiOperation({
+    summary: 'Đặt thời gian khoá căn (12–72 giờ, mặc định 48) cho MỘT căn còn trống, có Audit Log',
+    description: 'Từ chối (409) khi căn không còn AVAILABLE. hours = null để về mặc định.',
+  })
+  async updateHoldHours(@Param('id') id: string, @Body() dto: UpdateUnitHoldHoursDto, @CurrentUser() user: any) {
+    return this.inventoryService.updateHoldHours(id, dto.hours, dto.reason, { id: user.id, role: user.role });
   }
 
   @Post('mandates/:id/terminate')
@@ -143,8 +155,20 @@ export class AdminController {
   async revokeDoorKey(@Param('id') id: string, @Body() dto: KeyReasonDto, @CurrentUser() user: any) {
     return this.keyService.revokeKey(id, dto, user);
   }
+  @Get('contract-registry')
+  @ApiOperation({ summary: 'Sổ hợp đồng hợp nhất 4 loại: ký gửi, cọc giữ chỗ, thuê, đối tác Field Host' })
+  getContractRegistry() {
+    return this.registryService.list();
+  }
+
+  @Get('contract-registry/:kind/:id')
+  @ApiOperation({ summary: 'Chi tiết một văn bản trong sổ hợp đồng (kind = mandate | holding | lease | partnership)' })
+  getContractRegistryDetail(@Param('kind') kind: string, @Param('id') id: string) {
+    return this.registryService.detail(kind, id);
+  }
+
   @Get('contracts')
-  @ApiOperation({ summary: 'Sổ hợp đồng toàn hệ thống (Ủy quyền, Giữ chỗ, Thuê)' })
+  @ApiOperation({ summary: 'Danh sách hợp đồng thuê (giữ cho các màn đang dùng; sổ đầy đủ ở contract-registry)' })
   async getContracts() {
     return this.depositService.getContracts();
   }
@@ -203,25 +227,31 @@ export class AdminController {
     return this.feeService.getCommissionEngine();
   }
 
+  @Get('commission-engine/audit')
+  @ApiOperation({ summary: 'Nhật ký thay đổi tham số biến phí (30 lần gần nhất)' })
+  getCommissionAudit() {
+    return this.feeService.getCommissionAudit();
+  }
+
   @Post('commission-engine/config')
-  @Put('commission-engine/config')
   @ApiOperation({ summary: 'Điều chỉnh tham số biến phí, có kiểm tra khoảng SAD_v2 §3.2 và Audit Log' })
   async updateCommissionParam(@Body() dto: UpdateCommissionParamDto, @CurrentUser() user: any) {
     return this.feeService.updateCommissionParam(dto, { id: user.id, role: user.role });
   }
 
-  @Get('settings/hold-policy')
-  @ApiOperation({ summary: 'Thời hạn giữ chỗ (nguồn: FeeConfig holding_duration_days)' })
-  getHoldPolicy() {
-    return this.feeService.getHoldPolicy();
-  }
-
-  @Post('settings/hold-policy')
-  @Put('settings/hold-policy')
-  @ApiOperation({ summary: 'Cập nhật thời hạn giữ chỗ (1–14 ngày), có Audit Log' })
-  updateHoldPolicy(@Body() dto: UpdateHoldPolicyDto, @CurrentUser() user: any) {
-    return this.feeService.updateHoldPolicy(dto, { id: user.id, role: user.role });
-  }
+  // TẠM TẮT: cài đặt phí dịch vụ ký gửi (chủ nhà). Đang dùng mặc định 5% (landlord.mappers DEFAULT_SERVICE_FEE_PERCENT).
+  // Bỏ comment cùng mục LandlordFeeSettings ở AdminSettings.tsx và 2 dòng trong admin.http.spec.ts để bật lại.
+  // @Get('settings/landlord-fee')
+  // @ApiOperation({ summary: 'Phí dịch vụ ký gửi thu của chủ nhà (% tiền thuê, khoá landlord_service_fee_rate)' })
+  // getLandlordFee() {
+  //   return this.feeService.getLandlordFee();
+  // }
+  //
+  // @Post('settings/landlord-fee')
+  // @ApiOperation({ summary: 'Cập nhật phí dịch vụ ký gửi (0–30%), có Audit Log' })
+  // updateLandlordFee(@Body() dto: UpdateLandlordFeeDto, @CurrentUser() user: any) {
+  //   return this.feeService.updateLandlordFee(dto, { id: user.id, role: user.role });
+  // }
 
   @Get('settings/deposit-policy')
   @ApiOperation({ summary: 'Xem quy định tiền cọc (tối thiểu 50%, tối đa 4 lần giá thuê tháng)' })
@@ -230,7 +260,6 @@ export class AdminController {
   }
 
   @Post('settings/deposit-policy')
-  @Put('settings/deposit-policy')
   @ApiOperation({ summary: 'Cập nhật quy định tiền cọc theo giá thuê, có Audit Log' })
   updateDepositPolicy(@Body() dto: UpdateDepositPolicyDto, @CurrentUser() user: any) {
     return this.feeService.updateDepositPolicy(dto, { id: user.id, role: user.role });

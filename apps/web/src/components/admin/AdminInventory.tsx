@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { KeyRound, RefreshCw, Smartphone, Timer } from "lucide-react";
+import { BadgeCheck, KeyRound, RefreshCw, Smartphone, Timer } from "lucide-react";
+import { allInCost } from "@/lib/pricing/cost";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toast } from "@/components/ui/Toast";
@@ -42,21 +43,20 @@ interface InventoryRow {
 const money = (value: number) => new Intl.NumberFormat("vi-VN").format(value);
 const date = (value: string | null) => value ? new Intl.DateTimeFormat("vi-VN").format(new Date(value)) : "—";
 
-const unitStatusLabel: Record<string, string> = {
-  AVAILABLE: "Còn trống",
-  HOLDING: "Đang giữ căn",
-  RENTED: "Đã cho thuê",
-  UNLISTED: "Chưa niêm yết",
-  MAINTENANCE: "Bảo trì",
+const UNIT_STATUS: Record<string, { label: string; badge: string }> = {
+  AVAILABLE: { label: "Còn trống", badge: "badge-kelp" },
+  HOLDING: { label: "Đang giữ căn", badge: "badge-amber-soft" },
+  RENTED: { label: "Đã cho thuê", badge: "badge-ink" },
+  UNLISTED: { label: "Chưa niêm yết", badge: "badge-plain" },
+  MAINTENANCE: { label: "Bảo trì", badge: "badge-coral-soft" },
 };
 
-const mandateStatusLabel: Record<string, string> = {
-  NONE: "Chưa có uỷ quyền",
-  PENDING_INSPECTION: "Chờ thẩm định",
-  ACTIVE: "Đang uỷ quyền",
-  EXIT_REQUESTED: "Đang thoát uỷ quyền",
-  TERMINATED: "Đã kết thúc",
-  EXPIRED: "Hết hạn",
+const LAYOUT_LABEL: Record<string, string> = {
+  STUDIO: "Studio",
+  ONE_BED_PLUS: "1PN+",
+  TWO_BED_ONE_BATH: "2PN 1WC",
+  TWO_BED_TWO_BATH: "2PN 2WC",
+  THREE_BED: "3PN",
 };
 
 export function AdminInventory({ initialTab }: { initialTab: Tab }) {
@@ -100,23 +100,64 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
     {
       key: "unit",
       header: "Căn hộ",
-      render: (row) => <><b>{row.unitCode}</b><span className="muted xs" style={{ display: "block" }}>{row.building} · tầng {row.floorNumber} · căn {row.doorNumber || "—"}</span></>,
+      render: (row) => (
+        <>
+          <b>{row.building} · Tầng {row.floorNumber} · Căn {row.doorNumber || "—"}</b>
+          <span className="muted xs" style={{ display: "block" }}>
+            {row.unitCode}
+            {row.isVerified && <> · <BadgeCheck size={11} style={{ verticalAlign: -1 }} /> Đã thẩm định</>}
+          </span>
+        </>
+      ),
     },
-    { key: "zone", header: "Phân khu", render: (row) => row.zone },
-    { key: "layout", header: "Loại · diện tích", render: (row) => `${row.layout} · ${row.carpetAreaM2} m²` },
+    {
+      key: "zone",
+      header: "Phân khu · Chủ nhà",
+      render: (row) => (
+        <>
+          {row.zone}
+          <span className="muted xs" style={{ display: "block" }}>{row.landlordName || "Chưa có tên chủ nhà"}</span>
+        </>
+      ),
+    },
+    { key: "layout", header: "Loại", render: (row) => `${LAYOUT_LABEL[row.layout] ?? row.layout} · ${row.carpetAreaM2} m²` },
     { key: "rent", header: "Giá thuê", align: "right", render: (row) => `${money(row.baseRentPrice)}đ` },
+    {
+      key: "allin",
+      header: "All-in/tháng",
+      align: "right",
+      render: (row) => (
+        <span title="Thuê + phí quản lý + gửi 1 xe máy + điện nước 1 người">
+          {money(allInCost({ rent: row.baseRentPrice, areaM2: row.carpetAreaM2, managementFee: row.managementFee || undefined }).total)}đ
+        </span>
+      ),
+    },
     {
       key: "status",
       header: "Trạng thái",
-      render: (row) => <><span className="badge badge-plain">{unitStatusLabel[row.status] || row.status}</span><span className="muted xs" style={{ display: "block", marginTop: 4 }}>{mandateStatusLabel[row.mandateStatus] || row.mandateStatus}</span></>,
+      render: (row) => {
+        const s = UNIT_STATUS[row.status] ?? { label: row.status, badge: "badge-plain" };
+        return (
+          <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+            <span className={`badge ${s.badge}`}>{s.label}</span>
+            {row.mandateStatus === "EXIT_REQUESTED" && (
+              <span className="badge badge-coral-soft">
+                <Timer size={12} /> Đang thoát{row.exitCountdownDays !== null ? ` · ${row.exitCountdownDays}d` : ""}
+              </span>
+            )}
+            {row.mandateStatus === "PENDING_INSPECTION" && <span className="badge badge-amber-soft">Chờ thẩm định</span>}
+          </span>
+        );
+      },
     },
     {
       key: "lock",
       header: "Khoá",
       render: (row) => <span className="badge badge-plain">{row.doorLockType === "ELECTRONIC_PIN" ? <Smartphone size={12} /> : <KeyRound size={12} />} {row.doorLockType === "ELECTRONIC_PIN" ? "Điện tử" : "Chìa cơ"}</span>,
     },
-    { key: "landlord", header: "Chủ nhà", render: (row) => row.landlordName || "—" },
   ];
+
+  const statusCount = (s: string) => rows.filter((row) => row.status === s).length;
 
   return (
     <div className={styles.page}>
@@ -137,19 +178,32 @@ export function AdminInventory({ initialTab }: { initialTab: Tab }) {
         <>
           {tab === "units" && (
             <>
+              <div className={styles.pills} role="tablist" aria-label="Lọc nhanh theo trạng thái căn">
+                <button type="button" role="tab" aria-selected={status === "all"} className={`${styles.pill} ${status === "all" ? styles.pillActive : ""}`} onClick={() => setStatus("all")}>
+                  Tất cả ({rows.length})
+                </button>
+                {Object.entries(UNIT_STATUS).filter(([key]) => statusCount(key) > 0).map(([key, s]) => (
+                  <button key={key} type="button" role="tab" aria-selected={status === key} className={`${styles.pill} ${status === key ? styles.pillActive : ""}`} onClick={() => setStatus(key)}>
+                    {s.label} ({statusCount(key)})
+                  </button>
+                ))}
+              </div>
               <div className={styles.tools}>
                 <select className="select" value={zone} onChange={(event) => setZone(event.target.value)} aria-label="Lọc theo phân khu">
                   <option value="all">Mọi phân khu</option>{zones.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 <select className="select" value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Lọc theo trạng thái căn">
-                  <option value="all">Mọi trạng thái</option>{Object.entries(unitStatusLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  <option value="all">Mọi trạng thái</option>{Object.entries(UNIT_STATUS).map(([key, s]) => <option key={key} value={key}>{s.label}</option>)}
                 </select>
                 <select className="select" value={lock} onChange={(event) => setLock(event.target.value as LockFilter)} aria-label="Lọc theo loại khoá">
                   <option value="all">Mọi loại khoá</option><option value="ELECTRONIC_PIN">Khoá điện tử</option><option value="PHYSICAL_KEY">Chìa cơ</option>
                 </select>
                 <span className="muted small">{filtered.length} căn</span>
               </div>
-              <DataTable<InventoryRow> columns={columns} rows={filtered} rowHref={(row) => `/admin/inventory/${row.id}`} empty={<span className="muted">Không có căn nào trong dữ liệu hiện tại.</span>} />
+              <section className={`card ${styles.tableCard}`}>
+                <DataTable<InventoryRow> columns={columns} rows={filtered} rowHref={(row) => `/admin/inventory/${row.id}`} empty={<span className="muted">Không có căn nào khớp bộ lọc.</span>} />
+              </section>
+              <p className="muted xs">All-in/tháng = giá thuê + phí quản lý + gửi 1 xe máy + điện nước ước tính 1 người. Bấm vào một hàng để mở hồ sơ căn.</p>
             </>
           )}
 

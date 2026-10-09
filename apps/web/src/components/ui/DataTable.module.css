@@ -33,6 +33,7 @@
 
 .clickable {
   cursor: pointer;
+  position: relative;
 }
 
 .rowLink {
@@ -40,8 +41,30 @@
   font-weight: 600;
   color: var(--ink);
 }
-.rowLink:hover {
+/* Link cột đầu phủ cả hàng ⇒ bấm chỗ nào trên hàng cũng mở chi tiết. */
+.rowLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.clickable:hover .rowLink,
+.clickable:hover .more {
   color: var(--lagoon);
+}
+/* Nút/ô nhập khác trong hàng vẫn bấm riêng được (nằm trên lớp phủ). */
+.clickable :is(a, button, input, select, label):not(.rowLink) {
+  position: relative;
+  z-index: 1;
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-600);
+  white-space: nowrap;
 }
 
 .empty {

@@ -7,18 +7,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/auth/client";
-import { adminApi, useAdminHoldPolicy, useAdminDepositPolicy } from "@/lib/admin/api";
+import { adminApi, useAdminDepositPolicy } from "@/lib/admin/api";
+// TẠM TẮT: cài đặt phí dịch vụ ký gửi (chủ nhà). Đang dùng mặc định 5%; bỏ comment (và API ở admin.controller.ts) để bật lại.
+// import { LandlordFeeSettings } from "./LandlordFeeSettings";
 import styles from "./Admin.module.css";
 
 export function AdminSettings() {
   const session = useSession();
-  const holdPolicy = useAdminHoldPolicy();
   const depositPolicy = useAdminDepositPolicy();
-
-  // Hold policy state
-  const [days, setDays] = useState("");
-  const [holdReason, setHoldReason] = useState("");
-  const [savingHold, setSavingHold] = useState(false);
 
   // Deposit policy state
   const [minRatio, setMinRatio] = useState<string>("");
@@ -30,9 +26,6 @@ export function AdminSettings() {
   // Deposit simulator state
   const [simRent, setSimRent] = useState<number>(10_000_000);
 
-  const currentDays = holdPolicy.state.status === "ready" ? holdPolicy.state.data.holdingDurationDays : null;
-  const inputDays = days || (currentDays === null ? "" : String(currentDays));
-
   // Current deposit values
   const curMin = depositPolicy.state.status === "ready" ? depositPolicy.state.data.minRatio : 0.5;
   const curMax = depositPolicy.state.status === "ready" ? depositPolicy.state.data.maxRatio : 4.0;
@@ -41,30 +34,6 @@ export function AdminSettings() {
   const inputMin = minRatio !== "" ? Number(minRatio) : curMin;
   const inputMax = maxRatio !== "" ? Number(maxRatio) : curMax;
   const inputDef = defaultRatio !== "" ? Number(defaultRatio) : curDef;
-
-  async function saveHold(e: React.FormEvent) {
-    e.preventDefault();
-    const value = Number(inputDays);
-    if (!Number.isInteger(value) || value < 1 || value > 14) {
-      toast("Thời hạn giữ chỗ phải từ 1 đến 14 ngày.");
-      return;
-    }
-    if (!holdReason.trim()) {
-      toast("Vui lòng nhập lý do thay đổi.");
-      return;
-    }
-    setSavingHold(true);
-    const res = await adminApi.updateHoldPolicy(value, holdReason.trim());
-    setSavingHold(false);
-    if (!res.ok) {
-      toast(res.message || "Không thể cập nhật thời hạn giữ chỗ.");
-      return;
-    }
-    setDays("");
-    setHoldReason("");
-    holdPolicy.reload();
-    toast("Đã lưu thời hạn giữ chỗ vào hệ thống.", "success");
-  }
 
   async function saveDeposit(e: React.FormEvent) {
     e.preventDefault();
@@ -123,60 +92,7 @@ export function AdminSettings() {
         />
       </Section>
 
-      <Section title="Thời hạn giữ chỗ toàn sàn">
-        {holdPolicy.state.status === "loading" ? (
-          <div className="skeleton" style={{ height: 110, maxWidth: 520 }} />
-        ) : holdPolicy.state.status === "error" ? (
-          <div role="alert">
-            <p>{holdPolicy.state.message}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={holdPolicy.reload}>
-              Thử lại
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={saveHold} style={{ maxWidth: 520, display: "grid", gap: 10 }}>
-            <label className="field">
-              <span className="label">Thời gian mặc định (1–14 ngày)</span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="number"
-                  min={1}
-                  max={14}
-                  step={1}
-                  className="input"
-                  value={inputDays}
-                  onChange={(e) => setDays(e.target.value)}
-                  style={{ width: 120 }}
-                  required
-                />
-                <span className="small muted">
-                  ngày · hiện tại {currentDays} ngày ({holdPolicy.state.data.defaultHours} giờ)
-                </span>
-              </div>
-            </label>
-            <label className="field">
-              <span className="label">Lý do thay đổi</span>
-              <input
-                className="input"
-                value={holdReason}
-                onChange={(e) => setHoldReason(e.target.value)}
-                maxLength={300}
-                placeholder="VD: Cập nhật chính sách quý 4"
-                required
-              />
-            </label>
-            <div>
-              <button
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={savingHold || Number(inputDays) === currentDays}
-              >
-                {savingHold ? "Đang lưu…" : "Lưu cài đặt"}
-              </button>
-            </div>
-          </form>
-        )}
-      </Section>
+      {/* <LandlordFeeSettings /> */}
 
       <Section
         title="Quy định tiền cọc hợp đồng thuê (Deposit Policy)"

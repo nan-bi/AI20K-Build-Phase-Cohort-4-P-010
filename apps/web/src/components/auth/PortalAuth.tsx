@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PORTAL_HOME, hostHome, type HostRoleCode, type Portal, type SessionUser } from "@/lib/auth/portals";
 import { hintDisplayName, useGoogleHint } from "@/lib/auth/googleHint";
-import { refreshSession } from "@/lib/auth/client";
 import { GoogleMark } from "./GoogleMark";
 import { API_BASE, errorMessage, postJson } from "./authApi";
 import styles from "./auth.module.css";
@@ -32,7 +30,6 @@ interface LoginData {
  * Field Host: Admin creates the account, so login only.
  */
 export function PortalAuth({ portal, label, initialError, initialNotice, next, allowSignup }: PortalAuthProps) {
-  const router = useRouter();
   const canSignup = allowSignup ?? portal !== "admin";
   const canGoogle = portal !== "admin"; // Admin chỉ đăng nhập email + mật khẩu
 
@@ -45,11 +42,10 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
   const [loading, setLoading] = useState(false);
   const googleHint = useGoogleHint();
 
-  async function enter(roles?: HostRoleCode[]) {
-    // Store phiên ở client chỉ tự tải 1 lần mỗi lần mở trang; không đọc lại ở đây thì header vẫn "chưa đăng nhập".
-    await refreshSession();
-    router.push(next ?? (portal === "host" ? hostHome(roles ?? []) : PORTAL_HOME[portal]));
-    router.refresh();
+  function enter(roles?: HostRoleCode[]) {
+    // Tải lại toàn trang: cookie phiên mới + store phiên ở client + router cache đều được làm mới đồng bộ.
+    // `router.push` rồi `router.refresh()` liền nhau có thể bị chồng lệnh (proxy chờ backend trả phiên) khiến UI kẹt ở trang đăng nhập.
+    window.location.assign(next ?? (portal === "host" ? hostHome(roles ?? []) : PORTAL_HOME[portal]));
   }
 
   // Google chạy hoàn toàn ở backend (PKCE): điều hướng trình duyệt, không dùng fetch.
@@ -72,7 +68,8 @@ export function PortalAuth({ portal, label, initialError, initialNotice, next, a
       const body = mode === "login" ? { email, password, portal } : { email, password, fullName, portal };
       const { ok, data, code } = await postJson<LoginData>(path, body);
       if (!ok) return setError(errorMessage(code));
-      return enter(data.user?.hostRoles);
+      enter(data.user?.hostRoles);
+      return;
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") {
         setError("Máy chủ đăng nhập phản hồi quá lâu. Kiểm tra backend rồi thử lại.");

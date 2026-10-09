@@ -15,7 +15,7 @@
   height: clamp(260px, 42vw, 480px);
   border-radius: var(--r-xl);
   background: var(--paper-2);
-  color: var(--muted);
+  color: var(--muted-foreground);
   text-align: center;
 }
 

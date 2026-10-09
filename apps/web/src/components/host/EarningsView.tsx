@@ -18,7 +18,8 @@ export function EarningsView() {
   if (query.state.status === "loading") return <div className="skeleton" style={{ height: 320 }} />;
   if (query.state.status === "error") return <div role="alert"><p>{query.state.message}</p><button className="btn btn-secondary btn-sm" onClick={query.reload}>Thử lại</button></div>;
 
-  const { stats, rating, walletBalance, payouts, currentPeriod } = query.state.data;
+  const { stats, rating, walletBalance, payouts, currentPeriod, roles } = query.state.data;
+  const isInspector = roles.includes("inspector");
   const columns: DataTableColumn<Payout>[] = [
     { key: "createdAt", header: "Ngày ghi nhận", render: (row) => <span className="small muted">{fmtDate(row.createdAt)}</span> },
     { key: "period", header: "Tuần", render: (row) => row.period },
@@ -33,6 +34,7 @@ export function EarningsView() {
         <StatTile label="Tổng thu nhập ghi nhận" value={vnd(stats.totalEarnings)} unit="đ" />
         <StatTile label="Lượt dẫn được ghi nhận" value={String(stats.totalViewings)} />
         <StatTile label="Deal được ghi nhận" value={String(stats.totalDeals)} />
+        {isInspector && <StatTile label="Phiếu thẩm định đã nộp" value={String(stats.totalInspections)} />}
         <StatTile label="Số dư ví" value={vnd(walletBalance)} unit="đ" delta={{ text: `${String(rating).replace(".", ",")}★`, tone: "flat" }} />
       </div>
       <div className={styles.earningsLayout}>
@@ -41,6 +43,8 @@ export function EarningsView() {
             <div><dt>Phí dẫn khách</dt><dd className="num">{vnd(stats.viewingFeeTotal)}đ</dd></div>
             <div><dt>Hoa hồng giao dịch</dt><dd className="num">{vnd(stats.dealCommissionTotal)}đ</dd></div>
             <div><dt>Thưởng đánh giá</dt><dd className="num">{vnd(stats.ratingBonus)}đ</dd></div>
+            <div><dt>Thưởng nóng chiến dịch</dt><dd className="num">{vnd(stats.campaignBonus)}đ</dd></div>
+            {isInspector && <div><dt>Thù lao thẩm định ký gửi</dt><dd className="num">{vnd(stats.inspectionFeeTotal)}đ</dd></div>}
           </dl>
           <p className="muted xs">Các khoản chỉ xuất hiện sau khi nghiệp vụ tương ứng được ghi nhận trong cơ sở dữ liệu.</p>
         </Section>
