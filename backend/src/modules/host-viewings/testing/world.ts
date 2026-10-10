@@ -28,7 +28,7 @@ export function buildWorld() {
   const w = {
     db, prisma, phones, assigner, doors, flow, board, actors,
 
-    addHost(name: string, o: { zone?: string; roles?: string[]; duty?: string; active?: boolean; rating?: number } = {}) {
+    addHost(name: string, o: { zone?: string; roles?: string[]; duty?: string; active?: boolean; verified?: boolean; rating?: number } = {}) {
       n += 1;
       const host = {
         id: `host-${name}`,
@@ -38,7 +38,7 @@ export function buildWorld() {
         dutyStatus: o.duty ?? 'ONLINE_AVAILABLE',
         rating: o.rating ?? 5,
         createdAt: new Date(2026, 0, n),
-        profile: { fullName: `Sale ${name}`, isActive: o.active ?? true },
+        profile: { fullName: `Sale ${name}`, isActive: o.active ?? true, isPhoneVerified: o.verified ?? true },
       };
       db.hosts.push(host);
       return host;

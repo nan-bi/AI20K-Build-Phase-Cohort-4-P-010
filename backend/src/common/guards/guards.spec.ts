@@ -8,6 +8,11 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { HOST_ROLES_KEY } from '../decorators/host-roles.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { RolesGuard } from './roles.guard';
+import { VerificationGuard } from './verification.guard';
+import { HostViewingsController } from '../../modules/host-viewings/host-viewings.controller';
+import { InspectionController } from '../../modules/inspection/inspection.controller';
+import { LandlordController } from '../../modules/landlord/landlord.controller';
+import { REQUIRE_VERIFICATION_KEY } from '../decorators/require-verification.decorator';
 import { SupabaseAuthGuard } from './supabase-auth.guard';
 
 const user = (overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser => ({
@@ -163,5 +168,46 @@ describe('RolesGuard', () => {
       expect(() => runWith(undefined, ['sale'], user({ role: 'tenant' }))()).toThrow(/field_host/);
       expect(runWith(undefined, ['sale'], host(['sale']))()).toBe(true);
     });
+  });
+});
+
+describe('VerificationGuard', () => {
+  const run = (metadata: Record<string, unknown>, u: AuthenticatedUser | undefined) => {
+    const { reflector, ctx } = context({ user: u }, metadata);
+    return new VerificationGuard(reflector).canActivate(ctx);
+  };
+
+  it('route không gắn @RequireVerification ⇒ cho qua kể cả chưa xác thực SĐT', () => {
+    expect(run({}, user({ isPhoneVerified: false }))).toBe(true);
+  });
+
+  it('@RequireVerification("phone") + SĐT đã xác thực ⇒ cho qua', () => {
+    expect(run({ [REQUIRE_VERIFICATION_KEY]: 'phone' }, user({ isPhoneVerified: true }))).toBe(true);
+  });
+
+  it('@RequireVerification("phone") + chưa xác thực ⇒ 403 phone_not_verified', async () => {
+    expect(await codeOf(() => run({ [REQUIRE_VERIFICATION_KEY]: 'phone' }, user({ isPhoneVerified: false })))).toBe('phone_not_verified');
+  });
+
+  it('@RequireVerification("phone") + không có user ⇒ 403 phone_not_verified', async () => {
+    expect(await codeOf(() => run({ [REQUIRE_VERIFICATION_KEY]: 'phone' }, undefined))).toBe('phone_not_verified');
+  });
+});
+
+describe('Route "nhận việc / ký" phải gắn @RequireVerification("phone")', () => {
+  const gated: Array<[string, Function]> = [
+    ['Sale accept', HostViewingsController.prototype.accept],
+    ['Sale claim', HostViewingsController.prototype.claim],
+    ['Thẩm định accept', InspectionController.prototype.accept],
+    ['Thẩm định claim', InspectionController.prototype.claim],
+    ['Chủ nhà send-otp', LandlordController.prototype.sendSignOtp],
+    ['Chủ nhà sign', LandlordController.prototype.signConsignment],
+  ];
+  it.each(gated)('%s', (_name, handler) => {
+    expect(Reflect.getMetadata(REQUIRE_VERIFICATION_KEY, handler)).toBe('phone');
+  });
+  it('route chỉ đọc không bị chặn', () => {
+    expect(Reflect.getMetadata(REQUIRE_VERIFICATION_KEY, HostViewingsController.prototype.getBoard)).toBeUndefined();
+    expect(Reflect.getMetadata(REQUIRE_VERIFICATION_KEY, InspectionController.prototype.board)).toBeUndefined();
   });
 });

@@ -74,6 +74,13 @@ export class VerifyOtpDto {
   code: string;
 }
 
+export class SendPhoneOtpDto {
+  @ApiProperty({ example: '0912345678' })
+  @IsString()
+  @Length(9, 20)
+  phone: string;
+}
+
 export class VerifyPhoneDto {
   @ApiProperty({ example: '0912345678' })
   @IsString()

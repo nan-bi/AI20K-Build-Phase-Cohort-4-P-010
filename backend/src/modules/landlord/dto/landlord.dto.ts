@@ -83,7 +83,7 @@ export class CreateConsignmentDto {
   @Min(3_000_000)
   askRent: number;
 
-  @ApiPropertyOptional({ example: 6500000, description: 'Tiền cọc bảo đảm đề xuất: 2.000.000 → 3 lần giá thuê. Mặc định = giá thuê' })
+  @ApiPropertyOptional({ example: 6500000, description: 'Tiền cọc bảo đảm đề xuất: 0.5–4 lần giá thuê tháng (Admin cấu hình). Mặc định = giá thuê' })
   @IsOptional()
   @IsNumber()
   suggestedDeposit?: number;

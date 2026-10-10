@@ -243,6 +243,25 @@ describe('LandlordConsignmentService', () => {
       expect(new Date(meta.inspectDueAt).getTime() - new Date(meta.ownershipWarrantedAt).getTime()).toBe(48 * 3_600_000);
     });
 
+    it('cọc đã lưu ngoài 0.5–4× giá thuê (vd. thuê 10tr, cọc 100tr) → 400, không tiêu thụ OTP, không ký', async () => {
+      prisma.seed(mandateRow({
+        status: 'PENDING_INSPECTION',
+        doorAccessConfig: withConsignmentMeta(null, { form: { door: '08', askRent: 10_000_000, suggestedDeposit: 100_000_000 } as any, stage: 'draft' }),
+      }));
+      await expect(service.sign(ME, MANDATE_ID, { ownershipWarranted: true, otp: '4829' })).rejects.toMatchObject({ status: 400 });
+      expect(otp.verify).not.toHaveBeenCalled();
+      expect(prisma.tx.exclusiveMandate.update).not.toHaveBeenCalled();
+    });
+
+    it('cọc đã lưu hợp lệ (4× giá thuê) → ký được', async () => {
+      prisma.seed(mandateRow({
+        status: 'PENDING_INSPECTION',
+        doorAccessConfig: withConsignmentMeta(null, { form: { door: '08', askRent: 10_000_000, suggestedDeposit: 40_000_000 } as any, stage: 'draft' }),
+      }));
+      await service.sign(ME, MANDATE_ID, { ownershipWarranted: true, otp: '4829' });
+      expect(prisma.tx.exclusiveMandate.update).toHaveBeenCalled();
+    });
+
     it('không cam kết sở hữu → 400 và không tiêu thụ OTP', async () => {
       prisma.seed(draft());
       await expect(service.sign(ME, MANDATE_ID, { ownershipWarranted: false, otp: '4829' })).rejects.toMatchObject({ status: 400 });
@@ -900,7 +919,7 @@ describe('LandlordConsignmentService.sign — giao Inspector (P1-1)', () => {
       expect.objectContaining({ actionType: 'CONSIGNMENT_SIGNED', newValue: expect.objectContaining({ inspectorId: 'host-b' }) }),
     );
     // Truy vấn chọn người lọc đúng vai INSPECTOR + đúng phân khu của tòa.
-    expect(prisma.fieldHost.findMany.mock.calls[0][0].where).toEqual({ roles: { has: 'INSPECTOR' }, assignedZone: { contains: 'The Sapphire 1' } });
+    expect(prisma.fieldHost.findMany.mock.calls[0][0].where).toEqual({ roles: { has: 'INSPECTOR' }, assignedZone: { contains: 'The Sapphire 1' }, profile: { isPhoneVerified: true } });
   });
 
   it('không có Inspector trong phân khu ⇒ không ghi hostId/offeredAt (ca vào Open Pool ngay), vẫn ký được', async () => {

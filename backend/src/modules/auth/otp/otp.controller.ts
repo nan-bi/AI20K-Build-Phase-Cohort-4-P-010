@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { OtpPurpose } from '@prisma/client';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
@@ -7,7 +8,7 @@ import { Public } from '../../../common/decorators/public.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { authError } from '../auth.errors';
 import { requestContext } from '../auth.controller';
-import { SendOtpDto, VerifyOtpDto, VerifyPhoneDto } from '../dto/auth.dto';
+import { SendOtpDto, SendPhoneOtpDto, VerifyOtpDto, VerifyPhoneDto } from '../dto/auth.dto';
 import { PhoneService } from '../phone/phone.service';
 import { AuthenticatedUser } from '../session/authenticated-user';
 import { ACTION_TOKEN_TTL_SECONDS, ActionTokenService } from './action-token.service';
@@ -64,13 +65,29 @@ export class OtpController {
   }
 
   @Roles('landlord', 'field_host')
+  @Post('phone/send-otp')
+  @HttpCode(200)
+  @Throttle(perMinute(5))
+  @ApiCookieAuth('session-cookie')
+  @ApiOperation({
+    summary: 'Chủ nhà / Field Host xin OTP để xác thực SĐT của mình (PHONE_VERIFY)',
+    description: 'Khác `POST /auth/otp/send`: số đang thuộc tài khoản khác ⇒ 409 `phone_already_registered` NGAY, chưa gửi mã. Sau đó gọi `POST /auth/phone/verify`.',
+  })
+  async sendPhoneOtp(@CurrentUser() user: AuthenticatedUser, @Body() dto: SendPhoneOtpDto, @Req() req: Request) {
+    const phone = this.normalizedPhone(dto.phone);
+    await this.phoneVerification.assertAvailable(user.id, phone);
+    const { devCode } = await this.otp.send({ phone, purpose: OtpPurpose.PHONE_VERIFY, ...requestContext(req) });
+    return { expiresInSeconds: this.otp.expiresInSeconds, ...(devCode ? { devCode } : {}) };
+  }
+
+  @Roles('landlord', 'field_host')
   @Post('phone/verify')
   @HttpCode(200)
   @Throttle(perMinute(10))
   @ApiCookieAuth('session-cookie')
   @ApiOperation({
     summary: 'Chủ nhà / Field Host xác thực SĐT của mình bằng OTP (mục đích PHONE_VERIFY)',
-    description: 'Gọi `POST /auth/otp/send` với purpose=PHONE_VERIFY trước. OTP đúng thì SĐT được gắn vào hồ sơ.',
+    description: 'Gọi `POST /auth/phone/send-otp` trước. OTP đúng thì SĐT được gắn vào hồ sơ.',
   })
   async verifyPhone(@CurrentUser() user: AuthenticatedUser, @Body() dto: VerifyPhoneDto, @Req() req: Request) {
     const phone = this.normalizedPhone(dto.phone);

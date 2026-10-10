@@ -22,6 +22,7 @@ import type { Request } from 'express';
 import { Observable, catchError, throwError } from 'rxjs';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { HostRoles } from '../../common/decorators/host-roles.decorator';
+import { RequireVerification } from '../../common/decorators/require-verification.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { requestContext } from '../auth/auth.controller';
 import { AuthenticatedUser } from '../auth/session/authenticated-user';
@@ -72,6 +73,7 @@ export class InspectionController {
   }
 
   @Post(':id/accept')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'E3 — Nhận ca được giao (nhận lại ca của mình ⇒ 200)' })
   async accept(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
@@ -79,6 +81,7 @@ export class InspectionController {
   }
 
   @Post(':id/claim')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'E4 — Nhận ca ở Open Pool (ai nhận trước được giao, nguyên tử)' })
   async claim(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {

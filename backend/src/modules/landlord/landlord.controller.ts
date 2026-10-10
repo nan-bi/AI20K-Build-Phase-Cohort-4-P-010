@@ -14,6 +14,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequireVerification } from '../../common/decorators/require-verification.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { LandlordConsignmentService } from './landlord-consignment.service';
 import { LandlordFinanceService } from './landlord-finance.service';
@@ -133,6 +134,7 @@ export class LandlordController {
   }
 
   @Post('consignments/:id/send-otp')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'Gửi OTP Zalo để ký ủy quyền (tới SĐT đã lưu; chưa có SĐT thì gửi tới số truyền lên)' })
   sendSignOtp(
@@ -144,6 +146,7 @@ export class LandlordController {
   }
 
   @Post('consignments/:id/sign')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'Ký ủy quyền độc quyền bằng OTP → giao Field Host phân khu thẩm định (SLA 48h)' })
   signConsignment(

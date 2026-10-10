@@ -61,6 +61,19 @@ export class LandlordConsignmentService {
     return row.paramValue;
   }
 
+  /** Cọc bảo đảm phải trong [min, max] × giá thuê tháng (Admin cấu hình, mặc định 0.5–4). */
+  private async assertDepositInRange(askRent: number, deposit: number): Promise<void> {
+    const minRatio = await this.configValue('deposit_min_ratio', 0.5);
+    const maxRatio = await this.configValue('deposit_max_ratio', 4.0);
+    const minDeposit = Math.round(minRatio * askRent);
+    const maxDeposit = Math.round(maxRatio * askRent);
+    if (deposit < minDeposit || deposit > maxDeposit) {
+      throw new BadRequestException(
+        `Tiền cọc đề xuất phải từ ${Math.round(minRatio * 100)}% đến ${maxRatio} lần giá thuê (${minDeposit.toLocaleString('vi-VN')}đ – ${maxDeposit.toLocaleString('vi-VN')}đ).`,
+      );
+    }
+  }
+
   async list(landlordId: string) {
     const mandates = await this.prisma.exclusiveMandate.findMany({
       where: { unit: { landlordId } },
@@ -112,15 +125,7 @@ export class LandlordConsignmentService {
 
     const locks = this.parseLocks(dto.locks);
     const suggestedDeposit = dto.suggestedDeposit ?? dto.askRent;
-    const minRatio = await this.configValue('deposit_min_ratio', 0.5);
-    const maxRatio = await this.configValue('deposit_max_ratio', 4.0);
-    const minDeposit = Math.round(minRatio * dto.askRent);
-    const maxDeposit = Math.round(maxRatio * dto.askRent);
-    if (!dto.draft && (suggestedDeposit < minDeposit || suggestedDeposit > maxDeposit)) {
-      throw new BadRequestException(
-        `Tiền cọc đề xuất phải từ ${Math.round(minRatio * 100)}% đến ${maxRatio} lần giá thuê (${minDeposit.toLocaleString('vi-VN')}đ – ${maxDeposit.toLocaleString('vi-VN')}đ).`,
-      );
-    }
+    if (!dto.draft) await this.assertDepositInRange(dto.askRent, suggestedDeposit);
 
     const building = await this.prisma.building.findUnique({ where: { buildingCode: dto.building } });
     if (!building) throw new BadRequestException('Tòa nhà không thuộc phân khu hỗ trợ.');
@@ -217,6 +222,11 @@ export class LandlordConsignmentService {
     }
     if (dto.ownershipWarranted !== true) {
       throw new BadRequestException('Cần cam kết quyền sở hữu/sử dụng hợp pháp căn hộ trước khi ký.');
+    }
+    // Bản nháp có thể được tạo với `draft: true` (bỏ kiểm cọc) ⇒ kiểm lại trên giá trị ĐÃ LƯU trước khi ký và trước khi tiêu thụ OTP.
+    const form = readConsignmentMeta(mandate.doorAccessConfig)?.form;
+    if (typeof form?.askRent === 'number' && typeof form.suggestedDeposit === 'number') {
+      await this.assertDepositInRange(form.askRent, form.suggestedDeposit);
     }
     const { phone: signedPhone, otpSkipped } = await this.verifySignOtp(landlordId, dto.otp, dto.phone);
 

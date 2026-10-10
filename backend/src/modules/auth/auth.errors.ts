@@ -35,6 +35,7 @@ const MESSAGES: Record<string, [HttpStatus, string]> = {
   invalid_request: [HttpStatus.BAD_REQUEST, 'Thông tin chưa hợp lệ'],
   unauthorized: [HttpStatus.UNAUTHORIZED, 'Chưa đăng nhập hoặc phiên đã hết hạn'],
   forbidden: [HttpStatus.FORBIDDEN, 'Bạn không có quyền thực hiện thao tác này'],
+  phone_not_verified: [HttpStatus.FORBIDDEN, 'Bạn cần xác thực số điện thoại để thực hiện thao tác này'],
   host_not_provisioned: [HttpStatus.FORBIDDEN, 'Tài khoản chưa có hồ sơ Field Host, liên hệ Admin để được thêm vào hệ thống'],
   oauth_failed: [HttpStatus.BAD_REQUEST, 'Đăng nhập bằng Google không thành công'],
   auth_not_configured: [HttpStatus.SERVICE_UNAVAILABLE, 'Đăng nhập Google chưa được cấu hình (thiếu GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)'],

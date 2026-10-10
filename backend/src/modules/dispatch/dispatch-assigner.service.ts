@@ -16,7 +16,7 @@ export function vnDayRange(at: Date): { from: Date; to: Date } {
 
 /**
  * Chọn Sale cho một ca (dùng chung A6 tạo lịch, A8 đổi giờ, reject). Điều kiện đúng 01-CONTRACTS §4:
- * vai SALE · tài khoản đang mở · ONLINE_AVAILABLE · cùng phân khu · không có ca trong ±45′ · không bị loại.
+ * vai SALE · tài khoản đang mở · SĐT đã xác thực (Sale chưa xác thực không nhận được ca ⇒ ticket treo quá SLA) · ONLINE_AVAILABLE · cùng phân khu · không có ca trong ±45′ · không bị loại.
  * Chia đều việc: ít ca trong ngày hơn → rating cao hơn → vào hệ thống sớm hơn.
  */
 @Injectable()
@@ -32,7 +32,7 @@ export class DispatchAssignerService {
       where: {
         roles: { has: HostRole.SALE },
         dutyStatus: HostDutyStatus.ONLINE_AVAILABLE,
-        profile: { isActive: true },
+        profile: { isActive: true, isPhoneVerified: true },
         assignedZone: { contains: args.zoneName },
         ...(args.excludeHostIds?.length ? { id: { notIn: args.excludeHostIds } } : {}),
         tickets: {
