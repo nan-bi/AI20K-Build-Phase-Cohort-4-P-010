@@ -13,7 +13,7 @@ export function PhoneVerifyBanner() {
   return (
     <div className={styles.phoneBanner} role="status">
       <span>
-        <b>Bạn chưa xác thực số điện thoại.</b> Cần số thật để nhận nhắc hẹn T-10 phút và thông báo ca xem.
+        <b>Bạn chưa xác thực số điện thoại.</b> Bạn cần xác thực để nhận ca xem / ca thẩm định và nhận nhắc hẹn T-10 phút.
       </span>
       <Link href="/host/account" className="btn btn-primary btn-sm">
         Xác thực ngay

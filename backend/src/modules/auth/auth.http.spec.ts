@@ -711,6 +711,36 @@ describe('Auth HTTP (Nest thật + Prisma giả)', () => {
       expect(profile.phoneEnc).not.toContain('84912345678');
     });
 
+    it('phone/send-otp: số đã thuộc tài khoản khác ⇒ 409 NGAY, không gửi mã; số của chính mình thì gửi được', async () => {
+      seedUser('a@example.com', 'landlord');
+      seedUser('b@example.com', 'landlord');
+      const a = request.agent(app.getHttpServer());
+      const b = request.agent(app.getHttpServer());
+      await login(a, 'landlord', 'a@example.com');
+      await login(b, 'landlord', 'b@example.com');
+
+      const sendA = await a.post('/api/v1/auth/phone/send-otp').send({ phone: '0912345678' });
+      expect(sendA.status).toBe(200);
+      await a.post('/api/v1/auth/phone/verify').send({ phone: '0912345678', code: sendA.body.data.devCode });
+
+      const otpRows = () => (prisma as any).otpCode?.rows?.length;
+      const before = otpRows();
+      const sendB = await b.post('/api/v1/auth/phone/send-otp').send({ phone: '0912345678' });
+      expect(sendB.status).toBe(409);
+      expect(sendB.body.code).toBe('phone_already_registered');
+      expect(otpRows()).toBe(before); // chưa tạo/gửi OTP nào
+
+      expect((await a.post('/api/v1/auth/phone/send-otp').send({ phone: '0912345678' })).status).toBe(200);
+    });
+
+    it('phone/send-otp: Khách thuê 403, chưa đăng nhập 401', async () => {
+      expect((await request(app.getHttpServer()).post('/api/v1/auth/phone/send-otp').send({ phone: '0912345678' })).status).toBe(401);
+      seedUser('t2@example.com', 'tenant');
+      const agent = request.agent(app.getHttpServer());
+      await login(agent, 'tenant', 't2@example.com');
+      expect((await agent.post('/api/v1/auth/phone/send-otp').send({ phone: '0912345678' })).status).toBe(403);
+    });
+
     it('phone/verify: Khách thuê không có quyền (403), chưa đăng nhập (401)', async () => {
       expect((await request(app.getHttpServer()).post('/api/v1/auth/phone/verify').send({ phone: '0912345678', code: '1234' })).status).toBe(401);
 

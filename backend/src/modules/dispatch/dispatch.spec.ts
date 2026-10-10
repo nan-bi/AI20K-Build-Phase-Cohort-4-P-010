@@ -31,10 +31,11 @@ describe('Điều phối — tầng hiển thị (SPEC-P01 §6 ca 2)', () => {
 });
 
 describe('DispatchAssignerService.pickHost (SPEC-P01 §6 ca 1)', () => {
-  it('bỏ Host không có SALE / bị khoá / OFF_DUTY / khác phân khu / có ca trong ±45′; chọn người ít ca trong ngày hơn', async () => {
+  it('bỏ Host không có SALE / bị khoá / chưa xác thực SĐT / OFF_DUTY / khác phân khu / có ca trong ±45′; chọn người ít ca trong ngày hơn', async () => {
     const w = buildWorld();
     w.addHost('khong-sale', { roles: ['INSPECTOR'] });
     w.addHost('bi-khoa', { active: false });
+    w.addHost('chua-xac-thuc-sdt', { verified: false });
     w.addHost('nghi', { duty: 'OFF_DUTY' });
     w.addHost('khac-khu', { zone: 'Zen Park' });
     const ban = w.addHost('ban-ca-gan');

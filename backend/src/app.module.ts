@@ -32,6 +32,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
 // Common Filters, Guards & Interceptors
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { VerificationGuard } from './common/guards/verification.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -77,6 +78,10 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: VerificationGuard,
     },
     {
       provide: APP_FILTER,

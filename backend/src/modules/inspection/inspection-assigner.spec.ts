@@ -20,7 +20,7 @@ describe('InspectorAssigner.pick', () => {
     const db = fakeDb([]);
     await assigner.pick(db as any, 'The Sapphire 1');
     expect(db.fieldHost.findMany).toHaveBeenCalledWith({
-      where: { roles: { has: 'INSPECTOR' }, assignedZone: { contains: 'The Sapphire 1' } },
+      where: { roles: { has: 'INSPECTOR' }, assignedZone: { contains: 'The Sapphire 1' }, profile: { isPhoneVerified: true } },
       orderBy: { createdAt: 'asc' },
     });
   });

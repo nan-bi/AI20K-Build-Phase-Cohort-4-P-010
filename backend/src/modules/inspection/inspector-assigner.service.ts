@@ -14,7 +14,11 @@ type Db = PrismaService | Prisma.TransactionClient;
 export class InspectorAssigner {
   async pick(db: Db, zoneName: string) {
     const hosts = await db.fieldHost.findMany({
-      where: { roles: { has: HostRole.INSPECTOR }, assignedZone: { contains: zoneName } },
+      where: {
+        roles: { has: HostRole.INSPECTOR },
+        assignedZone: { contains: zoneName },
+        profile: { isPhoneVerified: true }, // chưa xác thực SĐT thì không `accept` được ⇒ không giao ca
+      },
       orderBy: { createdAt: 'asc' },
     });
     if (!hosts.length) return null;

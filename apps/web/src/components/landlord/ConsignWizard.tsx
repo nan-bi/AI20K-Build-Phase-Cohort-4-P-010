@@ -14,10 +14,21 @@ import type { BuildingOption, Consignment, InventoryCatalogEntry, LayoutKind, Le
 import { GROUPS, GROUP_LABEL } from "@/lib/inspection/logic";
 import { queries, type QueryDef } from "@/lib/landlord/queries";
 import { invalidateLandlordData, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
+import { refreshApi } from "@/lib/query/useApiQuery";
 import { ConsignOtpSign } from "./ConsignOtpSign";
 import { PhotoPicker } from "./PhotoPicker";
 import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
+
+/** Cọc bảo đảm: 0.5–4× giá thuê tháng (mặc định của Admin; backend kiểm lại bằng giá trị cấu hình khi tạo hồ sơ và khi ký). */
+const DEPOSIT_MIN_RATIO = 0.5;
+const DEPOSIT_MAX_RATIO = 4;
+function depositRangeError(rent: number, deposit: number): string | null {
+  const min = Math.round(DEPOSIT_MIN_RATIO * rent);
+  const max = Math.round(DEPOSIT_MAX_RATIO * rent);
+  if (deposit >= min && deposit <= max) return null;
+  return `Tiền cọc phải từ 50% đến 4 lần giá thuê tháng (${min.toLocaleString("vi-VN")}đ – ${max.toLocaleString("vi-VN")}đ).`;
+}
 
 const LABELS = ["Thông tin căn & Định giá", "Khoá cửa & Tài sản", "Ký ủy quyền độc quyền"];
 
@@ -199,6 +210,7 @@ function Wizard({
   const deposit = Number(f.suggestedDeposit) || 0;
   const area = Number(f.areaM2) || 0;
   const preview = rent && area ? allInCost({ rent, areaM2: area }) : null;
+  const depositErr = rent >= 3_000_000 && deposit > 0 ? depositRangeError(rent, deposit) : null;
   const maxFloor = buildings.find((b) => b.buildingCode === f.building)?.totalFloors ?? 60;
   const unitCode = `VHOP-${f.building}-${f.floor}${f.door.padStart(2, "0")}`;
 
@@ -268,11 +280,9 @@ function Wizard({
       setErr("Giá thuê tối thiểu 3.000.000đ/tháng.");
       return;
     }
-    const currentDeposit = deposit || rent;
-    const minDeposit = Math.round(0.5 * rent);
-    const maxDeposit = Math.round(4 * rent);
-    if (currentDeposit < minDeposit || currentDeposit > maxDeposit) {
-      setErr(`Tiền cọc đề xuất phải từ 50% đến 4 lần giá thuê tháng (${minDeposit.toLocaleString("vi-VN")}đ – ${maxDeposit.toLocaleString("vi-VN")}đ).`);
+    const depositProblem = depositRangeError(rent, deposit || rent);
+    if (depositProblem) {
+      setErr(depositProblem);
       return;
     }
 
@@ -511,7 +521,7 @@ function Wizard({
                   <span className="label">
                     Tiền cọc bảo đảm (Security Deposit)
                     <InfoTip label="Giải thích tiền cọc bảo đảm">
-                      Cọc giữ chỗ 2.000.000đ của khách chuyển 100% thành tiền cọc bảo đảm khi ký HĐ, <b>không trừ</b> vào tiền thuê tháng đầu. Quy định: từ 50% (0.5 tháng) đến 4 lần (4 tháng) giá thuê.
+                      Cọc giữ chỗ của khách chuyển 100% thành tiền cọc bảo đảm khi ký HĐ, <b>không trừ</b> vào tiền thuê tháng đầu. Quy định: từ 50% (0.5 tháng) đến 4 lần (4 tháng) giá thuê.
                     </InfoTip>
                   </span>
                   <input
@@ -521,9 +531,13 @@ function Wizard({
                     value={f.suggestedDeposit ? Number(f.suggestedDeposit).toLocaleString("vi-VN") : ""}
                     onChange={(e) => set("suggestedDeposit", e.target.value.replace(/\D/g, ""))}
                   />
-                  <span className="muted xs" style={{ marginTop: 4 }}>
-                    Quy định: từ 50% (0.5 tháng) đến tối đa 4 lần giá thuê tháng. Cọc giữ chỗ 2.000.000đ chuyển 100% vào khoản này, không khấu trừ tiền thuê tháng đầu.
-                  </span>
+                  {depositErr ? (
+                    <span className="field-error" role="alert" style={{ marginTop: 4 }}>{depositErr}</span>
+                  ) : (
+                    <span className="muted xs" style={{ marginTop: 4 }}>
+                      Quy định: từ 50% (0.5 tháng) đến tối đa 4 lần giá thuê tháng. Cọc giữ chỗ của khách chuyển 100% vào khoản này, không khấu trừ tiền thuê tháng đầu.
+                    </span>
+                  )}
                 </label>
               </div>
 
@@ -552,7 +566,7 @@ function Wizard({
                 )}
                 {rent > 0 && verdict.isHigh && (
                   <p className="xs" style={{ margin: 0, color: "#92400e" }}>
-                    Thời gian tìm khách có thể kéo dài hơn (ước tính 15–30 ngày). Bạn có thể điều chỉnh sau khi tham khảo ý kiến Field Host.
+                    Giá cao hơn mặt bằng nên có thể mất nhiều thời gian hơn để tìm khách. Khi thẩm định, nếu thấy cần điều chỉnh giá, thẩm định viên sẽ đề xuất và bạn là người quyết định.
                   </p>
                 )}
               </div>
@@ -900,7 +914,7 @@ function Wizard({
                 <ShieldCheck size={16} /> <b>Thoát linh hoạt 15 ngày:</b> báo trước tối thiểu 15 ngày khi căn đang trống và không trong thời gian giữ chỗ.
               </li>
               <li>
-                <ShieldCheck size={16} /> <b>First-to-Pay Wins:</b> khoá căn dựa trên tiền cọc thực tế 2.000.000đ qua VietQR động; khoản cọc này chuyển 100% thành Tiền Cọc Bảo Đảm, không trừ vào tiền thuê tháng đầu.
+                <ShieldCheck size={16} /> <b>First-to-Pay Wins:</b> khoá căn dựa trên tiền cọc giữ chỗ thực tế qua VietQR động; khoản cọc này chuyển 100% thành Tiền Cọc Bảo Đảm, không trừ vào tiền thuê tháng đầu.
               </li>
               <li>
                 <ShieldCheck size={16} /> <b>Vận hành asset-light:</b> VinStay không nhận sửa chữa; chỉ giới thiệu thợ ngoài uy tín.
@@ -935,7 +949,7 @@ function Wizard({
               <ul className="small muted" style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
                 <li><b>Điều 2</b> · Bạn cam đoan là chủ sở hữu hợp pháp (hoặc người được uỷ quyền hợp pháp duy nhất); căn không tranh chấp, không bị kê biên; nếu đang thế chấp thì việc cho thuê không vi phạm nghĩa vụ thế chấp.</li>
                 <li><b>Điều 3</b> · VinStay được uỷ quyền lại cho Field Host nội khu đón khách, dẫn xem, kiểm kê 10 hạng mục và chốt công tơ; VinStay chịu trách nhiệm về đội ngũ này.</li>
-                <li><b>Điều 5</b> · Khách cọc 2.000.000đ, căn khoá giữ chỗ mặc định 48 giờ (Admin cấu hình 12–72 giờ); khi ký HĐ thuê cọc chuyển 100% vào cọc bảo đảm, không trừ tiền thuê tháng đầu.</li>
+                <li><b>Điều 5</b> · Khách đặt cọc giữ chỗ, căn khoá giữ chỗ mặc định 48 giờ (Admin cấu hình 12–72 giờ); khi ký HĐ thuê cọc chuyển 100% vào cọc bảo đảm, không trừ tiền thuê tháng đầu.</li>
                 <li><b>Điều 6</b> · Phí dịch vụ chỉ thu khi khách đã ký HĐ và thanh toán đủ kỳ đầu + cọc. Tự giao dịch ngoài nền tảng với khách VinStay đã giới thiệu trong thời hạn HĐ và 06 tháng sau: vẫn trả 100% phí + phạt 01 tháng tiền thuê.</li>
                 <li><b>Điều 8</b> · Thời hạn 12 tháng, tự gia hạn từng kỳ 12 tháng nếu không báo dừng trước 15 ngày. Dừng ký gửi bất kỳ lúc nào: báo trước 15 ngày và căn đang trống, không trong thời gian giữ chỗ.</li>
                 <li><b>Điều 7</b> · VinStay không bảo lãnh tài chính thay khách ngoài quỹ cọc bảo đảm; miễn trừ lỗi kết cấu toà nhà và bất khả kháng.</li>
@@ -948,9 +962,9 @@ function Wizard({
             </label>
 
             <div style={{ margin: "14px 0 6px" }}>
-              <ConsignOtpSign warranted={warranted} verifiedPhone={verifiedPhone} ensureDraft={ensureDraft} onSigned={signed} onError={setErr} />
+              <ConsignOtpSign warranted={warranted} verifiedPhone={verifiedPhone} ensureDraft={ensureDraft} onSigned={signed} onError={setErr} onPhoneVerified={() => refreshApi(queries.profile.key)} />
               <p className="muted xs" style={{ textAlign: "center", marginTop: 8 }}>
-                Bấm ký (hoặc nhập OTP khi dùng số mới) nghĩa là bạn ký Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn), ký điện tử theo Luật Giao dịch điện tử 2023.
+                Bấm ký nghĩa là bạn ký điện tử Hợp đồng ký gửi quản lý độc quyền 12 tháng (tự gia hạn) bằng số điện thoại đã xác thực, theo Luật Giao dịch điện tử 2023.
               </p>
             </div>
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { ApiResponse } from "@/lib/apiClient";
+import { requestPhoneVerify } from "@/components/host/PhoneVerifyGate";
 import { toast } from "@/components/ui/Toast";
 import { primeApiData } from "@/lib/query/useApiQuery";
 import { inspectionKey, refreshInspections } from "./api";
@@ -15,10 +16,15 @@ import type { InspectionDetail } from "./types";
 export function useInspectionAction(id?: string) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(
-    async <T,>(call: () => Promise<ApiResponse<T>>, okText?: string, pick?: (data: T) => InspectionDetail | null): Promise<ApiResponse<T>> => {
+    async function exec<T>(call: () => Promise<ApiResponse<T>>, okText?: string, pick?: (data: T) => InspectionDetail | null): Promise<ApiResponse<T>> {
       setBusy(true);
       const res = await call();
       setBusy(false);
+      if (res.code === "phone_not_verified") {
+        // Chưa xác thực SĐT: hộp thoại xác thực tại chỗ, xong tự chạy lại thao tác này (không toast lỗi, không rời màn).
+        requestPhoneVerify(() => void exec(call, okText, pick));
+        return res;
+      }
       if (res.ok) {
         if (okText) toast(okText, "success");
         const next = pick?.(res.data) ?? null;

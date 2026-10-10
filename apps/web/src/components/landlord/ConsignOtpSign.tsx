@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PhoneVerifyCard } from "@/components/host/PhoneVerifyCard";
 import { MessageCircleMore } from "lucide-react";
+import { DevOtpHint } from "@/components/ui/DevOtpHint";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/format";
 import { errorText, landlordApi } from "@/lib/landlord/api";
@@ -10,12 +12,14 @@ import type { Consignment, SignOtpInfo } from "@/lib/landlord/types";
 interface ConsignOtpSignProps {
   /** Đã tick cam đoan quyền sở hữu (Điều 2) — chưa tick thì khóa nút ký. */
   warranted: boolean;
-  /** SĐT đã xác thực của tài khoản (`0901234567`). Có ⇒ ký thẳng không cần OTP; muốn đổi số mới phải OTP. null ⇒ phải nhập số + OTP. */
+  /** SĐT đã xác thực của tài khoản (`0901234567`). Có ⇒ ký thẳng không cần OTP; muốn đổi số mới phải OTP. null ⇒ chưa xác thực: chặn ký, dẫn sang trang Tài khoản. */
   verifiedPhone: string | null;
   /** Bảo đảm hồ sơ ký gửi (bản nháp) đã tồn tại; trả id, hoặc null kèm thông báo lỗi qua `onError`. */
   ensureDraft: () => Promise<string | null>;
   onSigned: (c: Consignment) => void;
   onError: (message: string) => void;
+  /** Vừa xác thực SĐT tại chỗ (không rời trang ký, giữ nguyên dữ liệu đã nhập): làm mới hồ sơ để `verifiedPhone` có giá trị. */
+  onPhoneVerified: () => void;
 }
 
 const RESEND_SECONDS = 60;
@@ -25,9 +29,9 @@ const maskLocal = (p: string) => (p.length >= 7 ? `${p.slice(0, 4)} *** ${p.slic
 
 /**
  * Ký ủy quyền. Số đã xác thực của tài khoản ⇒ KHÔNG cần OTP (xác thực một lần cho mỗi số, như khách đặt lịch).
- * Đổi sang số khác, hoặc tài khoản chưa có số ⇒ nhập số → gửi mã Zalo → nhập 4 số là ký.
+ * Đổi sang số khác ⇒ nhập số → gửi mã Zalo → nhập 4 số là ký. Tài khoản chưa xác thực SĐT ⇒ không ký được.
  */
-export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned, onError }: ConsignOtpSignProps) {
+export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned, onError, onPhoneVerified }: ConsignOtpSignProps) {
   const [changing, setChanging] = useState(false);
   const [phone, setPhone] = useState("");
   const [id, setId] = useState<string | null>(null);
@@ -100,6 +104,12 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
     onSigned(res.data);
   };
 
+  const onCodeChange = (v: string) => {
+    setCode(v);
+    setWrong(false);
+    if (v.length === 4) void sign(v);
+  };
+
   if (useAccountPhone) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -116,11 +126,22 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
     );
   }
 
+  // Chưa có số đã xác thực ⇒ chưa ký được (backend 403 `phone_not_verified`): xác thực NGAY TẠI ĐÂY, không rời trang để khỏi mất dữ liệu đã nhập.
+  if (!verifiedPhone) {
+    return (
+      <PhoneVerifyCard
+        me={{ isPhoneVerified: false, phone: null }}
+        description="Xác thực một lần bằng OTP Zalo, xong là ký ủy quyền ngay. Dữ liệu ký gửi bạn đã nhập vẫn được giữ nguyên, tài khoản cũng được xác thực luôn."
+        onVerified={onPhoneVerified}
+      />
+    );
+  }
+
   if (!info) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <label className="field">
-          <span className="label">{verifiedPhone ? "Số điện thoại mới nhận mã OTP" : "Số điện thoại nhận mã OTP"}</span>
+          <span className="label">Số điện thoại mới nhận mã OTP</span>
           <input className="input" inputMode="tel" autoComplete="tel" placeholder="0901 234 567" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <span className="muted xs" style={{ marginTop: 4 }}>
             Số này chỉ dùng để nhận mã ký ủy quyền và lưu (mã hoá AES-256) trong hồ sơ ký gửi này, không gắn vào tài khoản.
@@ -129,11 +150,9 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
         <button type="button" className="btn btn-primary btn-lg btn-block" disabled={!warranted || !phoneOk || busy} onClick={send}>
           <MessageCircleMore size={18} /> Gửi mã OTP để ký ủy quyền
         </button>
-        {verifiedPhone && (
-          <button type="button" className="btn btn-quiet btn-sm" style={{ alignSelf: "flex-start" }} disabled={busy} onClick={() => { setChanging(false); setPhone(""); }}>
-            Quay lại dùng số {maskLocal(verifiedPhone)}
-          </button>
-        )}
+        <button type="button" className="btn btn-quiet btn-sm" style={{ alignSelf: "flex-start" }} disabled={busy} onClick={() => { setChanging(false); setPhone(""); }}>
+          Quay lại dùng số {maskLocal(verifiedPhone)}
+        </button>
       </div>
     );
   }
@@ -143,12 +162,8 @@ export function ConsignOtpSign({ warranted, verifiedPhone, ensureDraft, onSigned
       <p className="muted small">
         Mã 4 số đã gửi tới <b className="tnum">{info.maskedPhone ?? fmtPhone(normalizePhone(phone))}</b>. Nhập mã để ký ủy quyền.
       </p>
-      {info.devCode && (
-        <p className="small">
-          Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{info.devCode}</b>.
-        </p>
-      )}
-      <OtpInput value={code} error={wrong} autoFocus disabled={busy} onChange={(v) => { setCode(v); setWrong(false); if (v.length === 4) void sign(v); }} />
+      <DevOtpHint code={info.devCode} onFill={onCodeChange} />
+      <OtpInput value={code} error={wrong} autoFocus disabled={busy} onChange={onCodeChange} />
       <button type="button" className="btn btn-quiet btn-sm" style={{ alignSelf: "flex-start" }} disabled={cooldown > 0 || busy} onClick={send}>
         {cooldown > 0 ? `Gửi lại mã sau ${cooldown}s` : "Gửi lại mã"}
       </button>

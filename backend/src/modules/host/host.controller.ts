@@ -17,7 +17,7 @@ export class HostController {
   @ApiCookieAuth('session-cookie')
   @ApiOperation({
     summary: 'Hồ sơ của chính Field Host đang đăng nhập (vai, phân khu, SĐT đã xác thực, ca trực)',
-    description: 'Không trả số thẻ RFID, mật khẩu hay SĐT dạng mã hoá. Xác thực SĐT: `POST /auth/otp/send` (PHONE_VERIFY) → `POST /auth/phone/verify`.',
+    description: 'Không trả số thẻ RFID, mật khẩu hay SĐT dạng mã hoá. Xác thực SĐT: `POST /auth/phone/send-otp` → `POST /auth/phone/verify`.',
   })
   async getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.hostService.getMe(user.id);

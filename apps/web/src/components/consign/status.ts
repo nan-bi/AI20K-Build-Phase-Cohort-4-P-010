@@ -15,7 +15,7 @@ export const CONSIGN_STATUS_META: Record<
   draft: {
     label: "Chưa ký ủy quyền",
     tone: "neutral",
-    landlordHint: "Bạn chưa hoàn tất ký ủy quyền độc quyền qua OTP.",
+    landlordHint: "Hồ sơ đã lưu nhưng bạn chưa ký ủy quyền độc quyền. Ký xong, Field Host mới nhận ca đi thẩm định.",
   },
   awaiting_host: {
     label: "Chờ Field Host nhận",

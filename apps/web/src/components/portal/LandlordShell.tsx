@@ -5,6 +5,7 @@ import { Banknote, Building2, DoorOpen, FilePlus2, LayoutDashboard, UserCircle2 
 import { useSession } from "@/lib/auth/client";
 import { queries } from "@/lib/landlord/queries";
 import { setLandlordCacheOwner, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
+import { LandlordPhoneBanner } from "@/components/landlord/LandlordPhoneBanner";
 import { PortalShell } from "./PortalShell";
 
 export function LandlordShell({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export function LandlordShell({ children }: { children: React.ReactNode }) {
         { href: "/landlord/account", label: "Tài khoản", icon: UserCircle2 },
       ]}
     >
+      <LandlordPhoneBanner />
       {children}
     </PortalShell>
   );

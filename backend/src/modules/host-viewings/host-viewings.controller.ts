@@ -3,6 +3,7 @@ import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { HostRoles } from '../../common/decorators/host-roles.decorator';
+import { RequireVerification } from '../../common/decorators/require-verification.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { requestContext } from '../auth/auth.controller';
 import { AuthenticatedUser } from '../auth/session/authenticated-user';
@@ -34,6 +35,7 @@ export class HostViewingsController {
   }
 
   @Post('tickets/:id/accept')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'D2 — Nhận ticket được giao (trong 3 phút SLA)' })
   async accept(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
@@ -54,6 +56,7 @@ export class HostViewingsController {
   }
 
   @Post('tickets/:id/claim')
+  @RequireVerification('phone')
   @HttpCode(200)
   @ApiOperation({ summary: 'D4 — Nhận ticket trong Open Pool (ai nhận trước được giao, nguyên tử)' })
   async claim(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
