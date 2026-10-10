@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { OtpInput } from "@/components/ui/OtpInput";
+import { DevOtpHint } from "@/components/ui/DevOtpHint";
 import { toast } from "@/components/ui/Toast";
 import { accountApi } from "@/lib/apiClient";
 import { fmtDateTime, fmtPhone, isValidVnPhone, normalizePhone } from "@/lib/format";
@@ -527,11 +528,7 @@ function Flow({ unit, onClose, newTab }: { unit: Unit; onClose: () => void; newT
                 <span className={styles.spinner} aria-hidden="true" /> Đang xác thực mã...
               </p>
             )}
-            {devCode && (
-              <p className={styles.otpSub}>
-                Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{devCode}</b>.
-              </p>
-            )}
+            <DevOtpHint code={devCode} onFill={onCode} />
             {otpError && <p className="field-error">{otpErrorMsg || "Mã chưa đúng. Kiểm tra lại tin nhắn Zalo rồi nhập lại."}</p>}
             <button
               type="button"

@@ -6,6 +6,7 @@ import { useSession } from "@/lib/auth/client";
 import type { HostRoleCode } from "@/lib/auth/portals";
 import { HostSideTools } from "@/components/host/HostSideTools";
 import { PhoneVerifyBanner } from "@/components/host/PhoneVerifyBanner";
+import { PhoneVerifyGate } from "@/components/host/PhoneVerifyGate";
 import { useHostBoard } from "@/lib/host/api";
 import { useInspectionBoard } from "@/lib/inspection/api";
 import { boardBadge } from "@/lib/inspection/logic";
@@ -74,6 +75,7 @@ export function HostShell({ children }: { children: React.ReactNode }) {
       nav={nav}
     >
       <PhoneVerifyBanner />
+      <PhoneVerifyGate />
       {children}
     </PortalShell>
   );

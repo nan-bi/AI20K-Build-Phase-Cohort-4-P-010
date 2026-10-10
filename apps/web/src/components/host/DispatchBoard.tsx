@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { toast } from "@/components/ui/Toast";
 import { UnitPhoto } from "@/components/landlord/UnitPhoto";
+import { requestPhoneVerify } from "./PhoneVerifyGate";
 import { STATUS_META } from "@/components/booking/status";
 import { useSession } from "@/lib/auth/client";
 import { hostApi, refreshHost, useHostBoard, viewingKey } from "@/lib/host/api";
@@ -66,6 +67,10 @@ export function DispatchBoard() {
     setBusy(key);
     const res = await run();
     setBusy(null);
+    if (res.code === "phone_not_verified") {
+      requestPhoneVerify(() => void act(key, run, okText));
+      return;
+    }
     if (res.ok) {
       toast(okText, "success");
     } else {

@@ -1,13 +1,13 @@
 "use client";
 
+import { PhoneVerifyCard } from "@/components/host/PhoneVerifyCard";
 import { KeyValue } from "@/components/ui/KeyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtDate } from "@/lib/format";
 import { queries } from "@/lib/landlord/queries";
 import { unitLabel } from "@/lib/landlord/labels";
-import { useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
+import { invalidateLandlordData, useLandlordQuery } from "@/lib/landlord/useLandlordQuery";
 import { QueryView } from "./QueryView";
 import styles from "./Landlord.module.css";
 
@@ -25,17 +25,6 @@ export function LandlordAccount() {
             <KeyValue
               items={[
                 { label: "Họ tên", value: p.fullName ?? "—" },
-                {
-                  label: "Số điện thoại",
-                  value: p.isPhoneVerified ? (
-                    <StatusBadge tone="ok">Đã xác thực, mã hoá</StatusBadge>
-                  ) : (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      <StatusBadge tone="warn">Chưa xác thực</StatusBadge>
-                      <span className="muted small">Bạn xác thực khi ký ủy quyền căn đầu tiên.</span>
-                    </span>
-                  ),
-                },
                 { label: "Email", value: p.email ?? "—" },
                 { label: "Tham gia từ", value: fmtDate(p.createdAt) },
               ]}
@@ -43,6 +32,16 @@ export function LandlordAccount() {
           )}
         </QueryView>
       </Section>
+
+      <QueryView query={profile} skeleton="form">
+        {(p) => (
+          <PhoneVerifyCard
+            me={p}
+            description="Cần xác thực một lần để ký ủy quyền ký gửi căn hộ. Số được lưu mã hoá."
+            onVerified={() => { invalidateLandlordData(); profile.reload(); }}
+          />
+        )}
+      </QueryView>
 
       <Section title="Hợp đồng uỷ quyền" description="Hợp đồng ký gửi độc quyền đã ký cho từng căn." flush>
         <QueryView query={units}>

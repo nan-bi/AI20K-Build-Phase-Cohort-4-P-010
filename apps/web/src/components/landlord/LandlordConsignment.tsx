@@ -96,7 +96,7 @@ function ConsignmentBody({ c, onReload }: { c: Consignment; onReload: () => void
           <div>
             <b style={{ color: "var(--ink)" }}>Hồ sơ chưa hoàn tất ký ủy quyền</b>
             <p style={{ margin: "var(--s-1) 0 0", color: "var(--ink-2)", fontSize: "var(--fs-13)" }}>
-              Vui lòng ký ủy quyền qua Zalo OTP để Field Host nhận ticket đi thẩm định thực tế.
+              Ký ủy quyền để Field Host nhận ca đi thẩm định thực tế.
             </p>
           </div>
           <Link href={`/landlord/consign?draft=${c.id}`} className="btn btn-amber btn-sm">

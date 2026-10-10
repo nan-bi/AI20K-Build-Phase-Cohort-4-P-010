@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DevOtpHint } from "@/components/ui/DevOtpHint";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "@/components/ui/Toast";
@@ -10,10 +11,18 @@ import { errorText } from "@/lib/tenant/api";
 import styles from "./Host.module.css";
 
 /**
- * Field Host tự xác thực SĐT bằng OTP Zalo (Admin không nhập SĐT hộ). Dùng API có sẵn:
- * `POST /auth/otp/send` (PHONE_VERIFY) → `POST /auth/phone/verify`.
+ * Field Host / Chủ nhà tự xác thực SĐT bằng OTP Zalo (Admin không nhập SĐT hộ). Dùng API có sẵn:
+ * `POST /auth/phone/send-otp` (báo trùng số ngay, chưa gửi mã) → `POST /auth/phone/verify`.
  */
-export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: () => void }) {
+export function PhoneVerifyCard({
+  me,
+  onVerified,
+  description = "Dùng để nhận nhắc hẹn T-10 phút, thông báo ca xem và OTP Zalo. Cần xác thực để nhận ca.",
+}: {
+  me: Pick<HostMe, "isPhoneVerified" | "phone">;
+  onVerified: () => void;
+  description?: string;
+}) {
   const [editing, setEditing] = useState(!me.isPhoneVerified);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -54,7 +63,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
   return (
     <Section
       title="Số điện thoại"
-      description="Dùng để nhận nhắc hẹn T-10 phút, thông báo ca xem và OTP Zalo."
+      description={description}
       actions={<StatusBadge tone={verified ? "ok" : "warn"}>{verified ? "Đã xác thực" : "Chưa xác thực"}</StatusBadge>}
     >
       {verified && !editing ? (
@@ -94,11 +103,7 @@ export function PhoneVerifyCard({ me, onVerified }: { me: HostMe; onVerified: ()
                     Đổi số / gửi lại
                   </button>
                 </p>
-                {devCode && (
-                  <p className="text-sm">
-                    Chế độ demo: chưa có nhà cung cấp OTP nên mã là <b className="tnum">{devCode}</b>.
-                  </p>
-                )}
+                <DevOtpHint code={devCode} onFill={setCode} />
                 <label className="field">
                   Mã 4 số
                   <input
